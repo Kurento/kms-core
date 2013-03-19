@@ -8,7 +8,7 @@ autoreconf --verbose --force --install --make || {
  exit 1;
 }
 
-./configure || {
+./configure $@ || {
  echo 'configure failed';
  exit 1;
 }
