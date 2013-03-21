@@ -9,12 +9,28 @@ from gi.repository import GLib
 
 loop = GLib.MainLoop()
 
-def connect_videotest(pipe):
-  videosink = pipe.get_by_name("videosink")
+def connect_videosink(pipe):
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "videosink0")
+  videosink = Gst.ElementFactory.make("xvimagesink", None)
+  videosink.set_state(Gst.State.PLAYING)
+  pipe.add(videosink)
   agnostic = pipe.get_by_name("agnostic")
 
   agnostic.link(videosink)
 
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "videosink1")
+  return False
+
+def connect_audiosink(pipe):
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "audiosink0")
+  audiosink = Gst.ElementFactory.make("autoaudiosink", None)
+  audiosink.set_state(Gst.State.PLAYING)
+  pipe.add(audiosink)
+  agnostic = pipe.get_by_name("agnostic")
+
+  agnostic.link(audiosink)
+
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "audiosink1")
   return False
 
 def main(argv):
@@ -24,21 +40,21 @@ def main(argv):
 
   videotest = Gst.ElementFactory.make("videotestsrc", None)
   agnostic = Gst.ElementFactory.make("agnosticbin", "agnostic")
-  videosink = Gst.ElementFactory.make("autovideosink", "videosink")
-  fakesink = Gst.ElementFactory.make("fakesink", None)
+  videosink = Gst.ElementFactory.make("xvimagesink", None)
 
-  fakesink.set_property("sync", True);
+  videotest.set_property("pattern", "ball")
 
   pipe.add(videotest)
   pipe.add(agnostic)
   pipe.add(videosink)
-  pipe.add(fakesink)
 
   videotest.link(agnostic)
-  agnostic.link(fakesink);
+  agnostic.link(videosink)
   pipe.set_state(Gst.State.PLAYING)
 
-  GLib.timeout_add_seconds(5, connect_videotest, pipe)
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "playing")
+  GLib.timeout_add_seconds(3, connect_videosink, pipe)
+  GLib.timeout_add_seconds(5, connect_audiosink, pipe)
 
   try:
     loop.run()
