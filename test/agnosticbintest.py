@@ -13,7 +13,9 @@ def disconnect_videosink(pipe, name):
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL,
       "removevideosink0")
   videosink = pipe.get_by_name(name)
-  pipe.remove(videosink);
+  agnostic = pipe.get_by_name("agnostic")
+  agnostic.unlink(videosink)
+  pipe.remove(videosink)
   videosink.set_state(Gst.State.NULL);
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL,
       "removevideosink1")
