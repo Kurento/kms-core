@@ -53,18 +53,27 @@ def main(argv):
   pipe = Gst.Pipeline()
 
   videotest = Gst.ElementFactory.make("videotestsrc", None)
+  encoder = Gst.ElementFactory.make("vp8enc", None)
   agnostic = Gst.ElementFactory.make("agnosticbin", "agnostic")
+  decoder = Gst.ElementFactory.make("vp8dec", None)
+  videosink2 = Gst.ElementFactory.make("xvimagesink", "videosink2")
   videosink = Gst.ElementFactory.make("xvimagesink", "videosink0")
 
   videotest.set_property("pattern", "ball")
   videotest.set_property("is-live", True)
 
   pipe.add(videotest)
+  pipe.add(encoder)
   pipe.add(agnostic)
   pipe.add(videosink)
+  pipe.add(decoder)
+  pipe.add(videosink2)
 
-  videotest.link(agnostic)
+  videotest.link(encoder)
+  encoder.link(agnostic)
   agnostic.link(videosink)
+  agnostic.link(decoder)
+  decoder.link(videosink2)
   pipe.set_state(Gst.State.PLAYING)
 
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "playing")
