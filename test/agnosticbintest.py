@@ -9,14 +9,39 @@ from gi.repository import GLib
 
 loop = GLib.MainLoop()
 
+def bus_callback(bus, message, not_used):
+  t = message.type
+  if t == Gst.MessageType.EOS:
+    sys.stout.write("End-of-stream\n")
+    loop.quit()
+  elif t == Gst.MessageType.ERROR:
+    err, debug = message.parse_error()
+    sys.stderr.write("Error: %s: %s\n" % (err, debug))
+    element = message.src
+    if element.get_factory().get_name() == "xvimagesink":
+      pipe = element.get_parent()
+      if pipe != None:
+        if element.get_name() == "videosink2":
+          deco = pipe.get_by_name("decoder")
+          if deco != None:
+            pipe.remove(deco)
+            deco.set_state(Gst.State.NULL)
+        pipe.remove(element)
+        element.set_state(Gst.State.NULL)
+    #loop.quit()
+  return True
+
 def disconnect_videosink(pipe, name):
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL,
       "removevideosink0")
   videosink = pipe.get_by_name(name)
+  if videosink == None:
+    return
+
   agnostic = pipe.get_by_name("agnostic")
   agnostic.unlink(videosink)
   pipe.remove(videosink)
-  videosink.set_state(Gst.State.NULL);
+  videosink.set_state(Gst.State.NULL)
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL,
       "removevideosink1")
   return False
@@ -51,11 +76,13 @@ def main(argv):
   Gst.init(argv)
 
   pipe = Gst.Pipeline()
+  bus = pipe.get_bus()
+  bus.add_watch(GLib.PRIORITY_DEFAULT, bus_callback, None)
 
   videotest = Gst.ElementFactory.make("videotestsrc", None)
   encoder = Gst.ElementFactory.make("vp8enc", None)
   agnostic = Gst.ElementFactory.make("agnosticbin", "agnostic")
-  decoder = Gst.ElementFactory.make("vp8dec", None)
+  decoder = Gst.ElementFactory.make("vp8dec", "decoder")
   videosink2 = Gst.ElementFactory.make("xvimagesink", "videosink2")
   videosink = Gst.ElementFactory.make("xvimagesink", "videosink0")
 
