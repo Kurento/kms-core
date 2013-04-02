@@ -9,6 +9,24 @@ from gi.repository import GLib
 
 loop = GLib.MainLoop()
 
+def release_videosink (videosink):
+  pipe = videosink.get_parent()
+  if pipe == None:
+    return
+
+  sink_pad = videosink.get_static_pad ("sink")
+  peer = sink_pad.get_peer()
+
+  if peer != None:
+    peer_element = peer.get_parent_element()
+    if peer_element != None and \
+      peer_element.get_factory().get_name() != "agnosticbin":
+        pipe.remove(peer_element)
+        peer_element.set_state(Gst.State.NULL)
+
+  pipe.remove(videosink)
+  videosink.set_state(Gst.State.NULL)
+
 def bus_callback(bus, message, not_used):
   t = message.type
   if t == Gst.MessageType.EOS:
@@ -19,16 +37,8 @@ def bus_callback(bus, message, not_used):
     sys.stderr.write("Error: %s: %s\n" % (err, debug))
     element = message.src
     if element.get_factory().get_name() == "xvimagesink":
-      pipe = element.get_parent()
-      if pipe != None:
-        if element.get_name() == "videosink2":
-          deco = pipe.get_by_name("decoder")
-          if deco != None:
-            pipe.remove(deco)
-            deco.set_state(Gst.State.NULL)
-        pipe.remove(element)
-        element.set_state(Gst.State.NULL)
-    #loop.quit()
+      release_videosink (element)
+
   return True
 
 def disconnect_videosink(pipe, name):
@@ -98,8 +108,8 @@ def main(argv):
   videotest = Gst.ElementFactory.make("videotestsrc", None)
   encoder = Gst.ElementFactory.make("vp8enc", None)
   agnostic = Gst.ElementFactory.make("agnosticbin", "agnostic")
-  decoder = Gst.ElementFactory.make("vp8dec", "decoder")
-  videosink2 = Gst.ElementFactory.make("xvimagesink", "videosink2")
+  decoder = Gst.ElementFactory.make("vp8dec", None)
+  videosink2 = Gst.ElementFactory.make("xvimagesink", None)
   videosink = Gst.ElementFactory.make("xvimagesink", "videosink0")
 
   videotest.set_property("pattern", "ball")
