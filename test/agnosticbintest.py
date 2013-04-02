@@ -60,6 +60,22 @@ def connect_videosink(pipe, name, timeout):
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "videosink1")
   return False
 
+def connect_enc_videosink(pipe):
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "encvideosink0")
+  encoder = Gst.ElementFactory.make("theoradec", None)
+  videosink = Gst.ElementFactory.make("xvimagesink", None)
+  videosink.set_state(Gst.State.PLAYING)
+  encoder.set_state(Gst.State.PLAYING)
+  pipe.add(videosink)
+  pipe.add(encoder)
+  agnostic = pipe.get_by_name("agnostic")
+
+  encoder.link(videosink)
+  agnostic.link(encoder)
+
+  Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "encvideosink1")
+  return False
+
 def connect_audiosink(pipe):
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "audiosink0")
   audiosink = Gst.ElementFactory.make("autoaudiosink", None)
@@ -105,6 +121,7 @@ def main(argv):
 
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL, "playing")
   GLib.timeout_add_seconds(2, connect_videosink, pipe, "videosink1", 4)
+  GLib.timeout_add_seconds(2, connect_enc_videosink, pipe)
   GLib.timeout_add_seconds(4, connect_audiosink, pipe)
   GLib.timeout_add_seconds(10, disconnect_videosink, pipe, "videosink0")
   GLib.timeout_add_seconds(16, connect_videosink, pipe, "videosink3", 0)
