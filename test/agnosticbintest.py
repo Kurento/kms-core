@@ -9,7 +9,7 @@ from gi.repository import GLib
 
 loop = GLib.MainLoop()
 
-def release_videosink (videosink):
+def remove_element (videosink):
   pipe = videosink.get_parent()
   if pipe == None:
     return
@@ -19,10 +19,12 @@ def release_videosink (videosink):
 
   if peer != None:
     peer_element = peer.get_parent_element()
-    if peer_element != None and \
-      peer_element.get_factory().get_name() != "agnosticbin":
-        pipe.remove(peer_element)
-        peer_element.set_state(Gst.State.NULL)
+    if peer_element != None:
+      if peer_element.get_factory().get_name() != "agnosticbin":
+        remove_element(peer_element)
+      else:
+        print ("releasing pad: " + str(peer))
+        peer_element.release_request_pad (peer)
 
   pipe.remove(videosink)
   videosink.set_state(Gst.State.NULL)
@@ -37,7 +39,7 @@ def bus_callback(bus, message, not_used):
     sys.stderr.write("Error: %s: %s\n" % (err, debug))
     element = message.src
     if element.get_factory().get_name() == "xvimagesink":
-      release_videosink (element)
+      remove_element (element)
 
   return True
 
@@ -48,10 +50,7 @@ def disconnect_videosink(pipe, name):
   if videosink == None:
     return
 
-  agnostic = pipe.get_by_name("agnostic")
-  agnostic.unlink(videosink)
-  pipe.remove(videosink)
-  videosink.set_state(Gst.State.NULL)
+  remove_element(videosink)
   Gst.debug_bin_to_dot_file_with_ts(pipe, Gst.DebugGraphDetails.ALL,
       "removevideosink1")
   return False
