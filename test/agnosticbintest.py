@@ -125,6 +125,7 @@ def main(argv):
   GLib.timeout_add_seconds(4, connect_audiosink, pipe)
   GLib.timeout_add_seconds(10, disconnect_videosink, pipe, "videosink0")
   GLib.timeout_add_seconds(16, connect_videosink, pipe, "videosink3", 0)
+  GLib.timeout_add_seconds(18, connect_enc_videosink, pipe)
 
   try:
     loop.run()
