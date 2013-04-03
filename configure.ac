@@ -57,6 +57,16 @@ PKG_CHECK_MODULES(GST, [
   ])
 ])
 
+PKG_CHECK_MODULES(GST_CHECK, [
+  gstreamer-check-1.0 >= $GST_REQUIRED
+], [
+  HAVE_GST_CHECK="yes"
+], [
+  HAVE_GST_CHECK="no"
+  AC_MSG_NOTICE([no gstreamer-check-1.0 >= $GST_REQUIRED (GStreamer Check unittest Library) found])
+])
+AM_CONDITIONAL(HAVE_GST_CHECK, test "x$HAVE_GST_CHECK" = "xyes")
+
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])
 save_CFLAGS="$CFLAGS"
@@ -80,6 +90,6 @@ dnl set proper LDFLAGS for plugins
 GST_PLUGIN_LDFLAGS='-module -avoid-version -export-symbols-regex [_]*\(gst_\|Gst\|GST_\).*'
 AC_SUBST(GST_PLUGIN_LDFLAGS)
 
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile tests/check/Makefile])
 AC_OUTPUT
 
