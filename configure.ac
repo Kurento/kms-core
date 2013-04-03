@@ -2,7 +2,7 @@ dnl required version of autoconf
 AC_PREREQ([2.53])
 
 dnl TODO: fill in your package name and package version here
-AC_INIT([gst-kurento-plugin],[1.0.5])
+AC_INIT([gst-kurento-plugins],[1.0.5])
 
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.5
@@ -47,8 +47,6 @@ PKG_CHECK_MODULES(GST, [
   gstreamer-base-1.0 >= $GST_REQUIRED
   gstreamer-controller-1.0 >= $GST_REQUIRED
 ], [
-  AC_SUBST(GST_CFLAGS)
-  AC_SUBST(GST_LIBS)
 ], [
   AC_MSG_ERROR([
       You need to install or upgrade the GStreamer development
