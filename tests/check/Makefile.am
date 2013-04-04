@@ -26,7 +26,13 @@ $(CHECK_REGISTRY):
 TESTS =	$(check_PROGRAMS)
 
 check_PROGRAMS =						\
-	general/dummytest
+	general/dummytest					\
+	general/sdp
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 general_dummytest_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+general_sdp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+		-I$(top_srcdir)/src
+general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/src/libgstkurento_la-sdp_utils.lo
