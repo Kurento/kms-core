@@ -25,3 +25,8 @@ Makefile
 .project
 *.anjuta*
 *.swp
+*kdev4
+*.log
+*.trs
+*.o
+*.reg
