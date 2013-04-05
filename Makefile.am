@@ -7,5 +7,3 @@ DIST_SUBDIRS =				\
 		tests
 
 EXTRA_DIST = autogen.sh
-
-check: check-exports
