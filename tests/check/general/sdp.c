@@ -26,13 +26,14 @@ static gchar *offer_sdp = "v=0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 127.0.0.1\r\n"
     "t=0 0\r\n"
-    "m=video 3434 RTP/AVP 96 97\r\n"
+    "m=video 3434 RTP/AVP 96 97 99\r\n"
     "a=rtpmap:96 MP4V-ES/90000\r\n"
     "a=rtpmap:97 H263-1998/90000\r\n"
+    "a=rtpmap:99 H263/90000\r\n"
     "a=sendrecv\r\n"
     "m=video 6565 RTP/AVP 98\r\n"
     "a=rtpmap:98 VP8/90000\r\n"
-    "a=sendrecv\r\n" "m=audio 4545 RTP/AVP 14\r\n" "a=recvonly\r\n"
+    "a=sendrecv\r\n" "m=audio 4545 RTP/AVP 14\r\n" "a=sendrecv\r\n"
     "m=audio 1010 TCP 14\r\n";
 
 static gchar *answer_sdp = "v=0\r\n"
@@ -40,35 +41,42 @@ static gchar *answer_sdp = "v=0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 127.0.0.1\r\n"
     "t=0 0\r\n"
-    "m=video 5656 RTP/AVP 96\r\n"
+    "m=video 5656 RTP/AVP 96 34\r\n"
     "a=rtpmap:96 MP4V-ES/90000\r\n"
-    "a=sendrecv\r\n" "m=audio 6767 RTP/AVP 14\r\n" "a=sendonly\r\n";
+    "a=sendrecv\r\n"
+    "m=audio 6767 RTP/AVP 14\r\n" "a=rtpmap:14 MPA/90000\r\n" "a=sendonly\r\n";
 
 static gchar *spected_offer = "v=0\r\n"
     "o=- 123456 0 IN IP4 127.0.0.1\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 127.0.0.1\r\n"
     "t=0 0\r\n"
-    "m=video 3434 RTP/AVP 96\r\n"
+    "m=video 3434 RTP/AVP 96 99\r\n"
     "a=rtpmap:96 MP4V-ES/90000\r\n"
+    "a=rtpmap:99 H263/90000\r\n"
     "a=sendrecv\r\n"
     "m=video 0 RTP/AVP 98\r\n"
     "a=rtpmap:98 VP8/90000\r\n"
-    "a=inactive\r\n" "m=audio 4545 RTP/AVP 14\r\n" "a=recvonly\r\n"
-    "m=audio 0 TCP 14\r\n" "a=inactive\r\n";
+    "a=inactive\r\n" "m=audio 4545 RTP/AVP 14\r\n"
+    "a=rtpmap:14 MPA/90000\r\n"
+    "a=recvonly\r\n" "m=audio 0 TCP 14\r\n" "a=rtpmap:14 MPA/90000\r\n"
+    "a=inactive\r\n";
 
 static gchar *spected_answer = "v=0\r\n"
     "o=- 123456 0 IN IP4 127.0.0.1\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 127.0.0.1\r\n"
     "t=0 0\r\n"
-    "m=video 5656 RTP/AVP 96\r\n"
+    "m=video 5656 RTP/AVP 96 99\r\n"
     "a=rtpmap:96 MP4V-ES/90000\r\n"
+    "a=rtpmap:99 H263/90000\r\n"
     "a=sendrecv\r\n"
     "m=video 0 RTP/AVP 98\r\n"
     "a=rtpmap:98 VP8/90000\r\n"
-    "a=inactive\r\n" "m=audio 6767 RTP/AVP 14\r\n" "a=sendonly\r\n"
-    "m=audio 0 TCP 14\r\n" "a=inactive\r\n";
+    "a=inactive\r\n" "m=audio 6767 RTP/AVP 14\r\n"
+    "a=rtpmap:14 MPA/90000\r\n"
+    "a=sendonly\r\n" "m=audio 0 TCP 14\r\n"
+    "a=rtpmap:14 MPA/90000\r\n" "a=inactive\r\n";
 
 GST_START_TEST (intersect)
 {
