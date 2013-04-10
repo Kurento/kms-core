@@ -7,6 +7,7 @@ AC_INIT([gst-kurento-plugins],[1.0.5])
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.5
 GSTPB_REQUIRED=1.0.5
+GIO_REQUIRED=2.34
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -60,6 +61,16 @@ PKG_CHECK_MODULES(GST, [
       libgstreamer1.0-dev and libgstreamer-plugins-base1.0-dev.
       on RPM-based systems gstreamer1.0-devel, libgstreamer1.0-devel
       or similar. The minimum version required is $GST_REQUIRED.
+  ])
+])
+
+PKG_CHECK_MODULES(GIO, [
+  gio-2.0 >= $GIO_REQUIRED
+], [
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade the Gio development
+      packages on your system to version $GIO_REQUIRED.
   ])
 ])
 
