@@ -7,7 +7,7 @@ AC_INIT([gst-kurento-plugins],[1.0.5])
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.5
 GSTPB_REQUIRED=1.0.5
-GIO_REQUIRED=2.34
+GLIB_REQ=2.34
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -28,6 +28,10 @@ AM_PROG_CC_C_O
 dnl required version of libtool
 LT_PREREQ([2.2.6])
 LT_INIT
+
+AC_SUBST(ACLOCAL_AMFLAGS, "-I m4")
+
+AG_GST_GLIB_CHECK([$GLIB_REQ])
 
 dnl give error and exit if we don't have pkgconfig
 AC_CHECK_PROG(HAVE_PKGCONFIG, pkg-config, [ ], [
@@ -65,7 +69,7 @@ PKG_CHECK_MODULES(GST, [
 ])
 
 PKG_CHECK_MODULES(GIO, [
-  gio-2.0 >= $GIO_REQUIRED
+  gio-2.0 >= $GLIB_REQUIRED
 ], [
 ], [
   AC_MSG_ERROR([
@@ -109,4 +113,3 @@ AC_SUBST(GST_PLUGIN_LDFLAGS)
 
 AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile tests/check/Makefile])
 AC_OUTPUT
-
