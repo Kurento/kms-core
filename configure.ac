@@ -8,6 +8,7 @@ dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.5
 GSTPB_REQUIRED=1.0.5
 GLIB_REQ=2.34
+NICE_REQUIRED=0.1.2
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -75,6 +76,16 @@ PKG_CHECK_MODULES(GIO, [
   AC_MSG_ERROR([
       You need to install or upgrade the Gio development
       packages on your system to version $GIO_REQUIRED.
+  ])
+])
+
+PKG_CHECK_MODULES(NICE, [
+  nice >= $NICE_REQUIRED
+], [
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade the nice development
+      packages on your system to version $NICE_REQUIRED.
   ])
 ])
 
