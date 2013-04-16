@@ -51,33 +51,87 @@ static const gchar *pattern_sdp_str = "v=0\r\n"
     "a=rtpmap:96 VP8/90000\r\n"
     "m=audio 0 RTP/AVP 97\r\n" "a=rtpmap:97 OPUS/48000/1\r\n";
 
+static gboolean
+loop_timeout (gpointer data)
+{
+  GMainLoop *loop = (GMainLoop *) data;
+
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+static void
+bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
+{
+
+  switch (msg->type) {
+    case GST_MESSAGE_ERROR:{
+      GST_ERROR ("Error: %P", msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, "error");
+      fail ("Error received on bus");
+      break;
+    }
+    case GST_MESSAGE_WARNING:{
+      GST_WARNING ("Warning: %P", msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, "warning");
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 GST_START_TEST (loopback)
 {
-  GstSDPMessage *pattern_sdp, *offer;
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstSDPMessage *pattern_sdp, *offer, *answer;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
-  GstElement *udpstream = gst_element_factory_make ("udpstream", NULL);
+  GstElement *udpstreamsender = gst_element_factory_make ("udpstream", NULL);
+  GstElement *udpstreamreceiver = gst_element_factory_make ("udpstream", NULL);
   GstElement *autovideosink = gst_element_factory_make ("autovideosink", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
 
   fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
           pattern_sdp_str, -1, pattern_sdp) == GST_SDP_OK);
 
-  g_object_set (udpstream, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (udpstreamsender, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (udpstreamreceiver, "pattern-sdp", pattern_sdp, NULL);
   fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
 
-  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, udpstream,
-      autovideosink, NULL);
-  gst_element_link (videotestsrc, agnosticbin);
-  gst_element_link_pads (agnosticbin, NULL, udpstream, "video_sink");
-  gst_element_link (udpstream, autovideosink);
+  gst_bin_add_many (GST_BIN (pipeline), agnosticbin,
+      udpstreamsender, udpstreamreceiver, autovideosink, NULL);
+
+  gst_element_link_pads (agnosticbin, NULL, udpstreamsender, "video_sink");
+  gst_element_link (udpstreamreceiver, autovideosink);
+
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  g_signal_emit_by_name (udpstream, "generate-offer", &offer);
+  g_signal_emit_by_name (udpstreamsender, "generate-offer", &offer);
   fail_unless (offer != NULL);
-  g_signal_emit_by_name (udpstream, "process-answer", offer);
+
+  g_signal_emit_by_name (udpstreamreceiver, "process-offer", offer, &answer);
+  fail_unless (answer != NULL);
+
+  g_signal_emit_by_name (udpstreamsender, "process-answer", answer);
   gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  gst_bin_add (GST_BIN (pipeline), videotestsrc);
+  gst_element_link (videotestsrc, agnosticbin);
+  gst_element_set_state (videotestsrc, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (15, loop_timeout, loop);
+  g_main_loop_run (loop);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
