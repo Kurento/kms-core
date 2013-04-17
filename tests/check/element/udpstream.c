@@ -42,6 +42,51 @@ static const gchar *pattern_answer_sdp_str = "v=0\r\n"
     "a=rtpmap:99 VP8/90000\r\n"
     "m=audio 0 RTP/AVP 100\r\n" "a=rtpmap:100 OPUS/48000/1\r\n";
 
+static const gchar *pattern_sdp_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n"
+    "a=rtpmap:96 VP8/90000\r\n"
+    "m=audio 0 RTP/AVP 97\r\n" "a=rtpmap:97 OPUS/48000/1\r\n";
+
+GST_START_TEST (loopback)
+{
+  GstSDPMessage *pattern_sdp, *offer;
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *udpstream = gst_element_factory_make ("udpstream", NULL);
+  GstElement *autovideosink = gst_element_factory_make ("autovideosink", NULL);
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_str, -1, pattern_sdp) == GST_SDP_OK);
+
+  g_object_set (udpstream, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, udpstream,
+      autovideosink, NULL);
+  gst_element_link (videotestsrc, agnosticbin);
+  gst_element_link_pads (agnosticbin, NULL, udpstream, "video_sink");
+  gst_element_link (udpstream, autovideosink);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_signal_emit_by_name (udpstream, "generate-offer", &offer);
+  fail_unless (offer != NULL);
+  g_signal_emit_by_name (udpstream, "process-answer", offer);
+  gst_sdp_message_free (offer);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+}
+
+GST_END_TEST
 GST_START_TEST (negotiation_offerer)
 {
   GstSDPMessage *pattern_sdp;
@@ -140,6 +185,7 @@ sdp_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, negotiation_offerer);
+  tcase_add_test (tc_chain, loopback);
 
   return s;
 }
