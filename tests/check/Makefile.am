@@ -1,14 +1,3 @@
-# run any given test by running make test.check
-# if the test fails, run it again at at least debug level 2
-%.check: %
-	@$(TESTS_ENVIRONMENT)					\
-	CK_DEFAULT_TIMEOUT=20					\
-	$* ||							\
-	$(TESTS_ENVIRONMENT)					\
-	GST_DEBUG=$$GST_DEBUG,*:3				\
-	CK_DEFAULT_TIMEOUT=20					\
-	$*
-
 CHECK_REGISTRY = $(top_builddir)/tests/check/test-registry.reg
 
 REGISTRY_ENVIRONMENT =						\
@@ -16,8 +5,17 @@ REGISTRY_ENVIRONMENT =						\
 	GST_PLUGIN_PATH=$(top_builddir)/src:$(GST_PLUGINS_DIR)
 
 TESTS_ENVIRONMENT =						\
-	CK_DEFAULT_TIMEOUT=30					\
+	CK_DEFAULT_TIMEOUT=60					\
 	$(REGISTRY_ENVIRONMENT)
+
+# run any given test by running make test.check
+# if the test fails, run it again at at least debug level 2
+%.check: %
+	@$(TESTS_ENVIRONMENT)					\
+	$* ||							\
+	$(TESTS_ENVIRONMENT)					\
+	GST_DEBUG=*:3,$$GST_DEBUG				\
+	$*
 
 CLEANFILES = core.* test-registry.*
 
