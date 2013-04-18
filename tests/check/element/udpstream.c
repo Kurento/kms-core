@@ -51,15 +51,6 @@ static const gchar *pattern_sdp_str = "v=0\r\n"
     "a=rtpmap:96 VP8/90000\r\n"
     "m=audio 0 RTP/AVP 97\r\n" "a=rtpmap:97 OPUS/48000/1\r\n";
 
-static gboolean
-loop_timeout (gpointer data)
-{
-  GMainLoop *loop = (GMainLoop *) data;
-
-  g_main_loop_quit (loop);
-  return FALSE;
-}
-
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -78,8 +69,43 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
+    case GST_MESSAGE_STATE_CHANGED:
+    {
+      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin")) {
+        GST_INFO ("Event: %P", msg);
+      }
+    }
+      break;
     default:
       break;
+  }
+}
+
+static void
+sync_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  static int count = 0;
+
+  GMainLoop *loop = (GMainLoop *) data;
+
+  if (count == 0) {
+    count++;
+    g_main_loop_quit (loop);
+  }
+}
+
+static void
+fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  static int count = 0;
+  GMainLoop *loop = (GMainLoop *) data;
+
+  count++;
+  GST_DEBUG ("count: %d", count);
+  if (count > 90) {
+    g_main_loop_quit (loop);
   }
 }
 
@@ -89,10 +115,11 @@ GST_START_TEST (loopback)
   GstSDPMessage *pattern_sdp, *offer, *answer;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *udpstreamsender = gst_element_factory_make ("udpstream", NULL);
   GstElement *udpstreamreceiver = gst_element_factory_make ("udpstream", NULL);
-  GstElement *autovideosink = gst_element_factory_make ("autovideosink", NULL);
+  GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
@@ -108,30 +135,50 @@ GST_START_TEST (loopback)
   g_object_set (udpstreamreceiver, "pattern-sdp", pattern_sdp, NULL);
   fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
 
-  gst_bin_add_many (GST_BIN (pipeline), agnosticbin,
-      udpstreamsender, udpstreamreceiver, autovideosink, NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (sync_fakesink_hand_off), loop);
 
-  gst_element_link_pads (agnosticbin, NULL, udpstreamsender, "video_sink");
-  gst_element_link (udpstreamreceiver, autovideosink);
+  g_object_set (G_OBJECT (outputfakesink), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (G_OBJECT (outputfakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
 
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
+      NULL);
+  gst_element_link_many (videotestsrc, agnosticbin, fakesink, NULL);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_bin_add_many (GST_BIN (pipeline), udpstreamreceiver, outputfakesink,
+      udpstreamsender, NULL);
+  gst_element_link_pads (udpstreamreceiver, "video_src_%u", outputfakesink,
+      "sink");
+  gst_element_link_pads (agnosticbin, NULL, udpstreamsender, "video_sink");
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
   g_signal_emit_by_name (udpstreamsender, "generate-offer", &offer);
   fail_unless (offer != NULL);
 
+  mark_point ();
   g_signal_emit_by_name (udpstreamreceiver, "process-offer", offer, &answer);
   fail_unless (answer != NULL);
 
+  mark_point ();
   g_signal_emit_by_name (udpstreamsender, "process-answer", answer);
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 
-  gst_bin_add (GST_BIN (pipeline), videotestsrc);
-  gst_element_link (videotestsrc, agnosticbin);
-  gst_element_set_state (videotestsrc, GST_STATE_PLAYING);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
 
-  g_timeout_add_seconds (15, loop_timeout, loop);
+  mark_point ();
   g_main_loop_run (loop);
+  mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
