@@ -38,3 +38,5 @@ ltversion.m4
 lt~obsolete.m4
 gstkurento-marshal.c
 gstkurento-marshal.h
+.directory
+*.tmp
