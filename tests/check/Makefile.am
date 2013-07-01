@@ -27,7 +27,8 @@ TESTS =	$(check_PROGRAMS)
 check_PROGRAMS =						\
 	element/udpstream					\
 	general/dummytest					\
-	general/sdp
+	general/sdp						\
+	element/automuxerbin
 
 element_udpstream_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_udpstream_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -39,3 +40,6 @@ general_sdp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
 general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/src/libgstkurento_la-sdp_utils.lo
+
+element_automuxerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
