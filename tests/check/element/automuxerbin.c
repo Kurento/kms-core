@@ -137,7 +137,7 @@ GST_START_TEST (videoraw)
   /* Manually link the automuxer, which has "Request" pads */
   automuxer_sink_pad_template_audio =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (automuxerbin),
-      "audio_sink_%u");
+      "audio_%u");
   automuxer_audiosink_pad =
       gst_element_request_pad (automuxerbin, automuxer_sink_pad_template_audio,
       NULL, NULL);
@@ -147,7 +147,7 @@ GST_START_TEST (videoraw)
 
   automuxer_sink_pad_template_video =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (automuxerbin),
-      "video_sink_%u");
+      "video_%u");
   automuxer_videosink_pad =
       gst_element_request_pad (automuxerbin, automuxer_sink_pad_template_video,
       NULL, NULL);
