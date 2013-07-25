@@ -1,5 +1,5 @@
 /*
- * udpstream.c - gst-kurento-plugins
+ * rtpendpoint.c - gst-kurento-plugins
  *
  * Copyright (C) 2013 Kurento
  * Contact: José Antonio Santos Cadenas <santoscadenas@kurento.com>
@@ -118,8 +118,8 @@ GST_START_TEST (loopback)
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
-  GstElement *udpstreamsender = gst_element_factory_make ("udpstream", NULL);
-  GstElement *udpstreamreceiver = gst_element_factory_make ("udpstream", NULL);
+  GstElement *rtpendpointsender = gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *rtpendpointreceiver = gst_element_factory_make ("rtpendpoint", NULL);
   GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
@@ -132,8 +132,8 @@ GST_START_TEST (loopback)
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
           pattern_sdp_str, -1, pattern_sdp) == GST_SDP_OK);
 
-  g_object_set (udpstreamsender, "pattern-sdp", pattern_sdp, NULL);
-  g_object_set (udpstreamreceiver, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (rtpendpointsender, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (rtpendpointreceiver, "pattern-sdp", pattern_sdp, NULL);
   fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
 
   g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
@@ -154,23 +154,23 @@ GST_START_TEST (loopback)
   g_main_loop_run (loop);
   mark_point ();
 
-  gst_bin_add_many (GST_BIN (pipeline), udpstreamreceiver, outputfakesink,
-      udpstreamsender, NULL);
-  gst_element_link_pads (udpstreamreceiver, "video_src_%u", outputfakesink,
+  gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, outputfakesink,
+      rtpendpointsender, NULL);
+  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
       "sink");
-  gst_element_link_pads (agnosticbin, NULL, udpstreamsender, "video_sink");
+  gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   mark_point ();
-  g_signal_emit_by_name (udpstreamsender, "generate-offer", &offer);
+  g_signal_emit_by_name (rtpendpointsender, "generate-offer", &offer);
   fail_unless (offer != NULL);
 
   mark_point ();
-  g_signal_emit_by_name (udpstreamreceiver, "process-offer", offer, &answer);
+  g_signal_emit_by_name (rtpendpointreceiver, "process-offer", offer, &answer);
   fail_unless (answer != NULL);
 
   mark_point ();
-  g_signal_emit_by_name (udpstreamsender, "process-answer", answer);
+  g_signal_emit_by_name (rtpendpointsender, "process-answer", answer);
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 
@@ -193,8 +193,8 @@ GST_END_TEST
 GST_START_TEST (negotiation_offerer)
 {
   GstSDPMessage *pattern_sdp;
-  GstElement *offerer = gst_element_factory_make ("udpstream", NULL);
-  GstElement *answerer = gst_element_factory_make ("udpstream", NULL);
+  GstElement *offerer = gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *answerer = gst_element_factory_make ("rtpendpoint", NULL);
   GstSDPMessage *offer = NULL, *answer = NULL;
   GstSDPMessage *local_offer = NULL, *local_answer = NULL, *remote_offer =
       NULL, *remote_answer = NULL;
@@ -283,7 +283,7 @@ GST_END_TEST
 static Suite *
 sdp_suite (void)
 {
-  Suite *s = suite_create ("udpstream");
+  Suite *s = suite_create ("rtpendpoint");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);

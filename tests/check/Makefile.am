@@ -25,13 +25,13 @@ $(CHECK_REGISTRY):
 TESTS =	$(check_PROGRAMS)
 
 check_PROGRAMS =						\
-	element/udpstream					\
+	element/rtpendpoint					\
 	general/dummytest					\
 	general/sdp						\
 	element/automuxerbin
 
-element_udpstream_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_udpstream_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 general_dummytest_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
