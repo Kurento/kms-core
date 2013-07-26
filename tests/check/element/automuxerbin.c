@@ -24,6 +24,8 @@
 static gboolean test_timeout = FALSE;
 GstElement *pipeline0;
 
+static guint count = 0;
+
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -73,20 +75,34 @@ timeout (gpointer data)
 void
 pad_added (GstElement * element, GstPad * pad, gpointer data)
 {
+  GstElement *pipeline = GST_ELEMENT (data);
+  GstElement *filesink;
   GstPad *sinkpad;
-  GstElement *filesink = (GstElement *) data;
+  gchar *fname;
 
-  GST_DEBUG ("Pad_added callback");
+  GST_DEBUG ("Pad %s added", gst_pad_get_name (pad));
+
   if (!GST_PAD_IS_SRC (pad)) {
     GST_DEBUG ("Sink pad %s ignored", gst_pad_get_name (pad));
     return;
   }
 
+  GST_DEBUG ("Create filesink");
+  filesink = gst_element_factory_make ("filesink", NULL);
+  fname = g_strdup_printf ("test%d.avi", count++);
+  g_object_set (G_OBJECT (filesink), "location", fname, NULL);
+  g_free (fname);
+
+  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_element_sync_state_with_parent (filesink);
+
   sinkpad = gst_element_get_static_pad (filesink, "sink");
   if (gst_pad_link (pad, sinkpad) != GST_PAD_LINK_OK)
-    GST_DEBUG ("CANNOT link srcpad_automuxer with sinkpad_fakesink\n");
+    GST_ERROR ("Can not link %s with %s", gst_pad_get_name (pad),
+        GST_ELEMENT_NAME (filesink));
   else
-    GST_DEBUG ("LINK srcpad_automuxer with sinkpad_fakesink\n");
+    GST_DEBUG ("Linked %s with %s", gst_pad_get_name (pad),
+        GST_ELEMENT_NAME (filesink));
 
   gst_object_unref (sinkpad);
 }
@@ -95,7 +111,7 @@ void
 pad_removed (GstElement * element, GstPad * pad, gpointer data)
 {
   /* Empty function. Used just for testing purposes about signal handling */
-  GST_DEBUG ("Pad removed callback");
+  GST_DEBUG ("Pad %s removed", gst_pad_get_name (pad));
 }
 
 GST_START_TEST (videoraw)
@@ -113,7 +129,6 @@ GST_START_TEST (videoraw)
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *automuxerbin = gst_element_factory_make ("automuxerbin", NULL);
-  GstElement *filesink = gst_element_factory_make ("filesink", NULL);
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline0));
 
@@ -123,16 +138,15 @@ GST_START_TEST (videoraw)
 
   g_object_set (G_OBJECT (videotestsrc), "num-buffers", 250, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 440, NULL);
-  g_object_set (G_OBJECT (filesink), "location", "test.avi", NULL);
 
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline0), audiotestsrc, videotestsrc,
-      automuxerbin, filesink, NULL);
+      automuxerbin, NULL);
 
   g_signal_connect (automuxerbin, "pad-added", G_CALLBACK (pad_added),
-      filesink);
+      pipeline0);
   g_signal_connect (automuxerbin, "pad-removed", G_CALLBACK (pad_removed),
-      filesink);
+      pipeline0);
 
   /* Manually link the automuxer, which has "Request" pads */
   automuxer_sink_pad_template_audio =
