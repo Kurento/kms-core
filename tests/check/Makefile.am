@@ -29,7 +29,8 @@ check_PROGRAMS =						\
 	general/dummytest					\
 	general/sdp						\
 	element/automuxerbin					\
-	element/recorderendpoint
+	element/recorderendpoint				\
+	element/playerendpoint
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -47,3 +48,6 @@ element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_recorderendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
