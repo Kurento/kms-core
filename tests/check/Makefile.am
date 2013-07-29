@@ -28,7 +28,8 @@ check_PROGRAMS =						\
 	element/rtpendpoint					\
 	general/dummytest					\
 	general/sdp						\
-	element/automuxerbin
+	element/automuxerbin					\
+	element/recorderendpoint
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -43,3 +44,6 @@ general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 
 element_automuxerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_recorderendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
