@@ -16,15 +16,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
 
-static gboolean test_timeout = FALSE;
-GstElement *pipeline0;
+#define AUDIO_SINK audio_
+#define VIDEO_SINK video_
 
-static guint count = 0;
+typedef struct _CustomData
+{
+  GstElement *audiotestsrc;
+  GstElement *videotestsrc;
+  GstElement *encoder;
+  GstElement *automuxerbin;
+  GMainLoop *loop;
+} CustomData;
+
+static gboolean test_timeout = FALSE;
+static GstElement *pipeline = NULL;
+static gchar *test_name = NULL;
 
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
@@ -47,7 +57,11 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
     case GST_MESSAGE_STATE_CHANGED:
     {
       if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "automuxerbin")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "filesink")) {
+          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "fakesink")
+          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "videotestsrc")
+          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "pipeline")
+          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "filesink")
+          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "audiotestsrc")) {
         GST_INFO ("Event: %P", msg);
       }
     }
@@ -57,53 +71,32 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
-static gboolean
-timeout (gpointer data)
-{
-  GMainLoop *loop = (GMainLoop *) data;
-
-  GST_DEBUG ("finished timeout");
-
-  test_timeout = FALSE;
-  //GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-  //  GST_DEBUG_GRAPH_SHOW_ALL, "finished timeout");
-  g_main_loop_quit (loop);
-
-  return FALSE;
-}
-
 void
-pad_added (GstElement * element, GstPad * pad, gpointer data)
+pad_added (GstElement * element, GstPad * pad)
 {
-  GstElement *pipeline = GST_ELEMENT (data);
-  GstElement *filesink;
-  GstPad *sinkpad;
-  gchar *fname;
 
-  GST_DEBUG ("Pad %s added", gst_pad_get_name (pad));
+  static guint count = 0;
 
+  GST_DEBUG ("Pad_added callback");
   if (!GST_PAD_IS_SRC (pad)) {
     GST_DEBUG ("Sink pad %s ignored", gst_pad_get_name (pad));
     return;
   }
+  GstElement *file = gst_element_factory_make ("filesink", NULL);
+  gchar *name = g_strdup_printf ("/tmp/%s_%d.avi", test_name, count);
 
-  GST_DEBUG ("Create filesink");
-  filesink = gst_element_factory_make ("filesink", NULL);
-  fname = g_strdup_printf ("test%d.avi", count++);
-  g_object_set (G_OBJECT (filesink), "location", fname, NULL);
-  g_free (fname);
+  g_object_set (G_OBJECT (file), "location", name, NULL);
+  gst_bin_add (GST_BIN (pipeline), file);
+  gst_element_sync_state_with_parent (file);
 
-  gst_bin_add (GST_BIN (pipeline), filesink);
-  gst_element_sync_state_with_parent (filesink);
+  GstPad *sinkpad = gst_element_get_static_pad (file, "sink");
 
-  sinkpad = gst_element_get_static_pad (filesink, "sink");
   if (gst_pad_link (pad, sinkpad) != GST_PAD_LINK_OK)
-    GST_ERROR ("Can not link %s with %s", gst_pad_get_name (pad),
-        GST_ELEMENT_NAME (filesink));
+    fail ("Error linking automuxerbin and filesink");
   else
-    GST_DEBUG ("Linked %s with %s", gst_pad_get_name (pad),
-        GST_ELEMENT_NAME (filesink));
+    GST_DEBUG ("LINK srcpad_automuxer with sinkpad filesink\n");
 
+  count++;
   gst_object_unref (sinkpad);
 }
 
@@ -111,99 +104,221 @@ void
 pad_removed (GstElement * element, GstPad * pad, gpointer data)
 {
   /* Empty function. Used just for testing purposes about signal handling */
-  GST_DEBUG ("Pad %s removed", gst_pad_get_name (pad));
+  GST_WARNING ("-----%s-------->pad_removed", gst_pad_get_name (pad));
+  GST_DEBUG ("Pad removed callback");
 }
 
-GST_START_TEST (videoraw)
+static gboolean
+timer (CustomData * data)
 {
-  test_timeout = FALSE;
-  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
-  GstPadTemplate *automuxer_sink_pad_template_audio;
-  GstPadTemplate *automuxer_sink_pad_template_video;
-  GstPad *automuxer_audiosink_pad, *automuxer_videosink_pad;
-  GstPad *audio_src_pad, *video_src_pad;
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "finished timer");
+  g_main_loop_quit (data->loop);
+  return FALSE;
+}
 
-  //GstElement *pipeline;
+GST_START_TEST (audio_video_raw)
+{
+  CustomData data;
 
-  pipeline0 = gst_pipeline_new (NULL);
-  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
-  GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *automuxerbin = gst_element_factory_make ("automuxerbin", NULL);
+  test_name = "audio_video_raw";
 
-  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline0));
+  data.loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new (NULL);
+  data.videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  data.audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  data.automuxerbin = gst_element_factory_make ("automuxerbin", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
-  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline0);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (videotestsrc), "num-buffers", 250, NULL);
-  g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 440, NULL);
+  g_object_set (G_OBJECT (data.videotestsrc), "num-buffers", 250, NULL);
+  g_object_set (G_OBJECT (data.audiotestsrc), "num-buffers", 440, NULL);
 
   mark_point ();
-  gst_bin_add_many (GST_BIN (pipeline0), audiotestsrc, videotestsrc,
-      automuxerbin, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), data.audiotestsrc,
+      data.videotestsrc, data.automuxerbin, NULL);
 
-  g_signal_connect (automuxerbin, "pad-added", G_CALLBACK (pad_added),
-      pipeline0);
-  g_signal_connect (automuxerbin, "pad-removed", G_CALLBACK (pad_removed),
-      pipeline0);
+  g_signal_connect (data.automuxerbin, "pad-added", G_CALLBACK (pad_added),
+      NULL);
+  g_signal_connect (data.automuxerbin, "pad-removed", G_CALLBACK (pad_removed),
+      NULL);
 
   /* Manually link the automuxer, which has "Request" pads */
-  automuxer_sink_pad_template_audio =
-      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (automuxerbin),
-      "audio_%u");
-  automuxer_audiosink_pad =
-      gst_element_request_pad (automuxerbin, automuxer_sink_pad_template_audio,
-      NULL, NULL);
-  g_print ("Obtained request pad %s for audio branch.\n",
-      gst_pad_get_name (automuxer_audiosink_pad));
-  audio_src_pad = gst_element_get_static_pad (audiotestsrc, "src");
-
-  automuxer_sink_pad_template_video =
-      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (automuxerbin),
-      "video_%u");
-  automuxer_videosink_pad =
-      gst_element_request_pad (automuxerbin, automuxer_sink_pad_template_video,
-      NULL, NULL);
-  g_print ("Obtained request pad %s for video branch.\n",
-      gst_pad_get_name (automuxer_videosink_pad));
-  video_src_pad = gst_element_get_static_pad (videotestsrc, "src");
-
-  if (gst_pad_link (audio_src_pad, automuxer_audiosink_pad) != GST_PAD_LINK_OK
-      || gst_pad_link (video_src_pad,
-          automuxer_videosink_pad) != GST_PAD_LINK_OK) {
-    g_print ("automuxer could not be linked.\n");
-    g_main_loop_quit (loop);
-    gst_object_unref (pipeline0);
+  if (!gst_element_link_pads (data.videotestsrc, "src", data.automuxerbin,
+          "video_0")) {
+    GST_ERROR ("automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data.loop);
+    gst_object_unref (pipeline);
   }
-  gst_object_unref (video_src_pad);
-  gst_object_unref (audio_src_pad);
+  if (!gst_element_link_pads (data.audiotestsrc, "src", data.automuxerbin,
+          "audio_0")) {
+    GST_ERROR ("automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data.loop);
+    gst_object_unref (pipeline);
+  }
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline0),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop_videoraw");
-  g_timeout_add (2000, (GSourceFunc) timeout, loop);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop_audio_video_raw");
 
-  GST_INFO ("Prueba: g_main_loop_run (loop);\n");
+  g_timeout_add (5000, (GSourceFunc) timer, &data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  fail_unless (test_timeout == FALSE);
+  mark_point ();
+  g_main_loop_run (data.loop);
+  mark_point ();
 
-  gst_element_set_state (pipeline0, GST_STATE_PLAYING);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "create_buffer_test_end_audio_video_raw");
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (data.loop);
+}
+
+GST_END_TEST
+GST_START_TEST (vp8enc)
+{
+  CustomData data;
+
+  test_name = "vp8enc";
+
+  data.loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new (NULL);
+  data.videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  data.encoder = gst_element_factory_make ("vp8enc", NULL);
+  data.audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  data.automuxerbin = gst_element_factory_make ("automuxerbin", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  g_object_set (G_OBJECT (data.videotestsrc), "num-buffers", 250, NULL);
+  g_object_set (G_OBJECT (data.audiotestsrc), "num-buffers", 440, NULL);
 
   mark_point ();
-  g_main_loop_run (loop);
+  gst_bin_add_many (GST_BIN (pipeline), data.audiotestsrc,
+      data.videotestsrc, data.encoder, data.automuxerbin, NULL);
+  gst_element_link (data.videotestsrc, data.encoder);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline0),
-      GST_DEBUG_GRAPH_SHOW_ALL, "create_buffer_test_end_videoraw");
+  g_signal_connect (data.automuxerbin, "pad-added", G_CALLBACK (pad_added),
+      NULL);
+  g_signal_connect (data.automuxerbin, "pad-removed", G_CALLBACK (pad_removed),
+      NULL);
 
-  gst_element_set_state (pipeline0, GST_STATE_NULL);
+  /* Manually link the automuxer, which has "Request" pads */
+  if (!gst_element_link_pads (data.encoder, "src", data.automuxerbin,
+          "video_0")) {
+    GST_ERROR ("automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data.loop);
+    gst_object_unref (pipeline);
+  }
+  if (!gst_element_link_pads (data.audiotestsrc, "src", data.automuxerbin,
+          "audio_0")) {
+    GST_ERROR ("automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data.loop);
+    gst_object_unref (pipeline);
+  }
 
-  /* Release the request pads from automuxerbin, and unref them */
-  gst_element_release_request_pad (automuxerbin, automuxer_audiosink_pad);
-  gst_element_release_request_pad (automuxerbin, automuxer_videosink_pad);
-  gst_object_unref (automuxer_audiosink_pad);
-  gst_object_unref (automuxer_videosink_pad);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop_audio_video_raw");
+  g_timeout_add (5000, (GSourceFunc) timer, &data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  fail_unless (test_timeout == FALSE);
+  mark_point ();
+  g_main_loop_run (data.loop);
+  mark_point ();
 
-  g_object_unref (pipeline0);
-  g_main_loop_unref (loop);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "create_buffer_test_end_audio_video_raw");
 
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (data.loop);
+}
+
+GST_END_TEST static gboolean
+timer_video_audio (CustomData * data)
+{
+  data->audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  g_object_set (G_OBJECT (data->audiotestsrc), "num-buffers", 440, NULL);
+  gst_bin_add (GST_BIN (pipeline), data->audiotestsrc);
+
+  if (!gst_element_link_pads (data->audiotestsrc, "src", data->automuxerbin,
+          "audio_0")) {
+    GST_ERROR ("audiotestsrc--automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data->loop);
+    gst_object_unref (pipeline);
+  }
+  gst_element_sync_state_with_parent (data->audiotestsrc);
+  return FALSE;
+}
+
+GST_START_TEST (delay_audio)
+{
+  CustomData data;
+
+  test_name = "delay_audio";
+
+  data.loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new (NULL);
+  data.videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  data.encoder = gst_element_factory_make ("vp8enc", NULL);
+  data.automuxerbin = gst_element_factory_make ("automuxerbin", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  g_object_set (G_OBJECT (data.videotestsrc), "num-buffers", 250, NULL);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), data.videotestsrc, data.encoder,
+      data.automuxerbin, NULL);
+  gst_element_link (data.videotestsrc, data.encoder);
+
+  g_signal_connect (data.automuxerbin, "pad-added", G_CALLBACK (pad_added),
+      NULL);
+  g_signal_connect (data.automuxerbin, "pad-removed", G_CALLBACK (pad_removed),
+      NULL);
+
+  /* Manually link the automuxer, which has "Request" pads */
+  if (!gst_element_link_pads (data.encoder, "src", data.automuxerbin,
+          "video_0")) {
+    GST_ERROR ("automuxer could not be linked.\n");
+    fail ("Error received on bus");
+    g_main_loop_quit (data.loop);
+    gst_object_unref (pipeline);
+  }
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop_audio_video_raw");
+  g_timeout_add (2000, (GSourceFunc) timer_video_audio, &data);
+  g_timeout_add (5000, (GSourceFunc) timer, &data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  fail_unless (test_timeout == FALSE);
+  mark_point ();
+  g_main_loop_run (data.loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "create_buffer_test_end_audio_video_raw");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (data.loop);
 }
 
 GST_END_TEST
@@ -217,7 +332,9 @@ sdp_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-  tcase_add_test (tc_chain, videoraw);
+  tcase_add_test (tc_chain, audio_video_raw);
+  tcase_add_test (tc_chain, vp8enc);
+  tcase_add_test (tc_chain, delay_audio);
 
   return s;
 }
