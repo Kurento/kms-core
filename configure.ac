@@ -90,6 +90,27 @@ PKG_CHECK_MODULES(NICE, [
   ])
 ])
 
+dnl *** opencv ***
+PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.3 , [
+  AC_PROG_CXX
+  AC_LANG([C++])
+  OLD_CPPFLAGS=$CPPFLAGS
+  CPPFLAGS=$OPENCV_CFLAGS
+  AC_CHECK_HEADERS([highgui.h opencv2/highgui/highgui_c.h])
+  CPPFLAGS=$OLD_CPPFLAGS
+  AC_LANG([C])
+
+  if test $ac_cv_header_highgui_h = "yes" -o $ac_cv_header_opencv2_highgui_highgui_c_h = "yes" ; then
+    HAVE_OPENCV="yes"
+  else
+    AC_MSG_RESULT([neither highgui.h nor opencv2/highgui/highgui_c.h could not be found])
+    HAVE_OPENCV="no"
+  fi
+], [
+  HAVE_OPENCV="no"
+])
+AM_CONDITIONAL(HAVE_OPENCV, test "x$HAVE_OPENCV" = "xyes")
+
 PKG_CHECK_MODULES(GST_CHECK, [
   gstreamer-check-1.0 >= $GST_REQUIRED
 ], [
