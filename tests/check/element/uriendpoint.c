@@ -41,7 +41,7 @@ GST_END_TEST
 GST_START_TEST (check_state_prop)
 {
   GstElement *urielement;
-  guint state;
+  KmsUriEndPointState state;
 
   urielement = gst_element_factory_make ("uriendpoint", NULL);
 
