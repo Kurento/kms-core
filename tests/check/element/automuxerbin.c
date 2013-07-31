@@ -32,7 +32,6 @@ typedef struct _CustomData
   GMainLoop *loop;
 } CustomData;
 
-static gboolean test_timeout = FALSE;
 static GstElement *pipeline = NULL;
 static gchar *test_name = NULL;
 
@@ -154,7 +153,6 @@ GST_START_TEST (audio_video_raw)
 
   g_timeout_add (5000, (GSourceFunc) timer, &data);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  fail_unless (test_timeout == FALSE);
   mark_point ();
   g_main_loop_run (data.loop);
   mark_point ();
@@ -217,7 +215,6 @@ GST_START_TEST (vp8enc)
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop_audio_video_raw");
   g_timeout_add (5000, (GSourceFunc) timer, &data);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  fail_unless (test_timeout == FALSE);
   mark_point ();
   g_main_loop_run (data.loop);
   mark_point ();
@@ -290,7 +287,6 @@ GST_START_TEST (delay_audio)
   g_timeout_add (2000, (GSourceFunc) timer_video_audio, &data);
   g_timeout_add (5000, (GSourceFunc) timer, &data);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  fail_unless (test_timeout == FALSE);
   mark_point ();
   g_main_loop_run (data.loop);
   mark_point ();
