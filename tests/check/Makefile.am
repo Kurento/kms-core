@@ -28,6 +28,7 @@ check_PROGRAMS =						\
 	element/rtpendpoint					\
 	general/dummytest					\
 	general/sdp						\
+	element/filterelement					\
 	element/automuxerbin					\
         element/uriendpoint					\
 	element/recorderendpoint
@@ -45,6 +46,9 @@ general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 
 element_automuxerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_filterelement_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_filterelement_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_uriendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
