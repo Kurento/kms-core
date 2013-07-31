@@ -47,7 +47,8 @@ general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 element_automuxerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
-element_uriendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_uriendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+		-I$(top_srcdir)/src
 element_uriendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_recorderendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror

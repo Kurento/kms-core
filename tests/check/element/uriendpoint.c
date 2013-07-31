@@ -2,9 +2,7 @@
 #include <gst/gst.h>
 #include <glib.h>
 
-#define KMS_URI_END_POINT_STATE_STOP 0
-#define KMS_URI_END_POINT_STATE_START 1
-#define KMS_URI_END_POINT_STATE_PLAY 2
+#include "kmsuriendpointstate.h"
 
 GST_START_TEST (check_uri_prop)
 {
@@ -60,13 +58,13 @@ GST_START_TEST (check_state_prop)
   GST_DEBUG ("Got state property value : %d", state);
   fail_unless (state == KMS_URI_END_POINT_STATE_START);
 
-  /* Set value to KMS_URI_END_POINT_STATE_PLAY */
-  GST_DEBUG ("Setting property state to : %d", KMS_URI_END_POINT_STATE_PLAY);
-  g_object_set (G_OBJECT (urielement), "state", KMS_URI_END_POINT_STATE_PLAY,
+  /* Set value to KMS_URI_END_POINT_STATE_PAUSE */
+  GST_DEBUG ("Setting property state to : %d", KMS_URI_END_POINT_STATE_PAUSE);
+  g_object_set (G_OBJECT (urielement), "state", KMS_URI_END_POINT_STATE_PAUSE,
       NULL);
   g_object_get (G_OBJECT (urielement), "state", &state, NULL);
   GST_DEBUG ("Got state property value : %d", state);
-  fail_unless (state == KMS_URI_END_POINT_STATE_PLAY);
+  fail_unless (state == KMS_URI_END_POINT_STATE_PAUSE);
 
   gst_object_unref (urielement);
 }
