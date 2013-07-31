@@ -39,32 +39,20 @@ static gchar *test_name = NULL;
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
-
   switch (msg->type) {
-    case GST_MESSAGE_ERROR:{
+    case GST_MESSAGE_ERROR:
       GST_ERROR ("Error: %P", msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
       fail ("Error received on bus");
       break;
-    }
-    case GST_MESSAGE_WARNING:{
+    case GST_MESSAGE_WARNING:
       GST_WARNING ("Warning: %P", msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
-    }
     case GST_MESSAGE_STATE_CHANGED:
-    {
-      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "automuxerbin")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "fakesink")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "videotestsrc")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "pipeline")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "filesink")
-          || g_str_has_prefix (GST_OBJECT_NAME (msg->src), "audiotestsrc")) {
-        GST_INFO ("Event: %P", msg);
-      }
-    }
+      GST_TRACE ("Event: %P", msg);
       break;
     default:
       break;
@@ -74,14 +62,15 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 void
 pad_added (GstElement * element, GstPad * pad)
 {
-
   static guint count = 0;
 
-  GST_DEBUG ("Pad_added callback");
   if (!GST_PAD_IS_SRC (pad)) {
     GST_DEBUG ("Sink pad %s ignored", gst_pad_get_name (pad));
     return;
   }
+
+  GST_DEBUG ("Pad_added callback");
+
   GstElement *file = gst_element_factory_make ("filesink", NULL);
   gchar *name = g_strdup_printf ("/tmp/%s_%d.avi", test_name, count);
 
@@ -94,7 +83,7 @@ pad_added (GstElement * element, GstPad * pad)
   if (gst_pad_link (pad, sinkpad) != GST_PAD_LINK_OK)
     fail ("Error linking automuxerbin and filesink");
   else
-    GST_DEBUG ("LINK srcpad_automuxer with sinkpad filesink\n");
+    GST_DEBUG ("LINK srcpad_automuxer with sinkpad filesink");
 
   count++;
   gst_object_unref (sinkpad);
@@ -104,8 +93,7 @@ void
 pad_removed (GstElement * element, GstPad * pad, gpointer data)
 {
   /* Empty function. Used just for testing purposes about signal handling */
-  GST_WARNING ("-----%s-------->pad_removed", gst_pad_get_name (pad));
-  GST_DEBUG ("Pad removed callback");
+  GST_DEBUG ("-----%s-------->pad_removed", gst_pad_get_name (pad));
 }
 
 static gboolean
@@ -150,15 +138,13 @@ GST_START_TEST (audio_video_raw)
   /* Manually link the automuxer, which has "Request" pads */
   if (!gst_element_link_pads (data.videotestsrc, "src", data.automuxerbin,
           "video_0")) {
-    GST_ERROR ("automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("automuxer could not be linked.");
     g_main_loop_quit (data.loop);
     gst_object_unref (pipeline);
   }
   if (!gst_element_link_pads (data.audiotestsrc, "src", data.automuxerbin,
           "audio_0")) {
-    GST_ERROR ("automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("automuxer could not be linked.");
     g_main_loop_quit (data.loop);
     gst_object_unref (pipeline);
   }
@@ -216,15 +202,13 @@ GST_START_TEST (vp8enc)
   /* Manually link the automuxer, which has "Request" pads */
   if (!gst_element_link_pads (data.encoder, "src", data.automuxerbin,
           "video_0")) {
-    GST_ERROR ("automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("automuxer could not be linked.");
     g_main_loop_quit (data.loop);
     gst_object_unref (pipeline);
   }
   if (!gst_element_link_pads (data.audiotestsrc, "src", data.automuxerbin,
           "audio_0")) {
-    GST_ERROR ("automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("automuxer could not be linked.");
     g_main_loop_quit (data.loop);
     gst_object_unref (pipeline);
   }
@@ -255,8 +239,7 @@ timer_video_audio (CustomData * data)
 
   if (!gst_element_link_pads (data->audiotestsrc, "src", data->automuxerbin,
           "audio_0")) {
-    GST_ERROR ("audiotestsrc--automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("audiotestsrc--automuxer could not be linked.");
     g_main_loop_quit (data->loop);
     gst_object_unref (pipeline);
   }
@@ -297,8 +280,7 @@ GST_START_TEST (delay_audio)
   /* Manually link the automuxer, which has "Request" pads */
   if (!gst_element_link_pads (data.encoder, "src", data.automuxerbin,
           "video_0")) {
-    GST_ERROR ("automuxer could not be linked.\n");
-    fail ("Error received on bus");
+    fail ("automuxer could not be linked.");
     g_main_loop_quit (data.loop);
     gst_object_unref (pipeline);
   }
@@ -326,7 +308,7 @@ GST_END_TEST
  * End of test cases
  */
 static Suite *
-sdp_suite (void)
+automuxer_suite (void)
 {
   Suite *s = suite_create ("automuxerbin");
   TCase *tc_chain = tcase_create ("element");
@@ -339,4 +321,4 @@ sdp_suite (void)
   return s;
 }
 
-GST_CHECK_MAIN (sdp);
+GST_CHECK_MAIN (automuxer);
