@@ -113,6 +113,9 @@ GST_START_TEST (check_properties)
   GST_DEBUG ("Got factory: %s", GST_OBJECT_NAME (factory));
   fail_unless (g_strcmp0 (filter_factory, GST_OBJECT_NAME (factory)) == 0);
 
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (filterelement),
+      GST_DEBUG_GRAPH_SHOW_ALL, "filter");
+
   /* Reset factory */
   filter_factory = "videocrop";
   GST_DEBUG ("Setting property uri to : %s", filter_factory);
