@@ -39,6 +39,8 @@ ltversion.m4
 lt~obsolete.m4
 gstkurento-marshal.c
 gstkurento-marshal.h
+kms-enumtypes.c
+kms-enumtypes.h
 kms-marshal.c
 kms-marshal.h
 .directory
