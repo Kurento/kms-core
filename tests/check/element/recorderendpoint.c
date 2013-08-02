@@ -69,7 +69,8 @@ GST_START_TEST (check_pipeline)
 
   g_object_set (G_OBJECT (videotestsrc), "num-buffers", 400, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 400, NULL);
-  g_object_set (G_OBJECT (recorder), "uri", "recorder_test.avi", NULL);
+  g_object_set (G_OBJECT (recorder), "uri", "file:///tmp/recorder_%u.avi",
+      NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before entering main loop");
