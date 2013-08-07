@@ -59,6 +59,7 @@ PKG_CHECK_MODULES(GST, [
   gstreamer-controller-1.0 >= $GST_REQUIRED
   gstreamer-sdp-1.0 >= $GST_REQUIRED
   gstreamer-video-1.0 >= $GST_REQUIRED
+  gstreamer-pbutils-1.0 >= $GST_REQUIRED
 ], [
 ], [
   AC_MSG_ERROR([

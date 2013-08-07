@@ -19,17 +19,12 @@ struct state_controller
 };
 
 static const struct state_controller trasnsitions[] = {
-  {KMS_URI_END_POINT_STATE_START, 2},
   {KMS_URI_END_POINT_STATE_START, 3},
-  {KMS_URI_END_POINT_STATE_PAUSE, 2},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 3},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 2},
-  {KMS_URI_END_POINT_STATE_START, 2}
+  {KMS_URI_END_POINT_STATE_PAUSE, 5},
+  {KMS_URI_END_POINT_STATE_START, 10},
 };
 
-static gchar *
+static const gchar *
 state2string (KmsUriEndPointState state)
 {
   switch (state) {
@@ -70,7 +65,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
-      GST_INFO ("Event: %P", msg);
+      GST_TRACE ("Event: %P", msg);
       break;
     }
     default:
@@ -87,7 +82,7 @@ transite ()
     change_state (trasnsitions[state].state);
     g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, NULL);
   } else {
-    GST_DEBUG ("All transitions done. Finishing recorder test suit");
+    GST_DEBUG ("All transitions done. Finishing recorder test suite");
     g_main_loop_quit (loop);
   }
 }
@@ -102,7 +97,8 @@ transite_cb (gpointer data)
 
 GST_START_TEST (check_states_pipeline)
 {
-  GstElement *pipeline, *videotestsrc, *audiotestsrc, *timeoverlay;
+  GstElement *pipeline, *videotestsrc, *encoder, *agnosticbin, *audiotestsrc,
+      *timeoverlay;
   guint bus_watch_id;
   GstBus *bus;
 
@@ -111,9 +107,14 @@ GST_START_TEST (check_states_pipeline)
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("recorderendpoint0-test");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  encoder = gst_element_factory_make ("vp8enc", NULL);
+  agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   recorder = gst_element_factory_make ("recorderendpoint", NULL);
+
+  g_object_set (G_OBJECT (recorder), "uri", "file:///tmp/state_recorder_%u.avi",
+      NULL);
 
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
@@ -121,14 +122,14 @@ GST_START_TEST (check_states_pipeline)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, recorder,
-      timeoverlay, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, encoder,
+      agnosticbin, recorder, timeoverlay, NULL);
   gst_element_link (videotestsrc, timeoverlay);
-  gst_element_link_pads (timeoverlay, "src", recorder, "video_sink");
+  gst_element_link (timeoverlay, encoder);
+  gst_element_link (encoder, agnosticbin);
+  gst_element_link_pads (agnosticbin, NULL, recorder, "video_sink");
   gst_element_link_pads (audiotestsrc, "src", recorder, "audio_sink");
 
-  g_object_set (G_OBJECT (recorder), "uri", "file:///tmp/state_recorder_%u.avi",
-      NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
@@ -136,7 +137,7 @@ GST_START_TEST (check_states_pipeline)
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before entering main loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -145,7 +146,7 @@ GST_START_TEST (check_states_pipeline)
   g_main_loop_run (loop);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "after entering main loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_object_unref (GST_OBJECT (pipeline));
