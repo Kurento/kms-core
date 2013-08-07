@@ -1,36 +1,205 @@
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
-#include <glib.h>
+#include "kmsuriendpointstate.h"
 
-GST_START_TEST (check_properties)
+static GMainLoop *loop = NULL;
+static GstElement *player = NULL;
+static guint state = 0;
+
+struct state_controller
 {
-  GstElement *player;
-  gchar *uri, *test;
+  KmsUriEndPointState state;
+  guint seconds;
+};
 
+static const struct state_controller trasnsitions[] = {
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_START, 3},
+  {KMS_URI_END_POINT_STATE_PAUSE, 2},
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_STOP, 3},
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_STOP, 2},
+  {KMS_URI_END_POINT_STATE_START, 2}
+};
+
+static gchar *
+state2string (KmsUriEndPointState state)
+{
+  switch (state) {
+    case KMS_URI_END_POINT_STATE_STOP:
+      return "STOP";
+    case KMS_URI_END_POINT_STATE_START:
+      return "START";
+    case KMS_URI_END_POINT_STATE_PAUSE:
+      return "PAUSE";
+    default:
+      return "Invalid state";
+  }
+}
+
+static void
+change_state (KmsUriEndPointState state)
+{
+  GST_DEBUG ("Setting recorder to state %s", state2string (state));
+  g_object_set (G_OBJECT (player), "state", state, NULL);
+}
+
+static void
+bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
+{
+
+  switch (msg->type) {
+    case GST_MESSAGE_ERROR:{
+      GST_ERROR ("Error: %P", msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
+      fail ("Error received on bus");
+      break;
+    }
+    case GST_MESSAGE_WARNING:{
+      GST_WARNING ("Warning: %P", msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, "warning");
+      break;
+    }
+    case GST_MESSAGE_STATE_CHANGED:{
+      GST_INFO ("Event: %P", msg);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static gboolean transite_cb (gpointer);
+
+static void
+transite ()
+{
+  if (state < G_N_ELEMENTS (trasnsitions)) {
+    change_state (trasnsitions[state].state);
+    g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, NULL);
+  } else {
+    GST_DEBUG ("All transitions done. Finishing player check states suit");
+    g_main_loop_quit (loop);
+  }
+}
+
+static gboolean
+transite_cb (gpointer data)
+{
+  state++;
+  transite ();
+  return FALSE;
+}
+
+GST_START_TEST (check_states)
+{
+  GstElement *pipeline, *filesink;
+  guint bus_watch_id;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new ("pipeline_live_stream");
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   player = gst_element_factory_make ("playerendpoint", NULL);
+  filesink = gst_element_factory_make ("filesink", NULL);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  /* Default value for location must be NULL */
-  g_object_get (G_OBJECT (player), "uri", &uri, NULL);
-  GST_DEBUG ("Got URI property value : %s", uri);
-  fail_unless (uri == NULL);
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
 
-  /* Set property */
-  test = "test_1";
-  GST_DEBUG ("Setting property URI to : %s", test);
-  g_object_set (G_OBJECT (player), "uri", test, NULL);
-  g_object_get (G_OBJECT (player), "uri", &uri, NULL);
-  GST_DEBUG ("Got URI property value : %s", uri);
-  fail_unless (g_strcmp0 (uri, test) == 0);
-  g_free (uri);
+  g_object_set (G_OBJECT (player), "uri",
+      "http://docs.gstreamer.com/media/sintel_trailer-480p.webm", NULL);
+  g_object_set (G_OBJECT (filesink), "location",
+      "/tmp/test_states_playerendpoint.avi", NULL);
 
-  /* Re-set property */
-  test = "test_2";
-  GST_DEBUG ("Setting property URI to : %s", test);
-  g_object_set (G_OBJECT (player), "uri", test, NULL);
-  g_object_get (G_OBJECT (player), "uri", &uri, NULL);
-  GST_DEBUG ("Got URI property value : %s", uri);
-  fail_unless (g_strcmp0 (uri, test) == 0);
-  g_free (uri);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_check_states");
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_element_set_state (filesink, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), player);
+  gst_element_set_state (player, GST_STATE_PLAYING);
+
+  gst_element_link (player, filesink);
+
+  transite ();
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_entering_main_loop_check_states");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static gboolean
+timer (gpointer * data)
+{
+  GMainLoop *loop = (GMainLoop *) data;
+
+  GST_INFO ("------------------->Timeout");
+  g_main_loop_quit (loop);
+
+  return FALSE;
+}
+
+GST_START_TEST (check_live_stream)
+{
+  GstElement *player, *pipeline, *filesink;
+  guint bus_watch_id;
+  GMainLoop *loop;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new ("pipeline_live_stream");
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  player = gst_element_factory_make ("playerendpoint", NULL);
+  filesink = gst_element_factory_make ("filesink", NULL);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  g_object_set (G_OBJECT (player), "uri",
+      "http://docs.gstreamer.com/media/sintel_trailer-480p.webm", NULL);
+  g_object_set (G_OBJECT (filesink), "location", "/tmp/test_playerendpoint.avi",
+      NULL);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_live_stream");
+
+  g_timeout_add (10000, (GSourceFunc) timer, loop);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_element_set_state (filesink, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), player);
+  gst_element_set_state (player, GST_STATE_PLAYING);
+
+  gst_element_link (player, filesink);
+
+  /* Set player to start state */
+  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
+      NULL);
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_entering_main_loop_live_stream");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
 }
 
 GST_END_TEST static Suite *
@@ -40,8 +209,8 @@ playerendpoint_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-  tcase_add_test (tc_chain, check_properties);
-
+  tcase_add_test (tc_chain, check_states);
+  tcase_add_test (tc_chain, check_live_stream);
   return s;
 }
 
