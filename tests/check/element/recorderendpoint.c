@@ -21,7 +21,9 @@ struct state_controller
 static const struct state_controller trasnsitions[] = {
   {KMS_URI_END_POINT_STATE_START, 3},
   {KMS_URI_END_POINT_STATE_PAUSE, 5},
-  {KMS_URI_END_POINT_STATE_START, 10},
+  {KMS_URI_END_POINT_STATE_START, 3},
+  {KMS_URI_END_POINT_STATE_PAUSE, 5},
+  {KMS_URI_END_POINT_STATE_START, 5},
 };
 
 static const gchar *
