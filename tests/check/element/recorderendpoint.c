@@ -20,7 +20,7 @@ struct state_controller
 
 static const struct state_controller trasnsitions[] = {
   {KMS_URI_END_POINT_STATE_START, 3},
-  {KMS_URI_END_POINT_STATE_PAUSE, 5},
+  {KMS_URI_END_POINT_STATE_STOP, 1},
   {KMS_URI_END_POINT_STATE_START, 3},
   {KMS_URI_END_POINT_STATE_PAUSE, 5},
   {KMS_URI_END_POINT_STATE_START, 5},
@@ -97,6 +97,13 @@ transite_cb (gpointer data)
   return FALSE;
 }
 
+static void
+recorder_stopped (GstElement * recorder, gpointer user_data)
+{
+  GST_ERROR ("Recorder stopped signal");
+  g_main_loop_quit (loop);
+}
+
 GST_START_TEST (check_states_pipeline)
 {
   GstElement *pipeline, *videotestsrc, *encoder, *agnosticbin, *audiotestsrc,
@@ -132,6 +139,8 @@ GST_START_TEST (check_states_pipeline)
   gst_element_link_pads (agnosticbin, NULL, recorder, "video_sink");
   gst_element_link_pads (audiotestsrc, "src", recorder, "audio_sink");
 
+  g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), NULL);
+
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
@@ -146,12 +155,22 @@ GST_START_TEST (check_states_pipeline)
   transite ();
 
   g_main_loop_run (loop);
+  GST_DEBUG ("Stop executed");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
 
+  g_main_loop_run (loop);
+  GST_DEBUG ("Last transition");
+
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_object_unref (GST_OBJECT (pipeline));
+  GST_DEBUG ("Pipe released");
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG ("Bus message received");
+
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
 }
