@@ -145,24 +145,54 @@ timer (gpointer * data)
 {
   GMainLoop *loop = (GMainLoop *) data;
 
-  GST_INFO ("------------------->Timeout");
+  GST_INFO ("--------------------------->Timeout");
+  fail ("FAIL timeout reached");
   g_main_loop_quit (loop);
-
   return FALSE;
+}
+
+static gboolean buffer_audio = FALSE;
+static gboolean buffer_video = FALSE;
+
+static void
+handoff_audio (GstElement * object, GstBuffer * arg0,
+    GstPad * arg1, gpointer user_data)
+{
+  GMainLoop *loop = (GMainLoop *) user_data;
+
+  buffer_audio = TRUE;
+  GST_INFO ("---------------------------->handoff_audio");
+  if (buffer_audio && buffer_video)
+    g_main_loop_quit (loop);
+}
+
+static void
+handoff_video (GstElement * object, GstBuffer * arg0,
+    GstPad * arg1, gpointer user_data)
+{
+  GMainLoop *loop = (GMainLoop *) user_data;
+
+  buffer_video = TRUE;
+  GST_INFO ("---------------------------->handoff_video");
+  if (buffer_audio && buffer_video)
+    g_main_loop_quit (loop);
 }
 
 GST_START_TEST (check_live_stream)
 {
-  GstElement *player, *pipeline, *filesink;
+  GstElement *player, *pipeline;
+  GstElement *fakesink_audio, *fakesink_video;
   guint bus_watch_id;
   GMainLoop *loop;
   GstBus *bus;
 
+  GST_INFO ("------------------------------> check_live_stream");
   loop = g_main_loop_new (NULL, FALSE);
   pipeline = gst_pipeline_new ("pipeline_live_stream");
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   player = gst_element_factory_make ("playerendpoint", NULL);
-  filesink = gst_element_factory_make ("filesink", NULL);
+  fakesink_audio = gst_element_factory_make ("fakesink", NULL);
+  fakesink_video = gst_element_factory_make ("fakesink", NULL);
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
@@ -171,8 +201,13 @@ GST_START_TEST (check_live_stream)
 
   g_object_set (G_OBJECT (player), "uri",
       "http://docs.gstreamer.com/media/sintel_trailer-480p.webm", NULL);
-  g_object_set (G_OBJECT (filesink), "location", "/tmp/test_playerendpoint.avi",
-      NULL);
+
+  g_object_set (G_OBJECT (fakesink_audio), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (fakesink_audio, "handoff", G_CALLBACK (handoff_audio),
+      loop);
+  g_object_set (G_OBJECT (fakesink_video), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (fakesink_video, "handoff", G_CALLBACK (handoff_video),
+      loop);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_live_stream");
@@ -180,12 +215,15 @@ GST_START_TEST (check_live_stream)
   g_timeout_add (10000, (GSourceFunc) timer, loop);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  gst_bin_add (GST_BIN (pipeline), filesink);
-  gst_element_set_state (filesink, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), fakesink_audio);
+  gst_element_set_state (fakesink_audio, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), fakesink_video);
+  gst_element_set_state (fakesink_video, GST_STATE_PLAYING);
   gst_bin_add (GST_BIN (pipeline), player);
   gst_element_set_state (player, GST_STATE_PLAYING);
 
-  gst_element_link (player, filesink);
+  gst_element_link_pads (player, "audio_src_0", fakesink_audio, "sink");
+  gst_element_link_pads (player, "video_src_0", fakesink_video, "sink");
 
   /* Set player to start state */
   g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
@@ -200,6 +238,7 @@ GST_START_TEST (check_live_stream)
   gst_object_unref (GST_OBJECT (pipeline));
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
+
 }
 
 GST_END_TEST static Suite *
