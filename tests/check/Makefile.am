@@ -32,7 +32,8 @@ check_PROGRAMS =						\
 	element/automuxerbin					\
 	element/uriendpoint					\
 	element/recorderendpoint				\
-	element/playerendpoint
+	element/playerendpoint                                  \
+        element/httpendpoint
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -62,4 +63,8 @@ element_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
 element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_httpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
