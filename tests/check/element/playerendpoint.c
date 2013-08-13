@@ -63,10 +63,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
-    case GST_MESSAGE_STATE_CHANGED:{
-      GST_INFO ("Event: %P", msg);
-      break;
-    }
     default:
       break;
   }
@@ -161,7 +157,7 @@ handoff_audio (GstElement * object, GstBuffer * arg0,
   GMainLoop *loop = (GMainLoop *) user_data;
 
   buffer_audio = TRUE;
-  GST_INFO ("---------------------------->handoff_audio");
+  GST_TRACE ("---------------------------->handoff_audio");
   if (buffer_audio && buffer_video)
     g_main_loop_quit (loop);
 }
@@ -173,7 +169,7 @@ handoff_video (GstElement * object, GstBuffer * arg0,
   GMainLoop *loop = (GMainLoop *) user_data;
 
   buffer_video = TRUE;
-  GST_INFO ("---------------------------->handoff_video");
+  GST_TRACE ("---------------------------->handoff_video");
   if (buffer_audio && buffer_video)
     g_main_loop_quit (loop);
 }
