@@ -4,7 +4,10 @@
 
 static GMainLoop *loop = NULL;
 static GstElement *player = NULL;
+static GstElement *fakesink = NULL;
+
 static guint state = 0;
+static gboolean start_buffer = FALSE;
 
 struct state_controller
 {
@@ -13,14 +16,9 @@ struct state_controller
 };
 
 static const struct state_controller trasnsitions[] = {
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_START, 3},
-  {KMS_URI_END_POINT_STATE_PAUSE, 2},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 3},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 2},
-  {KMS_URI_END_POINT_STATE_START, 2}
+  {KMS_URI_END_POINT_STATE_START, 5},
+  {KMS_URI_END_POINT_STATE_STOP, 5},
+  {KMS_URI_END_POINT_STATE_START, 5}
 };
 
 static gchar *
@@ -39,9 +37,38 @@ state2string (KmsUriEndPointState state)
 }
 
 static void
+handoff (GstElement * object, GstBuffer * arg0,
+    GstPad * arg1, gpointer user_data)
+{
+  switch (trasnsitions[state].state) {
+    case KMS_URI_END_POINT_STATE_STOP:{
+
+      GST_DEBUG (" ---------> handoff in STOP state");
+    }
+      break;
+
+    case KMS_URI_END_POINT_STATE_START:{
+
+      start_buffer = TRUE;
+      GST_DEBUG (" ---------> handoff in START state");
+
+    }
+      break;
+
+    case KMS_URI_END_POINT_STATE_PAUSE:{
+
+    }
+      break;
+
+    default:
+      break;
+  }
+}
+
+static void
 change_state (KmsUriEndPointState state)
 {
-  GST_DEBUG ("Setting recorder to state %s", state2string (state));
+  GST_DEBUG ("Setting player to state %s", state2string (state));
   g_object_set (G_OBJECT (player), "state", state, NULL);
 }
 
@@ -92,7 +119,7 @@ transite_cb (gpointer data)
 
 GST_START_TEST (check_states)
 {
-  GstElement *pipeline, *filesink;
+  GstElement *pipeline;
   guint bus_watch_id;
   GstBus *bus;
 
@@ -100,7 +127,7 @@ GST_START_TEST (check_states)
   pipeline = gst_pipeline_new ("pipeline_live_stream");
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   player = gst_element_factory_make ("playerendpoint", NULL);
-  filesink = gst_element_factory_make ("filesink", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
@@ -109,23 +136,25 @@ GST_START_TEST (check_states)
 
   g_object_set (G_OBJECT (player), "uri",
       "http://ci.kurento.com/downloads/sintel_trailer-480p.webm", NULL);
-  g_object_set (G_OBJECT (filesink), "location",
-      "/tmp/test_states_playerendpoint.avi", NULL);
+  g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (fakesink, "handoff", G_CALLBACK (handoff), loop);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_check_states");
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-  gst_bin_add (GST_BIN (pipeline), filesink);
-  gst_element_set_state (filesink, GST_STATE_PLAYING);
+  gst_bin_add (GST_BIN (pipeline), fakesink);
+  gst_element_set_state (fakesink, GST_STATE_PLAYING);
   gst_bin_add (GST_BIN (pipeline), player);
   gst_element_set_state (player, GST_STATE_PLAYING);
 
-  gst_element_link (player, filesink);
+  gst_element_link (player, fakesink);
 
   transite ();
 
   g_main_loop_run (loop);
+
+  fail_unless (start_buffer == TRUE);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "after_entering_main_loop_check_states");
@@ -140,6 +169,41 @@ GST_END_TEST
 /* check_live_stream */
 static gboolean buffer_audio = FALSE;
 static gboolean buffer_video = FALSE;
+static GMutex mutex1;
+
+static gboolean
+check_handoff_audio (gpointer user_data)
+{
+  g_mutex_lock (&mutex1);
+  buffer_audio = TRUE;
+  if (buffer_audio && buffer_video) {
+
+    g_mutex_unlock (&mutex1);
+    GMainLoop *loop = (GMainLoop *) user_data;
+
+    g_main_quit (loop);
+    return FALSE;
+  }
+  g_mutex_unlock (&mutex1);
+  return FALSE;
+}
+
+static gboolean
+check_handoff_video (gpointer user_data)
+{
+  g_mutex_lock (&mutex1);
+  buffer_video = TRUE;
+  if (buffer_audio && buffer_video) {
+
+    g_mutex_unlock (&mutex1);
+    GMainLoop *loop = (GMainLoop *) user_data;
+
+    g_main_quit (loop);
+    return FALSE;
+  }
+  g_mutex_unlock (&mutex1);
+  return FALSE;
+}
 
 static void
 handoff_audio (GstElement * object, GstBuffer * arg0,
@@ -147,10 +211,9 @@ handoff_audio (GstElement * object, GstBuffer * arg0,
 {
   GMainLoop *loop = (GMainLoop *) user_data;
 
-  buffer_audio = TRUE;
   GST_TRACE ("---------------------------->handoff_audio");
-  if (buffer_audio && buffer_video)
-    g_main_loop_quit (loop);
+  g_idle_add ((GSourceFunc) check_handoff_audio, loop);
+
 }
 
 static void
@@ -161,8 +224,7 @@ handoff_video (GstElement * object, GstBuffer * arg0,
 
   buffer_video = TRUE;
   GST_TRACE ("---------------------------->handoff_video");
-  if (buffer_audio && buffer_video)
-    g_main_loop_quit (loop);
+  g_idle_add ((GSourceFunc) check_handoff_video, loop);
 }
 
 GST_START_TEST (check_live_stream)
@@ -173,7 +235,6 @@ GST_START_TEST (check_live_stream)
   GMainLoop *loop;
   GstBus *bus;
 
-  GST_INFO ("------------------------------> check_live_stream");
   loop = g_main_loop_new (NULL, FALSE);
   pipeline = gst_pipeline_new ("pipeline_live_stream");
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
