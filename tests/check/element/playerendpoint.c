@@ -136,17 +136,8 @@ GST_START_TEST (check_states)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST static gboolean
-timer (gpointer * data)
-{
-  GMainLoop *loop = (GMainLoop *) data;
-
-  GST_INFO ("--------------------------->Timeout");
-  fail ("FAIL timeout reached");
-  g_main_loop_quit (loop);
-  return FALSE;
-}
-
+GST_END_TEST
+/* check_live_stream */
 static gboolean buffer_audio = FALSE;
 static gboolean buffer_video = FALSE;
 
@@ -207,8 +198,6 @@ GST_START_TEST (check_live_stream)
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_live_stream");
-
-  g_timeout_add (10000, (GSourceFunc) timer, loop);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
   gst_bin_add (GST_BIN (pipeline), fakesink_audio);
