@@ -2,70 +2,33 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#define WAIT_TIMEOUT 3
 //#define LOCATION "http://ci.kurento.com/downloads/sintel_trailer-480p.webm"
 #define LOCATION "http://ci.kurento.com/downloads/small.webm"
 
 static GMainLoop *loop = NULL;
 GstElement *src_pipeline, *souphttpsrc, *appsink;
-GstElement *test_pipeline, *httpep, *filesink;
+GstElement *test_pipeline, *httpep, *fakesink;
 
 static void
-src_bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
+bus_msg_cb (GstBus * bus, GstMessage * msg, gpointer pipeline)
 {
-
   switch (msg->type) {
     case GST_MESSAGE_ERROR:{
-      GST_ERROR ("Source bus error: %P", msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "source_bus_error");
-      fail ("Error received on source bus");
+      GST_ERROR ("%s bus error: %P", GST_ELEMENT_NAME (pipeline), msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+          GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
+      fail ("Error received on %s bus", GST_ELEMENT_NAME (pipeline));
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Source bus: %P", msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+      GST_WARNING ("%s bus: %P", GST_ELEMENT_NAME (pipeline), msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
-      GST_TRACE ("Source bus event: %P", msg);
-      break;
-    }
-    case GST_MESSAGE_EOS:{
-      GST_DEBUG ("Source bus: End of stream\n");
-      g_main_loop_quit (loop);
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-static void
-test_bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
-{
-
-  switch (msg->type) {
-    case GST_MESSAGE_ERROR:{
-      GST_ERROR ("Test bus error: %P", msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "test_bus_error");
-      fail ("Error received on test bus");
-      break;
-    }
-    case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Test bus: %P", msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "warning");
-      break;
-    }
-    case GST_MESSAGE_STATE_CHANGED:{
-      GST_TRACE ("Test bus event: %P", msg);
-      break;
-    }
-    case GST_MESSAGE_EOS:{
-      GST_DEBUG ("Test bus_ End of stream\n");
-      g_main_loop_quit (loop);
+      GST_TRACE ("%s bus event: %P", GST_ELEMENT_NAME (pipeline), msg);
       break;
     }
     default:
@@ -92,18 +55,66 @@ recv_sample (GstElement * appsink, gpointer user_data)
     return;
   }
 
-  buffer->pts = G_GUINT64_CONSTANT (0);
-  buffer->dts = G_GUINT64_CONSTANT (0);
-
-  buffer->offset = G_GUINT64_CONSTANT (0);
-  buffer->offset_end = G_GUINT64_CONSTANT (0);
   g_signal_emit_by_name (httpep, "push-buffer", buffer, &ret);
 
   if (ret != GST_FLOW_OK) {
     /* something wrong */
     GST_ERROR ("Could not send buffer to httpep %s. Ret code %d", ret,
         GST_ELEMENT_NAME (httpep));
+    fail ("Can not send buffer to", GST_ELEMENT_NAME (httpep));
   }
+}
+
+static gboolean
+timer_cb (gpointer data)
+{
+  /* Agnostic bin might be now ready to go to Playing state */
+  GST_INFO ("Connecting appsink to receive buffers");
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (test_pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "timer_dot");
+
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  gst_bin_add (GST_BIN (test_pipeline), fakesink);
+
+  gst_element_set_state (fakesink, GST_STATE_PLAYING);
+  gst_element_set_state (httpep, GST_STATE_PLAYING);
+
+  gst_element_link_pads (httpep, "video_src_%u", fakesink, "sink");
+
+  /* Start getting data from Internet */
+  gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "src_getting_data");
+
+  return FALSE;
+}
+
+static void
+appsink_eos_cb (GstElement * appsink, gpointer user_data)
+{
+  GstFlowReturn ret;
+
+  GST_INFO ("EOS received on %s. Preparing %s to finish the test",
+      GST_ELEMENT_NAME (appsink), GST_ELEMENT_NAME (test_pipeline));
+
+  g_signal_emit_by_name (httpep, "end-of-stream", &ret);
+
+  if (ret != GST_FLOW_OK) {
+    // something wrong
+    GST_ERROR ("Could not send EOS to %s. Ret code %d", ret,
+        GST_ELEMENT_NAME (httpep));
+    fail ("Can not send buffer to", GST_ELEMENT_NAME (httpep));
+  }
+}
+
+static void
+http_eos_cb (GstElement * appsink, gpointer user_data)
+{
+  GST_INFO ("EOS received on %s element. Stopping main loop",
+      GST_ELEMENT_NAME (httpep));
+  g_main_loop_quit (loop);
 }
 
 GST_START_TEST (check_push_buffer)
@@ -121,7 +132,7 @@ GST_START_TEST (check_push_buffer)
   srcbus = gst_pipeline_get_bus (GST_PIPELINE (src_pipeline));
 
   bus_watch_id1 = gst_bus_add_watch (srcbus, gst_bus_async_signal_func, NULL);
-  g_signal_connect (srcbus, "message", G_CALLBACK (src_bus_msg), src_pipeline);
+  g_signal_connect (srcbus, "message", G_CALLBACK (bus_msg_cb), src_pipeline);
   g_object_unref (srcbus);
 
   gst_bin_add_many (GST_BIN (src_pipeline), souphttpsrc, appsink, NULL);
@@ -133,35 +144,32 @@ GST_START_TEST (check_push_buffer)
 
   g_object_set (appsink, "emit-signals", TRUE, NULL);
   g_signal_connect (appsink, "new-sample", G_CALLBACK (recv_sample), NULL);
+  g_signal_connect (appsink, "eos", G_CALLBACK (appsink_eos_cb), NULL);
 
   /* Create test pipeline */
   test_pipeline = gst_pipeline_new ("test-pipeline");
   httpep = gst_element_factory_make ("httpendpoint", NULL);
-  filesink = gst_element_factory_make ("filesink", NULL);
 
   testbus = gst_pipeline_get_bus (GST_PIPELINE (test_pipeline));
 
   bus_watch_id2 = gst_bus_add_watch (testbus, gst_bus_async_signal_func, NULL);
-  g_signal_connect (testbus, "message", G_CALLBACK (test_bus_msg),
-      test_pipeline);
+  g_signal_connect (testbus, "message", G_CALLBACK (bus_msg_cb), test_pipeline);
   g_object_unref (testbus);
 
-  gst_bin_add_many (GST_BIN (test_pipeline), httpep, filesink, NULL);
-  gst_element_link (httpep, filesink);
-
-  g_object_set (G_OBJECT (filesink), "location", "/tmp/test.webm", NULL);
+  gst_bin_add (GST_BIN (test_pipeline), httpep);
+  g_signal_connect (G_OBJECT (httpep), "eos", G_CALLBACK (http_eos_cb), NULL);
 
   /* Set pipeline to start state */
   gst_element_set_state (test_pipeline, GST_STATE_PLAYING);
-  gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (test_pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_entering_main_loop");
 
   mark_point ();
+
+  g_timeout_add_seconds (WAIT_TIMEOUT, timer_cb, NULL);
+  GST_INFO ("Waitig %d second for Agnosticbin to be ready to go to "
+      "PLAYING state", WAIT_TIMEOUT);
 
   g_main_loop_run (loop);
 
@@ -170,9 +178,10 @@ GST_START_TEST (check_push_buffer)
   GST_DEBUG ("Main loop stopped");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "src_after_main_loop");
+
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (test_pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_after_main_loop");
 
   gst_element_set_state (src_pipeline, GST_STATE_NULL);
   gst_object_unref (GST_OBJECT (src_pipeline));
