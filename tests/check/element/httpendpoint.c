@@ -122,6 +122,8 @@ GST_START_TEST (check_push_buffer)
   guint bus_watch_id1, bus_watch_id2;
   GstBus *srcbus, *testbus;
 
+  GST_INFO ("Running test check_push_buffer");
+
   loop = g_main_loop_new (NULL, FALSE);
 
   /* Create source pipeline */
@@ -194,6 +196,74 @@ GST_START_TEST (check_push_buffer)
   g_main_loop_unref (loop);
 }
 
+GST_END_TEST static gboolean
+quit_main_loop (gpointer user_data)
+{
+  GST_DEBUG ("Stopping main loop");
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+GST_START_TEST (check_pull_buffer)
+{
+  GstElement *videotestsrc, *timeoverlay;
+  guint bus_watch_id1;
+  GstBus *srcbus;
+
+  GST_INFO ("Running test check_pull_buffer");
+
+  loop = g_main_loop_new (NULL, FALSE);
+
+  GST_DEBUG ("Preparing source pipeline");
+
+  /* Create gstreamer elements */
+  src_pipeline = gst_pipeline_new ("src-pipeline");
+  videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
+  httpep = gst_element_factory_make ("httpendpoint", NULL);
+
+  GST_DEBUG ("Adding watcher to the pipeline");
+  srcbus = gst_pipeline_get_bus (GST_PIPELINE (src_pipeline));
+
+  bus_watch_id1 = gst_bus_add_watch (srcbus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (srcbus, "message", G_CALLBACK (bus_msg_cb), src_pipeline);
+  g_object_unref (srcbus);
+
+  GST_DEBUG ("Configuring source pipeline");
+  gst_bin_add_many (GST_BIN (src_pipeline), videotestsrc, timeoverlay,
+      httpep, NULL);
+  gst_element_link (videotestsrc, timeoverlay);
+  gst_element_link_pads (timeoverlay, "src", httpep, "video_sink");
+
+  GST_DEBUG ("Configuring elements");
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "pattern", 18, "num-buffers", 150, NULL);
+  g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+
+  GST_DEBUG ("Starting pipeline");
+  gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (3, quit_main_loop, NULL);
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG ("Main loop stopped");
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+
+  gst_element_set_state (src_pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (src_pipeline));
+
+  GST_DEBUG ("Bus message received");
+
+  g_source_remove (bus_watch_id1);
+  g_main_loop_unref (loop);
+}
+
 GST_END_TEST
 /******************************/
 /* HttpEndPoint test suit */
@@ -205,7 +275,13 @@ httpendpoint_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+
+  /* Simulates GET behaviour */
+  tcase_add_test (tc_chain, check_pull_buffer);
+
+  /* Simulates POST behaviour */
   tcase_add_test (tc_chain, check_push_buffer);
+
   return s;
 }
 
