@@ -204,9 +204,16 @@ quit_main_loop (gpointer user_data)
   return FALSE;
 }
 
+static GstFlowReturn
+get_recv_sample (GstElement * appsink, gpointer user_data)
+{
+  GST_DEBUG ("TODO: get buffer and do something interesting with it");
+  return GST_FLOW_OK;
+}
+
 GST_START_TEST (check_pull_buffer)
 {
-  GstElement *videotestsrc, *timeoverlay;
+  GstElement *videotestsrc, *timeoverlay, *encoder, *agnosticbin;
   guint bus_watch_id1;
   GstBus *srcbus;
 
@@ -219,7 +226,10 @@ GST_START_TEST (check_pull_buffer)
   /* Create gstreamer elements */
   src_pipeline = gst_pipeline_new ("src-pipeline");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  encoder = gst_element_factory_make ("vp8enc", NULL);
+  agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
+//   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   httpep = gst_element_factory_make ("httpendpoint", NULL);
 
   GST_DEBUG ("Adding watcher to the pipeline");
@@ -231,14 +241,21 @@ GST_START_TEST (check_pull_buffer)
 
   GST_DEBUG ("Configuring source pipeline");
   gst_bin_add_many (GST_BIN (src_pipeline), videotestsrc, timeoverlay,
-      httpep, NULL);
+      encoder, agnosticbin, httpep /*, audiotestsrc */ , NULL);
   gst_element_link (videotestsrc, timeoverlay);
-  gst_element_link_pads (timeoverlay, "src", httpep, "video_sink");
+  gst_element_link (timeoverlay, encoder);
+  gst_element_link (encoder, agnosticbin);
+  gst_element_link_pads (agnosticbin, NULL, httpep, "video_sink");
+//   gst_element_link_pads (audiotestsrc, "src", httpep, "audio_sink");
 
   GST_DEBUG ("Configuring elements");
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, "num-buffers", 150, NULL);
+//   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+//       "num-buffers", 150, NULL);
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
+
+  g_signal_connect (httpep, "new-sample", G_CALLBACK (get_recv_sample), NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
