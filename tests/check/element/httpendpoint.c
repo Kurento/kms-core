@@ -200,12 +200,11 @@ GST_START_TEST (check_push_buffer)
 }
 
 GST_END_TEST                    /* End of test check_push_buffer */
-static gboolean
-quit_main_loop (gpointer user_data)
+    static void
+get_recv_eos (GstElement * httep, gpointer user_data)
 {
-  GST_DEBUG ("Stopping main loop");
+  GST_DEBUG ("End of streaming detected. Finishing test");
   g_main_loop_quit (loop);
-  return FALSE;
 }
 
 static GstFlowReturn
@@ -274,14 +273,13 @@ GST_START_TEST (check_pull_buffer)
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
 
   g_signal_connect (httpep, "new-sample", G_CALLBACK (get_recv_sample), NULL);
+  g_signal_connect (httpep, "eos", G_CALLBACK (get_recv_eos), NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (src_pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
 
   GST_DEBUG ("Starting pipeline");
   gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
-
-  g_timeout_add_seconds (3, quit_main_loop, NULL);
 
   g_main_loop_run (loop);
 
