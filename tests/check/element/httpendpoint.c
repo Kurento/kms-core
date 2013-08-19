@@ -36,23 +36,21 @@ bus_msg_cb (GstBus * bus, GstMessage * msg, gpointer pipeline)
   }
 }
 
-static void
-recv_sample (GstElement * appsink, gpointer user_data)
+static GstFlowReturn
+post_recv_sample (GstElement * appsink, gpointer user_data)
 {
+  GstSample *sample = NULL;
   GstFlowReturn ret;
-  GstSample *sample;
   GstBuffer *buffer;
 
   g_signal_emit_by_name (appsink, "pull-sample", &sample);
-  if (sample == NULL) {
-    GST_ERROR ("No sample received");
-    return;
-  }
+  if (sample == NULL)
+    return GST_FLOW_ERROR;
 
   buffer = gst_sample_get_buffer (sample);
   if (buffer == NULL) {
-    GST_ERROR ("No buffer received");
-    return;
+    ret = GST_FLOW_OK;
+    goto end;
   }
 
   g_signal_emit_by_name (httpep, "push-buffer", buffer, &ret);
@@ -61,8 +59,13 @@ recv_sample (GstElement * appsink, gpointer user_data)
     /* something wrong */
     GST_ERROR ("Could not send buffer to httpep %s. Ret code %d", ret,
         GST_ELEMENT_NAME (httpep));
-    fail ("Can not send buffer to", GST_ELEMENT_NAME (httpep));
   }
+
+end:
+  if (sample != NULL)
+    gst_sample_unref (sample);
+
+  return ret;
 }
 
 static gboolean
@@ -145,7 +148,7 @@ GST_START_TEST (check_push_buffer)
       "is-live", TRUE, "do-timestamp", TRUE, NULL);
 
   g_object_set (appsink, "emit-signals", TRUE, NULL);
-  g_signal_connect (appsink, "new-sample", G_CALLBACK (recv_sample), NULL);
+  g_signal_connect (appsink, "new-sample", G_CALLBACK (post_recv_sample), NULL);
   g_signal_connect (appsink, "eos", G_CALLBACK (appsink_eos_cb), NULL);
 
   /* Create test pipeline */
@@ -220,7 +223,7 @@ get_recv_sample (GstElement * appsink, gpointer user_data)
   if (buffer == NULL)
     GST_WARNING ("No buffer got from sample");
   else
-    GST_DEBUG ("Got buffer");
+    GST_TRACE ("Got buffer");
 
   gst_sample_unref (sample);
   return GST_FLOW_OK;
