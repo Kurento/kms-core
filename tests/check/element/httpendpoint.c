@@ -196,7 +196,8 @@ GST_START_TEST (check_push_buffer)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST static gboolean
+GST_END_TEST                    /* End of test check_push_buffer */
+static gboolean
 quit_main_loop (gpointer user_data)
 {
   GST_DEBUG ("Stopping main loop");
@@ -207,7 +208,21 @@ quit_main_loop (gpointer user_data)
 static GstFlowReturn
 get_recv_sample (GstElement * appsink, gpointer user_data)
 {
-  GST_DEBUG ("TODO: get buffer and do something interesting with it");
+  GstSample *sample;
+  GstBuffer *buffer;
+
+  g_signal_emit_by_name (appsink, "pull-sample", &sample);
+
+  if (sample == NULL)
+    return GST_FLOW_ERROR;
+
+  buffer = gst_sample_get_buffer (sample);
+  if (buffer == NULL)
+    GST_WARNING ("No buffer got from sample");
+  else
+    GST_DEBUG ("Got buffer");
+
+  gst_sample_unref (sample);
   return GST_FLOW_OK;
 }
 
@@ -274,8 +289,6 @@ GST_START_TEST (check_pull_buffer)
 
   gst_element_set_state (src_pipeline, GST_STATE_NULL);
   gst_object_unref (GST_OBJECT (src_pipeline));
-
-  GST_DEBUG ("Bus message received");
 
   g_source_remove (bus_watch_id1);
   g_main_loop_unref (loop);
