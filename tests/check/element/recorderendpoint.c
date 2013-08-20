@@ -100,7 +100,7 @@ transite_cb (gpointer data)
 static void
 recorder_stopped (GstElement * recorder, gpointer user_data)
 {
-  GST_ERROR ("Recorder stopped signal");
+  GST_INFO ("Recorder stopped signal");
   g_main_loop_quit (loop);
 }
 
