@@ -281,6 +281,9 @@ GST_START_TEST (check_pull_buffer)
   GST_DEBUG ("Starting pipeline");
   gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
 
+  /* allow media stream to flow */
+  g_object_set (G_OBJECT (httpep), "start", TRUE, NULL);
+
   g_main_loop_run (loop);
 
   GST_DEBUG ("Main loop stopped");
