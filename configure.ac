@@ -107,6 +107,22 @@ PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.3 , [
 ])
 AM_CONDITIONAL(HAVE_OPENCV, test "x$HAVE_OPENCV" = "xyes")
 
+dnl *** tesseract ***
+AC_CHECK_LIB([tesseract], [TessBaseAPICreate],
+  [
+    AC_CHECK_HEADER([tesseract/capi.h],
+      [
+        HAVE_TESSERACT="yes"
+        TESSERACT_LIBS="-ltesseract"
+        TESSERACT_CFLAGS=""
+      ]
+    )
+  ], [
+    AC_MSG_WARN([Could not find tesseract library, plate detector will not be compiled])
+  ]
+)
+AM_CONDITIONAL(HAVE_TESSERACT, test "x$HAVE_TESSERACT" = "xyes")
+
 PKG_CHECK_MODULES(GST_CHECK, [
   gstreamer-check-1.0 >= $GST_REQUIRED
 ], [
