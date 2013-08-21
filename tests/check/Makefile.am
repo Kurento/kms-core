@@ -24,12 +24,18 @@ $(CHECK_REGISTRY):
 
 TESTS =	$(check_PROGRAMS)
 
+if AUTOMUXERTEST
+TEST_AUTOMUXER = element/automuxerbin
+else
+TEST_AUTOMUXER =
+endif
+
 check_PROGRAMS =						\
+	$(TEST_AUTOMUXER)					\
 	element/rtpendpoint					\
 	general/dummytest					\
 	general/sdp						\
 	element/filterelement					\
-	element/automuxerbin					\
 	element/uriendpoint					\
 	element/recorderendpoint				\
 	element/playerendpoint                                  \
@@ -49,8 +55,10 @@ general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 element_filterelement_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_filterelement_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
+if AUTOMUXERTEST
 element_automuxerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_automuxerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+endif
 
 element_uriendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
@@ -67,4 +75,3 @@ element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_httpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
-

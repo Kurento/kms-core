@@ -156,5 +156,15 @@ dnl set proper LDFLAGS for plugins
 GST_PLUGIN_LDFLAGS='-module -avoid-version -export-symbols-regex [_]*\(gst_\|Gst\|GST_\).*'
 AC_SUBST(GST_PLUGIN_LDFLAGS)
 
+dnl enable/disable automuxer test
+AC_ARG_ENABLE([automuxertest],
+[  --enable-automuxertest    Turn on testing automuxer],
+[case "${enableval}" in
+  yes) automuxertest=true ;;
+  no)  automuxertest=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-automuxertest]) ;;
+esac],[automuxertest=false])
+AM_CONDITIONAL([AUTOMUXERTEST], [test x$automuxertest = xtrue])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile])
 AC_OUTPUT
