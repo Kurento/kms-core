@@ -113,8 +113,6 @@ AC_CHECK_LIB([tesseract], [TessBaseAPICreate],
     AC_CHECK_HEADER([tesseract/capi.h],
       [
         HAVE_TESSERACT="yes"
-        TESSERACT_LIBS="-ltesseract"
-        TESSERACT_CFLAGS=""
       ]
     )
   ], [
