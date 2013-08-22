@@ -2,11 +2,14 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#include "kmshttpendpointmethod.h"
+
 #define WAIT_TIMEOUT 3
 //#define LOCATION "http://ci.kurento.com/downloads/sintel_trailer-480p.webm"
 #define LOCATION "http://ci.kurento.com/downloads/small.webm"
 
 static GMainLoop *loop = NULL;
+static KmsHttpEndPointMethod method;
 GstElement *src_pipeline, *souphttpsrc, *appsink;
 GstElement *test_pipeline, *httpep, *fakesink;
 
@@ -60,6 +63,9 @@ post_recv_sample (GstElement * appsink, gpointer user_data)
     GST_ERROR ("Could not send buffer to httpep %s. Ret code %d", ret,
         GST_ELEMENT_NAME (httpep));
   }
+
+  g_object_get (G_OBJECT (httpep), "http-method", &method, NULL);
+  ck_assert_int_eq (method, KMS_HTTP_END_POINT_METHOD_POST);
 
 end:
   if (sample != NULL)
@@ -166,6 +172,11 @@ GST_START_TEST (check_push_buffer)
 
   /* Set pipeline to start state */
   gst_element_set_state (test_pipeline, GST_STATE_PLAYING);
+
+  g_object_get (G_OBJECT (httpep), "http-method", &method, NULL);
+  GST_INFO ("Http end point configured as %d", method);
+  /* Http end point is not configured yet */
+  ck_assert_int_eq (method, KMS_HTTP_END_POINT_METHOD_UNDEFINED);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (test_pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "test_entering_main_loop");
@@ -280,6 +291,10 @@ GST_START_TEST (check_pull_buffer)
 
   GST_DEBUG ("Starting pipeline");
   gst_element_set_state (src_pipeline, GST_STATE_PLAYING);
+
+  g_object_get (G_OBJECT (httpep), "http-method", &method, NULL);
+  GST_INFO ("Http end point configured as %d", method);
+  ck_assert_int_eq (method, KMS_HTTP_END_POINT_METHOD_GET);
 
   /* allow media stream to flow */
   g_object_set (G_OBJECT (httpep), "start", TRUE, NULL);
