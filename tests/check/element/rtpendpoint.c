@@ -42,7 +42,6 @@ static const gchar *pattern_answer_sdp_str = "v=0\r\n"
     "a=rtpmap:99 VP8/90000\r\n"
     "m=audio 0 RTP/AVP 100\r\n" "a=rtpmap:100 OPUS/48000/1\r\n";
 
-/*
 static const gchar *pattern_sdp_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
@@ -110,6 +109,13 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   }
 }
 
+static gboolean
+quit_main_loop (gpointer data)
+{
+  g_main_loop_quit (data);
+  return FALSE;
+}
+
 GST_START_TEST (loopback)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -118,8 +124,10 @@ GST_START_TEST (loopback)
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
-  GstElement *rtpendpointsender = gst_element_factory_make ("rtpendpoint", NULL);
-  GstElement *rtpendpointreceiver = gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *rtpendpointsender =
+      gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *rtpendpointreceiver =
+      gst_element_factory_make ("rtpendpoint", NULL);
   GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
@@ -158,7 +166,7 @@ GST_START_TEST (loopback)
       rtpendpointsender, NULL);
   gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
       "sink");
-  gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
+
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   mark_point ();
@@ -173,6 +181,14 @@ GST_START_TEST (loopback)
   g_signal_emit_by_name (rtpendpointsender, "process-answer", answer);
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
+
+  g_timeout_add (300, quit_main_loop, loop);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
@@ -189,7 +205,6 @@ GST_START_TEST (loopback)
 }
 
 GST_END_TEST
-*/
 GST_START_TEST (negotiation_offerer)
 {
   GstSDPMessage *pattern_sdp;
@@ -289,7 +304,7 @@ sdp_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, negotiation_offerer);
   // TODO: Re-enable test when bug in agnosticbin negotiation is solved
-  // tcase_add_test (tc_chain, loopback);
+  tcase_add_test (tc_chain, loopback);
 
   return s;
 }
