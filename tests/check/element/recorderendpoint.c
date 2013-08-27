@@ -106,8 +106,8 @@ recorder_stopped (GstElement * recorder, gpointer user_data)
 
 GST_START_TEST (check_states_pipeline)
 {
-  GstElement *pipeline, *videotestsrc, *encoder, *agnosticbin, *audiotestsrc,
-      *timeoverlay;
+  GstElement *pipeline, *videotestsrc, *encoder, *audio_agnosticbin,
+      *video_agnosticbin, *audiotestsrc, *timeoverlay;
   guint bus_watch_id;
   GstBus *bus;
 
@@ -117,7 +117,8 @@ GST_START_TEST (check_states_pipeline)
   pipeline = gst_pipeline_new ("recorderendpoint0-test");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   encoder = gst_element_factory_make ("vp8enc", NULL);
-  agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  video_agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  audio_agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   recorder = gst_element_factory_make ("recorderendpoint", NULL);
@@ -132,12 +133,13 @@ GST_START_TEST (check_states_pipeline)
   g_object_unref (bus);
 
   gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, encoder,
-      agnosticbin, recorder, timeoverlay, NULL);
+      audio_agnosticbin, video_agnosticbin, recorder, timeoverlay, NULL);
   gst_element_link (videotestsrc, timeoverlay);
   gst_element_link (timeoverlay, encoder);
-  gst_element_link (encoder, agnosticbin);
-  gst_element_link_pads (agnosticbin, NULL, recorder, "video_sink");
-  gst_element_link_pads (audiotestsrc, "src", recorder, "audio_sink");
+  gst_element_link (encoder, video_agnosticbin);
+  gst_element_link (audiotestsrc, audio_agnosticbin);
+  gst_element_link_pads (video_agnosticbin, NULL, recorder, "video_sink");
+  gst_element_link_pads (audio_agnosticbin, "src", recorder, "audio_sink");
 
   g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), NULL);
 
