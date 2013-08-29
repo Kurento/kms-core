@@ -164,7 +164,11 @@ AC_ARG_ENABLE([automuxertest],
 esac],[automuxertest=false])
 AM_CONDITIONAL([AUTOMUXERTEST], [test x$automuxertest = xtrue])
 
-AC_DEFINE_UNQUOTED([INSTALL_PREFIX], ["$prefix"], [Install prefix])
+if test "x${FINAL_INSTALL_DIR}" = "x"; then
+  AC_DEFINE([FINAL_INSTALL_DIR], [""],"Final installation Path")
+else
+  AC_DEFINE_UNQUOTED([FINAL_INSTALL_DIR], ["$FINAL_INSTALL_DIR"],"Final installation Path")
+fi
 
 AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile])
 AC_OUTPUT
