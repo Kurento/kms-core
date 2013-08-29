@@ -170,5 +170,5 @@ else
   AC_DEFINE_UNQUOTED([FINAL_INSTALL_DIR], ["$FINAL_INSTALL_DIR"],"Final installation Path")
 fi
 
-AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile src/filters/jackvader/Makefile])
 AC_OUTPUT
