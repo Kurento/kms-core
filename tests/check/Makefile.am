@@ -39,7 +39,8 @@ check_PROGRAMS =						\
 	element/uriendpoint					\
 	element/recorderendpoint				\
 	element/playerendpoint                                  \
-        element/httpendpoint
+        element/httpendpoint					\
+        element/agnosticbin
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -75,3 +76,6 @@ element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_httpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
