@@ -135,7 +135,7 @@ GST_START_TEST (check_states)
   g_object_unref (bus);
 
   g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/sintel_trailer-480p.webm", NULL);
+      "http://ci.kurento.com/downloads/sintel.webm", NULL);
   g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
   g_signal_connect (fakesink, "handoff", G_CALLBACK (handoff), loop);
 
@@ -248,7 +248,7 @@ GST_START_TEST (check_live_stream)
   g_object_unref (bus);
 
   g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/sintel_trailer-480p.webm", NULL);
+      "http://ci.kurento.com/downloads/sintel.webm", NULL);
 
   g_object_set (G_OBJECT (fakesink_audio), "signal-handoffs", TRUE, NULL);
   g_signal_connect (fakesink_audio, "handoff", G_CALLBACK (handoff_audio),
