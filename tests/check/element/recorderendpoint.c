@@ -54,10 +54,23 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 
   switch (msg->type) {
     case GST_MESSAGE_ERROR:{
+      GError *err = NULL;
+      gchar *dbg_info = NULL;
+      gchar *err_str;
+
       GST_ERROR ("Error: %P", msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
-      fail ("Error received on bus");
+      gst_message_parse_error (msg, &err, &dbg_info);
+
+      err_str = g_strdup_printf ("Error received on bus: %s: %s", err->message,
+          dbg_info);
+      g_error_free (err);
+      g_free (dbg_info);
+
+      fail (err_str);
+      g_free (err_str);
+
       break;
     }
     case GST_MESSAGE_WARNING:{
@@ -139,14 +152,14 @@ GST_START_TEST (check_states_pipeline)
   gst_element_link (encoder, video_agnosticbin);
   gst_element_link (audiotestsrc, audio_agnosticbin);
   gst_element_link_pads (video_agnosticbin, NULL, recorder, "video_sink");
-  gst_element_link_pads (audio_agnosticbin, "src", recorder, "audio_sink");
+  gst_element_link_pads (audio_agnosticbin, NULL, recorder, "audio_sink");
 
   g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), NULL);
 
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
-      NULL);
+      "wave", 8, NULL);
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
@@ -160,10 +173,13 @@ GST_START_TEST (check_states_pipeline)
   GST_DEBUG ("Stop executed");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+      GST_DEBUG_GRAPH_SHOW_ALL, "stopped");
 
   g_main_loop_run (loop);
   GST_DEBUG ("Last transition");
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_object_unref (GST_OBJECT (pipeline));
