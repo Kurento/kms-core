@@ -41,25 +41,14 @@ handoff (GstElement * object, GstBuffer * arg0,
     GstPad * arg1, gpointer user_data)
 {
   switch (trasnsitions[state].state) {
-    case KMS_URI_END_POINT_STATE_STOP:{
-
+    case KMS_URI_END_POINT_STATE_STOP:
       GST_DEBUG (" ---------> handoff in STOP state");
-    }
       break;
-
-    case KMS_URI_END_POINT_STATE_START:{
-
+    case KMS_URI_END_POINT_STATE_START:
       start_buffer = TRUE;
-      GST_DEBUG (" ---------> handoff in START state");
-
-    }
       break;
-
-    case KMS_URI_END_POINT_STATE_PAUSE:{
-
-    }
+    case KMS_URI_END_POINT_STATE_PAUSE:
       break;
-
     default:
       break;
   }

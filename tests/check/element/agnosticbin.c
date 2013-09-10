@@ -57,10 +57,8 @@ negotiated_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   static int count = 0;
   GMainLoop *loop = (GMainLoop *) data;
 
-  GST_DEBUG ("count: %d", count);
   if (count++ > 10) {
     g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
-    GST_DEBUG ("count: %d", count);
     g_main_loop_quit (loop);
   }
 }
@@ -72,10 +70,8 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   static int count = 0;
   GMainLoop *loop = (GMainLoop *) data;
 
-  GST_DEBUG ("count: %d", count);
   if (count++ > 40) {
     g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
-    GST_DEBUG ("count: %d", count);
     g_main_loop_quit (loop);
   }
 }
