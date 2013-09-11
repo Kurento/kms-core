@@ -48,6 +48,9 @@ element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_rtpendpoint_video_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_video_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+if RTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
+element_rtpendpoint_video_CFLAGS += -DRTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
+endif
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 general_dummytest_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)

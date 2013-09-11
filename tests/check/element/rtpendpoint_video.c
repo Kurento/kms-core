@@ -163,6 +163,85 @@ GST_START_TEST (test_vp8_sendonly_play_before_negotiation)
 }
 
 GST_END_TEST
+#ifdef RTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
+GST_START_TEST (test_vp8_sendonly_play_after_negotiation)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstSDPMessage *pattern_sdp, *offer, *answer;
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *vp8enc = gst_element_factory_make ("vp8enc", NULL);
+  GstElement *rtpendpointsender =
+      gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *rtpendpointreceiver =
+      gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_vp8_sendonly_str, -1, pattern_sdp) == GST_SDP_OK);
+  g_object_set (rtpendpointsender, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_vp8_recvonly_str, -1, pattern_sdp) == GST_SDP_OK);
+  g_object_set (rtpendpointreceiver, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  g_object_set (G_OBJECT (outputfakesink), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (G_OBJECT (outputfakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  /* Add elements */
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, vp8enc, rtpendpointsender,
+      NULL);
+  gst_element_link (videotestsrc, vp8enc);
+  gst_element_link_pads (vp8enc, NULL, rtpendpointsender, "video_sink");
+
+  gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, outputfakesink,
+      NULL);
+  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
+      "sink");
+
+  /* SDP negotiation */
+  mark_point ();
+  g_signal_emit_by_name (rtpendpointsender, "generate-offer", &offer);
+  fail_unless (offer != NULL);
+
+  mark_point ();
+  g_signal_emit_by_name (rtpendpointreceiver, "process-offer", offer, &answer);
+  fail_unless (answer != NULL);
+
+  mark_point ();
+  g_signal_emit_by_name (rtpendpointsender, "process-answer", answer);
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_vp8_sendonly_before_entering_loop");
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_vp8_sendonly_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+}
+
+GST_END_TEST
+#endif
 /*
  * End of test cases
  */
@@ -174,6 +253,10 @@ rtpendpoint_video_test_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, test_vp8_sendonly_play_before_negotiation);
+
+#ifdef RTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
+  tcase_add_test (tc_chain, test_vp8_sendonly_play_after_negotiation);
+#endif
 
   return s;
 }
