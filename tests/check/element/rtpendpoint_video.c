@@ -163,7 +163,6 @@ GST_START_TEST (test_vp8_sendonly_play_before_negotiation)
 }
 
 GST_END_TEST
-#ifdef RTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
 GST_START_TEST (test_vp8_sendonly_play_after_negotiation)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -241,7 +240,6 @@ GST_START_TEST (test_vp8_sendonly_play_after_negotiation)
 }
 
 GST_END_TEST
-#endif
 /*
  * End of test cases
  */
@@ -252,11 +250,9 @@ rtpendpoint_video_test_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-  tcase_add_test (tc_chain, test_vp8_sendonly_play_before_negotiation);
 
-#ifdef RTPENDPOINT_TEST_VP8_SENDONLY_PLAY_AFTER_NEGOTIATION
+  tcase_add_test (tc_chain, test_vp8_sendonly_play_before_negotiation);
   tcase_add_test (tc_chain, test_vp8_sendonly_play_after_negotiation);
-#endif
 
   return s;
 }
