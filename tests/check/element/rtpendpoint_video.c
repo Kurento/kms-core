@@ -284,6 +284,48 @@ GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 
 GST_END_TEST
 #endif
+/* H263 tests */
+static GstStaticCaps h263_expected_caps =
+GST_STATIC_CAPS ("video/x-h263, variant=(string)itu, h263version=(string)h263");
+
+static const gchar *pattern_sdp_h263_sendonly_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
+    "a=sendonly\r\n";
+
+static const gchar *pattern_sdp_h263_recvonly_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
+    "a=recvonly\r\n";
+
+static void
+test_h263_sendonly (gboolean play_after_negotiation)
+{
+  test_video_sendonly ("avenc_h263p", h263_expected_caps,
+      pattern_sdp_h263_sendonly_str, pattern_sdp_h263_recvonly_str,
+      play_after_negotiation);
+}
+
+GST_START_TEST (test_h263_sendonly_play_before_negotiation)
+{
+  test_h263_sendonly (FALSE);
+}
+
+GST_END_TEST
+#ifdef RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
+GST_START_TEST (test_h263_sendonly_play_after_negotiation)
+{
+  test_h263_sendonly (TRUE);
+}
+
+GST_END_TEST
+#endif
 /*
  * End of test cases
  */
@@ -305,6 +347,12 @@ rtpendpoint_video_test_suite (void)
 
 #ifdef RTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
+#endif
+
+  tcase_add_test (tc_chain, test_h263_sendonly_play_before_negotiation);
+
+#ifdef RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
+  tcase_add_test (tc_chain, test_h263_sendonly_play_after_negotiation);
 #endif
 
   return s;

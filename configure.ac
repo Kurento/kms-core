@@ -176,6 +176,16 @@ AC_ARG_ENABLE([rtpendpoint_test_mpeg4_sendonly_play_after_negotiation],
 esac],[rtpendpoint_test_mpeg4_sendonly_play_after_negotiation=false])
 AM_CONDITIONAL([RTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION], [test x$rtpendpoint_test_mpeg4_sendonly_play_after_negotiation = xtrue])
 
+dnl enable/disable rtpendpoint_test_h263_sendonly_play_after_negotiation test
+AC_ARG_ENABLE([rtpendpoint_test_h263_sendonly_play_after_negotiation],
+[  --enable-rtpendpoint-test-h263-sendonly-play-after-negotiation]    Turn on testing rtpendpoint h263 sendonly play after negotiation],
+[case "${enableval}" in
+  yes) rtpendpoint_test_h263_sendonly_play_after_negotiation=true ;;
+  no)  rtpendpoint_test_h263_sendonly_play_after_negotiation=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-rtpendpoint-test-h263-sendonly-play-after-negotiation]) ;;
+esac],[rtpendpoint_test_h263_sendonly_play_after_negotiation=false])
+AM_CONDITIONAL([RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION], [test x$rtpendpoint_test_h263_sendonly_play_after_negotiation = xtrue])
+
 if test "x${FINAL_INSTALL_DIR}" = "x"; then
   AC_DEFINE([FINAL_INSTALL_DIR], [""],"Final installation Path")
 else
