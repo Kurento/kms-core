@@ -21,6 +21,9 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#define AGNOSTIC_KEY "agnostic"
+#define DECODER_KEY "decoder"
+
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -64,6 +67,65 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 }
 
 static gboolean
+link_again (gpointer data)
+{
+  GstElement *decoder = (GstElement *) data;
+  GstElement *agnostic = g_object_get_data (G_OBJECT (data), AGNOSTIC_KEY);
+
+  GST_DEBUG ("Linking again %P, %P", agnostic, decoder);
+  gst_element_link (agnostic, decoder);
+
+  return FALSE;
+}
+
+static gboolean
+idle_unlink (gpointer data)
+{
+  GstPad *sink, *src;
+
+  GstElement *decoder = (GstElement *) data;
+  GstElement *agnostic = g_object_get_data (G_OBJECT (decoder), AGNOSTIC_KEY);
+
+  sink = gst_element_get_static_pad (decoder, "sink");
+  src = gst_pad_get_peer (sink);
+
+  GST_OBJECT_FLAG_SET (src, GST_PAD_FLAG_BLOCKED);
+  gst_pad_unlink (src, sink);
+
+  gst_element_release_request_pad (agnostic, src);
+  GST_OBJECT_FLAG_UNSET (src, GST_PAD_FLAG_BLOCKED);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  g_timeout_add (200, link_again, decoder);
+
+  return FALSE;
+}
+
+static void
+fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  static int count = 0;
+  static int cycles = 0;
+  GMainLoop *loop = (GMainLoop *) data;
+
+  if (count++ > 10) {
+    count = 0;
+    if (cycles++ > 10) {
+      GST_DEBUG ("Quit loop");
+      g_main_loop_quit (loop);
+    } else {
+      GstElement *decoder =
+          g_object_get_data (G_OBJECT (fakesink), DECODER_KEY);
+
+      mark_point ();
+      g_idle_add (idle_unlink, decoder);
+    }
+  }
+}
+
+static gboolean
 timeout_check (gpointer pipeline)
 {
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
@@ -71,6 +133,62 @@ timeout_check (gpointer pipeline)
   return FALSE;
 }
 
+GST_START_TEST (reconnect_test)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
+  GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
+  gboolean ret;
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  g_object_set (G_OBJECT (fakesink2), "sync", FALSE, "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (fakesink2), "handoff",
+      G_CALLBACK (fakesink_hand_off2), loop);
+  g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
+  g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
+      decoder, fakesink2, NULL);
+  mark_point ();
+  ret = gst_element_link_many (videotestsrc, agnosticbin, fakesink, NULL);
+  fail_unless (ret);
+  mark_point ();
+  ret = gst_element_link_many (agnosticbin, decoder, fakesink2, NULL);
+  fail_unless (ret);
+  mark_point ();
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+}
+
+GST_END_TEST
 GST_START_TEST (static_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -141,6 +259,7 @@ agnostic_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, static_link);
+  tcase_add_test (tc_chain, reconnect_test);
 
   return s;
 }
