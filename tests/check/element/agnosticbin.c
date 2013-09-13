@@ -209,7 +209,7 @@ GST_START_TEST (static_link)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (fakesink2), "sync", TRUE, "signal-handoffs", TRUE,
+  g_object_set (G_OBJECT (fakesink2), "sync", FALSE, "signal-handoffs", TRUE,
       NULL);
   g_signal_connect (G_OBJECT (fakesink2), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
