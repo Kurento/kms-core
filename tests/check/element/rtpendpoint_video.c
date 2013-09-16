@@ -52,10 +52,8 @@ typedef struct HandOffData
 } HandOffData;
 
 static void
-fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
-    gpointer data)
+check_caps (GstPad * pad, HandOffData * hod)
 {
-  HandOffData *hod = (HandOffData *) data;
   GstCaps *caps, *expected_caps;
   gboolean is_subset = FALSE;
 
@@ -67,8 +65,17 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   gst_caps_unref (expected_caps);
   gst_caps_unref (caps);
 
-  g_main_loop_quit (hod->loop);
   fail_unless (is_subset);
+}
+
+static void
+fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  HandOffData *hod = (HandOffData *) data;
+
+  check_caps (pad, hod);
+  g_main_loop_quit (hod->loop);
 }
 
 // FIXME: if agnosticbin is used, the test fails
@@ -162,6 +169,155 @@ test_video_sendonly (const gchar * video_enc_name, GstStaticCaps expected_caps,
   g_slice_free (HandOffData, hod);
 }
 
+#define OFFERER_RECEIVES_VIDEO "offerer_receives_video"
+#define ANSWERER_RECEIVES_VIDEO "answerer_receives_video"
+
+G_LOCK_DEFINE_STATIC (check_receive_lock);
+
+static void
+sendrecv_offerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
+    GstPad * pad, gpointer data)
+{
+  HandOffData *hod = (HandOffData *) data;
+  GstElement *pipeline;
+
+  check_caps (pad, hod);
+
+  pipeline = GST_ELEMENT (gst_element_get_parent (fakesink));
+
+  G_LOCK (check_receive_lock);
+  if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+              ANSWERER_RECEIVES_VIDEO))) {
+    g_main_loop_quit (hod->loop);
+  } else {
+    g_object_set_data (G_OBJECT (pipeline), OFFERER_RECEIVES_VIDEO,
+        GINT_TO_POINTER (TRUE));
+  }
+  G_UNLOCK (check_receive_lock);
+
+  g_object_unref (pipeline);
+}
+
+static void
+sendrecv_answerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
+    GstPad * pad, gpointer data)
+{
+  HandOffData *hod = (HandOffData *) data;
+  GstElement *pipeline;
+
+  check_caps (pad, hod);
+
+  pipeline = GST_ELEMENT (gst_element_get_parent (fakesink));
+
+  G_LOCK (check_receive_lock);
+  if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+              OFFERER_RECEIVES_VIDEO))) {
+    g_main_loop_quit (hod->loop);
+  } else {
+    g_object_set_data (G_OBJECT (pipeline), ANSWERER_RECEIVES_VIDEO,
+        GINT_TO_POINTER (TRUE));
+  }
+  G_UNLOCK (check_receive_lock);
+
+  g_object_unref (pipeline);
+}
+
+static void
+test_video_sendrecv (const gchar * video_enc_name,
+    GstStaticCaps expected_caps, const gchar * pattern_sdp_sendrcv_str)
+{
+  HandOffData *hod;
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstSDPMessage *pattern_sdp, *offer, *answer;
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc_offerer =
+      gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *videotestsrc_answerer =
+      gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *video_enc_offerer =
+      gst_element_factory_make (video_enc_name, NULL);
+  GstElement *video_enc_answerer =
+      gst_element_factory_make (video_enc_name, NULL);
+  GstElement *rtpendpoint_offerer =
+      gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *rtpendpoint_answerer =
+      gst_element_factory_make ("rtpendpoint", NULL);
+  GstElement *fakesink_offerer = gst_element_factory_make ("fakesink", NULL);
+  GstElement *fakesink_answerer = gst_element_factory_make ("fakesink", NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_sendrcv_str, -1, pattern_sdp) == GST_SDP_OK);
+  g_object_set (rtpendpoint_offerer, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (rtpendpoint_answerer, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  hod = g_slice_new (HandOffData);
+  hod->expected_caps = expected_caps;
+  hod->loop = loop;
+
+  g_object_set (G_OBJECT (fakesink_offerer), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (G_OBJECT (fakesink_offerer), "handoff",
+      G_CALLBACK (sendrecv_offerer_fakesink_hand_off), hod);
+  g_object_set (G_OBJECT (fakesink_answerer), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (G_OBJECT (fakesink_answerer), "handoff",
+      G_CALLBACK (sendrecv_answerer_fakesink_hand_off), hod);
+
+  /* Add elements */
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc_offerer, video_enc_offerer,
+      rtpendpoint_offerer, fakesink_offerer, NULL);
+  gst_element_link (videotestsrc_offerer, video_enc_offerer);
+  gst_element_link_pads (video_enc_offerer, NULL, rtpendpoint_offerer,
+      "video_sink");
+  gst_element_link_pads (rtpendpoint_offerer, "video_src_%u", fakesink_offerer,
+      "sink");
+
+  gst_bin_add_many (GST_BIN (pipeline)
+      , videotestsrc_answerer, video_enc_answerer, rtpendpoint_answerer,
+      fakesink_answerer, NULL);
+  gst_element_link (videotestsrc_answerer, video_enc_answerer);
+  gst_element_link_pads (video_enc_answerer, NULL, rtpendpoint_answerer,
+      "video_sink");
+  gst_element_link_pads (rtpendpoint_answerer, "video_src_%u",
+      fakesink_answerer, "sink");
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* SDP negotiation */
+  mark_point ();
+  g_signal_emit_by_name (rtpendpoint_offerer, "generate-offer", &offer);
+  fail_unless (offer != NULL);
+
+  mark_point ();
+  g_signal_emit_by_name (rtpendpoint_answerer, "process-offer", offer, &answer);
+  fail_unless (answer != NULL);
+
+  mark_point ();
+  g_signal_emit_by_name (rtpendpoint_offerer, "process-answer", answer);
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_sendonly_before_entering_loop");
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_sendonly_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_slice_free (HandOffData, hod);
+}
+
 /* VP8 tests */
 
 static GstStaticCaps vp8_expected_caps = GST_STATIC_CAPS ("video/x-vp8");
@@ -179,6 +335,13 @@ static const gchar *pattern_sdp_vp8_recvonly_str = "v=0\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=recvonly\r\n";
+
+static const gchar *pattern_sdp_vp8_sendrecv_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendrecv\r\n";
 
 static void
 test_vp8_sendonly (gboolean play_after_negotiation)
@@ -200,6 +363,13 @@ GST_START_TEST (test_vp8_sendonly_play_after_negotiation)
 }
 
 GST_END_TEST
+GST_START_TEST (test_vp8_sendrecv)
+{
+  test_video_sendrecv ("vp8enc", vp8_expected_caps,
+      pattern_sdp_vp8_sendrecv_str);
+}
+
+GST_END_TEST
 /* H264 tests */
 static GstStaticCaps h264_expected_caps = GST_STATIC_CAPS ("video/x-h264");
 
@@ -216,6 +386,13 @@ static const gchar *pattern_sdp_h264_recvonly_str = "v=0\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H264/90000\r\n" "a=recvonly\r\n";
+
+static const gchar *pattern_sdp_h264_sendrecv_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H264/90000\r\n" "a=sendrecv\r\n";
 
 static void
 test_h264_sendonly (gboolean play_after_negotiation)
@@ -237,6 +414,13 @@ GST_START_TEST (test_h264_sendonly_play_after_negotiation)
 }
 
 GST_END_TEST
+GST_START_TEST (test_h264_sendrecv)
+{
+  test_video_sendrecv ("x264enc", h264_expected_caps,
+      pattern_sdp_h264_sendrecv_str);
+}
+
+GST_END_TEST
 /* MPEG4 tests */
 static GstStaticCaps mpeg4_expected_caps =
 GST_STATIC_CAPS ("video/mpeg, mpegversion=(int)4");
@@ -254,6 +438,13 @@ static const gchar *pattern_sdp_mpeg4_recvonly_str = "v=0\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=recvonly\r\n";
+
+static const gchar *pattern_sdp_mpeg4_sendrecv_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=sendrecv\r\n";
 
 static void
 test_mpeg4_sendonly (gboolean play_after_negotiation)
@@ -277,6 +468,13 @@ GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 
 GST_END_TEST
 #endif
+GST_START_TEST (test_mpeg4_sendrecv)
+{
+  test_video_sendrecv ("avenc_mpeg4", mpeg4_expected_caps,
+      pattern_sdp_mpeg4_sendrecv_str);
+}
+
+GST_END_TEST
 /* H263 tests */
 static GstStaticCaps h263_expected_caps =
 GST_STATIC_CAPS ("video/x-h263, variant=(string)itu, h263version=(string)h263");
@@ -296,6 +494,14 @@ static const gchar *pattern_sdp_h263_recvonly_str = "v=0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
     "a=recvonly\r\n";
+
+static const gchar *pattern_sdp_h263_sendrecv_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
+    "a=sendrecv\r\n";
 
 static void
 test_h263_sendonly (gboolean play_after_negotiation)
@@ -319,6 +525,13 @@ GST_START_TEST (test_h263_sendonly_play_after_negotiation)
 
 GST_END_TEST
 #endif
+GST_START_TEST (test_h263_sendrecv)
+{
+  test_video_sendrecv ("avenc_h263p", h263_expected_caps,
+      pattern_sdp_h263_sendrecv_str);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -332,9 +545,11 @@ rtpendpoint_video_test_suite (void)
 
   tcase_add_test (tc_chain, test_vp8_sendonly_play_before_negotiation);
   tcase_add_test (tc_chain, test_vp8_sendonly_play_after_negotiation);
+  tcase_add_test (tc_chain, test_vp8_sendrecv);
 
   tcase_add_test (tc_chain, test_h264_sendonly_play_before_negotiation);
   tcase_add_test (tc_chain, test_h264_sendonly_play_after_negotiation);
+  tcase_add_test (tc_chain, test_h264_sendrecv);
 
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_before_negotiation);
 
@@ -342,11 +557,15 @@ rtpendpoint_video_test_suite (void)
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
 #endif
 
+  tcase_add_test (tc_chain, test_mpeg4_sendrecv);
+
   tcase_add_test (tc_chain, test_h263_sendonly_play_before_negotiation);
 
 #ifdef RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
   tcase_add_test (tc_chain, test_h263_sendonly_play_after_negotiation);
 #endif
+
+  tcase_add_test (tc_chain, test_h263_sendrecv);
 
   return s;
 }
