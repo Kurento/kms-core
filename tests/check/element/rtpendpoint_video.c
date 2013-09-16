@@ -26,7 +26,7 @@
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
-  switch (msg->type) {
+  switch (GST_MESSAGE_TYPE (msg)) {
     case GST_MESSAGE_ERROR:{
       GST_ERROR ("Error: %P", msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
@@ -40,13 +40,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
-    case GST_MESSAGE_STATE_CHANGED:
-    {
-      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin")) {
-        GST_INFO ("Event: %P", msg);
-      }
-    }
-      break;
     default:
       break;
   }
