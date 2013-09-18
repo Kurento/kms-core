@@ -84,6 +84,7 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   HandOffData *hod = (HandOffData *) data;
 
   check_caps (pad, hod);
+  g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
   g_idle_add (quit_main_loop_idle, hod->loop);
 }
 
@@ -197,6 +198,7 @@ sendrecv_offerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   G_LOCK (check_receive_lock);
   if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
               ANSWERER_RECEIVES_VIDEO))) {
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
     g_idle_add (quit_main_loop_idle, hod->loop);
   } else {
     g_object_set_data (G_OBJECT (pipeline), OFFERER_RECEIVES_VIDEO,
@@ -221,6 +223,7 @@ sendrecv_answerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   G_LOCK (check_receive_lock);
   if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
               OFFERER_RECEIVES_VIDEO))) {
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
     g_idle_add (quit_main_loop_idle, hod->loop);
   } else {
     g_object_set_data (G_OBJECT (pipeline), ANSWERER_RECEIVES_VIDEO,
