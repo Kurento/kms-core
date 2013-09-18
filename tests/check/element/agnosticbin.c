@@ -24,6 +24,15 @@
 #define AGNOSTIC_KEY "agnostic"
 #define DECODER_KEY "decoder"
 
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  GMainLoop *loop = data;
+
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -62,7 +71,7 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
   if (count++ > 40) {
     g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
-    g_main_loop_quit (loop);
+    g_idle_add (quit_main_loop_idle, loop);
   }
 }
 
@@ -114,7 +123,7 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     count = 0;
     if (cycles++ > 10) {
       GST_DEBUG ("Quit loop");
-      g_main_loop_quit (loop);
+      g_idle_add (quit_main_loop_idle, loop);
     } else {
       GstElement *decoder =
           g_object_get_data (G_OBJECT (fakesink), DECODER_KEY);

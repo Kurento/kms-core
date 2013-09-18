@@ -51,6 +51,13 @@ static const gchar *pattern_sdp_str = "v=0\r\n"
     "a=rtpmap:96 VP8/90000\r\n"
     "m=audio 0 RTP/AVP 97\r\n" "a=rtpmap:97 OPUS/48000/1\r\n";
 
+static gboolean
+quit_main_loop (gpointer data)
+{
+  g_main_loop_quit (data);
+  return FALSE;
+}
+
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -91,7 +98,7 @@ sync_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
   if (count == 0) {
     count++;
-    g_main_loop_quit (loop);
+    g_idle_add (quit_main_loop, loop);
   }
 }
 
@@ -105,15 +112,8 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   count++;
   GST_DEBUG ("count: %d", count);
   if (count > 90) {
-    g_main_loop_quit (loop);
+    g_idle_add (quit_main_loop, loop);
   }
-}
-
-static gboolean
-quit_main_loop (gpointer data)
-{
-  g_main_loop_quit (data);
-  return FALSE;
 }
 
 GST_START_TEST (loopback)

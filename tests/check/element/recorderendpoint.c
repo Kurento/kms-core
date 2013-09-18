@@ -110,11 +110,20 @@ transite_cb (gpointer data)
   return FALSE;
 }
 
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  GMainLoop *loop = data;
+
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
 static void
 recorder_stopped (GstElement * recorder, gpointer user_data)
 {
   GST_INFO ("Recorder stopped signal");
-  g_main_loop_quit (loop);
+  g_idle_add (quit_main_loop_idle, loop);
 }
 
 GST_START_TEST (check_states_pipeline)

@@ -22,6 +22,15 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  GMainLoop *loop = data;
+
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
 // TODO: create a generic bus_msg
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
@@ -75,7 +84,7 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   HandOffData *hod = (HandOffData *) data;
 
   check_caps (pad, hod);
-  g_main_loop_quit (hod->loop);
+  g_idle_add (quit_main_loop_idle, hod->loop);
 }
 
 // FIXME: if agnosticbin is used, the test fails
@@ -188,7 +197,7 @@ sendrecv_offerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   G_LOCK (check_receive_lock);
   if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
               ANSWERER_RECEIVES_VIDEO))) {
-    g_main_loop_quit (hod->loop);
+    g_idle_add (quit_main_loop_idle, hod->loop);
   } else {
     g_object_set_data (G_OBJECT (pipeline), OFFERER_RECEIVES_VIDEO,
         GINT_TO_POINTER (TRUE));
@@ -212,7 +221,7 @@ sendrecv_answerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   G_LOCK (check_receive_lock);
   if (GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
               OFFERER_RECEIVES_VIDEO))) {
-    g_main_loop_quit (hod->loop);
+    g_idle_add (quit_main_loop_idle, hod->loop);
   } else {
     g_object_set_data (G_OBJECT (pipeline), ANSWERER_RECEIVES_VIDEO,
         GINT_TO_POINTER (TRUE));
