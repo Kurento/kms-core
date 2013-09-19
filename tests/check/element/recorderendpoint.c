@@ -58,7 +58,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       gchar *dbg_info = NULL;
       gchar *err_str;
 
-      GST_ERROR ("Error: %P", msg);
+      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
       gst_message_parse_error (msg, &err, &dbg_info);
@@ -74,13 +74,13 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Warning: %P", msg);
+      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
-      GST_TRACE ("Event: %P", msg);
+      GST_TRACE ("Event: %" GST_PTR_FORMAT, msg);
       break;
     }
     default:

@@ -64,14 +64,14 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 
   switch (msg->type) {
     case GST_MESSAGE_ERROR:{
-      GST_ERROR ("Error: %P", msg);
+      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "error");
       fail ("Error received on bus");
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Warning: %P", msg);
+      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
@@ -79,7 +79,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
     case GST_MESSAGE_STATE_CHANGED:
     {
       if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin")) {
-        GST_INFO ("Event: %P", msg);
+        GST_INFO ("Event: %" GST_PTR_FORMAT, msg);
       }
     }
       break;

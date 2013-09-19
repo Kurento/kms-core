@@ -11,12 +11,12 @@ GST_START_TEST (check_invalid_factory)
   /* Default value for filter factory must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter_factory", &filter_factory,
       NULL);
-  GST_DEBUG ("Got uri property value : %s", filter_factory);
+  GST_DEBUG ("Got filter_factory property value : %s", filter_factory);
   fail_unless (filter_factory == NULL);
 
   /* Default value for filter must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter", &filter, NULL);
-  GST_DEBUG ("Got uri property value : %s", filter);
+  GST_DEBUG ("Got filter property value : %" GST_PTR_FORMAT, filter);
   fail_unless (filter == NULL);
 
   /* Set factory */
@@ -51,12 +51,12 @@ GST_START_TEST (check_invalid_pads_factory)
   /* Default value for filter factory must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter_factory", &filter_factory,
       NULL);
-  GST_DEBUG ("Got uri property value : %s", filter_factory);
+  GST_DEBUG ("Got filter_factory property value : %s", filter_factory);
   fail_unless (filter_factory == NULL);
 
   /* Default value for filter must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter", &filter, NULL);
-  GST_DEBUG ("Got uri property value : %s", filter);
+  GST_DEBUG ("Got filter property value : %" GST_PTR_FORMAT, filter);
   fail_unless (filter == NULL);
 
   /* Set factory */
@@ -92,12 +92,12 @@ GST_START_TEST (check_properties)
   /* Default value for filter factory must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter_factory", &filter_factory,
       NULL);
-  GST_DEBUG ("Got uri property value : %s", filter_factory);
+  GST_DEBUG ("Got filter_factory property value : %s", filter_factory);
   fail_unless (filter_factory == NULL);
 
   /* Default value for filter must be NULL */
   g_object_get (G_OBJECT (filterelement), "filter", &filter, NULL);
-  GST_DEBUG ("Got uri property value : %s", filter);
+  GST_DEBUG ("Got filter property value : %" GST_PTR_FORMAT, filter);
   fail_unless (filter == NULL);
 
   /* Set factory */

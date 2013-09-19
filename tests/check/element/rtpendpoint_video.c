@@ -37,14 +37,14 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
   switch (GST_MESSAGE_TYPE (msg)) {
     case GST_MESSAGE_ERROR:{
-      GST_ERROR ("Error: %P", msg);
+      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "error");
       fail ("Error received on bus");
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Warning: %P", msg);
+      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
@@ -69,8 +69,8 @@ check_caps (GstPad * pad, HandOffData * hod)
   expected_caps = gst_static_caps_get (&hod->expected_caps);
   caps = gst_pad_get_current_caps (pad);
   is_subset = gst_caps_is_subset (caps, expected_caps);
-  GST_DEBUG ("expected caps: %P, caps: %P, is subset: %d", expected_caps, caps,
-      is_subset);
+  GST_DEBUG ("expected caps: %" GST_PTR_FORMAT ", caps: %" GST_PTR_FORMAT
+      ", is subset: %d", expected_caps, caps, is_subset);
   gst_caps_unref (expected_caps);
   gst_caps_unref (caps);
 

@@ -18,20 +18,23 @@ bus_msg_cb (GstBus * bus, GstMessage * msg, gpointer pipeline)
 {
   switch (msg->type) {
     case GST_MESSAGE_ERROR:{
-      GST_ERROR ("%s bus error: %P", GST_ELEMENT_NAME (pipeline), msg);
+      GST_ERROR ("%s bus error: %" GST_PTR_FORMAT, GST_ELEMENT_NAME (pipeline),
+          msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
           GST_DEBUG_GRAPH_SHOW_ALL, "bus_error");
       fail ("Error received on %s bus", GST_ELEMENT_NAME (pipeline));
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("%s bus: %P", GST_ELEMENT_NAME (pipeline), msg);
+      GST_WARNING ("%s bus: %" GST_PTR_FORMAT, GST_ELEMENT_NAME (pipeline),
+          msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
-      GST_TRACE ("%s bus event: %P", GST_ELEMENT_NAME (pipeline), msg);
+      GST_TRACE ("%s bus event: %" GST_PTR_FORMAT, GST_ELEMENT_NAME (pipeline),
+          msg);
       break;
     }
     default:
@@ -60,8 +63,8 @@ post_recv_sample (GstElement * appsink, gpointer user_data)
 
   if (ret != GST_FLOW_OK) {
     /* something wrong */
-    GST_ERROR ("Could not send buffer to httpep %s. Ret code %d", ret,
-        GST_ELEMENT_NAME (httpep));
+    GST_ERROR ("Could not send buffer to httpep %s. Ret code %d",
+        GST_ELEMENT_NAME (httpep), ret);
   }
 
   g_object_get (G_OBJECT (httpep), "http-method", &method, NULL);
@@ -112,8 +115,8 @@ appsink_eos_cb (GstElement * appsink, gpointer user_data)
 
   if (ret != GST_FLOW_OK) {
     // something wrong
-    GST_ERROR ("Could not send EOS to %s. Ret code %d", ret,
-        GST_ELEMENT_NAME (httpep));
+    GST_ERROR ("Could not send EOS to %s. Ret code %d",
+        GST_ELEMENT_NAME (httpep), ret);
     fail ("Can not send buffer to", GST_ELEMENT_NAME (httpep));
   }
 }
