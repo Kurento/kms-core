@@ -42,7 +42,8 @@ check_PROGRAMS =						\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
 	element/agnosticbin					\
-	memory_leaks/agnosticbin
+	memory_leaks/agnosticbin				\
+	memory_leaks/playerendpoint
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -95,3 +96,6 @@ element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 memory_leaks_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 memory_leaks_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+memory_leaks_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -I$(top_srcdir)/src -Werror
+memory_leaks_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
