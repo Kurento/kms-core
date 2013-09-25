@@ -303,7 +303,6 @@ sdp_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, negotiation_offerer);
-  // TODO: Re-enable test when bug in agnosticbin negotiation is solved
   tcase_add_test (tc_chain, loopback);
 
   return s;
