@@ -106,11 +106,9 @@ idle_unlink (gpointer data)
   sink = gst_element_get_static_pad (decoder, "sink");
   src = gst_pad_get_peer (sink);
 
-  GST_OBJECT_FLAG_SET (src, GST_PAD_FLAG_BLOCKED);
   gst_pad_unlink (src, sink);
 
   gst_element_release_request_pad (agnostic, src);
-  GST_OBJECT_FLAG_UNSET (src, GST_PAD_FLAG_BLOCKED);
   g_object_unref (src);
   g_object_unref (sink);
 
