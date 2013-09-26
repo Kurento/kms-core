@@ -40,6 +40,7 @@ endif
 check_PROGRAMS =						\
 	$(TEST_AUTOMUXER)					\
 	element/rtpendpoint					\
+	element/rtpendpoint_audio				\
 	element/rtpendpoint_video				\
 	general/dummytest					\
 	general/sdp						\
@@ -54,6 +55,9 @@ check_PROGRAMS =						\
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_rtpendpoint_audio_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_rtpendpoint_audio_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_rtpendpoint_video_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_video_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
