@@ -166,15 +166,15 @@ AC_ARG_ENABLE([automuxertest],
 esac],[automuxertest=false])
 AM_CONDITIONAL([AUTOMUXERTEST], [test x$automuxertest = xtrue])
 
-dnl enable/disable debugging_tests
+dnl enable/disable debuggingtests
 AC_ARG_ENABLE([debugging-tests],
 [  --enable-debugging-tests Turn on debugging tests],
 [case "${enableval}" in
-  yes) debugging_test=true ;;
-  no)  debugging_test=false ;;
+  yes) debuggingtests=true ;;
+  no)  debuggingtests=false ;;
   *) AC_MSG_ERROR([bad value ${enableval} for --enable-debugging-tests]) ;;
-esac],[debugging=false])
-AM_CONDITIONAL([DEBUGGING_TESTS], [test x$debugging = xtrue])
+esac],[debuggingtests=false])
+AM_CONDITIONAL([DEBUGGING_TESTS], [test x$debuggingtests = xtrue])
 
 if test "x${FINAL_INSTALL_DIR}" = "x"; then
   AC_DEFINE([FINAL_INSTALL_DIR], [""],"Final installation Path")
