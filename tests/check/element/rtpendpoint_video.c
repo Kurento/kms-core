@@ -451,12 +451,14 @@ static const gchar *pattern_sdp_mpeg4_recvonly_str = "v=0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=recvonly\r\n";
 
+#ifdef DEBUGGING_TESTS
 static const gchar *pattern_sdp_mpeg4_sendrecv_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=sendrecv\r\n";
+#endif
 
 static void
 test_mpeg4_sendonly (gboolean play_after_negotiation)
@@ -480,6 +482,7 @@ GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 
 GST_END_TEST
 #endif
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_mpeg4_sendrecv)
 {
   test_video_sendrecv ("avenc_mpeg4", mpeg4_expected_caps,
@@ -487,6 +490,7 @@ GST_START_TEST (test_mpeg4_sendrecv)
 }
 
 GST_END_TEST
+#endif
 /* H263 tests */
 static GstStaticCaps h263_expected_caps =
 GST_STATIC_CAPS ("video/x-h263, variant=(string)itu, h263version=(string)h263");
@@ -507,6 +511,7 @@ static const gchar *pattern_sdp_h263_recvonly_str = "v=0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
     "a=recvonly\r\n";
 
+#ifdef DEBUGGING_TESTS
 static const gchar *pattern_sdp_h263_sendrecv_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
@@ -514,6 +519,7 @@ static const gchar *pattern_sdp_h263_sendrecv_str = "v=0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 H263-1998/90000\r\n"
     "a=sendrecv\r\n";
+#endif
 
 static void
 test_h263_sendonly (gboolean play_after_negotiation)
@@ -537,6 +543,7 @@ GST_START_TEST (test_h263_sendonly_play_after_negotiation)
 
 GST_END_TEST
 #endif
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_h263_sendrecv)
 {
   test_video_sendrecv ("avenc_h263p", h263_expected_caps,
@@ -544,6 +551,7 @@ GST_START_TEST (test_h263_sendrecv)
 }
 
 GST_END_TEST
+#endif
 /*
  * End of test cases
  */
@@ -569,7 +577,9 @@ rtpendpoint_video_test_suite (void)
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
 #endif
 
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_mpeg4_sendrecv);
+#endif
 
   tcase_add_test (tc_chain, test_h263_sendonly_play_before_negotiation);
 
@@ -577,7 +587,9 @@ rtpendpoint_video_test_suite (void)
   tcase_add_test (tc_chain, test_h263_sendonly_play_after_negotiation);
 #endif
 
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_h263_sendrecv);
+#endif
 
   return s;
 }
