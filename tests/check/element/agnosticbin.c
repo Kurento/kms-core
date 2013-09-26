@@ -26,7 +26,9 @@
 
 #define VALVE_KEY "valve"
 
+#ifdef DEBUGGING_TESTS
 static GMainLoop *loop;
+#endif
 
 static gboolean
 quit_main_loop_idle (gpointer data)
@@ -147,6 +149,8 @@ timeout_check (gpointer pipeline)
   return FALSE;
 }
 
+#ifdef DEBUGGING_TESTS
+
 static gpointer
 toggle_thread (gpointer data)
 {
@@ -265,6 +269,7 @@ GST_START_TEST (valve_test)
 }
 
 GST_END_TEST
+#endif
 GST_START_TEST (reconnect_test)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -392,7 +397,9 @@ agnostic_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, static_link);
   tcase_add_test (tc_chain, reconnect_test);
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, valve_test);
+#endif
 
   return s;
 }

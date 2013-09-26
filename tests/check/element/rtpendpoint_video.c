@@ -472,7 +472,7 @@ GST_START_TEST (test_mpeg4_sendonly_play_before_negotiation)
 }
 
 GST_END_TEST
-#ifdef RTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 {
   test_mpeg4_sendonly (TRUE);
@@ -529,7 +529,7 @@ GST_START_TEST (test_h263_sendonly_play_before_negotiation)
 }
 
 GST_END_TEST
-#ifdef RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_h263_sendonly_play_after_negotiation)
 {
   test_h263_sendonly (TRUE);
@@ -565,7 +565,7 @@ rtpendpoint_video_test_suite (void)
 
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_before_negotiation);
 
-#ifdef RTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
 #endif
 
@@ -573,7 +573,7 @@ rtpendpoint_video_test_suite (void)
 
   tcase_add_test (tc_chain, test_h263_sendonly_play_before_negotiation);
 
-#ifdef RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_h263_sendonly_play_after_negotiation);
 #endif
 

@@ -30,6 +30,12 @@ else
 TEST_AUTOMUXER =
 endif
 
+if DEBUGGING_TESTS
+DEBUGGING_TESTS = element/recorderendpoint
+else
+DEBUGGING_TESTS =
+endif
+
 check_PROGRAMS =						\
 	$(TEST_AUTOMUXER)					\
 	element/rtpendpoint					\
@@ -38,23 +44,23 @@ check_PROGRAMS =						\
 	general/sdp						\
 	element/filterelement					\
 	element/uriendpoint					\
-	element/recorderendpoint				\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
 	element/agnosticbin					\
 	memory_leaks/agnosticbin				\
-	memory_leaks/playerendpoint
+	memory_leaks/playerendpoint				\
+	$(DEBUGGING_TESTS)
 
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_rtpendpoint_video_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_rtpendpoint_video_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
-if RTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION
-element_rtpendpoint_video_CFLAGS += -DRTPENDPOINT_TEST_MPEG4_SENDONLY_PLAY_AFTER_NEGOTIATION
+if DEBUGGING_TESTS
+element_rtpendpoint_video_CFLAGS += -DDEBUGGING_TESTS
 endif
-if RTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
-element_rtpendpoint_video_CFLAGS += -DRTPENDPOINT_TEST_H263_SENDONLY_PLAY_AFTER_NEGOTIATION
+if DEBUGGING_TESTS
+element_rtpendpoint_video_CFLAGS += -DDEBUGGING_TESTS
 endif
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
