@@ -51,8 +51,7 @@ change_state (KmsUriEndPointState state)
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
-
-  switch (msg->type) {
+  switch (GST_MESSAGE_TYPE (msg)) {
     case GST_MESSAGE_ERROR:{
       GError *err = NULL;
       gchar *dbg_info = NULL;
