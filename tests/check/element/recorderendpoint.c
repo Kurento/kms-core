@@ -143,8 +143,8 @@ GST_START_TEST (check_states_pipeline)
   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   recorder = gst_element_factory_make ("recorderendpoint", NULL);
 
-  g_object_set (G_OBJECT (recorder), "uri", "file:///tmp/state_recorder_%u.avi",
-      NULL);
+  g_object_set (G_OBJECT (recorder), "uri",
+      "file:///tmp/state_recorder_%u.webm", NULL);
 
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
