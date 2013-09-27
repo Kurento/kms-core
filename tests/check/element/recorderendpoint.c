@@ -8,7 +8,6 @@ gboolean set_state_start (gpointer *);
 gboolean set_state_pause (gpointer *);
 gboolean set_state_stop (gpointer *);
 
-static GMainLoop *loop = NULL;
 static GstElement *recorder = NULL;
 static guint state = 0;
 
@@ -90,11 +89,11 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 static gboolean transite_cb (gpointer);
 
 static void
-transite ()
+transite (gpointer loop)
 {
   if (state < G_N_ELEMENTS (trasnsitions)) {
     change_state (trasnsitions[state].state);
-    g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, NULL);
+    g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, loop);
   } else {
     GST_DEBUG ("All transitions done. Finishing recorder test suite");
     g_main_loop_quit (loop);
@@ -102,10 +101,10 @@ transite ()
 }
 
 static gboolean
-transite_cb (gpointer data)
+transite_cb (gpointer loop)
 {
   state++;
-  transite ();
+  transite (loop);
   return FALSE;
 }
 
@@ -119,7 +118,7 @@ quit_main_loop_idle (gpointer data)
 }
 
 static void
-recorder_stopped (GstElement * recorder, gpointer user_data)
+recorder_stopped (GstElement * recorder, gpointer loop)
 {
   GST_INFO ("Recorder stopped signal");
   g_idle_add (quit_main_loop_idle, loop);
@@ -132,7 +131,7 @@ GST_START_TEST (check_states_pipeline)
   guint bus_watch_id;
   GstBus *bus;
 
-  loop = g_main_loop_new (NULL, FALSE);
+  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
 
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("recorderendpoint0-test");
@@ -162,7 +161,7 @@ GST_START_TEST (check_states_pipeline)
   gst_element_link_pads (video_agnosticbin, NULL, recorder, "video_sink");
   gst_element_link_pads (audio_agnosticbin, NULL, recorder, "audio_sink");
 
-  g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), NULL);
+  g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), loop);
 
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, NULL);
@@ -175,7 +174,7 @@ GST_START_TEST (check_states_pipeline)
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  transite ();
+  transite (loop);
 
   g_main_loop_run (loop);
   GST_DEBUG ("Stop executed");
