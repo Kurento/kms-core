@@ -31,7 +31,8 @@ TEST_AUTOMUXER =
 endif
 
 if DEBUGGING_TESTS
-DEBUG_TESTS = element/recorderendpoint
+DEBUG_TESTS = element/recorderendpoint				\
+	memory_leaks/recorderendpoint
 else
 DEBUG_TESTS =
 endif
@@ -108,3 +109,8 @@ memory_leaks_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 memory_leaks_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -I$(top_srcdir)/src -Werror
 memory_leaks_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+if DEBUGGING_TESTS
+memory_leaks_recorderendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -I$(top_srcdir)/src -Werror
+memory_leaks_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+endif
