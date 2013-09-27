@@ -434,23 +434,26 @@ GST_START_TEST (test_h264_sendrecv)
 
 GST_END_TEST
 /* MPEG4 tests */
+#ifdef DEBUGGING_TESTS
 static GstStaticCaps mpeg4_expected_caps =
 GST_STATIC_CAPS ("video/mpeg, mpegversion=(int)4");
-
+#endif
+#ifdef DEBUGGING_TESTS
 static const gchar *pattern_sdp_mpeg4_sendonly_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=sendonly\r\n";
-
+#endif
+#ifdef DEBUGGING_TESTS
 static const gchar *pattern_sdp_mpeg4_recvonly_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=recvonly\r\n";
-
+#endif
 #ifdef DEBUGGING_TESTS
 static const gchar *pattern_sdp_mpeg4_sendrecv_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
@@ -460,6 +463,7 @@ static const gchar *pattern_sdp_mpeg4_sendrecv_str = "v=0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n" "a=sendrecv\r\n";
 #endif
 
+#ifdef DEBUGGING_TESTS
 static void
 test_mpeg4_sendonly (gboolean play_after_negotiation)
 {
@@ -467,13 +471,15 @@ test_mpeg4_sendonly (gboolean play_after_negotiation)
       pattern_sdp_mpeg4_sendonly_str, pattern_sdp_mpeg4_recvonly_str,
       play_after_negotiation);
 }
-
+#endif
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_mpeg4_sendonly_play_before_negotiation)
 {
   test_mpeg4_sendonly (FALSE);
 }
 
 GST_END_TEST
+#endif
 #ifdef DEBUGGING_TESTS
 GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 {
@@ -571,7 +577,9 @@ rtpendpoint_video_test_suite (void)
   tcase_add_test (tc_chain, test_h264_sendonly_play_after_negotiation);
   tcase_add_test (tc_chain, test_h264_sendrecv);
 
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_before_negotiation);
+#endif
 
 #ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
