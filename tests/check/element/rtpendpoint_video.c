@@ -541,7 +541,7 @@ test_h263_sendonly (gboolean play_after_negotiation)
 }
 #endif
 
-#ifdef DEBUGGING_TEST
+#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_h263_sendonly_play_before_negotiation)
 {
   test_h263_sendonly (FALSE);
