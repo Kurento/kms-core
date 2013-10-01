@@ -32,6 +32,7 @@ endif
 
 if DEBUGGING_TESTS
 DEBUG_TESTS = element/recorderendpoint				\
+	element/agnosticbin2					\
 	memory_leaks/recorderendpoint
 else
 DEBUG_TESTS =
@@ -105,6 +106,9 @@ element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 if DEBUGGING_TESTS
 element_agnosticbin_CFLAGS += -DDEBUGGING_TESTS
 endif
+
+element_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 # Memory leaks tests
 
