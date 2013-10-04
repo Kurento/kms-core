@@ -140,8 +140,8 @@ recorder_stopped (GstElement * recorder, gpointer loop)
 
 GST_START_TEST (check_states_pipeline)
 {
-  GstElement *pipeline, *videotestsrc, *encoder, *audio_agnosticbin,
-      *video_agnosticbin, *audiotestsrc, *timeoverlay;
+  GstElement *pipeline, *videotestsrc, *vencoder, *aencoder, *audiotestsrc,
+      *timeoverlay;
   guint bus_watch_id;
   GstBus *bus;
 
@@ -150,9 +150,8 @@ GST_START_TEST (check_states_pipeline)
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("recorderendpoint0-test");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
-  encoder = gst_element_factory_make ("vp8enc", NULL);
-  video_agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
-  audio_agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  vencoder = gst_element_factory_make ("vp8enc", NULL);
+  aencoder = gst_element_factory_make ("vorbisenc", NULL);
   timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   recorder = gst_element_factory_make ("recorderendpoint", NULL);
@@ -166,14 +165,14 @@ GST_START_TEST (check_states_pipeline)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, encoder,
-      audio_agnosticbin, video_agnosticbin, recorder, timeoverlay, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, vencoder,
+      aencoder, recorder, timeoverlay, NULL);
   gst_element_link (videotestsrc, timeoverlay);
-  gst_element_link (timeoverlay, encoder);
-  gst_element_link (encoder, video_agnosticbin);
-  gst_element_link (audiotestsrc, audio_agnosticbin);
-  gst_element_link_pads (video_agnosticbin, NULL, recorder, "video_sink");
-  gst_element_link_pads (audio_agnosticbin, NULL, recorder, "audio_sink");
+  gst_element_link (timeoverlay, vencoder);
+  gst_element_link (audiotestsrc, aencoder);
+
+  gst_element_link_pads (vencoder, NULL, recorder, "video_sink");
+  gst_element_link_pads (aencoder, NULL, recorder, "audio_sink");
 
   g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), loop);
 
