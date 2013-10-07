@@ -70,7 +70,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
-#ifdef DEBUGGING_TESTS
 static void
 fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     gpointer data)
@@ -83,7 +82,6 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     g_idle_add (quit_main_loop_idle, loop);
   }
 }
-#endif
 
 static gboolean
 reconnect_elements (gpointer data)
@@ -382,6 +380,7 @@ GST_START_TEST (reconnect_test)
 }
 
 GST_END_TEST
+#endif
 GST_START_TEST (static_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -391,7 +390,6 @@ GST_START_TEST (static_link)
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
   GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
   GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
-  GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
   gboolean ret;
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
@@ -404,10 +402,6 @@ GST_START_TEST (static_link)
   g_object_set (G_OBJECT (fakesink2), "sync", FALSE, "signal-handoffs", TRUE,
       NULL);
   g_signal_connect (G_OBJECT (fakesink2), "handoff",
-      G_CALLBACK (fakesink_hand_off), loop);
-
-  g_object_set (G_OBJECT (outputfakesink), "signal-handoffs", TRUE, NULL);
-  g_signal_connect (G_OBJECT (outputfakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
   mark_point ();
@@ -443,7 +437,6 @@ GST_START_TEST (static_link)
 }
 
 GST_END_TEST
-#endif
 GST_START_TEST (simple_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -522,8 +515,8 @@ agnostic2_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create_test);
   tcase_add_test (tc_chain, simple_link);
-#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, static_link);
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, reconnect_test);
   tcase_add_test (tc_chain, valve_test);
 #endif
