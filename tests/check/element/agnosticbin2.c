@@ -22,7 +22,15 @@
 
 #define VALVE_KEY "valve"
 
+typedef struct _ElementsData
+{
+  GstElement *agnosticbin;
+  GstElement *fakesink;
+} ElementsData;
+
+#ifdef DEBUGGING_TESTS
 static GMainLoop *loop;
+#endif
 
 static gboolean
 quit_main_loop_idle (gpointer data)
@@ -62,6 +70,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
+#ifdef DEBUGGING_TESTS
 static void
 fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     gpointer data)
@@ -74,7 +83,60 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     g_idle_add (quit_main_loop_idle, loop);
   }
 }
+#endif
 
+static gboolean
+reconnect_elements (gpointer data)
+{
+  ElementsData *elements = data;
+  GstPad *pad = gst_element_get_request_pad (elements->agnosticbin, "src_%u");
+
+  gst_element_link_pads (elements->agnosticbin, GST_OBJECT_NAME (pad),
+      elements->fakesink, NULL);
+  g_object_unref (pad);
+
+  return FALSE;
+}
+
+static void
+free_elements (gpointer data)
+{
+  ElementsData *elements = data;
+
+  g_object_unref (elements->agnosticbin);
+  g_object_unref (elements->fakesink);
+
+  g_slice_free (ElementsData, elements);
+}
+
+static void
+fakesink_hand_off_simple (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  static int count = 0;
+  GMainLoop *loop = (GMainLoop *) data;
+
+  count++;
+
+  if (count == 40) {
+    GstPad *peer = gst_pad_get_peer (pad);
+    ElementsData *elements = g_slice_new (ElementsData);
+
+    elements->agnosticbin = gst_pad_get_parent_element (peer);
+    elements->fakesink = g_object_ref (fakesink);
+
+    gst_pad_unlink (peer, pad);
+    g_object_unref (peer);
+
+    g_idle_add_full (G_PRIORITY_DEFAULT, reconnect_elements, elements,
+        free_elements);
+  } else if (count > 100) {
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
+    g_idle_add (quit_main_loop_idle, loop);
+  }
+}
+
+#ifdef DEBUGGING_TESTS
 static gboolean
 link_again (gpointer data)
 {
@@ -132,6 +194,7 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     }
   }
 }
+#endif
 
 static gboolean
 timeout_check (gpointer pipeline)
@@ -141,6 +204,7 @@ timeout_check (gpointer pipeline)
   return FALSE;
 }
 
+#ifdef DEBUGGING_TESTS
 static gpointer
 toggle_thread (gpointer data)
 {
@@ -379,6 +443,58 @@ GST_START_TEST (static_link)
 }
 
 GST_END_TEST
+#endif
+GST_START_TEST (simple_link)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  gboolean ret;
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off_simple), loop);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
+      NULL);
+  mark_point ();
+  ret = gst_element_link_many (videotestsrc, agnosticbin, fakesink, NULL);
+  fail_unless (ret);
+  mark_point ();
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "simple_test_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 GST_START_TEST (create_test)
 {
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
@@ -405,9 +521,12 @@ agnostic2_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create_test);
+  tcase_add_test (tc_chain, simple_link);
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, static_link);
   tcase_add_test (tc_chain, reconnect_test);
   tcase_add_test (tc_chain, valve_test);
+#endif
 
   return s;
 }

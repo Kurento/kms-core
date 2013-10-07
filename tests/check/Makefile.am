@@ -31,8 +31,7 @@ TEST_AUTOMUXER =
 endif
 
 if DEBUGGING_TESTS
-DEBUG_TESTS = element/agnosticbin2				\
-	memory_leaks/recorderendpoint
+DEBUG_TESTS = memory_leaks/recorderendpoint
 else
 DEBUG_TESTS =
 endif
@@ -50,6 +49,7 @@ check_PROGRAMS =						\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
 	element/agnosticbin					\
+	element/agnosticbin2					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	$(DEBUG_TESTS)
@@ -109,6 +109,9 @@ endif
 
 element_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+if DEBUGGING_TESTS
+element_agnosticbin2_CFLAGS += -DDEBUGGING_TESTS
+endif
 
 # Memory leaks tests
 
