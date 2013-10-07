@@ -31,8 +31,7 @@ TEST_AUTOMUXER =
 endif
 
 if DEBUGGING_TESTS
-DEBUG_TESTS = element/recorderendpoint				\
-	element/agnosticbin2					\
+DEBUG_TESTS = element/agnosticbin2				\
 	memory_leaks/recorderendpoint
 else
 DEBUG_TESTS =
@@ -47,6 +46,7 @@ check_PROGRAMS =						\
 	general/sdp						\
 	element/filterelement					\
 	element/uriendpoint					\
+	element/recorderendpoint				\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
 	element/agnosticbin					\
