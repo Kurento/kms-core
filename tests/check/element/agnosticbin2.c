@@ -437,6 +437,65 @@ GST_START_TEST (static_link)
 }
 
 GST_END_TEST
+GST_START_TEST (encoded_input_link)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *encoder = gst_element_factory_make ("vp8enc", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *filter = gst_element_factory_make ("capsfilter", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstCaps *caps;
+  gboolean ret;
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  caps = gst_caps_from_string ("video/x-raw");
+  g_object_set (G_OBJECT (filter), "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, encoder, agnosticbin,
+      filter, fakesink, NULL);
+  mark_point ();
+  ret = gst_element_link_many (videotestsrc, encoder, agnosticbin, filter,
+      fakesink, NULL);
+  fail_unless (ret);
+  mark_point ();
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "simple_test_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 GST_START_TEST (simple_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -515,6 +574,7 @@ agnostic2_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create_test);
   tcase_add_test (tc_chain, simple_link);
+  tcase_add_test (tc_chain, encoded_input_link);
   tcase_add_test (tc_chain, static_link);
 #ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, reconnect_test);
