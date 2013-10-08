@@ -205,10 +205,6 @@ GST_START_TEST (check_states_pipeline)
   gst_object_unref (GST_OBJECT (pipeline));
   GST_DEBUG ("Pipe released");
 
-  g_main_loop_run (loop);
-
-  GST_DEBUG ("Bus message received");
-
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
 }
