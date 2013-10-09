@@ -23,7 +23,10 @@ gboolean set_state_pause (gpointer *);
 gboolean set_state_stop (gpointer *);
 
 static GstElement *recorder = NULL;
-static guint state = 0;
+static guint number_of_transitions;
+static gboolean expected_warnings;
+static guint test_number;
+static guint state;
 
 struct state_controller
 {
@@ -31,13 +34,34 @@ struct state_controller
   guint seconds;
 };
 
-static const struct state_controller trasnsitions[] = {
+static const struct state_controller trasnsitions0[] = {
   {KMS_URI_END_POINT_STATE_START, 3},
   {KMS_URI_END_POINT_STATE_STOP, 1},
   {KMS_URI_END_POINT_STATE_START, 3},
   {KMS_URI_END_POINT_STATE_PAUSE, 5},
   {KMS_URI_END_POINT_STATE_START, 5},
+  {KMS_URI_END_POINT_STATE_STOP, 1}
 };
+
+static const struct state_controller trasnsitions1[] = {
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_STOP, 1},
+  {KMS_URI_END_POINT_STATE_START, 1}
+};
+
+static const struct state_controller *
+get_transtions ()
+{
+  switch (test_number) {
+    case 0:
+      return trasnsitions0;
+    case 1:
+      return trasnsitions1;
+    default:
+      fail ("Undefined transitions for test %d.", test_number);
+      return NULL;
+  }
+}
 
 static const gchar *
 state2string (KmsUriEndPointState state)
@@ -86,9 +110,12 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       break;
     }
     case GST_MESSAGE_WARNING:{
-      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
+      if (expected_warnings)
+        GST_INFO ("Do not worry. Warning expected");
+      else
+        fail ("Warnings not expected");
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
@@ -103,8 +130,10 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 static void
 transite (gpointer loop)
 {
-  if (state < G_N_ELEMENTS (trasnsitions)) {
-    change_state (trasnsitions[state].state);
+  const struct state_controller *transitions = get_transtions ();
+
+  if (state < number_of_transitions) {
+    change_state (transitions[state].state);
   } else {
     GST_DEBUG ("All transitions done. Finishing recorder test suite");
     g_main_loop_quit (loop);
@@ -123,7 +152,8 @@ static void
 state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
     gpointer loop)
 {
-  guint seconds = trasnsitions[state].seconds;
+  const struct state_controller *transitions = get_transtions ();
+  guint seconds = transitions[state].seconds;
 
   GST_DEBUG ("State changed %s. Time %d seconds.", state2string (newState),
       seconds);
@@ -138,6 +168,11 @@ GST_START_TEST (check_states_pipeline)
   GstBus *bus;
 
   GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+
+  number_of_transitions = 6;
+  expected_warnings = FALSE;
+  test_number = 0;
+  state = 0;
 
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("recorderendpoint0-test");
@@ -197,6 +232,166 @@ GST_START_TEST (check_states_pipeline)
 }
 
 GST_END_TEST
+GST_START_TEST (warning_pipeline)
+{
+  GstElement *pipeline, *videotestsrc, *vencoder, *aencoder, *audiotestsrc,
+      *timeoverlay;
+  guint bus_watch_id;
+  GstBus *bus;
+
+  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+
+  number_of_transitions = 3;
+  expected_warnings = TRUE;
+  test_number = 1;
+  state = 0;
+
+  /* Create gstreamer elements */
+  pipeline = gst_pipeline_new ("recorderendpoint0-test");
+  videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  vencoder = gst_element_factory_make ("vp8enc", NULL);
+  aencoder = gst_element_factory_make ("vorbisenc", NULL);
+  timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
+  audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  recorder = gst_element_factory_make ("recorderendpoint", NULL);
+
+  g_object_set (G_OBJECT (recorder), "uri",
+      "file:///tmp/warning_pipeline.webm", NULL);
+
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, vencoder,
+      aencoder, recorder, timeoverlay, NULL);
+  gst_element_link (videotestsrc, timeoverlay);
+  gst_element_link (timeoverlay, vencoder);
+  gst_element_link (audiotestsrc, aencoder);
+
+  gst_element_link_pads (vencoder, NULL, recorder, "video_sink");
+  gst_element_link_pads (aencoder, NULL, recorder, "audio_sink");
+
+  g_signal_connect (recorder, "state-changed", G_CALLBACK (state_changed_cb),
+      loop);
+
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "pattern", 18, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "wave", 8, NULL);
+  g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  transite (loop);
+
+  g_main_loop_run (loop);
+  GST_DEBUG ("Stop executed");
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  GST_DEBUG ("Pipe released");
+
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  GMainLoop *loop = data;
+
+  GST_DEBUG ("Test finished exiting main loop");
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+static void
+state_changed_cb2 (GstElement * recorder, KmsUriEndPointState newState,
+    gpointer loop)
+{
+  GST_DEBUG ("State changed %s.", state2string (newState));
+
+  if (newState == KMS_URI_END_POINT_STATE_STOP)
+    g_idle_add (quit_main_loop_idle, loop);
+}
+
+GST_START_TEST (finite_video_test)
+{
+  GstElement *pipeline, *videotestsrc, *vencoder, *aencoder, *audiotestsrc,
+      *timeoverlay;
+  guint bus_watch_id;
+  GstBus *bus;
+
+  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+
+  expected_warnings = FALSE;
+
+  /* Create gstreamer elements */
+  pipeline = gst_pipeline_new ("recorderendpoint0-test");
+  videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  vencoder = gst_element_factory_make ("vp8enc", NULL);
+  aencoder = gst_element_factory_make ("vorbisenc", NULL);
+  timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
+  audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  recorder = gst_element_factory_make ("recorderendpoint", NULL);
+
+  g_object_set (G_OBJECT (recorder), "uri",
+      "file:///tmp/finite_video_test.webm", NULL);
+
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc, vencoder,
+      aencoder, recorder, timeoverlay, NULL);
+  gst_element_link (videotestsrc, timeoverlay);
+  gst_element_link (timeoverlay, vencoder);
+  gst_element_link (audiotestsrc, aencoder);
+
+  gst_element_link_pads (vencoder, NULL, recorder, "video_sink");
+  gst_element_link_pads (aencoder, NULL, recorder, "audio_sink");
+
+  g_signal_connect (recorder, "state-changed", G_CALLBACK (state_changed_cb2),
+      loop);
+
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "pattern", 18, "num-buffers", 50, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "wave", 8, "num-buffers", 50, NULL);
+  g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+
+  g_object_set (G_OBJECT (recorder), "state",
+      KMS_URI_END_POINT_STATE_START, NULL);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_main_loop_run (loop);
+  GST_DEBUG ("Stop executed");
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  GST_DEBUG ("Pipe released");
+
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 /******************************/
 /* RecorderEndPoint test suit */
 /******************************/
@@ -208,6 +403,9 @@ recorderendpoint_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, check_states_pipeline);
+  tcase_add_test (tc_chain, warning_pipeline);
+  tcase_add_test (tc_chain, finite_video_test);
+
   return s;
 }
 
