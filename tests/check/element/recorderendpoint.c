@@ -120,12 +120,6 @@ transite_cb (gpointer loop)
 }
 
 static void
-recorder_stopped (GstElement * recorder, gpointer loop)
-{
-  GST_INFO ("Recorder stopped signal");
-}
-
-static void
 state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
     gpointer loop)
 {
@@ -172,7 +166,6 @@ GST_START_TEST (check_states_pipeline)
   gst_element_link_pads (vencoder, NULL, recorder, "video_sink");
   gst_element_link_pads (aencoder, NULL, recorder, "audio_sink");
 
-  g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), loop);
   g_signal_connect (recorder, "state-changed", G_CALLBACK (state_changed_cb),
       loop);
 
