@@ -51,38 +51,6 @@ GST_START_TEST (check_uri_prop)
   gst_object_unref (urielement);
 }
 
-GST_END_TEST
-GST_START_TEST (check_state_prop)
-{
-  GstElement *urielement;
-  KmsUriEndPointState state;
-
-  urielement = gst_element_factory_make ("uriendpoint", NULL);
-
-  /* Default value for uri must be KMS_URI_END_POINT_STATE_STOP */
-  g_object_get (G_OBJECT (urielement), "state", &state, NULL);
-  GST_DEBUG ("Got state property value : %d", state);
-  fail_unless (state == KMS_URI_END_POINT_STATE_STOP);
-
-  /* Set value to KMS_URI_END_POINT_STATE_START */
-  GST_DEBUG ("Setting property state to : %d", KMS_URI_END_POINT_STATE_START);
-  g_object_set (G_OBJECT (urielement), "state", KMS_URI_END_POINT_STATE_START,
-      NULL);
-  g_object_get (G_OBJECT (urielement), "state", &state, NULL);
-  GST_DEBUG ("Got state property value : %d", state);
-  fail_unless (state == KMS_URI_END_POINT_STATE_START);
-
-  /* Set value to KMS_URI_END_POINT_STATE_PAUSE */
-  GST_DEBUG ("Setting property state to : %d", KMS_URI_END_POINT_STATE_PAUSE);
-  g_object_set (G_OBJECT (urielement), "state", KMS_URI_END_POINT_STATE_PAUSE,
-      NULL);
-  g_object_get (G_OBJECT (urielement), "state", &state, NULL);
-  GST_DEBUG ("Got state property value : %d", state);
-  fail_unless (state == KMS_URI_END_POINT_STATE_PAUSE);
-
-  gst_object_unref (urielement);
-}
-
 GST_END_TEST static Suite *
 uriendpoint_suite (void)
 {
@@ -91,7 +59,6 @@ uriendpoint_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, check_uri_prop);
-  tcase_add_test (tc_chain, check_state_prop);
 
   return s;
 }

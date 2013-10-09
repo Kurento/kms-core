@@ -100,14 +100,11 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
-static gboolean transite_cb (gpointer);
-
 static void
 transite (gpointer loop)
 {
   if (state < G_N_ELEMENTS (trasnsitions)) {
     change_state (trasnsitions[state].state);
-    g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, loop);
   } else {
     GST_DEBUG ("All transitions done. Finishing recorder test suite");
     g_main_loop_quit (loop);
@@ -122,20 +119,21 @@ transite_cb (gpointer loop)
   return FALSE;
 }
 
-static gboolean
-quit_main_loop_idle (gpointer data)
-{
-  GMainLoop *loop = data;
-
-  g_main_loop_quit (loop);
-  return FALSE;
-}
-
 static void
 recorder_stopped (GstElement * recorder, gpointer loop)
 {
   GST_INFO ("Recorder stopped signal");
-  g_idle_add (quit_main_loop_idle, loop);
+}
+
+static void
+state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+    gpointer loop)
+{
+  guint seconds = trasnsitions[state].seconds;
+
+  GST_DEBUG ("State changed %s. Time %d seconds.", state2string (newState),
+      seconds);
+  g_timeout_add (seconds * 1000, transite_cb, loop);
 }
 
 GST_START_TEST (check_states_pipeline)
@@ -175,6 +173,8 @@ GST_START_TEST (check_states_pipeline)
   gst_element_link_pads (aencoder, NULL, recorder, "audio_sink");
 
   g_signal_connect (recorder, "stopped", G_CALLBACK (recorder_stopped), loop);
+  g_signal_connect (recorder, "state-changed", G_CALLBACK (state_changed_cb),
+      loop);
 
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, NULL);
@@ -191,12 +191,6 @@ GST_START_TEST (check_states_pipeline)
 
   g_main_loop_run (loop);
   GST_DEBUG ("Stop executed");
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "stopped");
-
-  g_main_loop_run (loop);
-  GST_DEBUG ("Last transition");
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
