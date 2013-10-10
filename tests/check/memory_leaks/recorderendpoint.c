@@ -27,10 +27,23 @@ static GMainLoop *loop;
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
-  GMainLoop *loop = data;
-
   g_main_loop_quit (loop);
   return FALSE;
+}
+
+static const gchar *
+state2string (KmsUriEndPointState state)
+{
+  switch (state) {
+    case KMS_URI_END_POINT_STATE_STOP:
+      return "STOP";
+    case KMS_URI_END_POINT_STATE_START:
+      return "START";
+    case KMS_URI_END_POINT_STATE_PAUSE:
+      return "PAUSE";
+    default:
+      return "Invalid state";
+  }
 }
 
 static void
@@ -88,10 +101,14 @@ play_element (const gchar * element_name)
 }
 
 static void
-recorder_stopped (GstElement * recorder, gpointer user_data)
+state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+    gpointer data)
 {
-  GST_INFO ("Recorder stopped signal");
-  quit_main_loop_idle (loop);
+  GST_DEBUG ("State changed %s.", state2string (newState));
+  if (newState == KMS_URI_END_POINT_STATE_STOP) {
+    GST_DEBUG ("Recorder stopped. Exiting the main loop.");
+    g_idle_add (quit_main_loop_idle, loop);
+  }
 }
 
 static void
@@ -101,7 +118,7 @@ start_audio_recorderendpoint ()
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *aencoder = gst_element_factory_make ("vorbisenc", NULL);
   GstElement *recorderendpoint =
       gst_element_factory_make ("recorderendpoint", RECORDER_NAME);
 
@@ -114,19 +131,19 @@ start_audio_recorderendpoint ()
   g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 50, "is-live", TRUE,
       "do-timestamp", TRUE, "wave", 8, NULL);
   g_object_set (G_OBJECT (recorderendpoint), "uri",
-      "file:///tmp/audio_recorder_%u.avi", NULL);
-  g_signal_connect (recorderendpoint, "stopped", G_CALLBACK (recorder_stopped),
-      NULL);
+      "file:///tmp/audio_recorder.avi", NULL);
+
+  g_signal_connect (recorderendpoint, "state-changed",
+      G_CALLBACK (state_changed_cb), loop);
 
   mark_point ();
-  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, agnosticbin,
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, aencoder,
       recorderendpoint, NULL);
   mark_point ();
-  ret = gst_element_link (audiotestsrc, agnosticbin);
+  ret = gst_element_link (audiotestsrc, aencoder);
   fail_unless (ret);
   mark_point ();
-  ret =
-      gst_element_link_pads (agnosticbin, NULL, recorderendpoint, "audio_sink");
+  ret = gst_element_link_pads (aencoder, NULL, recorderendpoint, "audio_sink");
   fail_unless (ret);
   mark_point ();
 
@@ -155,7 +172,7 @@ start_video_recorderendpoint ()
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *vencoder = gst_element_factory_make ("vp8enc", NULL);
   GstElement *recorderendpoint =
       gst_element_factory_make ("recorderendpoint", RECORDER_NAME);
 
@@ -168,19 +185,19 @@ start_video_recorderendpoint ()
   g_object_set (G_OBJECT (videotestsrc), "num-buffers", 50, "is-live", TRUE,
       "do-timestamp", TRUE, "pattern", 18, NULL);
   g_object_set (G_OBJECT (recorderendpoint), "uri",
-      "file:///tmp/video_recorder_%u.avi", NULL);
-  g_signal_connect (recorderendpoint, "stopped", G_CALLBACK (recorder_stopped),
-      NULL);
+      "file:///tmp/video_recorder.avi", NULL);
+
+  g_signal_connect (recorderendpoint, "state-changed",
+      G_CALLBACK (state_changed_cb), loop);
 
   mark_point ();
-  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin,
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, vencoder,
       recorderendpoint, NULL);
   mark_point ();
-  ret = gst_element_link (videotestsrc, agnosticbin);
+  ret = gst_element_link (videotestsrc, vencoder);
   fail_unless (ret);
   mark_point ();
-  ret =
-      gst_element_link_pads (agnosticbin, NULL, recorderendpoint, "video_sink");
+  ret = gst_element_link_pads (vencoder, NULL, recorderendpoint, "video_sink");
   fail_unless (ret);
   mark_point ();
 
@@ -209,11 +226,9 @@ start_audio_video_recorderendpoint ()
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *audio_agnosticbin =
-      gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *aencoder = gst_element_factory_make ("vorbisenc", NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
-  GstElement *video_agnosticbin =
-      gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *vencoder = gst_element_factory_make ("vp8enc", NULL);
   GstElement *recorderendpoint =
       gst_element_factory_make ("recorderendpoint", RECORDER_NAME);
 
@@ -228,32 +243,29 @@ start_audio_video_recorderendpoint ()
   g_object_set (G_OBJECT (videotestsrc), "num-buffers", 50, "is-live", TRUE,
       "do-timestamp", TRUE, "pattern", 18, NULL);
   g_object_set (G_OBJECT (recorderendpoint), "uri",
-      "file:///tmp/audio_video_recorder_%u.avi", NULL);
-  g_signal_connect (recorderendpoint, "stopped", G_CALLBACK (recorder_stopped),
-      NULL);
+      "file:///tmp/audio_video_recorder.avi", NULL);
+
+  g_signal_connect (recorderendpoint, "state-changed",
+      G_CALLBACK (state_changed_cb), loop);
 
   mark_point ();
-  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, audio_agnosticbin,
-      videotestsrc, video_agnosticbin, recorderendpoint, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, aencoder,
+      videotestsrc, vencoder, recorderendpoint, NULL);
   mark_point ();
 
   // Link audio elements
-  ret = gst_element_link (audiotestsrc, audio_agnosticbin);
+  ret = gst_element_link (audiotestsrc, aencoder);
   fail_unless (ret);
   mark_point ();
-  ret =
-      gst_element_link_pads (audio_agnosticbin, NULL, recorderendpoint,
-      "audio_sink");
+  ret = gst_element_link_pads (aencoder, NULL, recorderendpoint, "audio_sink");
   fail_unless (ret);
   mark_point ();
 
   // Link video elements
-  ret = gst_element_link (videotestsrc, video_agnosticbin);
+  ret = gst_element_link (videotestsrc, vencoder);
   fail_unless (ret);
   mark_point ();
-  ret =
-      gst_element_link_pads (video_agnosticbin, NULL, recorderendpoint,
-      "video_sink");
+  ret = gst_element_link_pads (vencoder, NULL, recorderendpoint, "video_sink");
   fail_unless (ret);
   mark_point ();
 
