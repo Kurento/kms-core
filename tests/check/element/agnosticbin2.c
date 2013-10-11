@@ -46,16 +46,22 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
   switch (GST_MESSAGE_TYPE (msg)) {
     case GST_MESSAGE_ERROR:{
+      gchar *error_file = g_strdup_printf ("error-%s", GST_OBJECT_NAME (pipe));
+
       GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "error");
+          GST_DEBUG_GRAPH_SHOW_ALL, error_file);
+      g_free (error_file);
       fail ("Error received on bus");
       break;
     }
     case GST_MESSAGE_WARNING:{
+      gchar *warn_file = g_strdup_printf ("warning-%s", GST_OBJECT_NAME (pipe));
+
       GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "warning");
+          GST_DEBUG_GRAPH_SHOW_ALL, warn_file);
+      g_free (warn_file);
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:
@@ -197,8 +203,12 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 static gboolean
 timeout_check (gpointer pipeline)
 {
+  gchar *timeout_file =
+      g_strdup_printf ("timeout-%s", GST_OBJECT_NAME (pipeline));
+
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "timeout_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, timeout_file);
+  g_free (timeout_file);
   return FALSE;
 }
 
@@ -233,17 +243,21 @@ bus_msg_valve_test (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
   switch (msg->type) {
     case GST_MESSAGE_ERROR:{
+      gchar *error_file = g_strdup_printf ("error-%s", GST_OBJECT_NAME (pipe));
+
       GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
-      g_main_loop_quit (loop);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "error");
-      fail ("Error received on bus");
+          GST_DEBUG_GRAPH_SHOW_ALL, error_file);
+      g_free (error_file);
       break;
     }
     case GST_MESSAGE_WARNING:{
+      gchar *warn_file = g_strdup_printf ("warning-%s", GST_OBJECT_NAME (pipe));
+
       GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
       GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, "warning");
+          GST_DEBUG_GRAPH_SHOW_ALL, warn_file);
+      g_free (warn_file);
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:
@@ -271,7 +285,7 @@ bus_msg_valve_test (GstBus * bus, GstMessage * msg, gpointer pipe)
 
 GST_START_TEST (valve_test)
 {
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
@@ -304,15 +318,12 @@ GST_START_TEST (valve_test)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
-
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -325,7 +336,7 @@ GST_END_TEST
 GST_START_TEST (reconnect_test)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
@@ -359,9 +370,6 @@ GST_START_TEST (reconnect_test)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
-
   mark_point ();
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
@@ -370,7 +378,7 @@ GST_START_TEST (reconnect_test)
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -384,7 +392,7 @@ GST_END_TEST
 GST_START_TEST (static_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
@@ -416,9 +424,6 @@ GST_START_TEST (static_link)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
-
   mark_point ();
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
@@ -427,7 +432,7 @@ GST_START_TEST (static_link)
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -440,7 +445,7 @@ GST_END_TEST
 GST_START_TEST (encoded_input_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *encoder = gst_element_factory_make ("vp8enc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
@@ -475,9 +480,6 @@ GST_START_TEST (encoded_input_link)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
-
   mark_point ();
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
@@ -486,7 +488,7 @@ GST_START_TEST (encoded_input_link)
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "simple_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -499,7 +501,7 @@ GST_END_TEST
 GST_START_TEST (simple_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
@@ -526,9 +528,6 @@ GST_START_TEST (simple_link)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
-
   mark_point ();
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
@@ -537,7 +536,7 @@ GST_START_TEST (simple_link)
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "simple_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
