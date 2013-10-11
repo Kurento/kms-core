@@ -19,6 +19,7 @@
 
 #define AGNOSTIC_KEY "agnostic"
 #define DECODER_KEY "decoder"
+#define FAKESINK_KEY "fakesink"
 
 #define VALVE_KEY "valve"
 
@@ -146,9 +147,12 @@ link_again (gpointer data)
 {
   GstElement *decoder = (GstElement *) data;
   GstElement *agnostic = g_object_get_data (G_OBJECT (data), AGNOSTIC_KEY);
+  GstElement *fakesink = g_object_get_data (G_OBJECT (decoder), FAKESINK_KEY);
 
   GST_DEBUG ("Linking again %" GST_PTR_FORMAT ", %" GST_PTR_FORMAT, agnostic,
       decoder);
+
+  g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
   gst_element_link (agnostic, decoder);
 
   return FALSE;
@@ -187,12 +191,14 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   if (count++ > 10) {
     count = 0;
     if (cycles++ > 10) {
+      g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
       GST_DEBUG ("Quit loop");
       g_idle_add (quit_main_loop_idle, loop);
     } else {
       GstElement *decoder =
           g_object_get_data (G_OBJECT (fakesink), DECODER_KEY);
 
+      g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
       mark_point ();
       g_idle_add (idle_unlink, decoder);
     }
@@ -357,6 +363,7 @@ GST_START_TEST (reconnect_test)
       G_CALLBACK (fakesink_hand_off2), loop);
   g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
   g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
+  g_object_set_data (G_OBJECT (decoder), FAKESINK_KEY, fakesink2);
 
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
