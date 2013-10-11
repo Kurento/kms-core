@@ -258,7 +258,7 @@ get_recv_sample (GstElement * appsink, gpointer user_data)
 
 GST_START_TEST (check_pull_buffer)
 {
-  GstElement *videotestsrc, *timeoverlay, *encoder;
+  GstElement *videotestsrc, *audiotestsrc, *timeoverlay, *encoder, *aencoder;
   guint bus_watch_id1;
   GstBus *srcbus;
 
@@ -272,8 +272,9 @@ GST_START_TEST (check_pull_buffer)
   src_pipeline = gst_pipeline_new ("src-pipeline");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   encoder = gst_element_factory_make ("vp8enc", NULL);
+  aencoder = gst_element_factory_make ("vorbisenc", NULL);
   timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
-//   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   httpep = gst_element_factory_make ("httpendpoint", NULL);
 
   GST_DEBUG ("Adding watcher to the pipeline");
@@ -285,17 +286,18 @@ GST_START_TEST (check_pull_buffer)
 
   GST_DEBUG ("Configuring source pipeline");
   gst_bin_add_many (GST_BIN (src_pipeline), videotestsrc, timeoverlay,
-      encoder, httpep /*, audiotestsrc */ , NULL);
+      audiotestsrc, encoder, aencoder, httpep, NULL);
   gst_element_link (videotestsrc, timeoverlay);
   gst_element_link (timeoverlay, encoder);
+  gst_element_link (audiotestsrc, aencoder);
   gst_element_link_pads (encoder, NULL, httpep, "video_sink");
-//   gst_element_link_pads (audiotestsrc, "src", httpep, "audio_sink");
+  gst_element_link_pads (aencoder, NULL, httpep, "audio_sink");
 
   GST_DEBUG ("Configuring elements");
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "pattern", 18, "num-buffers", 150, NULL);
-//   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
-//       "num-buffers", 150, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "num-buffers", 150, NULL);
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
 
   g_signal_connect (httpep, "new-sample", G_CALLBACK (get_recv_sample), NULL);
