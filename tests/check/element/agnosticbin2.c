@@ -141,7 +141,6 @@ fakesink_hand_off_simple (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   }
 }
 
-#ifdef DEBUGGING_TESTS
 static gboolean
 link_again (gpointer data)
 {
@@ -204,7 +203,6 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     }
   }
 }
-#endif
 
 static gboolean
 timeout_check (gpointer pipeline)
@@ -339,6 +337,7 @@ GST_START_TEST (valve_test)
 }
 
 GST_END_TEST
+#endif
 GST_START_TEST (reconnect_test)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -395,7 +394,6 @@ GST_START_TEST (reconnect_test)
 }
 
 GST_END_TEST
-#endif
 GST_START_TEST (static_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -582,8 +580,8 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, simple_link);
   tcase_add_test (tc_chain, encoded_input_link);
   tcase_add_test (tc_chain, static_link);
-#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, reconnect_test);
+#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, valve_test);
 #endif
 
