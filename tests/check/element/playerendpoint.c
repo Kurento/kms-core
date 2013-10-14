@@ -30,9 +30,9 @@ struct state_controller
 };
 
 static const struct state_controller trasnsitions[] = {
-  {KMS_URI_END_POINT_STATE_START, 5},
-  {KMS_URI_END_POINT_STATE_STOP, 5},
-  {KMS_URI_END_POINT_STATE_START, 5}
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_STOP, 3},
+  {KMS_URI_END_POINT_STATE_START, 2}
 };
 
 static gchar *
@@ -105,7 +105,6 @@ transite ()
 {
   if (state < G_N_ELEMENTS (trasnsitions)) {
     change_state (trasnsitions[state].state);
-    g_timeout_add (trasnsitions[state].seconds * 1000, transite_cb, NULL);
   } else {
     GST_DEBUG ("All transitions done. Finishing player check states suit");
     g_main_loop_quit (loop);
@@ -118,6 +117,17 @@ transite_cb (gpointer data)
   state++;
   transite ();
   return FALSE;
+}
+
+static void
+state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+    gpointer loop)
+{
+  guint seconds = trasnsitions[state].seconds;
+
+  GST_DEBUG ("State changed %s. Time %d seconds.", state2string (newState),
+      seconds);
+  g_timeout_add (seconds * 1000, transite_cb, loop);
 }
 
 GST_START_TEST (check_states)
@@ -144,6 +154,9 @@ GST_START_TEST (check_states)
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_check_states");
+
+  g_signal_connect (player, "state-changed", G_CALLBACK (state_changed_cb),
+      loop);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
   gst_bin_add (GST_BIN (pipeline), fakesink);
