@@ -185,39 +185,32 @@ GST_END_TEST
 /* check_live_stream */
 static gboolean buffer_audio = FALSE;
 static gboolean buffer_video = FALSE;
-static GMutex mutex1;
 
 static gboolean
 check_handoff_audio (gpointer user_data)
 {
-  g_mutex_lock (&mutex1);
   buffer_audio = TRUE;
-  if (buffer_audio && buffer_video) {
 
-    g_mutex_unlock (&mutex1);
+  if (buffer_audio && buffer_video) {
     GMainLoop *loop = (GMainLoop *) user_data;
 
     g_main_quit (loop);
-    return FALSE;
   }
-  g_mutex_unlock (&mutex1);
+
   return FALSE;
 }
 
 static gboolean
 check_handoff_video (gpointer user_data)
 {
-  g_mutex_lock (&mutex1);
   buffer_video = TRUE;
-  if (buffer_audio && buffer_video) {
 
-    g_mutex_unlock (&mutex1);
+  if (buffer_audio && buffer_video) {
     GMainLoop *loop = (GMainLoop *) user_data;
 
     g_main_quit (loop);
-    return FALSE;
   }
-  g_mutex_unlock (&mutex1);
+
   return FALSE;
 }
 
@@ -227,7 +220,7 @@ handoff_audio (GstElement * object, GstBuffer * arg0,
 {
   GMainLoop *loop = (GMainLoop *) user_data;
 
-  GST_TRACE ("---------------------------->handoff_audio");
+  GST_TRACE ("handoff_audio");
   g_idle_add ((GSourceFunc) check_handoff_audio, loop);
 
 }
@@ -239,7 +232,7 @@ handoff_video (GstElement * object, GstBuffer * arg0,
   GMainLoop *loop = (GMainLoop *) user_data;
 
   buffer_video = TRUE;
-  GST_TRACE ("---------------------------->handoff_video");
+  GST_TRACE ("handoff_video");
   g_idle_add ((GSourceFunc) check_handoff_video, loop);
 }
 
