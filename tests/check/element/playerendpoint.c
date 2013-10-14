@@ -298,11 +298,21 @@ GST_START_TEST (check_live_stream)
 
 GST_END_TEST
 /* check_eos */
-    static void
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  GMainLoop *loop = data;
+
+  GST_DEBUG ("Test finished exiting main loop");
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+static void
 player_eos (GstElement * player, GMainLoop * loop)
 {
   GST_DEBUG ("Eos received");
-  g_main_loop_quit (loop);
+  g_idle_add (quit_main_loop_idle, loop);
 }
 
 /* EOS test */
