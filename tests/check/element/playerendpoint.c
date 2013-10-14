@@ -31,8 +31,9 @@ struct state_controller
 
 static const struct state_controller trasnsitions[] = {
   {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 3},
-  {KMS_URI_END_POINT_STATE_START, 2}
+  {KMS_URI_END_POINT_STATE_PAUSE, 1},
+  {KMS_URI_END_POINT_STATE_START, 2},
+  {KMS_URI_END_POINT_STATE_STOP, 1}
 };
 
 static gchar *
@@ -56,7 +57,7 @@ handoff (GstElement * object, GstBuffer * arg0,
 {
   switch (trasnsitions[state].state) {
     case KMS_URI_END_POINT_STATE_STOP:
-      GST_DEBUG (" ---------> handoff in STOP state");
+      GST_DEBUG ("handoff in STOP state");
       break;
     case KMS_URI_END_POINT_STATE_START:
       start_buffer = TRUE;
