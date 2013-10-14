@@ -29,9 +29,7 @@ typedef struct _ElementsData
   GstElement *fakesink;
 } ElementsData;
 
-#ifdef DEBUGGING_TESTS
 static GMainLoop *loop;
-#endif
 
 static gboolean
 quit_main_loop_idle (gpointer data)
@@ -65,13 +63,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       g_free (warn_file);
       break;
     }
-    case GST_MESSAGE_STATE_CHANGED:
-    {
-      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin2")) {
-        GST_INFO ("Event: %" GST_PTR_FORMAT, msg);
-      }
-    }
-      break;
     default:
       break;
   }
@@ -216,75 +207,58 @@ timeout_check (gpointer pipeline)
   return FALSE;
 }
 
-#ifdef DEBUGGING_TESTS
 static gpointer
 toggle_thread (gpointer data)
 {
   GstElement *pipeline = GST_ELEMENT (data);
   GstElement *valve = g_object_get_data (G_OBJECT (pipeline), VALVE_KEY);
+  GstPad *sink = gst_element_get_static_pad (valve, "sink");
   gint i;
 
   g_usleep (800000);
 
-  for (i = 0; i < 50; i++) {
+  for (i = 0; i < 15; i++) {
     if (g_main_loop_is_running (loop)) {
+      GST_PAD_STREAM_LOCK (sink);
       g_object_set (valve, "drop", i % 2, NULL);
+      GST_PAD_STREAM_UNLOCK (sink);
     } else {
       GST_DEBUG ("Main loop stopped");
       break;
     }
-    g_usleep (10000);
   }
 
+  g_usleep (10000);
+
+  GST_PAD_STREAM_LOCK (sink);
+  g_object_set (valve, "drop", FALSE, NULL);
+  GST_PAD_STREAM_UNLOCK (sink);
+
+  g_object_unref (sink);
+
   GST_DEBUG ("Toggle thread finished");
-  g_idle_add (quit_main_loop_idle, loop);
+  {
+    GstElement *fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "fakesink");
+
+    GST_DEBUG_OBJECT (fakesink, "Found");
+    g_signal_connect (G_OBJECT (fakesink), "handoff",
+        G_CALLBACK (fakesink_hand_off), loop);
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
+    g_object_unref (fakesink);
+  }
 
   return NULL;
 }
 
-static void
-bus_msg_valve_test (GstBus * bus, GstMessage * msg, gpointer pipe)
+static gboolean
+start_thread (gpointer data)
 {
-  switch (msg->type) {
-    case GST_MESSAGE_ERROR:{
-      gchar *error_file = g_strdup_printf ("error-%s", GST_OBJECT_NAME (pipe));
+  GThread *thread;
 
-      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, error_file);
-      g_free (error_file);
-      break;
-    }
-    case GST_MESSAGE_WARNING:{
-      gchar *warn_file = g_strdup_printf ("warning-%s", GST_OBJECT_NAME (pipe));
+  thread = g_thread_new ("toggle", toggle_thread, data);
+  g_thread_unref (thread);
 
-      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
-      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
-          GST_DEBUG_GRAPH_SHOW_ALL, warn_file);
-      g_free (warn_file);
-      break;
-    }
-    case GST_MESSAGE_STATE_CHANGED:
-    {
-      if (msg->src == pipe) {
-        GstState new_state;
-
-        gst_message_parse_state_changed (msg, NULL, &new_state, NULL);
-
-        if (new_state == GST_STATE_PLAYING) {
-          GThread *thread;
-
-          GST_INFO ("Pipe started: %" GST_PTR_FORMAT, msg);
-
-          thread = g_thread_new ("toggle", toggle_thread, pipe);
-          g_thread_unref (thread);
-        }
-      }
-    }
-      break;
-    default:
-      break;
-  }
+  return FALSE;
 }
 
 GST_START_TEST (valve_test)
@@ -295,17 +269,17 @@ GST_START_TEST (valve_test)
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
   GstElement *valve = gst_element_factory_make ("valve", NULL);
   GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
-  GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
+  GstElement *fakesink2 = gst_element_factory_make ("fakesink", "fakesink");
   gboolean ret;
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set_data (G_OBJECT (pipeline), VALVE_KEY, valve);
 
   loop = g_main_loop_new (NULL, TRUE);
-  g_object_set (G_OBJECT (pipeline), "async-handling", FALSE, NULL);
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
-  g_signal_connect (bus, "message", G_CALLBACK (bus_msg_valve_test), pipeline);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
   g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
   g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
@@ -322,6 +296,10 @@ GST_START_TEST (valve_test)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
+  g_timeout_add (500, start_thread, pipeline);
+
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
@@ -337,7 +315,6 @@ GST_START_TEST (valve_test)
 }
 
 GST_END_TEST
-#endif
 GST_START_TEST (reconnect_test)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -581,9 +558,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, encoded_input_link);
   tcase_add_test (tc_chain, static_link);
   tcase_add_test (tc_chain, reconnect_test);
-#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, valve_test);
-#endif
 
   return s;
 }
