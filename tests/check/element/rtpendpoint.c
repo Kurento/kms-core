@@ -72,13 +72,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
           GST_DEBUG_GRAPH_SHOW_ALL, "warning");
       break;
     }
-    case GST_MESSAGE_STATE_CHANGED:
-    {
-      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin")) {
-        GST_INFO ("Event: %" GST_PTR_FORMAT, msg);
-      }
-    }
-      break;
     default:
       break;
   }
@@ -94,6 +87,7 @@ sync_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
   if (count == 0) {
     count++;
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
     g_idle_add (quit_main_loop, loop);
   }
 }
@@ -107,16 +101,29 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
   count++;
   GST_DEBUG ("count: %d", count);
-  if (count > 90) {
+  if (count > 30) {
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
     g_idle_add (quit_main_loop, loop);
   }
+}
+
+static gboolean
+timeout_check (gpointer pipeline)
+{
+  gchar *timeout_file =
+      g_strdup_printf ("timeout-%s", GST_OBJECT_NAME (pipeline));
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, timeout_file);
+  g_free (timeout_file);
+  return FALSE;
 }
 
 GST_START_TEST (loopback)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
   GstSDPMessage *pattern_sdp, *offer, *answer;
-  GstElement *pipeline = gst_pipeline_new (NULL);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
@@ -178,23 +185,16 @@ GST_START_TEST (loopback)
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 
-  g_timeout_add (300, quit_main_loop, loop);
-
-  mark_point ();
-  g_main_loop_run (loop);
-  mark_point ();
-
   gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_loop");
+  g_timeout_add_seconds (10, timeout_check, pipeline);
 
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "loopback_test_end");
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
