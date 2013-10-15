@@ -144,7 +144,7 @@ GST_START_TEST (loopback)
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *agnosticbin =
-      gst_element_factory_make ("agnosticbin", "agnosticbin");
+      gst_element_factory_make ("agnosticbin2", "agnosticbin");
   GstElement *rtpendpointsender =
       gst_element_factory_make ("rtpendpoint", "sender");
   GstElement *rtpendpointreceiver =

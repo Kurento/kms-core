@@ -30,8 +30,16 @@ else
 TEST_AUTOMUXER =
 endif
 
+if AGNOSTICBINTEST
+TEST_AGNOSTICBIN = element/agnosticbin				\
+	memory_leaks/agnosticbin
+else
+TEST_AGNOSTICBIN =
+endif
+
 check_PROGRAMS =						\
 	$(TEST_AUTOMUXER)					\
+	$(TEST_AGNOSTICBIN)					\
 	element/rtpendpoint					\
 	element/rtpendpoint_audio				\
 	element/rtpendpoint_video				\
@@ -42,9 +50,7 @@ check_PROGRAMS =						\
 	element/recorderendpoint				\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
-	element/agnosticbin					\
 	element/agnosticbin2					\
-	memory_leaks/agnosticbin				\
 	memory_leaks/agnosticbin2				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -96,10 +102,12 @@ element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_httpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
+if AGNOSTICBINTEST
 element_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 if DEBUGGING_TESTS
 element_agnosticbin_CFLAGS += -DDEBUGGING_TESTS
+endif
 endif
 
 element_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
@@ -110,8 +118,10 @@ endif
 
 # Memory leaks tests
 
+if AGNOSTICBINTEST
 memory_leaks_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 memory_leaks_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+endif
 
 memory_leaks_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 memory_leaks_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)

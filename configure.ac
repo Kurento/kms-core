@@ -166,6 +166,16 @@ AC_ARG_ENABLE([automuxertest],
 esac],[automuxertest=false])
 AM_CONDITIONAL([AUTOMUXERTEST], [test x$automuxertest = xtrue])
 
+dnl enable/disable agnosticbin test
+AC_ARG_ENABLE([agnosticbin-test],
+[  --enable-agnosticbin-test    Turn on agnosticbin tests],
+[case "${enableval}" in
+  yes) agnosticbintest=true ;;
+  no)  agnosticbintest=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-agnosticbin-test]) ;;
+esac],[agnosticbin=false])
+AM_CONDITIONAL([AGNOSTICBINTEST], [test x$agnosticbintest = xtrue])
+
 dnl enable/disable debuggingtests
 AC_ARG_ENABLE([debugging-tests],
 [  --enable-debugging-tests Turn on debugging tests],
