@@ -391,6 +391,90 @@ GST_START_TEST (finite_video_test)
   g_main_loop_unref (loop);
 }
 
+GST_END_TEST static gboolean
+stop_recorder (gpointer data)
+{
+  GST_DEBUG ("Setting recorder to STOP");
+
+  g_object_set (G_OBJECT (recorder), "state", KMS_URI_END_POINT_STATE_STOP,
+      NULL);
+  return FALSE;
+}
+
+static void
+state_changed_cb3 (GstElement * recorder, KmsUriEndPointState newState,
+    gpointer loop)
+{
+  GST_DEBUG ("State changed %s.", state2string (newState));
+
+  if (newState == KMS_URI_END_POINT_STATE_START)
+    g_timeout_add (3000, stop_recorder, NULL);
+  else if (newState == KMS_URI_END_POINT_STATE_STOP)
+    g_idle_add (quit_main_loop_idle, loop);
+}
+
+GST_START_TEST (check_video_only)
+{
+  GstElement *pipeline, *videotestsrc, *vencoder, *timeoverlay;
+  guint bus_watch_id;
+  GstBus *bus;
+
+  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+
+  expected_warnings = FALSE;
+
+  /* Create gstreamer elements */
+  pipeline = gst_pipeline_new ("recorderendpoint0-test");
+  videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  vencoder = gst_element_factory_make ("vp8enc", NULL);
+  timeoverlay = gst_element_factory_make ("timeoverlay", NULL);
+  recorder = gst_element_factory_make ("recorderendpoint", NULL);
+
+  g_object_set (G_OBJECT (recorder), "uri",
+      "file:///tmp/check_video_only.webm", NULL);
+
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, vencoder,
+      recorder, timeoverlay, NULL);
+  gst_element_link (videotestsrc, timeoverlay);
+  gst_element_link (timeoverlay, vencoder);
+
+  gst_element_link_pads (vencoder, NULL, recorder, "video_sink");
+
+  g_signal_connect (recorder, "state-changed", G_CALLBACK (state_changed_cb3),
+      loop);
+
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
+      "pattern", 18, "num-buffers", 50, NULL);
+
+  g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+
+  g_object_set (G_OBJECT (recorder), "state",
+      KMS_URI_END_POINT_STATE_START, NULL);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_main_loop_run (loop);
+  GST_DEBUG ("Stop executed");
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  GST_DEBUG ("Pipe released");
+
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
+}
+
 GST_END_TEST
 /******************************/
 /* RecorderEndPoint test suit */
@@ -402,6 +486,7 @@ recorderendpoint_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+  tcase_add_test (tc_chain, check_video_only);
   tcase_add_test (tc_chain, check_states_pipeline);
   tcase_add_test (tc_chain, warning_pipeline);
   tcase_add_test (tc_chain, finite_video_test);
