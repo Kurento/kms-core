@@ -278,6 +278,64 @@ link_source (gpointer data)
   return FALSE;
 }
 
+static void
+type_found (GstElement * typefind, int prob, GstCaps * caps,
+    GstElement * pipeline)
+{
+  GstElement *fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "fakesink");
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+
+  gst_bin_add (GST_BIN (pipeline), agnosticbin);
+  gst_element_sync_state_with_parent (agnosticbin);
+
+  gst_element_link (agnosticbin, fakesink);
+  gst_element_link (typefind, agnosticbin);
+
+  g_object_unref (fakesink);
+}
+
+GST_START_TEST (add_later)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
+  GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *typefind = gst_element_factory_make ("typefind", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", "fakesink");
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  g_signal_connect (G_OBJECT (typefind), "have-type", G_CALLBACK (type_found),
+      pipeline);
+
+  gst_bin_add_many (GST_BIN (pipeline), videosrc, typefind, fakesink, NULL);
+  gst_element_link (videosrc, typefind);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (pipeline);
+  g_object_unref (bus);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 GST_START_TEST (delay_stream)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -617,6 +675,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, reconnect_test);
   tcase_add_test (tc_chain, valve_test);
   tcase_add_test (tc_chain, delay_stream);
+  tcase_add_test (tc_chain, add_later);
 
   return s;
 }
