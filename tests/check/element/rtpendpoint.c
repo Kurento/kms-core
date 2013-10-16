@@ -78,21 +78,6 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 }
 
 static void
-sync_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
-    gpointer data)
-{
-  static int count = 0;
-
-  GMainLoop *loop = (GMainLoop *) data;
-
-  if (count == 0) {
-    count++;
-    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
-    g_idle_add (quit_main_loop, loop);
-  }
-}
-
-static void
 fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
     gpointer data)
 {
@@ -101,7 +86,7 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
   count++;
   GST_DEBUG ("count: %d", count);
-  if (count > 30) {
+  if (count > 40) {
     g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
     g_idle_add (quit_main_loop, loop);
   }
@@ -119,6 +104,38 @@ timeout_check (gpointer pipeline)
   return FALSE;
 }
 
+static gboolean
+connect_output_sink (gpointer data)
+{
+  GstElement *pipeline = data;
+  GstElement *rtpendpointreceiver = gst_bin_get_by_name (GST_BIN (pipeline),
+      "receiver");
+  GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
+  GMainLoop *loop = g_object_get_data (G_OBJECT (pipeline), "loop");
+  GstElement *agnosticbin = gst_bin_get_by_name (GST_BIN (pipeline),
+      "agnosticbin");
+  GstElement *rtpendpointsender = gst_bin_get_by_name (GST_BIN (pipeline),
+      "sender");
+
+  gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
+  g_object_unref (agnosticbin);
+  g_object_unref (rtpendpointsender);
+
+  g_object_set (G_OBJECT (outputfakesink), "signal-handoffs", TRUE, NULL);
+  g_signal_connect (G_OBJECT (outputfakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  gst_bin_add (GST_BIN (pipeline), outputfakesink);
+  gst_element_sync_state_with_parent (outputfakesink);
+
+  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
+      "sink");
+
+  g_object_unref (rtpendpointreceiver);
+
+  return FALSE;
+}
+
 GST_START_TEST (loopback)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -126,14 +143,18 @@ GST_START_TEST (loopback)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+  GstElement *agnosticbin =
+      gst_element_factory_make ("agnosticbin", "agnosticbin");
   GstElement *rtpendpointsender =
-      gst_element_factory_make ("rtpendpoint", NULL);
+      gst_element_factory_make ("rtpendpoint", "sender");
   GstElement *rtpendpointreceiver =
-      gst_element_factory_make ("rtpendpoint", NULL);
-  GstElement *outputfakesink = gst_element_factory_make ("fakesink", NULL);
+      gst_element_factory_make ("rtpendpoint", "receiver");
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  g_object_set_data (G_OBJECT (pipeline), "loop", loop);
 
   gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -147,28 +168,14 @@ GST_START_TEST (loopback)
   g_object_set (rtpendpointreceiver, "pattern-sdp", pattern_sdp, NULL);
   fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
 
-  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
-      NULL);
-  g_signal_connect (G_OBJECT (fakesink), "handoff",
-      G_CALLBACK (sync_fakesink_hand_off), loop);
-
-  g_object_set (G_OBJECT (outputfakesink), "signal-handoffs", TRUE, NULL);
-  g_signal_connect (G_OBJECT (outputfakesink), "handoff",
-      G_CALLBACK (fakesink_hand_off), loop);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, NULL);
 
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
       NULL);
   gst_element_link_many (videotestsrc, agnosticbin, fakesink, NULL);
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  mark_point ();
-  g_main_loop_run (loop);
-  mark_point ();
-
-  gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, outputfakesink,
-      rtpendpointsender, NULL);
-  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
-      "sink");
+  gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, rtpendpointsender,
+      NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -185,8 +192,10 @@ GST_START_TEST (loopback)
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 
-  gst_element_link_pads (agnosticbin, NULL, rtpendpointsender, "video_sink");
+  gst_element_set_state (rtpendpointsender, GST_STATE_PLAYING);
+  gst_element_set_state (rtpendpointreceiver, GST_STATE_PLAYING);
 
+  g_timeout_add (500, connect_output_sink, pipeline);
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
   mark_point ();
