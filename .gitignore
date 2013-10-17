@@ -45,3 +45,4 @@ kms-marshal.c
 kms-marshal.h
 .directory
 *.tmp
+COPYING
