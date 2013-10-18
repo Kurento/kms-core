@@ -5,7 +5,7 @@ REGISTRY_ENVIRONMENT =						\
 	GST_PLUGIN_PATH=$(top_builddir)/src:$(GST_PLUGINS_DIR)
 
 TESTS_ENVIRONMENT =						\
-	CK_DEFAULT_TIMEOUT=60					\
+	CK_DEFAULT_TIMEOUT=20					\
 	$(REGISTRY_ENVIRONMENT)
 
 # run any given test by running make test.check
