@@ -12,9 +12,6 @@ TESTS_ENVIRONMENT =						\
 # if the test fails, run it again at at least debug level 2
 %.check: %
 	@$(TESTS_ENVIRONMENT)					\
-	$* ||							\
-	$(TESTS_ENVIRONMENT)					\
-	GST_DEBUG=*:3,$$GST_DEBUG				\
 	$*
 
 CLEANFILES = core.* test-registry.*
