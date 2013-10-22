@@ -21,6 +21,12 @@ $(CHECK_REGISTRY):
 
 TESTS =	$(check_PROGRAMS)
 
+if INTEGRATIONTESTS
+TEST_INTEGRATION = integration/playerendpoint
+else
+TEST_INTEGRATION =
+endif
+
 if AUTOMUXERTEST
 TEST_AUTOMUXER = element/automuxerbin
 else
@@ -37,6 +43,7 @@ endif
 check_PROGRAMS =						\
 	$(TEST_AUTOMUXER)					\
 	$(TEST_AGNOSTICBIN)					\
+        $(TEST_INTEGRATION)                                     \
 	element/rtpendpoint					\
 	element/rtpendpoint_audio				\
 	element/rtpendpoint_video				\
@@ -111,6 +118,13 @@ element_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 if DEBUGGING_TESTS
 element_agnosticbin2_CFLAGS += -DDEBUGGING_TESTS
+endif
+
+# Integration tests
+if INTEGRATIONTESTS
+integration_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+integration_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 endif
 
 # Memory leaks tests

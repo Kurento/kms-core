@@ -156,6 +156,16 @@ AC_SUBST(GST_PLUGIN_LDFLAGS)
 
 dnl FAILED TESTS
 
+dnl enable/disable integration test
+AC_ARG_ENABLE([integrationtests],
+[  --enable-integrationtests    Turn on integration tests],
+[case "${enableval}" in
+  yes) integrationtests=true ;;
+  no)  integrationtests=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-integrationtests]) ;;
+esac],[integrationtest=false])
+AM_CONDITIONAL([INTEGRATIONTESTS], [test x$integrationtests = xtrue])
+
 dnl enable/disable automuxer test
 AC_ARG_ENABLE([automuxertest],
 [  --enable-automuxertest    Turn on testing automuxer],
