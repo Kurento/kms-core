@@ -92,7 +92,7 @@ PKG_CHECK_MODULES(NICE, [
 ])
 
 dnl *** opencv ***
-PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.3 , [
+PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.5 , [
   AC_CHECK_HEADERS([highgui.h opencv2/highgui/highgui_c.h])
   AC_LANG([C])
 
