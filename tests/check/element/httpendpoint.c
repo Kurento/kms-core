@@ -227,7 +227,8 @@ GST_START_TEST (check_push_buffer)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST                    /* End of test check_push_buffer */
+GST_END_TEST
+/* End of test check_push_buffer */
     static void
 get_recv_eos (GstElement * httep, gpointer user_data)
 {
