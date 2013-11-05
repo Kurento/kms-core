@@ -144,9 +144,9 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([ ], [ ])], [
 
 dnl set the plugindir where plugins should be installed (for src/Makefile.am)
 if test "x${prefix}" = "x$HOME"; then
-  plugindir="$HOME/.gstreamer-1.0/plugins"
+  plugindir="$HOME/.gst-kurento-plugins/plugins"
 else
-  plugindir="\$(libdir)/gstreamer-1.0"
+  plugindir="\$(libdir)/gst-kurento-plugins"
 fi
 AC_SUBST(plugindir)
 
