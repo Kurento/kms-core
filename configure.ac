@@ -5,10 +5,10 @@ dnl TODO: fill in your package name and package version here
 AC_INIT([gst-kurento-plugins],[1.0.5])
 
 dnl required versions of gstreamer and plugins-base
-GST_REQUIRED=1.0.5
-GSTPB_REQUIRED=1.0.5
-GLIB_REQ=2.34
-NICE_REQUIRED=0.1.2
+GST_REQUIRED=1.2.0
+GSTPB_REQUIRED=1.2.0
+GLIB_REQ=2.38
+NICE_REQUIRED=0.1.4
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
