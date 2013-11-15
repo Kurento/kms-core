@@ -279,7 +279,7 @@ link_source (gpointer data)
 }
 
 static void
-type_found (GstElement * typefind, int prob, GstCaps * caps,
+type_found (GstElement * typefind, guint prob, GstCaps * caps,
     GstElement * pipeline)
 {
   GstElement *fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "fakesink");
