@@ -18,6 +18,8 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#include <kmstestutils.h>
+
 static const gchar *pattern_offer_sdp_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
@@ -128,7 +130,7 @@ connect_output_sink (gpointer data)
   gst_bin_add (GST_BIN (pipeline), outputfakesink);
   gst_element_sync_state_with_parent (outputfakesink);
 
-  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
+  kms_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
       "sink");
 
   g_object_unref (rtpendpointreceiver);

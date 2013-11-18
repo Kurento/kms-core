@@ -16,6 +16,8 @@
 #include <gst/gst.h>
 #include "kmsuriendpointstate.h"
 
+#include <kmstestutils.h>
+
 static GMainLoop *loop = NULL;
 static GstElement *player = NULL;
 static GstElement *fakesink = NULL;
@@ -149,7 +151,7 @@ GST_START_TEST (check_states)
   g_object_unref (bus);
 
   g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/sintel.webm", NULL);
+      "http://ci.kurento.com/downloads/fiwarecut.webm", NULL);
   g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
   g_signal_connect (fakesink, "handoff", G_CALLBACK (handoff), loop);
 
@@ -165,7 +167,7 @@ GST_START_TEST (check_states)
   gst_bin_add (GST_BIN (pipeline), player);
   gst_element_set_state (player, GST_STATE_PLAYING);
 
-  gst_element_link (player, fakesink);
+  kms_element_link_pads (player, "video_src_%u", fakesink, "sink");
 
   transite ();
 
@@ -278,8 +280,8 @@ GST_START_TEST (check_live_stream)
   gst_bin_add (GST_BIN (pipeline), player);
   gst_element_set_state (player, GST_STATE_PLAYING);
 
-  gst_element_link_pads (player, "audio_src_0", fakesink_audio, "sink");
-  gst_element_link_pads (player, "video_src_0", fakesink_video, "sink");
+  kms_element_link_pads (player, "audio_src_%u", fakesink_audio, "sink");
+  kms_element_link_pads (player, "video_src_%u", fakesink_video, "sink");
 
   /* Set player to start state */
   g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,

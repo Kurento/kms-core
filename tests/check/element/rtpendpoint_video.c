@@ -18,6 +18,8 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#include <kmstestutils.h>
+
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
@@ -137,7 +139,7 @@ test_video_sendonly (const gchar * video_enc_name, GstStaticCaps expected_caps,
 
   gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, outputfakesink,
       NULL);
-  gst_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
+  kms_element_link_pads (rtpendpointreceiver, "video_src_%u", outputfakesink,
       "sink");
 
   if (!play_after_negotiation)
@@ -283,7 +285,7 @@ test_video_sendrecv (const gchar * video_enc_name,
   gst_element_link (videotestsrc_offerer, video_enc_offerer);
   gst_element_link_pads (video_enc_offerer, NULL, rtpendpoint_offerer,
       "video_sink");
-  gst_element_link_pads (rtpendpoint_offerer, "video_src_%u", fakesink_offerer,
+  kms_element_link_pads (rtpendpoint_offerer, "video_src_%u", fakesink_offerer,
       "sink");
 
   gst_bin_add_many (GST_BIN (pipeline)
@@ -292,7 +294,7 @@ test_video_sendrecv (const gchar * video_enc_name,
   gst_element_link (videotestsrc_answerer, video_enc_answerer);
   gst_element_link_pads (video_enc_answerer, NULL, rtpendpoint_answerer,
       "video_sink");
-  gst_element_link_pads (rtpendpoint_answerer, "video_src_%u",
+  kms_element_link_pads (rtpendpoint_answerer, "video_src_%u",
       fakesink_answerer, "sink");
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);

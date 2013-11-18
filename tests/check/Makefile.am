@@ -60,14 +60,22 @@ check_PROGRAMS =						\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
 
+lib_LTLIBRARIES = libkms_test_utils.la
+libkms_test_utils_la_SOURCES = kmstestutils.h kmstestutils.c
+libkms_test_utils_la_CFLAGS = $(GST_CFLAGS) -Werror
+libkms_test_utils_la_LIBADD = $(GST_LIBS)
+
 element_rtpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_rtpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 
 element_rtpendpoint_audio_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_rtpendpoint_audio_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_rtpendpoint_audio_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 
 element_rtpendpoint_video_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_rtpendpoint_video_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_rtpendpoint_video_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 if DEBUGGING_TESTS
 element_rtpendpoint_video_CFLAGS += -DDEBUGGING_TESTS
 endif
@@ -76,7 +84,8 @@ element_rtpendpoint_video_CFLAGS += -DDEBUGGING_TESTS
 endif
 
 element_webrtcendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_webrtcendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_webrtcendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 general_dummytest_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
@@ -104,7 +113,8 @@ element_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
-element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 
 element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
@@ -128,7 +138,8 @@ endif
 if INTEGRATIONTESTS
 integration_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
-integration_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+integration_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 endif
 
 # Memory leaks tests

@@ -16,6 +16,8 @@
 #include <gst/check/gstcheck.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include <kmstestutils.h>
+
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
@@ -135,7 +137,8 @@ test_audio_sendonly (const gchar * audio_enc_name, GstStaticCaps expected_caps,
 
   gst_bin_add_many (GST_BIN (pipeline), rtpendpointreceiver, outputfakesink,
       NULL);
-  gst_element_link_pads (rtpendpointreceiver, "audio_src_%u", outputfakesink,
+
+  kms_element_link_pads (rtpendpointreceiver, "audio_src_%u", outputfakesink,
       "sink");
 
   if (!play_after_negotiation)
@@ -284,7 +287,7 @@ test_audio_sendrecv (const gchar * audio_enc_name,
   gst_element_link (audiotestsrc_offerer, audio_enc_offerer);
   gst_element_link_pads (audio_enc_offerer, NULL, rtpendpoint_offerer,
       "audio_sink");
-  gst_element_link_pads (rtpendpoint_offerer, "audio_src_%u", fakesink_offerer,
+  kms_element_link_pads (rtpendpoint_offerer, "audio_src_%u", fakesink_offerer,
       "sink");
 
   gst_bin_add_many (GST_BIN (pipeline)
@@ -293,7 +296,7 @@ test_audio_sendrecv (const gchar * audio_enc_name,
   gst_element_link (audiotestsrc_answerer, audio_enc_answerer);
   gst_element_link_pads (audio_enc_answerer, NULL, rtpendpoint_answerer,
       "audio_sink");
-  gst_element_link_pads (rtpendpoint_answerer, "audio_src_%u",
+  kms_element_link_pads (rtpendpoint_answerer, "audio_src_%u",
       fakesink_answerer, "sink");
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);

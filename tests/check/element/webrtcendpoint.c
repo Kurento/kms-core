@@ -16,6 +16,8 @@
 #include <gst/check/gstcheck.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include <kmstestutils.h>
+
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
@@ -25,7 +27,6 @@ quit_main_loop_idle (gpointer data)
   return FALSE;
 }
 
-// TODO: create a generic bus_msg
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 {
@@ -212,8 +213,9 @@ test_video_sendrecv (const gchar * video_enc_name,
 
   gst_bin_add_many (GST_BIN (pipeline), fakesink_offerer, fakesink_answerer,
       NULL);
-  gst_element_link_pads (offerer, "video_src_%u", fakesink_offerer, "sink");
-  gst_element_link_pads (answerer, "video_src_%u", fakesink_answerer, "sink");
+
+  kms_element_link_pads (offerer, "video_src_%u", fakesink_offerer, "sink");
+  kms_element_link_pads (answerer, "video_src_%u", fakesink_answerer, "sink");
   gst_element_sync_state_with_parent (fakesink_offerer);
   gst_element_sync_state_with_parent (fakesink_answerer);
 

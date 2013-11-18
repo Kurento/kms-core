@@ -17,6 +17,12 @@
 #include "kmsuriendpointstate.h"
 #include "kmsrecordingprofile.h"
 
+#include <kmstestutils.h>
+
+#define KMS_KEY_HANDLER_ID "kms-key-handler-id"
+#define KMS_KEY_SINK_ID "kms-key-sink-id"
+#define KMS_KEY_SINK_PAD_NAME_ID "kms-key-sink-pad-name-id"
+
 static GstElement *pipeline;
 
 static void
@@ -74,6 +80,9 @@ stop_recorder (gpointer user_data)
 static void
 player_eos (GstElement * player, gpointer user_data)
 {
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "playereos");
+
   g_idle_add (stop_recorder, user_data);
 }
 
@@ -95,7 +104,7 @@ player_state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
       state2string (newState));
 }
 
-GST_START_TEST (check_custom_event)
+GST_START_TEST (check_agnostic_signal)
 {
   GstElement *player, *recorder;
   guint bus_watch_id;
@@ -103,7 +112,7 @@ GST_START_TEST (check_custom_event)
   GstBus *bus;
 
   loop = g_main_loop_new (NULL, FALSE);
-  pipeline = gst_pipeline_new ("check_custom_event");
+  pipeline = gst_pipeline_new ("check_agnostic_signal");
   g_object_set (pipeline, "async-handling", TRUE, NULL);
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
@@ -127,8 +136,8 @@ GST_START_TEST (check_custom_event)
 
   gst_bin_add_many (GST_BIN (pipeline), player, recorder, NULL);
 
-  gst_element_link_pads (player, "video_src_0", recorder, "video_sink");
-  gst_element_link_pads (player, "audio_src_0", recorder, "audio_sink");
+  kms_element_link_pads (player, "video_src_%u", recorder, "video_sink");
+  kms_element_link_pads (player, "audio_src_%u", recorder, "audio_sink");
 
   g_signal_connect (G_OBJECT (player), "eos", G_CALLBACK (player_eos),
       recorder);
@@ -164,7 +173,7 @@ playerendpoint_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-  tcase_add_test (tc_chain, check_custom_event);
+  tcase_add_test (tc_chain, check_agnostic_signal);
   return s;
 }
 
