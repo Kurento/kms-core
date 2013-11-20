@@ -203,4 +203,5 @@ else
 fi
 
 AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile src/filters/jackvader/Makefile src/filters/movementdetector/Makefile src/filters/h264filter/Makefile])
+AC_CONFIG_SUBDIRS([kms-dtls-plugins])
 AC_OUTPUT

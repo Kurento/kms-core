@@ -5,7 +5,13 @@
 
 SRC_DIR=`pwd`
 
-autoreconf --verbose --force --install --make || {
+if [ -d .git ]; then
+  rm -fr kms-dtls-plugins
+  git submodule init
+  git submodule update
+fi
+
+autoreconf --verbose --force --install || {
  echo 'autogen.sh failed';
  exit 1;
 }

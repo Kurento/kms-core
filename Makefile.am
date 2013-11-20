@@ -1,4 +1,5 @@
 SUBDIRS = 				\
+	kms-dtls-plugins		\
 	src 				\
 	tests
 
