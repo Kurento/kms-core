@@ -112,85 +112,6 @@ GST_START_TEST (negotiation)
 }
 
 GST_END_TEST
-GST_START_TEST (loopback_negotiation)
-{
-  GstSDPMessage *pattern_sdp;
-  GstElement *ep = gst_element_factory_make ("webrtcendpoint", NULL);
-  GstSDPMessage *offer = NULL, *answer = NULL;
-  GstSDPMessage *local_offer = NULL, *local_answer = NULL;
-  gchar *local_offer_str, *local_answer_str;
-  GstSDPMessage *remote_offer = NULL, *remote_answer = NULL;
-  gchar *offer_str, *answer_str;
-  gchar *remote_offer_str, *remote_answer_str;
-
-  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
-  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
-          pattern_sdp_str, -1, pattern_sdp) == GST_SDP_OK);
-  g_object_set (ep, "pattern-sdp", pattern_sdp, NULL);
-  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
-  g_object_get (ep, "pattern-sdp", &pattern_sdp, NULL);
-  fail_unless (pattern_sdp != NULL);
-  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
-
-  g_signal_emit_by_name (ep, "generate-offer", &offer);
-  fail_unless (offer != NULL);
-  offer_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", offer_str);
-
-  g_signal_emit_by_name (ep, "process-offer", offer, &answer);
-  fail_unless (answer != NULL);
-  answer_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", answer_str);
-
-  g_signal_emit_by_name (ep, "process-answer", answer);
-
-  gst_sdp_message_free (offer);
-  gst_sdp_message_free (answer);
-
-  g_object_get (ep, "local-offer-sdp", &local_offer, NULL);
-  fail_unless (local_offer != NULL);
-  g_object_get (ep, "remote-answer-sdp", &remote_answer, NULL);
-  fail_unless (remote_answer != NULL);
-
-  g_object_get (ep, "remote-offer-sdp", &remote_offer, NULL);
-  fail_unless (remote_offer != NULL);
-  g_object_get (ep, "local-answer-sdp", &local_answer, NULL);
-  fail_unless (local_answer != NULL);
-
-  local_offer_str = gst_sdp_message_as_text (local_offer);
-  remote_answer_str = gst_sdp_message_as_text (remote_answer);
-
-  remote_offer_str = gst_sdp_message_as_text (remote_offer);
-  local_answer_str = gst_sdp_message_as_text (local_answer);
-
-  GST_DEBUG ("Local offer\n%s", local_offer_str);
-  GST_DEBUG ("Remote answer\n%s", remote_answer_str);
-  GST_DEBUG ("Remote offer\n%s", remote_offer_str);
-  GST_DEBUG ("Local answer\n%s", local_answer_str);
-
-  fail_unless (g_strcmp0 (offer_str, answer_str) == 0);
-  fail_unless (g_strcmp0 (local_offer_str, offer_str) == 0);
-  fail_unless (g_strcmp0 (remote_offer_str, offer_str) == 0);
-  fail_unless (g_strcmp0 (local_answer_str, answer_str) == 0);
-  fail_unless (g_strcmp0 (remote_answer_str, answer_str) == 0);
-
-  g_free (local_offer_str);
-  g_free (remote_answer_str);
-  g_free (local_answer_str);
-  g_free (remote_offer_str);
-
-  g_free (offer_str);
-  g_free (answer_str);
-
-  gst_sdp_message_free (local_offer);
-  gst_sdp_message_free (remote_answer);
-  gst_sdp_message_free (remote_offer);
-  gst_sdp_message_free (local_answer);
-
-  g_object_unref (ep);
-}
-
-GST_END_TEST
 /*
  * End of test cases
  */
@@ -202,7 +123,6 @@ webrtcendpoint_test_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, negotiation);
-  tcase_add_test (tc_chain, loopback_negotiation);
 
   return s;
 }
