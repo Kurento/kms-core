@@ -9,6 +9,7 @@ GST_REQUIRED=1.2.0
 GSTPB_REQUIRED=1.2.0
 GLIB_REQ=2.38
 NICE_REQUIRED=0.1.4
+SOUP_REQUIRED=2.40
 
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADERS([config.h])
@@ -90,6 +91,20 @@ PKG_CHECK_MODULES(NICE, [
       packages on your system to version $NICE_REQUIRED.
   ])
 ])
+
+PKG_CHECK_MODULES(SOUP, [
+  libsoup-2.4 >= $SOUP_REQUIRED
+], [
+  AC_SUBST(SOUP_CFLAGS)
+  AC_SUBST(SOUP_LIBS)
+  soup_found=true
+], [
+  AC_MSG_WARN([
+    Lib soup not found, some test are not compiled.
+  ])
+  soup_found=false
+])
+AM_CONDITIONAL([HAS_SOUP], [test x$soup_found = xtrue])
 
 dnl *** opencv ***
 PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.5 , [
@@ -202,6 +217,15 @@ else
   AC_DEFINE_UNQUOTED([FINAL_INSTALL_DIR], ["$FINAL_INSTALL_DIR"],"Final installation Path")
 fi
 
-AC_CONFIG_FILES([Makefile src/Makefile src/filters/Makefile tests/Makefile tests/check/Makefile src/filters/platedetector/Makefile src/filters/jackvader/Makefile src/filters/movementdetector/Makefile src/filters/h264filter/Makefile])
+AC_CONFIG_FILES([Makefile
+                 src/Makefile
+                 src/filters/Makefile
+                 tests/Makefile
+                 tests/check/Makefile
+                 tests/examples/Makefile
+                 src/filters/platedetector/Makefile
+                 src/filters/jackvader/Makefile
+                 src/filters/movementdetector/Makefile
+                 src/filters/h264filter/Makefile])
 AC_CONFIG_SUBDIRS([kms-dtls-plugins])
 AC_OUTPUT

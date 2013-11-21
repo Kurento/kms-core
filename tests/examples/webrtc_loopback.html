@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>WebRTC loopback</title>
+
+<style>
+video {
+  border:5px solid black;
+  width:480px;
+  height:360px;
+}
+</style>
+
+</head>
+<body>
+
+<video id="video_local" autoplay></video>
+<video id="video_remote" autoplay></video>
+
+<script>
+
+function trace(text) {
+  if (text[text.length - 1] == '\n') {
+    text = text.substring(0, text.length - 1);
+  }
+  console.log((performance.now() / 1000).toFixed(3) + ": " + text);
+}
+
+function objToString (obj) {
+    var str = '';
+    for (var p in obj) {
+        if (obj.hasOwnProperty(p)) {
+            str += p + '::' + obj[p] + '\n';
+        }
+    }
+    return str;
+}
+
+/* Browser detector */
+
+var RTCPeerConnection = null;
+var getUserMedia = null;
+var attachMediaStream = null;
+var reattachMediaStream = null;
+
+if (navigator.mozGetUserMedia) {
+  trace("This appears to be Firefox");
+
+  RTCPeerConnection = mozRTCPeerConnection;
+  RTCSessionDescription = mozRTCSessionDescription;
+  RTCIceCandidate = mozRTCIceCandidate;
+  getUserMedia = navigator.mozGetUserMedia.bind(navigator);
+
+  attachMediaStream = function(element, stream) {
+    element.mozSrcObject = stream;
+    element.play();
+  };
+
+  reattachMediaStream = function(to, from) {
+    to.mozSrcObject = from.mozSrcObject;
+    to.play();
+  };
+
+  // Fake get{Video,Audio}Tracks
+  MediaStream.prototype.getVideoTracks = function() {
+    return [];
+  };
+
+  MediaStream.prototype.getAudioTracks = function() {
+    return [];
+  };
+} else if (navigator.webkitGetUserMedia) {
+  trace("This appears to be Chrome");
+
+  RTCPeerConnection = webkitRTCPeerConnection;
+  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+
+  attachMediaStream = function(element, stream) {
+    element.src = webkitURL.createObjectURL(stream);
+  };
+
+  reattachMediaStream = function(to, from) {
+    to.src = from.src;
+  };
+
+  if (!webkitMediaStream.prototype.getVideoTracks) {
+    webkitMediaStream.prototype.getVideoTracks = function() {
+      return this.videoTracks;
+    };
+  }
+
+  if (!webkitMediaStream.prototype.getAudioTracks) {
+    webkitMediaStream.prototype.getAudioTracks = function() {
+      return this.audioTracks;
+    };
+  }
+} else {
+  console.error("Browser does not appear to be WebRTC-capable");
+}
+/* End of browser detector */
+
+var pc;
+var replySent = false;
+
+function gotRemoteStream(e) {
+  trace("Received remote stream");
+  attachMediaStream (video_remote, e.stream);
+}
+
+function sendLocalDescription(path, sdp) {
+  if (replySent == true) {
+    trace("Already sent");
+    return;
+  }
+
+  var http = new XMLHttpRequest();
+  var params = "sdp=" + encodeURIComponent(sdp);
+  trace("Params: " + params);
+
+  http.onreadystatechange = function() {
+    if (http.readyState == 4) {
+      if (http.status == 200) {
+        trace("Request ok");
+      } else{
+        trace("An error has occured making the request: " + http.status);
+      }
+    }
+  }
+
+  http.open("GET", path  +  "?" + params, true);
+  http.send(null);
+  replySent = true;
+}
+
+function onIceCandidate(event) {
+  trace("onIceCandidate");
+  if (event.candidate != null) {
+    trace("Local ICE candidate: \n" + event.candidate.candidate);
+  } else {
+    sendLocalDescription ("/", pc.localDescription.sdp);
+  }
+}
+
+function startMediaSession(localstream) {
+  trace("Starting media session");
+
+  videoTracks = localstream.getVideoTracks();
+  if (videoTracks.length > 0)
+    trace('Using Video device: ' + videoTracks[0].label);
+
+  audioTracks = localstream.getAudioTracks();
+  if (audioTracks.length > 0)
+    trace('Using Audio device: ' + audioTracks[0].label);
+
+  var servers = { "iceServers": [{ "url": "stun:77.72.174.167:3478" }] };
+  pc = new RTCPeerConnection(servers, {
+        optional: [{
+                DtlsSrtpKeyAgreement: true
+            }
+        ]
+    });
+
+  pc.onicecandidate = onIceCandidate;
+  pc.onaddstream = gotRemoteStream;
+
+  pc.addStream(localstream);
+  trace("sdp:\n" + sdp);
+  var remoteDesc = new RTCSessionDescription({type: "offer", sdp: sdp});
+
+  pc.setRemoteDescription(remoteDesc, function () {
+    trace("setRemoteDescription success");
+    pc.createAnswer(function (desc) {
+      trace("Generated answer from pc \n" + desc.sdp);
+      pc.setLocalDescription(desc, function () {
+        trace("setLocalDescription on success");
+      }, function (s_error) {
+        trace("setLocalDescription on error: " + objToString(s_error));
+      });
+    }, function (s_error) {
+      trace("createAnswer error: " + s_error);
+    });
+  }, function (s_error) {
+    trace("setRemoteDescription error: " + objToString(s_error));
+  });
+}
+
+function gotStream(stream) {
+  trace("Received local stream");
+  attachMediaStream(video_local, stream);
+  startMediaSession(stream);
+}
+
+function start() {
+  trace("Requesting local stream");
+  getUserMedia({video: {
+                  mandatory: { maxFrameRate: 15 , maxWidth: 320 }
+                  }
+                },
+                gotStream,
+                function() {
+                  trace("Error in getUserMedia");
+                });
+}
+
+window.onload = function() {
+  trace("On load");
+  start();
+}
+
+/* File will be completed by server at execution time */
+
