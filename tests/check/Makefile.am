@@ -2,7 +2,7 @@ CHECK_REGISTRY = $(top_builddir)/tests/check/test-registry.reg
 
 REGISTRY_ENVIRONMENT =						\
 	GST_REGISTRY=$(CHECK_REGISTRY)				\
-	GST_PLUGIN_PATH=$(top_builddir)/src:$(GST_PLUGINS_DIR)
+	GST_PLUGIN_PATH=$(top_builddir):$(GST_PLUGINS_DIR)
 
 TESTS_ENVIRONMENT =						\
 	CK_DEFAULT_TIMEOUT=20					\
