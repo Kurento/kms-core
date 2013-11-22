@@ -300,7 +300,6 @@ GST_START_TEST (check_pull_buffer)
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, "do-timestamp", TRUE,
       "num-buffers", 150, NULL);
   g_object_set (G_OBJECT (timeoverlay), "font-desc", "Sans 28", NULL);
-  g_object_set (G_OBJECT (httpep), "is-live", FALSE, NULL);
 
   g_signal_connect (httpep, "new-sample", G_CALLBACK (get_recv_sample), NULL);
   g_signal_connect (httpep, "eos", G_CALLBACK (get_recv_eos), NULL);
