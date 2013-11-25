@@ -43,7 +43,8 @@ static const gchar *pattern_sdp_vp8_sendrecv_str = "v=0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
-    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendrecv\r\n";
+    "m=audio 0 RTP/AVP 96\r\n" "a=rtpmap:96 OPUS/48000/1\r\n" "a=sendrecv\r\n"
+    "m=video 0 RTP/AVP 97\r\n" "a=rtpmap:97 VP8/90000\r\n" "a=sendrecv\r\n";
 
 static void
 bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
@@ -90,6 +91,7 @@ configure_media_session (GstElement * pipe, const gchar * sdp_str)
       g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
   GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
   GstElement *clockoverlay = gst_element_factory_make ("clockoverlay", NULL);
+  GstElement *audio_identity = gst_element_factory_make ("identity", NULL);
 
   GST_DEBUG ("Process SDP answer:\n%s", sdp_str);
 
@@ -108,6 +110,12 @@ configure_media_session (GstElement * pipe, const gchar * sdp_str)
       "video_sink");
   gst_element_link (clockoverlay, agnostic);
   gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
+
+  gst_bin_add (GST_BIN (pipe), audio_identity);
+  gst_element_sync_state_with_parent (audio_identity);
+  kms_element_link_pads (webrtcendpoint, "audio_src_%u", audio_identity,
+      "sink");
+  gst_element_link_pads (audio_identity, NULL, webrtcendpoint, "audio_sink");
 
   return TRUE;
 }

@@ -101,6 +101,9 @@ if (navigator.mozGetUserMedia) {
 
 var pc;
 var replySent = false;
+var sdpConstraints = {'mandatory': {
+                    'OfferToReceiveAudio':true,
+                    'OfferToReceiveVideo':true }};
 
 function gotRemoteStream(e) {
   trace("Received remote stream");
@@ -175,7 +178,7 @@ function startMediaSession(localstream) {
         trace("setLocalDescription on success");
       }, function (s_error) {
         trace("setLocalDescription on error: " + objToString(s_error));
-      });
+      }, sdpConstraints);
     }, function (s_error) {
       trace("createAnswer error: " + s_error);
     });
@@ -187,12 +190,14 @@ function startMediaSession(localstream) {
 function gotStream(stream) {
   trace("Received local stream");
   attachMediaStream(video_local, stream);
+  video_local.muted=true;
   startMediaSession(stream);
 }
 
 function start() {
   trace("Requesting local stream");
-  getUserMedia({video: {
+  getUserMedia({audio:true,
+                video: {
                   mandatory: { maxFrameRate: 15 , maxWidth: 320 }
                   }
                 },
