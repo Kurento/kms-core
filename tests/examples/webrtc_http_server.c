@@ -33,6 +33,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define WEBRTC_END_POINT "webrtc-end-point"
 #define MEDIA_SESSION_ID "media-session-id"
+#define FILTER_TYPE "filter-type"
 
 static GMainLoop *loop;
 static GRand *rand;
@@ -89,27 +90,56 @@ configure_media_session (GstElement * pipe, const gchar * sdp_str)
   GstSDPMessage *sdp = NULL;
   GstElement *webrtcendpoint =
       g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
-  GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
-  GstElement *clockoverlay = gst_element_factory_make ("clockoverlay", NULL);
+  const gchar *filter_type =
+      g_object_get_data (G_OBJECT (webrtcendpoint), FILTER_TYPE);
   GstElement *audio_identity = gst_element_factory_make ("identity", NULL);
 
   GST_DEBUG ("Process SDP answer:\n%s", sdp_str);
+  GST_INFO ("Filter type: %s", filter_type);
 
   gst_sdp_message_new (&sdp);
   gst_sdp_message_parse_buffer ((const guint8 *) sdp_str, -1, sdp);
   g_signal_emit_by_name (webrtcendpoint, "process-answer", sdp);
   gst_sdp_message_free (sdp);
 
-  g_object_set (clockoverlay, "font-desc", "Sans 28", NULL);
+  if (g_strcmp0 (filter_type, "clockoverlay") == 0) {
+    GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
+    GstElement *clockoverlay = gst_element_factory_make ("clockoverlay", NULL);
 
-  gst_bin_add_many (GST_BIN (pipe), agnostic, clockoverlay, NULL);
-  gst_element_sync_state_with_parent (clockoverlay);
-  gst_element_sync_state_with_parent (agnostic);
+    g_object_set (clockoverlay, "font-desc", "Sans 28", NULL);
 
-  kms_element_link_pads (webrtcendpoint, "video_src_%u", clockoverlay,
-      "video_sink");
-  gst_element_link (clockoverlay, agnostic);
-  gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
+    gst_bin_add_many (GST_BIN (pipe), agnostic, clockoverlay, NULL);
+    gst_element_sync_state_with_parent (clockoverlay);
+    gst_element_sync_state_with_parent (agnostic);
+
+    kms_element_link_pads (webrtcendpoint, "video_src_%u", clockoverlay,
+        "video_sink");
+    gst_element_link (clockoverlay, agnostic);
+    gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
+  } else if (g_strcmp0 (filter_type, "jackvader") == 0) {
+    GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
+    GstElement *jackvader = gst_element_factory_make ("filterelement", NULL);
+
+    g_object_set (jackvader, "filter-factory", "jackvader", NULL);
+
+    gst_bin_add_many (GST_BIN (pipe), agnostic, jackvader, NULL);
+    gst_element_sync_state_with_parent (jackvader);
+    gst_element_sync_state_with_parent (agnostic);
+
+    kms_element_link_pads (webrtcendpoint, "video_src_%u", jackvader,
+        "video_sink");
+    gst_element_link_pads (jackvader, "video_src_%u", agnostic, NULL);
+    gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
+  } else {
+    GstElement *video_identity = gst_element_factory_make ("identity", NULL);
+
+    gst_bin_add (GST_BIN (pipe), video_identity);
+    gst_element_sync_state_with_parent (video_identity);
+
+    kms_element_link_pads (webrtcendpoint, "video_src_%u", video_identity,
+        "sink");
+    gst_element_link_pads (video_identity, NULL, webrtcendpoint, "video_sink");
+  }
 
   gst_bin_add (GST_BIN (pipe), audio_identity);
   gst_element_sync_state_with_parent (audio_identity);
@@ -183,6 +213,7 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
   GstElement *webrtcendpoint;
   GstSDPMessage *local_sdp_offer;
   gchar *local_sdp_offer_str;
+  gchar *filter_type = NULL;
 
   GST_DEBUG ("Request: %s", path);
 
@@ -240,6 +271,8 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
   if (query != NULL) {
     gchar *sdp = g_hash_table_lookup (query, "sdp");
 
+    filter_type = g_strdup (g_hash_table_lookup (query, FILTER_TYPE));
+
     if (sdp != NULL && pipe != NULL) {
       if (configure_media_session (pipe, sdp)) {
         soup_message_set_status (msg, SOUP_STATUS_OK);
@@ -279,6 +312,8 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
       length);
 
   webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+  g_object_set_data_full (G_OBJECT (webrtcendpoint), FILTER_TYPE, filter_type,
+      g_free);
   g_object_get (webrtcendpoint, "local-offer-sdp", &local_sdp_offer, NULL);
   local_sdp_offer_str = gst_sdp_message_as_text (local_sdp_offer);
   gst_sdp_message_free (local_sdp_offer);
