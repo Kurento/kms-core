@@ -19,6 +19,8 @@
 #include <string.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include <kmstestutils.h>
+
 #define GST_CAT_DEFAULT webrtc_http_server
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
@@ -99,12 +101,13 @@ configure_media_session (GstElement * pipe, const gchar * sdp_str)
   g_object_set (clockoverlay, "font-desc", "Sans 28", NULL);
 
   gst_bin_add_many (GST_BIN (pipe), agnostic, clockoverlay, NULL);
-  gst_element_link_pads (webrtcendpoint, "video_src_%u", clockoverlay, NULL);
-  gst_element_link (clockoverlay, agnostic);
-  gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
-
   gst_element_sync_state_with_parent (clockoverlay);
   gst_element_sync_state_with_parent (agnostic);
+
+  kms_element_link_pads (webrtcendpoint, "video_src_%u", clockoverlay,
+      "video_sink");
+  gst_element_link (clockoverlay, agnostic);
+  gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
 
   return TRUE;
 }
