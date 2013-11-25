@@ -50,6 +50,7 @@ check_PROGRAMS =						\
 	element/webrtcendpoint					\
 	general/dummytest					\
 	general/sdp						\
+	general/utils						\
 	element/filterelement					\
 	element/uriendpoint					\
 	element/recorderendpoint				\
@@ -94,6 +95,11 @@ general_sdp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
 general_sdp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/src/libgstkurento_la-sdp_utils.lo
+
+general_utils_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+		-I$(top_srcdir)/src
+general_utils_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/src/libgstkurento_la-kmsutils.lo
 
 element_filterelement_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_filterelement_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
