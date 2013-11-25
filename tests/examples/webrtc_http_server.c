@@ -29,7 +29,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PORT 8080
 #define MIME_TYPE "text/html"
 #define HTML_FILE "webrtc_loopback.html"
-#define PEMFILE "certkey.pem"
 
 #define WEBRTC_END_POINT "webrtc-end-point"
 #define MEDIA_SESSION_ID "media-session-id"
@@ -178,9 +177,6 @@ init_media_session (SoupServer * server, SoupMessage * msg, gint64 id)
       -1, sdp);
   g_object_set (webrtcendpoint, "pattern-sdp", sdp, NULL);
   gst_sdp_message_free (sdp);
-
-  g_object_set (G_OBJECT (webrtcendpoint), "certificate-pem-file", PEMFILE,
-      NULL);
 
   gst_bin_add (GST_BIN (pipe), webrtcendpoint);
 
