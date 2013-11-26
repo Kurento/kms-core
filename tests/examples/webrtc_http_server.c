@@ -316,6 +316,7 @@ main (int argc, char **argv)
   gst_init (&argc, &argv);
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, DEBUG_NAME, 0, DEBUG_NAME);
 
+  loop = g_main_loop_new (NULL, TRUE);
   cookies =
       g_hash_table_new_full (g_int64_hash, g_int64_equal, g_free, destroy_pipe);
   rand = g_rand_new ();
