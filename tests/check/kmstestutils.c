@@ -129,8 +129,6 @@ kms_element_link_pads (GstElement * src, const gchar * src_pad_name,
         (GConnectFlags) 0);
   } else {
     connect_to_sink (sink, sink_pad_name, pad);
-  }
-
-  if (pad != NULL)
     g_object_unref (pad);
+  }
 }
