@@ -78,7 +78,7 @@ connect_to_sink (GstElement * sink, const gchar * sinkname, GstPad * srcpad)
 
   if (gst_pad_is_linked (sinkpad)) {
     g_error ("Pad %" GST_PTR_FORMAT " is already linked.", sinkpad);
-    return;
+    goto end;
   }
 
   if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK)
@@ -88,8 +88,8 @@ connect_to_sink (GstElement * sink, const gchar * sinkname, GstPad * srcpad)
     g_debug ("Connected %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT,
         srcpad, sinkpad);
 
-  if (sinkpad != NULL)
-    g_object_unref (sinkpad);
+end:
+  g_object_unref (sinkpad);
 }
 
 static void
