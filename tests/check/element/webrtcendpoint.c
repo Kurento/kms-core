@@ -173,11 +173,6 @@ test_video_sendrecv (const gchar * video_enc_name,
   g_signal_connect (G_OBJECT (fakesink_answerer), "handoff",
       G_CALLBACK (sendrecv_answerer_fakesink_hand_off), hod);
 
-  g_object_set (G_OBJECT (offerer), "certificate-pem-file",
-      "/tmp/certkey.pem", NULL);
-  g_object_set (G_OBJECT (answerer), "certificate-pem-file",
-      "/tmp/certkey.pem", NULL);
-
   /* Add elements */
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc_offerer, video_enc_offerer,
       offerer, NULL);

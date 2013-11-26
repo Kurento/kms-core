@@ -9,6 +9,7 @@ GST_REQUIRED=1.2.0
 GSTPB_REQUIRED=1.2.0
 GLIB_REQ=2.38
 NICE_REQUIRED=0.1.4
+GNUTLS_MIN_REQUIRED=3.2.0
 SOUP_REQUIRED=2.40
 
 AC_CONFIG_SRCDIR([src])
@@ -91,6 +92,28 @@ PKG_CHECK_MODULES(NICE, [
       packages on your system to version $NICE_REQUIRED.
   ])
 ])
+
+PKG_CHECK_MODULES(GNUTLS, [
+  gnutls >= $GNUTLS_MIN_REQUIRED
+], [
+], [
+  AC_MSG_ERROR([
+      You need to install or upgrade gnutls.
+      The minimum version required is $GNUTLS_MIN_REQUIRED (libgnutls28-dev).
+  ])
+])
+
+AC_MSG_CHECKING(for certtool)
+if test "x$CERTTOOL_GNUTLS" != "x"; then
+  AC_MSG_RESULT([$CERTTOOL_GNUTLS (from environment)])
+else
+  AC_PATH_PROG(CERTTOOL_GNUTLS, [certtool], [certtool])
+  AC_MSG_RESULT([$CERTTOOL_GNUTLS])
+fi
+if ! $CERTTOOL_GNUTLS --version 2>/dev/null >/dev/null; then
+  AC_MSG_ERROR([$CERTTOOL_GNUTLS does not seem to work!])
+fi
+AC_SUBST(CERTTOOL_GNUTLS)
 
 PKG_CHECK_MODULES(SOUP, [
   libsoup-2.4 >= $SOUP_REQUIRED
