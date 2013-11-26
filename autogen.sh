@@ -34,10 +34,11 @@ $SRC_DIR/configure $@ || {
 
 cd $SRC_DIR
 # install pre-commit hook for doing clean commits
-if test ! \( -x .git/hooks/pre-commit -a -L .git/hooks/pre-commit \);
+GIT_DIR=`git rev-parse --git-dir`
+if test ! \( -x $GIT_DIR/hooks/pre-commit -a -L $GIT_DIR/hooks/pre-commit \);
 then
-rm -f .git/hooks/pre-commit
-ln -s ../../hooks/pre-commit.hook .git/hooks/pre-commit
+rm -f $GIT_DIR/hooks/pre-commit
+ln -s ../../hooks/pre-commit.hook $GIT_DIR/hooks/pre-commit
 fi
 
 if [ $SRC_DIR == $BUILD_DIR ]; then
