@@ -14,8 +14,9 @@
  */
 #include "kmstestutils.h"
 
-#undef G_LOG_DOMAIN
-#define G_LOG_DOMAIN    "kms-test-utils"
+#define GST_CAT_DEFAULT kms_utils
+GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
+#define GST_DEFAULT_NAME "kms_utils"
 
 #define KEY_DATA_PROPERTY "kms-test-utils-prop"
 
@@ -65,27 +66,27 @@ connect_to_sink (GstElement * sink, const gchar * sinkname, GstPad * srcpad)
 {
   GstPad *sinkpad;
 
-  g_debug ("Getting pad %s from %" GST_PTR_FORMAT, sinkname, sink);
+  GST_DEBUG ("Getting pad %s from %" GST_PTR_FORMAT, sinkname, sink);
   sinkpad = gst_element_get_static_pad (sink, sinkname);
 
   if (sinkpad == NULL)
     sinkpad = gst_element_get_request_pad (sink, sinkname);
 
   if (sinkpad == NULL) {
-    g_error ("Can not get sink pad.");
+    GST_ERROR ("Can not get sink pad.");
     return;
   }
 
   if (gst_pad_is_linked (sinkpad)) {
-    g_error ("Pad %" GST_PTR_FORMAT " is already linked.", sinkpad);
+    GST_ERROR ("Pad %" GST_PTR_FORMAT " is already linked.", sinkpad);
     goto end;
   }
 
   if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK)
-    g_error ("Can not link pad %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT,
+    GST_ERROR ("Can not link pad %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT,
         srcpad, sinkpad);
   else
-    g_debug ("Connected %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT,
+    GST_DEBUG ("Connected %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT,
         srcpad, sinkpad);
 
 end:
@@ -102,7 +103,7 @@ agnosticbin_added_cb (GstElement * element, gpointer data)
   if (pad == NULL)
     return;
 
-  g_debug ("Connecting pad %s", tmp->src_pad_name);
+  GST_DEBUG ("Connecting pad %s", tmp->src_pad_name);
 
   connect_to_sink (tmp->sink, tmp->sink_pad_name, pad);
   gst_object_unref (pad);
@@ -121,7 +122,7 @@ kms_element_link_pads (GstElement * src, const gchar * src_pad_name,
   if (pad == NULL) {
     struct tmp_data *tmp;
 
-    g_debug ("Put connection off until agnostic bin is created for pad %s",
+    GST_DEBUG ("Put connection off until agnostic bin is created for pad %s",
         src_pad_name);
     tmp = create_tmp_data (src_pad_name, sink, sink_pad_name);
     tmp->handler = g_signal_connect_data (src, "agnosticbin-added",
@@ -131,4 +132,13 @@ kms_element_link_pads (GstElement * src, const gchar * src_pad_name,
     connect_to_sink (sink, sink_pad_name, pad);
     g_object_unref (pad);
   }
+}
+
+static void init_debug (void) __attribute__ ((constructor));
+
+static void
+init_debug (void)
+{
+  GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
+      GST_DEFAULT_NAME);
 }
