@@ -5,7 +5,7 @@
 
 SRC_DIR=`pwd`
 
-if [ -d .git ]; then
+if [ .git ]; then
   rm -fr kms-dtls-plugins
   git submodule init
   git submodule update
