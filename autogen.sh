@@ -38,7 +38,7 @@ GIT_DIR=`git rev-parse --git-dir`
 if test ! \( -x $GIT_DIR/hooks/pre-commit -a -L $GIT_DIR/hooks/pre-commit \);
 then
 rm -f $GIT_DIR/hooks/pre-commit
-ln -s ../../hooks/pre-commit.hook $GIT_DIR/hooks/pre-commit
+ln -s $SRC_DIR/hooks/pre-commit.hook $GIT_DIR/hooks/pre-commit
 fi
 
 if [ $SRC_DIR == $BUILD_DIR ]; then
