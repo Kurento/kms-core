@@ -46,3 +46,4 @@ kms-marshal.h
 .directory
 *.tmp
 COPYING
+tests/examples/webrtc_http_server
