@@ -130,6 +130,33 @@ PKG_CHECK_MODULES(SOUP, [
 ])
 AM_CONDITIONAL([HAS_SOUP], [test x$soup_found = xtrue])
 
+dnl *** vpx ***
+PKG_CHECK_MODULES(VPX, vpx >= 1.1.0, [HAVE_VPX="yes"], [HAVE_VPX="no"])
+HAVE_VP8=no
+
+if test $HAVE_VPX = "yes"; then
+  OLD_LIBS="$LIBS"
+  OLD_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $VPX_CFLAGS"
+  LIBS="$LIBS $VPX_LIBS"
+  AC_CHECK_LIB(vpx, vpx_codec_peek_stream_info, [
+    HAVE_VP8=yes
+    AC_DEFINE(HAVE_VP8_STREAM_INFO, 1, [Defined if the VP8 peek_stream_info is available])
+  ], [
+    AC_MSG_ERROR([
+      VPX library with vpx_codec_peek_stream_info not found not found (package libvpx-dev)
+    ])
+  ])
+  LIBS="$OLD_LIBS"
+  CFLAGS="$OLD_CFLAGS"
+else
+  AC_MSG_ERROR([
+    VPX library with vpx_codec_peek_stream_info not found not found (package libvpx-dev)
+  ])
+fi
+AC_SUBST(VPX_LIBS)
+AC_SUBST(VPX_CFLAGS)
+
 dnl *** opencv ***
 PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.5 , [
   AC_CHECK_HEADERS([highgui.h opencv2/highgui/highgui_c.h])
