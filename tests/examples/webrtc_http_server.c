@@ -28,7 +28,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define PORT 8080
 #define MIME_TYPE "text/html"
-#define HTML_FILE "webrtc_loopback.html"
+#define CLIENT_ANSWERER_HTML_FILE "webrtc_loopback.html"
+#define CLIENT_OFFERER_HTML_FILE "webrtc_loopback_offerer.html"
 
 #define WEBRTC_END_POINT "webrtc-end-point"
 #define MEDIA_SESSION_ID "media-session-id"
@@ -43,7 +44,8 @@ static const gchar *pattern_sdp_vp8_sendrecv_str = "v=0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
-    "m=audio 0 RTP/AVP 96\r\n" "a=rtpmap:96 OPUS/48000/1\r\n" "a=sendrecv\r\n"
+    "m=audio 0 RTP/AVP 0 96\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendrecv\r\n"
+    "a=rtpmap:96 OPUS/48000/1\r\n" "a=sendrecv\r\n"
     "m=video 0 RTP/AVP 97\r\n" "a=rtpmap:97 VP8/90000\r\n" "a=sendrecv\r\n";
 
 static void
@@ -83,23 +85,16 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
-static gboolean
-configure_media_session (GstElement * pipe, const gchar * sdp_str)
+static void
+configure_media_session (GstElement * pipe)
 {
-  GstSDPMessage *sdp = NULL;
   GstElement *webrtcendpoint =
       g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
   const gchar *filter_type =
       g_object_get_data (G_OBJECT (webrtcendpoint), FILTER_TYPE);
   GstElement *audio_identity = gst_element_factory_make ("identity", NULL);
 
-  GST_DEBUG ("Process SDP answer:\n%s", sdp_str);
   GST_INFO ("Filter type: %s", filter_type);
-
-  gst_sdp_message_new (&sdp);
-  gst_sdp_message_parse_buffer ((const guint8 *) sdp_str, -1, sdp);
-  g_signal_emit_by_name (webrtcendpoint, "process-answer", sdp);
-  gst_sdp_message_free (sdp);
 
   if (g_strcmp0 (filter_type, "clockoverlay") == 0) {
     GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
@@ -145,12 +140,28 @@ configure_media_session (GstElement * pipe, const gchar * sdp_str)
   kms_element_link_pads (webrtcendpoint, "audio_src_%u", audio_identity,
       "sink");
   gst_element_link_pads (audio_identity, NULL, webrtcendpoint, "audio_sink");
+}
 
-  return TRUE;
+static void
+process_sdp_answer (GstElement * pipe, const gchar * sdp_str)
+{
+  GstSDPMessage *sdp = NULL;
+  GstElement *webrtcendpoint =
+      g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+
+  GST_DEBUG ("Process SDP answer:\n%s", sdp_str);
+
+  gst_sdp_message_new (&sdp);
+  gst_sdp_message_parse_buffer ((const guint8 *) sdp_str, -1, sdp);
+  g_signal_emit_by_name (webrtcendpoint, "process-answer", sdp);
+  gst_sdp_message_free (sdp);
+
+  configure_media_session (pipe);
 }
 
 static GstElement *
-init_media_session (SoupServer * server, SoupMessage * msg, gint64 id)
+init_media_session (SoupServer * server, SoupMessage * msg, gint64 id,
+    const gchar * client_offer)
 {
   gint64 *id_pointer;
   GstSDPMessage *sdp;
@@ -180,10 +191,29 @@ init_media_session (SoupServer * server, SoupMessage * msg, gint64 id)
 
   gst_bin_add (GST_BIN (pipe), webrtcendpoint);
 
-  g_signal_emit_by_name (webrtcendpoint, "generate-offer", &sdp);
-  sdp_str = gst_sdp_message_as_text (sdp);
-  gst_sdp_message_free (sdp);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  if (client_offer != NULL) {
+    GstSDPMessage *sdp = NULL, *asnwer;
+
+    GST_DEBUG ("Process SDP offer:\n%s", client_offer);
+
+    gst_sdp_message_new (&sdp);
+    gst_sdp_message_parse_buffer ((const guint8 *) client_offer, -1, sdp);
+    g_signal_emit_by_name (webrtcendpoint, "process-offer", sdp, &asnwer);
+    gst_sdp_message_free (sdp);
+
+    sdp_str = gst_sdp_message_as_text (asnwer);
+    gst_sdp_message_free (asnwer);
+    GST_DEBUG ("Answer:\n%s", sdp_str);
+    g_free (sdp_str);
+
+    configure_media_session (pipe);
+  } else {
+    g_signal_emit_by_name (webrtcendpoint, "generate-offer", &sdp);
+    sdp_str = gst_sdp_message_as_text (sdp);
+    gst_sdp_message_free (sdp);
+    GST_DEBUG ("Offer:\n%s", sdp_str);
+    g_free (sdp_str);
+  }
 
   gst_element_set_state (pipe, GST_STATE_PLAYING);
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
@@ -207,9 +237,11 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
   char *header;
   GstElement *pipe = NULL;
   GstElement *webrtcendpoint;
-  GstSDPMessage *local_sdp_offer;
-  gchar *local_sdp_offer_str;
+  GstSDPMessage *local_sdp;
+  gchar *local_sdp_str;
   gchar *filter_type = NULL;
+  gboolean client_offerer = FALSE;
+  const gchar *html_file;
 
   GST_DEBUG ("Request: %s", path);
 
@@ -219,11 +251,26 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
     return;
   }
 
-  if (g_strcmp0 (path, "/") != 0) {
+  if (g_strcmp0 (path, "/") == 0) {
+    client_offerer = FALSE;
+    html_file = CLIENT_ANSWERER_HTML_FILE;
+  } else if (g_strcmp0 (path, "/offerer") == 0) {
+    client_offerer = TRUE;
+    html_file = CLIENT_OFFERER_HTML_FILE;
+  } else {
     soup_message_set_status (msg, SOUP_STATUS_NOT_FOUND);
     GST_DEBUG ("Not found");
     return;
   }
+
+  ret = g_file_get_contents (html_file, &contents, &length, NULL);
+  if (!ret) {
+    GST_ERROR ("Error loading %s file", html_file);
+    soup_message_set_status (msg, SOUP_STATUS_INTERNAL_SERVER_ERROR);
+    return;
+  }
+
+  soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
 
   cookie_str = soup_message_headers_get_list (msg->request_headers, "Cookie");
   if (cookie_str != NULL) {
@@ -269,13 +316,34 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
 
     filter_type = g_strdup (g_hash_table_lookup (query, FILTER_TYPE));
 
+    if (client_offerer) {
+      if (sdp == NULL)
+        return;
+
+      /* TODO: reuse source */
+      pipe = init_media_session (server, msg, id, sdp);
+      id_ptr = g_malloc (sizeof (gint64));
+      *id_ptr = id;
+      g_hash_table_insert (cookies, id_ptr, pipe);
+
+      webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+      g_object_set_data_full (G_OBJECT (webrtcendpoint), FILTER_TYPE,
+          filter_type, g_free);
+
+      g_object_get (webrtcendpoint, "local-answer-sdp", &local_sdp, NULL);
+      local_sdp_str = gst_sdp_message_as_text (local_sdp);
+      gst_sdp_message_free (local_sdp);
+
+      soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE,
+          local_sdp_str, strlen (local_sdp_str));
+
+      soup_message_set_status (msg, SOUP_STATUS_OK);
+      return;
+    }
+
     if (sdp != NULL && pipe != NULL) {
-      if (configure_media_session (pipe, sdp)) {
-        soup_message_set_status (msg, SOUP_STATUS_OK);
-      } else {
-        soup_message_set_status (msg, SOUP_STATUS_NOT_ACCEPTABLE);
-      }
-      soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
+      process_sdp_answer (pipe, sdp);
+      soup_message_set_status (msg, SOUP_STATUS_OK);
       return;
     }
   }
@@ -291,34 +359,32 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
   }
   soup_cookie_free (cookie);
 
-  pipe = init_media_session (server, msg, id);
+  soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, contents,
+      length);
+
+  if (client_offerer) {
+    soup_message_set_status (msg, SOUP_STATUS_OK);
+    return;
+  }
+
+  pipe = init_media_session (server, msg, id, NULL);
   id_ptr = g_malloc (sizeof (gint64));
   *id_ptr = id;
   g_hash_table_insert (cookies, id_ptr, pipe);
 
-  ret = g_file_get_contents (HTML_FILE, &contents, &length, NULL);
-  if (!ret) {
-    soup_message_set_status (msg, SOUP_STATUS_INTERNAL_SERVER_ERROR);
-    GST_ERROR ("Error loading %s file", HTML_FILE);
-    return;
-  }
-
-  soup_message_set_response (msg, MIME_TYPE, SOUP_MEMORY_STATIC, "", 0);
-  soup_message_body_append (msg->response_body, SOUP_MEMORY_TAKE, contents,
-      length);
-
   webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
   g_object_set_data_full (G_OBJECT (webrtcendpoint), FILTER_TYPE, filter_type,
       g_free);
-  g_object_get (webrtcendpoint, "local-offer-sdp", &local_sdp_offer, NULL);
-  local_sdp_offer_str = gst_sdp_message_as_text (local_sdp_offer);
-  gst_sdp_message_free (local_sdp_offer);
+
+  g_object_get (webrtcendpoint, "local-offer-sdp", &local_sdp, NULL);
+  local_sdp_str = gst_sdp_message_as_text (local_sdp);
+  gst_sdp_message_free (local_sdp);
 
   regex = g_regex_new ("\r\n", G_REGEX_DOTALL | G_REGEX_OPTIMIZE, 0, NULL);
   sdp_str = g_regex_replace (regex,
-      local_sdp_offer_str, -1, 0, "\\\\r\\\\n\" +\n\"", 0, NULL);
+      local_sdp_str, -1, 0, "\\\\r\\\\n\" +\n\"", 0, NULL);
   g_regex_unref (regex);
-  g_free (local_sdp_offer_str);
+  g_free (local_sdp_str);
 
   line = g_strdup_printf ("sdp = \"%s\";\n", sdp_str);
   g_free (sdp_str);
