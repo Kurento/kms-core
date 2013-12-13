@@ -279,7 +279,8 @@ AC_CONFIG_FILES([Makefile
                  src/filters/movementdetector/Makefile
                  src/filters/h264filter/Makefile
                  src/vp8parse/Makefile
-                 src/filters/facedetector/Makefile])
+                 src/filters/facedetector/Makefile
+                 src/filters/imageoverlay/Makefile])
 
 AC_CONFIG_SUBDIRS([kms-dtls-plugins])
 AC_OUTPUT
