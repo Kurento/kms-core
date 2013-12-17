@@ -160,15 +160,11 @@ PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.5 , [
   AC_LANG([C])
 
   if test $ac_cv_header_highgui_h = "yes" -o $ac_cv_header_opencv2_highgui_highgui_c_h = "yes" ; then
-    HAVE_OPENCV="yes"
+    AC_MSG_RESULT([Opencv correctly detected])
   else
-    AC_MSG_RESULT([neither highgui.h nor opencv2/highgui/highgui_c.h could not be found])
-    HAVE_OPENCV="no"
+    AC_MSG_ERROR([neither highgui.h nor opencv2/highgui/highgui_c.h could not be found, opencv needs to be installed])
   fi
-], [
-  HAVE_OPENCV="no"
 ])
-AM_CONDITIONAL(HAVE_OPENCV, test "x$HAVE_OPENCV" = "xyes")
 
 dnl *** tesseract ***
 AC_CHECK_LIB([tesseract], [TessBaseAPICreate],
