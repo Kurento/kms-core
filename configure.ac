@@ -121,14 +121,11 @@ PKG_CHECK_MODULES(SOUP, [
 ], [
   AC_SUBST(SOUP_CFLAGS)
   AC_SUBST(SOUP_LIBS)
-  soup_found=true
 ], [
-  AC_MSG_WARN([
-    Lib soup not found, some test are not compiled.
+  AC_MSG_ERROR([
+    Lib soup not found.
   ])
-  soup_found=false
 ])
-AM_CONDITIONAL([HAS_SOUP], [test x$soup_found = xtrue])
 
 dnl *** vpx ***
 PKG_CHECK_MODULES(VPX, vpx >= 1.1.0, [HAVE_VPX="yes"], [HAVE_VPX="no"])
