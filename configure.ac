@@ -273,6 +273,7 @@ AC_CONFIG_FILES([Makefile
                  src/filters/movementdetector/Makefile
                  src/filters/h264filter/Makefile
                  src/vp8parse/Makefile
+                 src/rtcpdemux/Makefile
                  src/filters/facedetector/Makefile
                  src/filters/imageoverlay/Makefile
                  src/filters/faceoverlay/Makefile])
