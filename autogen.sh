@@ -6,9 +6,7 @@
 SRC_DIR=`pwd`
 
 if [ -e .git ]; then
-  rm -fr kms-dtls-plugins
-  git submodule init
-  git submodule update
+  git submodule update --init
 fi
 
 autoreconf --verbose --force --install || {
