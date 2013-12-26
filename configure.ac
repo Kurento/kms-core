@@ -275,7 +275,8 @@ AC_CONFIG_FILES([Makefile
                  src/vp8parse/Makefile
                  src/filters/facedetector/Makefile
                  src/filters/imageoverlay/Makefile
-                 src/filters/faceoverlay/Makefile])
+                 src/filters/faceoverlay/Makefile
+                 src/filters/chroma/Makefile])
 
 AC_CONFIG_SUBDIRS([kms-dtls-plugins])
 AC_OUTPUT
