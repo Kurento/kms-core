@@ -8,7 +8,7 @@ popd /dev/null
 
 LOGS_DIR=$SCRIPT_PATH/memory_leaks
 
-GST_TRACE=live
+export GST_TRACE=live
 
 function process_logs {
   DIR=$1
@@ -21,11 +21,11 @@ function process_logs {
   popd
 }
 
-ITERATIONS=1
+export ITERATIONS=1
 DIR_A=$LOGS_DIR/$ITERATIONS"_it"
 process_logs $DIR_A
 
-ITERATIONS=2
+export ITERATIONS=2
 DIR_B=$LOGS_DIR/$ITERATIONS"_it"
 process_logs $DIR_B
 
@@ -47,4 +47,3 @@ if [ $MEMORY_LEAKS == "YES" ]; then
 fi
 
 echo "Memory leaks not detected"
-
