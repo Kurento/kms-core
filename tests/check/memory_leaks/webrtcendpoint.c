@@ -35,7 +35,7 @@ play_element (const gchar * element_name)
 
   gst_bin_add (GST_BIN (pipeline), element);
 
-  gst_element_set_state (pipeline, GST_STATE_READY);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
   gst_element_set_state (pipeline, GST_STATE_NULL);
 
   g_object_unref (pipeline);
