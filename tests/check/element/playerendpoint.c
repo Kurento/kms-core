@@ -339,6 +339,55 @@ GST_START_TEST (check_eos)
   g_object_set (G_OBJECT (player), "uri",
       "http://ci.kurento.com/downloads/small.webm", NULL);
 
+  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
+      NULL);
+
+  gst_bin_add (GST_BIN (pipeline), player);
+
+  g_signal_connect (G_OBJECT (player), "eos", G_CALLBACK (player_eos), loop);
+
+  /* Set player to start state */
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_live_stream");
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "after_entering_main_loop_live_stream");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_object_unref (GST_OBJECT (pipeline));
+  g_source_remove (bus_watch_id);
+  g_main_loop_unref (loop);
+
+}
+
+GST_END_TEST
+/* set_encoded_media test */
+GST_START_TEST (check_set_encoded_media)
+{
+  GstElement *player, *pipeline;
+  guint bus_watch_id;
+  GMainLoop *loop;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, FALSE);
+  pipeline = gst_pipeline_new ("pipeline_live_stream");
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  player = gst_element_factory_make ("playerendpoint", NULL);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  bus_watch_id = gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  g_object_set (G_OBJECT (player), "uri",
+      "http://ci.kurento.com/downloads/small.webm", NULL);
+
+  g_object_set (G_OBJECT (player), "use-encoded-media", TRUE, NULL);
+
   gst_bin_add (GST_BIN (pipeline), player);
 
   g_signal_connect (G_OBJECT (player), "eos", G_CALLBACK (player_eos), loop);
@@ -376,6 +425,7 @@ playerendpoint_suite (void)
   tcase_add_test (tc_chain, check_states);
   tcase_add_test (tc_chain, check_live_stream);
   tcase_add_test (tc_chain, check_eos);
+  tcase_add_test (tc_chain, check_set_encoded_media);
   return s;
 }
 
