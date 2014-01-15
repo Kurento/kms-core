@@ -16,6 +16,93 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+static void
+connect_sinks_pad_added (GstElement * element, GstPad * pad, gpointer user_data)
+{
+  GstElement *fakesink;
+  GstBin *pipe = GST_BIN (user_data);
+
+  if (GST_PAD_DIRECTION (pad) != GST_PAD_SRC)
+    return;
+
+  if (!g_str_has_prefix (GST_OBJECT_NAME (pad), "mixer"))
+    return;
+
+  fakesink = gst_element_factory_make ("fakesink", GST_OBJECT_NAME (pad));
+
+  gst_bin_add (pipe, fakesink);
+
+  gst_element_link_pads (element, GST_OBJECT_NAME (pad), fakesink, "sink");
+  GST_DEBUG_OBJECT (element, "Pad added: %" GST_PTR_FORMAT, pad);
+}
+
+static void
+unlink_src_pad (GstElement * element, const gchar * pad_name)
+{
+  GstPad *pad = gst_element_get_static_pad (element, pad_name);
+  GstPad *peer = gst_pad_get_peer (pad);
+
+  gst_pad_unlink (pad, peer);
+
+  g_object_unref (pad);
+  g_object_unref (peer);
+}
+
+GST_START_TEST (connect_sinks)
+{
+  GstBin *pipe = (GstBin *) gst_pipeline_new ("connect_sinks");
+  GstElement *mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *audiosrc = gst_element_factory_make ("audiotestsrc", NULL);
+  GstElement *valve0, *valve1;
+  gboolean drop;
+
+  gst_bin_add_many (pipe, mixerendpoint, videosrc, audiosrc, NULL);
+
+  g_signal_connect (mixerendpoint, "pad-added",
+      G_CALLBACK (connect_sinks_pad_added), pipe);
+
+  gst_element_link_pads (videosrc, "src", mixerendpoint, "video_sink");
+  gst_element_link_pads (audiosrc, "src", mixerendpoint, "audio_sink");
+
+  /* Check if valves have been opened because of fakesink link */
+
+  valve0 = gst_bin_get_by_name (GST_BIN (mixerendpoint), "valve0");
+  fail_unless (valve0 != NULL);
+  GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve0);
+  drop = TRUE;
+  g_object_get (G_OBJECT (valve0), "drop", &drop, NULL);
+  fail_unless (drop == FALSE);
+  GST_DEBUG ("Drop value: %d", drop);
+
+  valve1 = gst_bin_get_by_name (GST_BIN (mixerendpoint), "valve1");
+  fail_unless (valve1 != NULL);
+  GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve1);
+  drop = TRUE;
+  g_object_get (G_OBJECT (valve1), "drop", &drop, NULL);
+  fail_unless (drop == FALSE);
+  GST_DEBUG ("Drop value: %d", drop);
+
+  /* Now check that valves are closed when mixer_src pads are unlinked */
+  unlink_src_pad (mixerendpoint, "mixer_video_src");
+  unlink_src_pad (mixerendpoint, "mixer_audio_src");
+
+  drop = FALSE;
+  g_object_get (G_OBJECT (valve0), "drop", &drop, NULL);
+  fail_unless (drop == TRUE);
+  GST_DEBUG_OBJECT (valve0, "Drop value: %d", drop);
+
+  drop = FALSE;
+  g_object_get (G_OBJECT (valve1), "drop", &drop, NULL);
+  fail_unless (drop == TRUE);
+  GST_DEBUG_OBJECT (valve0, "Drop value: %d", drop);
+
+  g_object_unref (valve0);
+  g_object_unref (valve1);
+  g_object_unref (pipe);
+}
+
+GST_END_TEST
 GST_START_TEST (create_element)
 {
   GstElement *mixerendpoint;
@@ -35,6 +122,7 @@ mixerendpoint_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create_element);
+  tcase_add_test (tc_chain, connect_sinks);
 
   return s;
 }
