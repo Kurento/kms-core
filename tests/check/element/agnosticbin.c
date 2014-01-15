@@ -283,7 +283,7 @@ type_found (GstElement * typefind, guint prob, GstCaps * caps,
     GstElement * pipeline)
 {
   GstElement *fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "fakesink");
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
 
   gst_bin_add (GST_BIN (pipeline), agnosticbin);
   gst_element_sync_state_with_parent (agnosticbin);
@@ -341,7 +341,7 @@ GST_START_TEST (delay_stream)
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *agnosticbin =
-      gst_element_factory_make ("agnosticbin2", "agnosticbin");
+      gst_element_factory_make ("agnosticbin", "agnosticbin");
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
@@ -381,7 +381,7 @@ GST_START_TEST (valve_test)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *valve = gst_element_factory_make ("valve", NULL);
   GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
   GstElement *fakesink2 = gst_element_factory_make ("fakesink", "fakesink");
@@ -436,7 +436,7 @@ GST_START_TEST (reconnect_test)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
   GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
   gboolean ret;
@@ -492,7 +492,7 @@ GST_START_TEST (static_link)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *decoder = gst_element_factory_make ("vp8dec", NULL);
   GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
   gboolean ret;
@@ -547,7 +547,7 @@ GST_START_TEST (encoded_input_link)
   GstElement *encoder = gst_element_factory_make ("vp8enc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *filter = gst_element_factory_make ("capsfilter", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstCaps *caps;
   gboolean ret;
 
@@ -601,7 +601,7 @@ GST_START_TEST (simple_link)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   gboolean ret;
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
@@ -645,7 +645,7 @@ GST_START_TEST (simple_link)
 GST_END_TEST
 GST_START_TEST (create_test)
 {
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstPad *pad;
 
   pad = gst_element_get_request_pad (agnosticbin, "src_%u");
@@ -664,7 +664,7 @@ GST_END_TEST
 static Suite *
 agnostic2_suite (void)
 {
-  Suite *s = suite_create ("agnosticbin2");
+  Suite *s = suite_create ("agnosticbin");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);

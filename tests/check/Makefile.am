@@ -48,8 +48,8 @@ check_PROGRAMS =						\
 	element/recorderendpoint				\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
-	element/agnosticbin2					\
-	memory_leaks/agnosticbin2				\
+	element/agnosticbin					\
+	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
 
@@ -118,10 +118,10 @@ element_httpendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_httpendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
-element_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-element_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 if DEBUGGING_TESTS
-element_agnosticbin2_CFLAGS += -DDEBUGGING_TESTS
+element_agnosticbin_CFLAGS += -DDEBUGGING_TESTS
 endif
 
 # Integration tests
@@ -134,8 +134,8 @@ endif
 
 # Memory leaks tests
 
-memory_leaks_agnosticbin2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
-memory_leaks_agnosticbin2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+memory_leaks_agnosticbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+memory_leaks_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 memory_leaks_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -I$(top_srcdir)/src -Werror
 memory_leaks_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)

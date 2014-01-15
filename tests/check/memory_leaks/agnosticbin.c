@@ -43,7 +43,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       break;
     }
     case GST_MESSAGE_STATE_CHANGED:{
-      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin2")) {
+      if (g_str_has_prefix (GST_OBJECT_NAME (msg->src), "agnosticbin")) {
         GST_INFO ("Event: %" GST_PTR_FORMAT, msg);
       }
     }
@@ -80,7 +80,7 @@ play_agnosticbin_video_passthrough (void)
   gboolean ret;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
 
@@ -119,7 +119,7 @@ play_agnosticbin_raw_to_vp8 (void)
   gboolean ret;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *vp8dec = gst_element_factory_make ("vp8dec", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
@@ -220,7 +220,7 @@ play_agnosticbin_audio_passthrough (void)
   gboolean ret;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
 
@@ -261,7 +261,7 @@ play_agnosticbin_vp8_to_raw (void)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *vp8enc = gst_element_factory_make ("vp8enc", NULL);
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
 
@@ -321,7 +321,7 @@ play_agnosticbin_raw_to_vorbis (void)
   gboolean ret;
   GstElement *pipeline = gst_pipeline_new (NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin2", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
 
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *vorbisdec = gst_element_factory_make ("vorbisdec", NULL);
@@ -408,7 +408,7 @@ GST_START_TEST (test_create_agnosticbin)
   int i;
 
   for (i = 0; i < iterations; i++) {
-    create_element ("agnosticbin2");
+    create_element ("agnosticbin");
   }
 }
 
@@ -458,7 +458,7 @@ GST_START_TEST (test_play_agnosticbin)
   int i;
 
   for (i = 0; i < iterations; i++) {
-    play_element ("agnosticbin2");
+    play_element ("agnosticbin");
   }
 }
 
@@ -527,7 +527,7 @@ KMS_END_TEST
  * End of test cases
  */
 static Suite *
-agnosticbin2_suite (void)
+agnosticbin_suite (void)
 {
   char *it_str;
 
@@ -538,7 +538,7 @@ agnosticbin2_suite (void)
       iterations = ITERATIONS;
   }
 
-  Suite *s = suite_create ("agnosticbin2");
+  Suite *s = suite_create ("agnosticbin");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
@@ -567,4 +567,4 @@ agnosticbin2_suite (void)
   return s;
 }
 
-KMS_CHECK_MAIN (agnosticbin2);
+KMS_CHECK_MAIN (agnosticbin);

@@ -97,7 +97,7 @@ configure_media_session (GstElement * pipe)
   GST_INFO ("Filter type: %s", filter_type);
 
   if (g_strcmp0 (filter_type, "clockoverlay") == 0) {
-    GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
+    GstElement *agnostic = gst_element_factory_make ("agnosticbin", NULL);
     GstElement *clockoverlay = gst_element_factory_make ("clockoverlay", NULL);
 
     g_object_set (clockoverlay, "font-desc", "Sans 28", NULL);
@@ -111,7 +111,7 @@ configure_media_session (GstElement * pipe)
     gst_element_link (clockoverlay, agnostic);
     gst_element_link_pads (agnostic, NULL, webrtcendpoint, "video_sink");
   } else if (g_strcmp0 (filter_type, "jackvader") == 0) {
-    GstElement *agnostic = gst_element_factory_make ("agnosticbin2", NULL);
+    GstElement *agnostic = gst_element_factory_make ("agnosticbin", NULL);
     GstElement *jackvader = gst_element_factory_make ("filterelement", NULL);
 
     g_object_set (jackvader, "filter-factory", "jackvader", NULL);
