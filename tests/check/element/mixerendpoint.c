@@ -16,6 +16,9 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#define MIXER_AUDIO_SINK "mixer_audio_sink"
+#define MIXER_VIDEO_SINK "mixer_video_sink"
+
 static void
 connect_sinks_pad_added (GstElement * element, GstPad * pad, gpointer user_data)
 {
@@ -48,6 +51,35 @@ unlink_src_pad (GstElement * element, const gchar * pad_name)
   g_object_unref (peer);
 }
 
+GST_START_TEST (connect_srcs)
+{
+  GstElement *mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  GstPad *sink, *src;
+
+  src = gst_element_get_request_pad (mixerendpoint, "video_src_%u");
+  fail_unless (src == NULL);
+  sink = gst_element_get_request_pad (mixerendpoint, MIXER_VIDEO_SINK);
+  fail_unless (sink != NULL);
+  fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), MIXER_VIDEO_SINK) == 0);
+  src = gst_element_get_request_pad (mixerendpoint, "video_src_%u");
+  fail_unless (src != NULL);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  src = gst_element_get_request_pad (mixerendpoint, "audio_src_%u");
+  fail_unless (src == NULL);
+  sink = gst_element_get_request_pad (mixerendpoint, MIXER_AUDIO_SINK);
+  fail_unless (sink != NULL);
+  fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), MIXER_AUDIO_SINK) == 0);
+  src = gst_element_get_request_pad (mixerendpoint, "audio_src_%u");
+  fail_unless (src != NULL);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  g_object_unref (mixerendpoint);
+}
+
+GST_END_TEST
 GST_START_TEST (connect_sinks)
 {
   GstBin *pipe = (GstBin *) gst_pipeline_new ("connect_sinks");
@@ -123,6 +155,7 @@ mixerendpoint_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create_element);
   tcase_add_test (tc_chain, connect_sinks);
+  tcase_add_test (tc_chain, connect_srcs);
 
   return s;
 }
