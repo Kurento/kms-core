@@ -276,6 +276,7 @@ AC_CONFIG_FILES([Makefile
                  src/filters/facedetector/Makefile
                  src/filters/imageoverlay/Makefile
                  src/filters/faceoverlay/Makefile
+                 src/filters/crowddetector/Makefile
                  src/filters/chroma/Makefile])
 
 AC_CONFIG_SUBDIRS([kms-dtls-plugins])
