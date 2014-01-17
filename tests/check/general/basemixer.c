@@ -14,7 +14,29 @@
  */
 #include <gst/check/gstcheck.h>
 #include "kmsbasemixer.h"
+#include "kmsmixerendpoint.h"
 
+GST_START_TEST (handle_port_action)
+{
+  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsMixerEndPoint *mixer_end_point =
+      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  gboolean ret = FALSE;
+
+  fail_unless (mixer != NULL);
+  fail_unless (mixer_end_point != NULL);
+
+  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &ret);
+  fail_unless (ret == TRUE);
+
+  g_signal_emit_by_name (mixer, "handle-port", mixer, &ret);
+  fail_unless (ret == FALSE);
+
+  g_object_unref (mixer_end_point);
+  g_object_unref (mixer);
+}
+
+GST_END_TEST
 GST_START_TEST (create)
 {
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
@@ -36,6 +58,7 @@ base_mixer_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create);
+  tcase_add_test (tc_chain, handle_port_action);
 
   return s;
 }
