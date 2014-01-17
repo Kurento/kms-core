@@ -43,6 +43,7 @@ check_PROGRAMS =						\
 	general/dummytest					\
 	general/sdp						\
 	general/utils						\
+	general/basemixer					\
 	element/mixerendpoint					\
 	element/filterelement					\
 	element/uriendpoint					\
@@ -83,6 +84,15 @@ element_webrtcendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 
 general_dummytest_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 general_dummytest_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+general_basemixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+		-I$(top_srcdir)/src
+general_basemixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/src/libgstkurento_la-kmsbasemixer.lo \
+		$(top_builddir)/src/libgstkurento_la-kmsutils.lo \
+		$(top_builddir)/src/libgstkurento_la-kmselement.lo \
+		$(top_builddir)/src/libgstkurento_la-kmsmixerendpoint.lo \
+		$(top_builddir)/src/libgstkurento_la-kms-marshal.lo
 
 general_sdp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
