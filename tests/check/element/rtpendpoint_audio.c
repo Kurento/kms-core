@@ -373,14 +373,12 @@ GST_START_TEST (test_opus_sendonly_play_before_negotiation)
 }
 
 GST_END_TEST
-#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_opus_sendonly_play_after_negotiation)
 {
   test_opus_sendonly (TRUE);
 }
 
 GST_END_TEST
-#endif
 GST_START_TEST (test_opus_sendrecv)
 {
   test_audio_sendrecv ("opusenc", opus_expected_caps,
@@ -400,11 +398,7 @@ rtpendpoint_audio_test_suite (void)
   suite_add_tcase (s, tc_chain);
 
   tcase_add_test (tc_chain, test_opus_sendonly_play_before_negotiation);
-
-#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_opus_sendonly_play_after_negotiation);
-#endif
-
   tcase_add_test (tc_chain, test_opus_sendrecv);
 
   return s;
