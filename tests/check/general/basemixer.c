@@ -33,6 +33,10 @@ GST_START_TEST (handle_port_action)
   g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
   fail_unless (id >= 0);
   GST_DEBUG ("Got id: %d", id);
+  fail_unless (G_OBJECT (mixer_end_point)->ref_count == 2);
+
+  g_signal_emit_by_name (mixer, "unhandle-port", id);
+  fail_unless (G_OBJECT (mixer_end_point)->ref_count == 1);
 
   g_signal_emit_by_name (mixer, "handle-port", mixer, &id);
   fail_unless (id < 0);
