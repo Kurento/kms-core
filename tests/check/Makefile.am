@@ -51,6 +51,7 @@ check_PROGRAMS =						\
 	element/playerendpoint                                  \
 	element/httpendpoint					\
 	element/agnosticbin					\
+	element/pointerdetector2				\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -138,6 +139,9 @@ element_agnosticbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 if DEBUGGING_TESTS
 element_agnosticbin_CFLAGS += -DDEBUGGING_TESTS
 endif
+element_pointerdetector2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_pointerdetector2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 # Integration tests
 if INTEGRATIONTESTS
