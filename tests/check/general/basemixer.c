@@ -22,7 +22,7 @@ GST_START_TEST (handle_port_action)
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
   KmsMixerEndPoint *mixer_end_point =
       g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
-  gboolean ret = FALSE;
+  gint id = -1;
 
   fail_unless (mixer != NULL);
   fail_unless (mixer_end_point != NULL);
@@ -30,11 +30,12 @@ GST_START_TEST (handle_port_action)
   gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer),
       GST_ELEMENT (mixer_end_point), NULL);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &ret);
-  fail_unless (ret == TRUE);
+  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  fail_unless (id >= 0);
+  GST_DEBUG ("Got id: %d", id);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixer, &ret);
-  fail_unless (ret == FALSE);
+  g_signal_emit_by_name (mixer, "handle-port", mixer, &id);
+  fail_unless (id < 0);
 
   g_object_unref (pipe);
 }
