@@ -18,6 +18,7 @@
 
 GST_START_TEST (handle_port_action)
 {
+  GstElement *pipe = gst_pipeline_new (NULL);
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
   KmsMixerEndPoint *mixer_end_point =
       g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
@@ -26,14 +27,16 @@ GST_START_TEST (handle_port_action)
   fail_unless (mixer != NULL);
   fail_unless (mixer_end_point != NULL);
 
+  gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer),
+      GST_ELEMENT (mixer_end_point), NULL);
+
   g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &ret);
   fail_unless (ret == TRUE);
 
   g_signal_emit_by_name (mixer, "handle-port", mixer, &ret);
   fail_unless (ret == FALSE);
 
-  g_object_unref (mixer_end_point);
-  g_object_unref (mixer);
+  g_object_unref (pipe);
 }
 
 GST_END_TEST
