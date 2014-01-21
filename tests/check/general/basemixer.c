@@ -16,6 +16,55 @@
 #include "kmsbasemixer.h"
 #include "kmsmixerendpoint.h"
 
+GST_START_TEST (link_internal_pads)
+{
+  GstElement *pipe = gst_pipeline_new (NULL);
+  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsMixerEndPoint *mixer_end_point =
+      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  GstElement *video_src = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *audio_src = gst_element_factory_make ("audiotestsrc", NULL);
+  gint id = -1;
+  gboolean ret;
+  GstPad *pad;
+  gchar *pad_name;
+
+  gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer),
+      GST_ELEMENT (mixer_end_point), NULL);
+
+  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  fail_unless (id >= 0);
+
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  fail_unless (ret != TRUE);
+
+  gst_bin_add (GST_BIN (mixer), video_src);
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  fail_unless (ret != FALSE);
+
+  pad_name = g_strdup_printf ("video_src_%d", id);
+  pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+  fail_unless (pad != NULL);
+  g_free (pad_name);
+  g_object_unref (pad);
+
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  fail_unless (ret != TRUE);
+
+  gst_bin_add (GST_BIN (mixer), audio_src);
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  fail_unless (ret != FALSE);
+
+  pad_name = g_strdup_printf ("audio_src_%d", id);
+  pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+  fail_unless (pad != NULL);
+  g_free (pad_name);
+  g_object_unref (pad);
+
+  g_object_unref (pipe);
+}
+
+END_TEST
 GST_START_TEST (handle_port_action)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
@@ -67,6 +116,7 @@ base_mixer_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, create);
   tcase_add_test (tc_chain, handle_port_action);
+  tcase_add_test (tc_chain, link_internal_pads);
 
   return s;
 }
