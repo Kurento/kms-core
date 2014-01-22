@@ -87,6 +87,26 @@ GST_START_TEST (link_port_after_internal_link)
     g_free (pad_name);
   }
 
+  g_signal_emit_by_name (mixer, "unhandle-port", id);
+
+  {
+    gchar *pad_name = g_strdup_printf ("audio_sink_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
+
+  {
+    gchar *pad_name = g_strdup_printf ("video_sink_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
+
   g_object_unref (pipe);
 }
 
@@ -235,6 +255,44 @@ GST_START_TEST (link_internal_pads)
   /* Try to link an invalid id */
   ret = kms_base_mixer_link_audio_sink (mixer, 99, audiofakesink, "sink");
   fail_unless (ret == FALSE);
+
+  g_signal_emit_by_name (mixer, "unhandle-port", id);
+
+  {
+    gchar *pad_name = g_strdup_printf ("audio_sink_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
+
+  {
+    gchar *pad_name = g_strdup_printf ("video_sink_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
+
+  {
+    gchar *pad_name = g_strdup_printf ("audio_src_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
+
+  {
+    gchar *pad_name = g_strdup_printf ("video_src_%d", id);
+    GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+
+    fail_unless (pad == NULL);
+
+    g_free (pad_name);
+  }
 
   g_object_unref (pipe);
 }
