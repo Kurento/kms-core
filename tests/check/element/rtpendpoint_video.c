@@ -464,14 +464,12 @@ test_mpeg4_sendonly (gboolean play_after_negotiation)
       play_after_negotiation);
 }
 
-#ifdef DEBUGGING_TESTS
 GST_START_TEST (test_mpeg4_sendonly_play_before_negotiation)
 {
   test_mpeg4_sendonly (FALSE);
 }
 
 GST_END_TEST
-#endif
 GST_START_TEST (test_mpeg4_sendonly_play_after_negotiation)
 {
   test_mpeg4_sendonly (TRUE);
@@ -561,9 +559,7 @@ rtpendpoint_video_test_suite (void)
   tcase_add_test (tc_chain, test_h264_sendonly_play_after_negotiation);
   tcase_add_test (tc_chain, test_h264_sendrecv);
 
-#ifdef DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_before_negotiation);
-#endif
   tcase_add_test (tc_chain, test_mpeg4_sendonly_play_after_negotiation);
   tcase_add_test (tc_chain, test_mpeg4_sendrecv);
 
