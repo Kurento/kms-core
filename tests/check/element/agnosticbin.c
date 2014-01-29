@@ -294,6 +294,83 @@ type_found (GstElement * typefind, guint prob, GstCaps * caps,
   g_object_unref (fakesink);
 }
 
+static gboolean
+change_input (gpointer pipeline)
+{
+  GstBin *pipe = GST_BIN (pipeline);
+  GstElement *agnosticbin;
+  GstPad *peer, *sink;
+  GstElement *agnosticbin2 = gst_bin_get_by_name (pipe, "agnosticbin_2");
+  GstElement *enc = gst_element_factory_make ("vp8enc", NULL);
+  GstElement *fakesink = gst_bin_get_by_name (pipe, "fakesink");
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  gst_bin_add (pipe, enc);
+  gst_element_sync_state_with_parent (enc);
+
+  sink = gst_element_get_static_pad (agnosticbin2, "sink");
+  peer = gst_pad_get_peer (sink);
+  agnosticbin = gst_pad_get_parent_element (peer);
+  gst_pad_unlink (peer, sink);
+
+  GST_INFO ("Got peer: %" GST_PTR_FORMAT, peer);
+  gst_element_release_request_pad (agnosticbin, peer);
+  gst_element_link (enc, agnosticbin2);
+  gst_element_link (agnosticbin, enc);
+
+  g_object_unref (agnosticbin);
+  g_object_unref (agnosticbin2);
+  g_object_unref (sink);
+  g_object_unref (peer);
+  return FALSE;
+}
+
+GST_START_TEST (input_reconfiguration)
+{
+  loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
+  GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *agnosticbin =
+      gst_element_factory_make ("agnosticbin", "agnosticbin_1");
+  GstElement *agnosticbin2 =
+      gst_element_factory_make ("agnosticbin", "agnosticbin_2");
+  GstElement *fakesink = gst_element_factory_make ("fakesink", "fakesink");
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
+      NULL);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  gst_bin_add_many (GST_BIN (pipeline), videosrc, agnosticbin, agnosticbin2,
+      fakesink, NULL);
+  gst_element_link_many (videosrc, agnosticbin, agnosticbin2, fakesink, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (1, change_input, pipeline);
+
+  g_timeout_add_seconds (6, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (pipeline);
+  g_object_unref (bus);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 GST_START_TEST (add_later)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -676,6 +753,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, valve_test);
   tcase_add_test (tc_chain, delay_stream);
   tcase_add_test (tc_chain, add_later);
+  tcase_add_test (tc_chain, input_reconfiguration);
 
   return s;
 }
