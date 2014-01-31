@@ -6,6 +6,8 @@ REGISTRY_ENVIRONMENT =						\
 
 TESTS_ENVIRONMENT =						\
 	CK_DEFAULT_TIMEOUT=20					\
+	G_SLICE=always-malloc 					\
+	MALLOC_CHECK=1						\
 	$(REGISTRY_ENVIRONMENT)
 
 # run any given test by running make test.check
