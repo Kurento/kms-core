@@ -425,8 +425,8 @@ GST_START_TEST (delay_stream)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
