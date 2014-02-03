@@ -16,6 +16,58 @@
 #include "kmsbasemixer.h"
 #include "kmsmixerendpoint.h"
 
+GST_START_TEST (link_and_autoremove)
+{
+  GstElement *pipe = gst_pipeline_new (NULL);
+  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsMixerEndPoint *mixer_end_point =
+      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  GstElement *videosrc = gst_element_factory_make ("tee", NULL);
+  GstElement *audiosrc = gst_element_factory_make ("tee", NULL);
+  GstPad *pad;
+  gboolean ret;
+  gint id;
+
+  gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer),
+      GST_ELEMENT (mixer_end_point), NULL);
+
+  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  fail_unless (id >= 0);
+
+  gst_bin_add (GST_BIN (mixer), videosrc);
+  ret = kms_base_mixer_link_video_src (mixer, id, videosrc, "src_%u", TRUE);
+  fail_unless (ret == TRUE);
+
+  pad = gst_element_get_static_pad (videosrc, "src_0");
+  fail_unless (pad != NULL);
+  g_object_unref (pad);
+
+  ret = kms_base_mixer_unlink_video_src (mixer, id);
+  fail_unless (ret == TRUE);
+
+  pad = gst_element_get_static_pad (videosrc, "src_0");
+  fail_unless (pad == NULL);
+
+  gst_bin_add (GST_BIN (mixer), audiosrc);
+  ret = kms_base_mixer_link_audio_src (mixer, id, audiosrc, "src_%u", TRUE);
+  fail_unless (ret != FALSE);
+
+  pad = gst_element_get_static_pad (audiosrc, "src_0");
+  fail_unless (pad != NULL);
+  g_object_unref (pad);
+
+  ret = kms_base_mixer_unlink_audio_src (mixer, id);
+  fail_unless (ret == TRUE);
+
+  pad = gst_element_get_static_pad (audiosrc, "src_0");
+  fail_unless (pad == NULL);
+
+  g_signal_emit_by_name (mixer, "unhandle-port", id);
+
+  g_object_unref (pipe);
+}
+
+END_TEST
 GST_START_TEST (link_port_after_internal_link)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
@@ -36,7 +88,8 @@ GST_START_TEST (link_port_after_internal_link)
   fail_unless (id >= 0);
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
-  ret = kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink");
+  ret =
+      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret == TRUE);
 
   {
@@ -62,7 +115,8 @@ GST_START_TEST (link_port_after_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), audiofakesink);
-  ret = kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -135,7 +189,8 @@ GST_START_TEST (link_port_before_internal_link)
   gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_end_point),
       "audio_sink");
 
-  ret = kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink");
+  ret =
+      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   {
@@ -148,7 +203,8 @@ GST_START_TEST (link_port_before_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
-  ret = kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink");
+  ret =
+      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -161,7 +217,8 @@ GST_START_TEST (link_port_before_internal_link)
     g_free (pad_name);
   }
 
-  ret = kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   {
@@ -174,7 +231,8 @@ GST_START_TEST (link_port_before_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), audiofakesink);
-  ret = kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -212,16 +270,16 @@ GST_START_TEST (link_internal_pads)
   g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
   fail_unless (id >= 0);
 
-  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src", FALSE);
   fail_unless (ret != TRUE);
 
   gst_bin_add (GST_BIN (mixer), video_src);
-  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src", FALSE);
   fail_unless (ret != FALSE);
 
   ret = kms_base_mixer_unlink_video_src (mixer, id);
   fail_unless (ret != FALSE);
-  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src", FALSE);
   fail_unless (ret != FALSE);
 
   pad_name = g_strdup_printf ("video_src_%d", id);
@@ -230,16 +288,16 @@ GST_START_TEST (link_internal_pads)
   g_free (pad_name);
   g_object_unref (pad);
 
-  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src", FALSE);
   fail_unless (ret != TRUE);
 
   gst_bin_add (GST_BIN (mixer), audio_src);
-  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src", FALSE);
   fail_unless (ret != FALSE);
 
   ret = kms_base_mixer_unlink_audio_src (mixer, id);
   fail_unless (ret != FALSE);
-  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src", FALSE);
   fail_unless (ret != FALSE);
 
   pad_name = g_strdup_printf ("audio_src_%d", id);
@@ -248,22 +306,27 @@ GST_START_TEST (link_internal_pads)
   g_free (pad_name);
   g_object_unref (pad);
 
-  ret = kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink");
+  ret =
+      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
-  ret = kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink");
+  ret =
+      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
-  ret = kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   gst_bin_add (GST_BIN (mixer), audiofakesink);
-  ret = kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   /* Try to link an invalid id */
-  ret = kms_base_mixer_link_audio_sink (mixer, 99, audiofakesink, "sink");
+  ret =
+      kms_base_mixer_link_audio_sink (mixer, 99, audiofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   g_signal_emit_by_name (mixer, "unhandle-port", id);
@@ -362,6 +425,7 @@ base_mixer_suite (void)
   tcase_add_test (tc_chain, link_internal_pads);
   tcase_add_test (tc_chain, link_port_before_internal_link);
   tcase_add_test (tc_chain, link_port_after_internal_link);
+  tcase_add_test (tc_chain, link_and_autoremove);
 
   return s;
 }
