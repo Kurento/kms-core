@@ -219,6 +219,11 @@ GST_START_TEST (link_internal_pads)
   ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
   fail_unless (ret != FALSE);
 
+  ret = kms_base_mixer_unlink_video_src (mixer, id);
+  fail_unless (ret != FALSE);
+  ret = kms_base_mixer_link_video_src (mixer, id, video_src, "src");
+  fail_unless (ret != FALSE);
+
   pad_name = g_strdup_printf ("video_src_%d", id);
   pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
   fail_unless (pad != NULL);
@@ -229,6 +234,11 @@ GST_START_TEST (link_internal_pads)
   fail_unless (ret != TRUE);
 
   gst_bin_add (GST_BIN (mixer), audio_src);
+  ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
+  fail_unless (ret != FALSE);
+
+  ret = kms_base_mixer_unlink_audio_src (mixer, id);
+  fail_unless (ret != FALSE);
   ret = kms_base_mixer_link_audio_src (mixer, id, audio_src, "src");
   fail_unless (ret != FALSE);
 
