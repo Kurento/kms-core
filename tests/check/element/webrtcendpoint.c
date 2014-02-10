@@ -55,14 +55,20 @@ typedef struct HandOffData
   GstStaticCaps expected_caps;
 } HandOffData;
 
-static void
+static gboolean
 check_caps (GstPad * pad, HandOffData * hod)
 {
   GstCaps *caps, *expected_caps;
   gboolean is_subset = FALSE;
 
-  expected_caps = gst_static_caps_get (&hod->expected_caps);
   caps = gst_pad_get_current_caps (pad);
+
+  if (caps == NULL) {
+    return FALSE;
+  }
+
+  expected_caps = gst_static_caps_get (&hod->expected_caps);
+
   is_subset = gst_caps_is_subset (caps, expected_caps);
   GST_DEBUG ("expected caps: %" GST_PTR_FORMAT ", caps: %" GST_PTR_FORMAT
       ", is subset: %d", expected_caps, caps, is_subset);
@@ -70,6 +76,8 @@ check_caps (GstPad * pad, HandOffData * hod)
   gst_caps_unref (caps);
 
   fail_unless (is_subset);
+
+  return TRUE;
 }
 
 static void
@@ -78,7 +86,10 @@ fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 {
   HandOffData *hod = (HandOffData *) data;
 
-  check_caps (pad, hod);
+  if (!check_caps (pad, hod)) {
+    return;
+  }
+
   g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
   g_idle_add (quit_main_loop_idle, hod->loop);
 }
@@ -185,7 +196,9 @@ sendrecv_offerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   HandOffData *hod = (HandOffData *) data;
   GstElement *pipeline;
 
-  check_caps (pad, hod);
+  if (!check_caps (pad, hod)) {
+    return;
+  }
 
   pipeline = GST_ELEMENT (gst_element_get_parent (fakesink));
 
@@ -210,7 +223,9 @@ sendrecv_answerer_fakesink_hand_off (GstElement * fakesink, GstBuffer * buf,
   HandOffData *hod = (HandOffData *) data;
   GstElement *pipeline;
 
-  check_caps (pad, hod);
+  if (!check_caps (pad, hod)) {
+    return;
+  }
 
   pipeline = GST_ELEMENT (gst_element_get_parent (fakesink));
 
