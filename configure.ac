@@ -127,6 +127,14 @@ PKG_CHECK_MODULES(SOUP, [
   ])
 ])
 
+AC_CHECK_LIB([sctp], [sctp_sendmsg],sctp_found=1,sctp_found=0)
+if test "$sctp_found" = 1; then
+  SCTP_LIBS="-lsctp"
+  AC_SUBST(SCTP_LIBS)
+else
+  AC_MSG_ERROR(Required library sctp not found; use LDFLAGS to specify library location)
+fi
+
 dnl *** vpx ***
 PKG_CHECK_MODULES(VPX, vpx >= 1.1.0, [HAVE_VPX="yes"], [HAVE_VPX="no"])
 HAVE_VP8=no
