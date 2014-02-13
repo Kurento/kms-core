@@ -25,6 +25,8 @@ GST_START_TEST (sctpclientsink)
   GstElement *sctpclientsink =
       gst_element_factory_make ("sctpclientsink", NULL);
 
+  g_object_set (sctpclientsink, "num-ostreams", 2, NULL);
+
   gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, videotestsrc,
       sctpclientsink, NULL);
 
