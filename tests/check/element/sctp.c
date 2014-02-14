@@ -22,8 +22,7 @@ GST_START_TEST (sctpclientsink)
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *sctpclientsink =
-      gst_element_factory_make ("sctpclientsink", NULL);
+  GstElement *sctpclientsink = gst_element_factory_make ("sctpbasesink", NULL);
 
   g_object_set (sctpclientsink, "num-ostreams", 2, NULL);
 
