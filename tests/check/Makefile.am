@@ -54,6 +54,7 @@ check_PROGRAMS =						\
 	element/httpendpoint					\
 	element/agnosticbin					\
 	element/sctp                                            \
+	element/mainmixer                                       \
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -145,6 +146,10 @@ endif
 element_sctp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_sctp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_mainmixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_mainmixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 # Integration tests
 if INTEGRATIONTESTS
