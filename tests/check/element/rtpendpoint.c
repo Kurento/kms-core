@@ -299,6 +299,114 @@ GST_START_TEST (negotiation_offerer)
 }
 
 GST_END_TEST
+GST_START_TEST (process_webrtc_offer)
+{
+  GstSDPMessage *pattern_sdp;
+  GstElement *rtpendpoint = gst_element_factory_make ("rtpendpoint", NULL);
+  GstSDPMessage *offer = NULL, *answer = NULL;
+  gchar *aux = NULL;
+
+  static const gchar *offer_str = "v=0\r\n"
+      "o=- 1783800438437245920 2 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE audio video\r\n"
+      "a=msid-semantic: WMS MediaStream0\r\n"
+      "m=audio 37426 RTP/SAVPF 111 103 9 102 0 8 106 105 13 127 126\r\n"
+      "c=IN IP4 5.5.5.5\r\n"
+      "a=rtcp:37426 IN IP4 5.5.5.5\r\n"
+      "a=candidate:1840965416 1 udp 2113937151 192.168.0.100 37426 typ host generation 0\r\n"
+      "a=candidate:1840965416 2 udp 2113937151 192.168.0.100 37426 typ host generation 0\r\n"
+      "a=candidate:590945240 1 tcp 1509957375 192.168.0.100 46029 typ host generation 0\r\n"
+      "a=candidate:590945240 2 tcp 1509957375 192.168.0.100 46029 typ host generation 0\r\n"
+      "a=candidate:3975340444 1 udp 1677729535 5.5.5.5 37426 typ srflx raddr 192.168.0.100 rport 37426 generation 0\r\n"
+      "a=candidate:3975340444 2 udp 1677729535 5.5.5.5 37426 typ srflx raddr 192.168.0.100 rport 37426 generation 0\r\n"
+      "a=ice-ufrag:RkI7xTFiQgGZu1ww\r\n"
+      "a=ice-pwd:6ZTKNoP2vXWYLweywju9Bydv\r\n"
+      "a=ice-options:google-ice\r\n"
+      "a=mid:audio\r\n"
+      "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:vpy+PnhF0bWmwYlAngWT1cc9qppYCvRlwT4aKrYh\r\n"
+      "a=rtpmap:111 opus/48000/1\r\n"
+      "a=fmtp:111 minptime=10\r\n"
+      "a=rtpmap:103 ISAC/16000\r\n"
+      "a=rtpmap:9 G722/16000\r\n"
+      "a=rtpmap:102 ILBC/8000\r\n"
+      "a=rtpmap:0 PCMU/8000\r\n"
+      "a=rtpmap:8 PCMA/8000\r\n"
+      "a=rtpmap:106 CN/32000\r\n"
+      "a=rtpmap:105 CN/16000\r\n"
+      "a=rtpmap:13 CN/8000\r\n"
+      "a=rtpmap:127 red/8000\r\n"
+      "a=rtpmap:126 telephone-event/8000\r\n"
+      "a=maxptime:60\r\n"
+      "a=ssrc:4210654932 cname:/9kskFtadoxn1x70\r\n"
+      "a=ssrc:4210654932 msid:MediaStream0 AudioTrack0\r\n"
+      "a=ssrc:4210654932 mslabel:MediaStream0\r\n"
+      "a=ssrc:4210654932 label:AudioTrack0\r\n"
+      "m=video 37426 RTP/SAVPF 100 116 117\r\n"
+      "c=IN IP4 5.5.5.5\r\n"
+      "a=rtcp:37426 IN IP4 5.5.5.5\r\n"
+      "a=candidate:1840965416 1 udp 2113937151 192.168.0.100 37426 typ host generation 0\r\n"
+      "a=candidate:1840965416 2 udp 2113937151 192.168.0.100 37426 typ host generation 0\r\n"
+      "a=candidate:590945240 1 tcp 1509957375 192.168.0.100 46029 typ host generation 0\r\n"
+      "a=candidate:590945240 2 tcp 1509957375 192.168.0.100 46029 typ host generation 0\r\n"
+      "a=candidate:3975340444 1 udp 1677729535 5.5.5.5 37426 typ srflx raddr 192.168.0.100 rport 37426 generation 0\r\n"
+      "a=candidate:3975340444 2 udp 1677729535 5.5.5.5 37426 typ srflx raddr 192.168.0.100 rport 37426 generation 0\r\n"
+      "a=ice-ufrag:RkI7xTFiQgGZu1ww\r\n"
+      "a=ice-pwd:6ZTKNoP2vXWYLweywju9Bydv\r\n"
+      "a=ice-options:google-ice\r\n"
+      "a=mid:video\r\n"
+      "a=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\n"
+      "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:vpy+PnhF0bWmwYlAngWT1cc9qppYCvRlwT4aKrYh\r\n"
+      "a=rtpmap:100 VP8/90000\r\n"
+      "a=rtcp-fb:100 ccm fir\r\n"
+      "a=rtcp-fb:100 nack\r\n"
+      "a=rtcp-fb:100 nack pli\r\n"
+      "a=rtcp-fb:100 goog-remb\r\n"
+      "a=rtpmap:116 red/90000\r\n"
+      "a=rtpmap:117 ulpfec/90000\r\n"
+      "a=ssrc:1686396354 cname:/9kskFtadoxn1x70\r\n"
+      "a=ssrc:1686396354 msid:MediaStream0 VideoTrack0\r\n"
+      "a=ssrc:1686396354 mslabel:MediaStream0\r\n"
+      "a=ssrc:1686396354 label:VideoTrack0\r\n";
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_offer_sdp_str, -1, pattern_sdp) == GST_SDP_OK);
+
+  g_object_set (rtpendpoint, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+  g_object_get (rtpendpoint, "pattern-sdp", &pattern_sdp, NULL);
+  fail_unless (pattern_sdp != NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          offer_str, -1, offer) == GST_SDP_OK);
+
+  GST_DEBUG ("Offer:\n%s", (aux = gst_sdp_message_as_text (offer)));
+  g_free (aux);
+  aux = NULL;
+
+  g_signal_emit_by_name (rtpendpoint, "process-offer", offer, &answer);
+  fail_unless (answer != NULL);
+  GST_DEBUG ("Answer:\n%s", (aux = gst_sdp_message_as_text (answer)));
+  g_free (aux);
+  aux = NULL;
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  g_object_unref (rtpendpoint);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -311,6 +419,7 @@ sdp_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, negotiation_offerer);
   tcase_add_test (tc_chain, loopback);
+  tcase_add_test (tc_chain, process_webrtc_offer);
 
   return s;
 }
