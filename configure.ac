@@ -2,7 +2,7 @@ dnl required version of autoconf
 AC_PREREQ([2.53])
 
 dnl TODO: fill in your package name and package version here
-AC_INIT([gst-kurento-plugins],[1.2.4-dev])
+AC_INIT([gst-kurento-plugins],[1.2.4])
 
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.2.0
