@@ -13,13 +13,13 @@
  *
  */
 #include <gst/check/gstcheck.h>
-#include "kmsbasemixer.h"
+#include "kmsbasehub.h"
 #include "kmsmixerendpoint.h"
 
 GST_START_TEST (link_port_after_internal_link)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
-  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsBaseHub *mixer = g_object_new (KMS_TYPE_BASE_HUB, NULL);
   KmsMixerEndpoint *mixer_endpoint =
       g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
@@ -36,8 +36,7 @@ GST_START_TEST (link_port_after_internal_link)
   fail_unless (id >= 0);
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
-  ret =
-      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret == TRUE);
 
   {
@@ -63,8 +62,7 @@ GST_START_TEST (link_port_after_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), audiofakesink);
-  ret =
-      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -116,7 +114,7 @@ GST_END_TEST
 GST_START_TEST (link_port_before_internal_link)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
-  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsBaseHub *mixer = g_object_new (KMS_TYPE_BASE_HUB, NULL);
   KmsMixerEndpoint *mixer_endpoint =
       g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
@@ -137,8 +135,7 @@ GST_START_TEST (link_port_before_internal_link)
   gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_endpoint),
       "audio_sink");
 
-  ret =
-      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   {
@@ -151,8 +148,7 @@ GST_START_TEST (link_port_before_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
-  ret =
-      kms_base_mixer_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_video_sink (mixer, id, videofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -165,8 +161,7 @@ GST_START_TEST (link_port_before_internal_link)
     g_free (pad_name);
   }
 
-  ret =
-      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret == FALSE);
 
   {
@@ -179,8 +174,7 @@ GST_START_TEST (link_port_before_internal_link)
   }
 
   gst_bin_add (GST_BIN (mixer), audiofakesink);
-  ret =
-      kms_base_mixer_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
+  ret = kms_base_hub_link_audio_sink (mixer, id, audiofakesink, "sink", FALSE);
   fail_unless (ret != FALSE);
 
   {
@@ -200,7 +194,7 @@ END_TEST
 GST_START_TEST (handle_port_action)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
-  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsBaseHub *mixer = g_object_new (KMS_TYPE_BASE_HUB, NULL);
   KmsMixerEndpoint *mixer_endpoint =
       g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   gint id = -1;
@@ -228,7 +222,7 @@ GST_START_TEST (handle_port_action)
 GST_END_TEST
 GST_START_TEST (create)
 {
-  KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
+  KmsBaseHub *mixer = g_object_new (KMS_TYPE_BASE_HUB, NULL);
 
   fail_unless (mixer != NULL);
 
@@ -240,9 +234,9 @@ GST_END_TEST
  * End of test cases
  */
 static Suite *
-base_mixer_suite (void)
+base_hub_suite (void)
 {
-  Suite *s = suite_create ("basemixer");
+  Suite *s = suite_create ("basehub");
   TCase *tc_chain = tcase_create ("general");
 
   suite_add_tcase (s, tc_chain);
@@ -254,4 +248,4 @@ base_mixer_suite (void)
   return s;
 }
 
-GST_CHECK_MAIN (base_mixer);
+GST_CHECK_MAIN (base_hub);
