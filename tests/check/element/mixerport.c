@@ -53,53 +53,53 @@ unlink_src_pad (GstElement * element, const gchar * pad_name)
 
 GST_START_TEST (connect_srcs)
 {
-  GstElement *mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  GstElement *mixerport = gst_element_factory_make ("mixerport", NULL);
   GstPad *sink, *src;
 
-  src = gst_element_get_request_pad (mixerendpoint, "video_src_%u");
+  src = gst_element_get_request_pad (mixerport, "video_src_%u");
   fail_unless (src == NULL);
-  sink = gst_element_get_request_pad (mixerendpoint, MIXER_VIDEO_SINK);
+  sink = gst_element_get_request_pad (mixerport, MIXER_VIDEO_SINK);
   fail_unless (sink != NULL);
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), MIXER_VIDEO_SINK) == 0);
-  src = gst_element_get_request_pad (mixerendpoint, "video_src_%u");
+  src = gst_element_get_request_pad (mixerport, "video_src_%u");
   fail_unless (src != NULL);
   g_object_unref (src);
   g_object_unref (sink);
 
-  src = gst_element_get_request_pad (mixerendpoint, "audio_src_%u");
+  src = gst_element_get_request_pad (mixerport, "audio_src_%u");
   fail_unless (src == NULL);
-  sink = gst_element_get_request_pad (mixerendpoint, MIXER_AUDIO_SINK);
+  sink = gst_element_get_request_pad (mixerport, MIXER_AUDIO_SINK);
   fail_unless (sink != NULL);
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), MIXER_AUDIO_SINK) == 0);
-  src = gst_element_get_request_pad (mixerendpoint, "audio_src_%u");
+  src = gst_element_get_request_pad (mixerport, "audio_src_%u");
   fail_unless (src != NULL);
   g_object_unref (src);
   g_object_unref (sink);
 
-  g_object_unref (mixerendpoint);
+  g_object_unref (mixerport);
 }
 
 GST_END_TEST
 GST_START_TEST (connect_sinks)
 {
   GstBin *pipe = (GstBin *) gst_pipeline_new ("connect_sinks");
-  GstElement *mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  GstElement *mixerport = gst_element_factory_make ("mixerport", NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiosrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *valve0, *valve1;
   gboolean drop;
 
-  gst_bin_add_many (pipe, mixerendpoint, videosrc, audiosrc, NULL);
+  gst_bin_add_many (pipe, mixerport, videosrc, audiosrc, NULL);
 
-  g_signal_connect (mixerendpoint, "pad-added",
+  g_signal_connect (mixerport, "pad-added",
       G_CALLBACK (connect_sinks_pad_added), pipe);
 
-  gst_element_link_pads (videosrc, "src", mixerendpoint, "video_sink");
-  gst_element_link_pads (audiosrc, "src", mixerendpoint, "audio_sink");
+  gst_element_link_pads (videosrc, "src", mixerport, "video_sink");
+  gst_element_link_pads (audiosrc, "src", mixerport, "audio_sink");
 
   /* Check if valves have been opened because of fakesink link */
 
-  valve0 = gst_bin_get_by_name (GST_BIN (mixerendpoint), "valve0");
+  valve0 = gst_bin_get_by_name (GST_BIN (mixerport), "valve0");
   fail_unless (valve0 != NULL);
   GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve0);
   drop = TRUE;
@@ -107,7 +107,7 @@ GST_START_TEST (connect_sinks)
   fail_unless (drop == FALSE);
   GST_DEBUG ("Drop value: %d", drop);
 
-  valve1 = gst_bin_get_by_name (GST_BIN (mixerendpoint), "valve1");
+  valve1 = gst_bin_get_by_name (GST_BIN (mixerport), "valve1");
   fail_unless (valve1 != NULL);
   GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve1);
   drop = TRUE;
@@ -116,8 +116,8 @@ GST_START_TEST (connect_sinks)
   GST_DEBUG ("Drop value: %d", drop);
 
   /* Now check that valves are closed when mixer_src pads are unlinked */
-  unlink_src_pad (mixerendpoint, "mixer_video_src");
-  unlink_src_pad (mixerendpoint, "mixer_audio_src");
+  unlink_src_pad (mixerport, "mixer_video_src");
+  unlink_src_pad (mixerport, "mixer_audio_src");
 
   drop = FALSE;
   g_object_get (G_OBJECT (valve0), "drop", &drop, NULL);
@@ -137,19 +137,19 @@ GST_START_TEST (connect_sinks)
 GST_END_TEST
 GST_START_TEST (create_element)
 {
-  GstElement *mixerendpoint;
+  GstElement *mixerport;
 
-  mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  mixerport = gst_element_factory_make ("mixerport", NULL);
 
-  fail_unless (mixerendpoint != NULL);
+  fail_unless (mixerport != NULL);
 
-  g_object_unref (mixerendpoint);
+  g_object_unref (mixerport);
 }
 
 GST_END_TEST static Suite *
-mixerendpoint_suite (void)
+mixerport_suite (void)
 {
-  Suite *s = suite_create ("mixerendpoint");
+  Suite *s = suite_create ("mixerport");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
@@ -160,4 +160,4 @@ mixerendpoint_suite (void)
   return s;
 }
 
-GST_CHECK_MAIN (mixerendpoint);
+GST_CHECK_MAIN (mixerport);

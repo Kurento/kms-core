@@ -46,7 +46,7 @@ check_PROGRAMS =						\
 	general/sdp						\
 	general/utils						\
 	general/basehub						\
-	element/mixerendpoint					\
+	element/mixerport					\
 	element/filterelement					\
 	element/uriendpoint					\
 	element/recorderendpoint				\
@@ -95,7 +95,7 @@ general_basehub_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/src/libgstkurento_la-kmsbasehub.lo \
 		$(top_builddir)/src/libgstkurento_la-kmsutils.lo \
 		$(top_builddir)/src/libgstkurento_la-kmselement.lo \
-		$(top_builddir)/src/libgstkurento_la-kmsmixerendpoint.lo \
+		$(top_builddir)/src/libgstkurento_la-kmsmixerport.lo \
 		$(top_builddir)/src/libgstkurento_la-kms-marshal.lo
 
 general_sdp_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
@@ -108,9 +108,9 @@ general_utils_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 general_utils_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/src/libgstkurento_la-kmsutils.lo
 
-element_mixerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+element_mixerport_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
-element_mixerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+element_mixerport_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_filterelement_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_filterelement_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)

@@ -20,18 +20,18 @@ GST_START_TEST (create)
 {
   GstElement *pipe = gst_pipeline_new (__FUNCTION__);
   GstElement *mixer = gst_element_factory_make ("mainmixer", NULL);
-  GstElement *mixerendpoint = gst_element_factory_make ("mixerendpoint", NULL);
+  GstElement *mixerport = gst_element_factory_make ("mixerport", NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
 
-  gst_bin_add_many (GST_BIN (pipe), mixerendpoint, mixer, audiotestsrc,
+  gst_bin_add_many (GST_BIN (pipe), mixerport, mixer, audiotestsrc,
       videotestsrc, NULL);
   gst_element_set_state (pipe, GST_STATE_NULL);
 
-  if (!gst_element_link (videotestsrc, mixerendpoint))
+  if (!gst_element_link (videotestsrc, mixerport))
     fail ("videotestsrc could not be linked.");
 
-  gst_element_link (mixerendpoint, mixer);
+  gst_element_link (mixerport, mixer);
 
   g_object_unref (pipe);
 }
@@ -54,19 +54,17 @@ GST_START_TEST (manage_ports)
 {
   GstElement *pipe = gst_pipeline_new (__FUNCTION__);
   GstElement *mixer = gst_element_factory_make ("mainmixer", NULL);
-  GstElement *mixerendpoint1 = gst_element_factory_make ("mixerendpoint", NULL);
-  GstElement *mixerendpoint2 = gst_element_factory_make ("mixerendpoint", NULL);
+  GstElement *mixerport1 = gst_element_factory_make ("mixerport", NULL);
+  GstElement *mixerport2 = gst_element_factory_make ("mixerport", NULL);
   GstElement *player1 = gst_element_factory_make ("uridecodebin", NULL);
   GstElement *player2 = gst_element_factory_make ("uridecodebin", NULL);
   gint handlerId1, handlerId2;
 
-  g_signal_connect (player1, "pad-added", G_CALLBACK (cb_new_pad),
-      mixerendpoint1);
-  g_signal_connect (player2, "pad-added", G_CALLBACK (cb_new_pad),
-      mixerendpoint2);
+  g_signal_connect (player1, "pad-added", G_CALLBACK (cb_new_pad), mixerport1);
+  g_signal_connect (player2, "pad-added", G_CALLBACK (cb_new_pad), mixerport2);
 
-  gst_bin_add_many (GST_BIN (pipe), player1, player2, mixerendpoint1,
-      mixerendpoint2, mixer, NULL);
+  gst_bin_add_many (GST_BIN (pipe), player1, player2, mixerport1,
+      mixerport2, mixer, NULL);
   gst_element_set_state (pipe, GST_STATE_NULL);
 
   g_object_set (player1, "uri", "https://ci.kurento.com/video/sintel.webm",
@@ -74,8 +72,8 @@ GST_START_TEST (manage_ports)
   g_object_set (player2, "uri", "https://ci.kurento.com/video/sintel.webm",
       NULL);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixerendpoint1, &handlerId1);
-  g_signal_emit_by_name (mixer, "handle-port", mixerendpoint2, &handlerId2);
+  g_signal_emit_by_name (mixer, "handle-port", mixerport1, &handlerId1);
+  g_signal_emit_by_name (mixer, "handle-port", mixerport2, &handlerId2);
 
   g_object_set (mixer, "main", handlerId1, NULL);
   g_object_set (mixer, "main", handlerId2, NULL);
