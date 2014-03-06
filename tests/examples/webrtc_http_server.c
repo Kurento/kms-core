@@ -31,7 +31,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define CLIENT_ANSWERER_HTML_FILE "webrtc_loopback.html"
 #define CLIENT_OFFERER_HTML_FILE "webrtc_loopback_offerer.html"
 
-#define WEBRTC_END_POINT "webrtc-end-point"
+#define WEBRTC_ENDPOINT "webrtc-end-point"
 #define MEDIA_SESSION_ID "media-session-id"
 #define FILTER_TYPE "filter-type"
 
@@ -89,7 +89,7 @@ static void
 configure_media_session (GstElement * pipe)
 {
   GstElement *webrtcendpoint =
-      g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+      g_object_get_data (G_OBJECT (pipe), WEBRTC_ENDPOINT);
   const gchar *filter_type =
       g_object_get_data (G_OBJECT (webrtcendpoint), FILTER_TYPE);
   GstElement *audio_identity = gst_element_factory_make ("identity", NULL);
@@ -147,7 +147,7 @@ process_sdp_answer (GstElement * pipe, const gchar * sdp_str)
 {
   GstSDPMessage *sdp = NULL;
   GstElement *webrtcendpoint =
-      g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+      g_object_get_data (G_OBJECT (pipe), WEBRTC_ENDPOINT);
 
   GST_DEBUG ("Process SDP answer:\n%s", sdp_str);
 
@@ -180,7 +180,7 @@ init_media_session (SoupServer * server, SoupMessage * msg, gint64 id,
   *id_pointer = id;
   g_object_set_data_full (G_OBJECT (pipe), MEDIA_SESSION_ID, id_pointer,
       g_free);
-  g_object_set_data_full (G_OBJECT (pipe), WEBRTC_END_POINT,
+  g_object_set_data_full (G_OBJECT (pipe), WEBRTC_ENDPOINT,
       g_object_ref (webrtcendpoint), g_object_unref);
 
   gst_sdp_message_new (&sdp);
@@ -326,7 +326,7 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
       *id_ptr = id;
       g_hash_table_insert (cookies, id_ptr, pipe);
 
-      webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+      webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_ENDPOINT);
       g_object_set_data_full (G_OBJECT (webrtcendpoint), FILTER_TYPE,
           filter_type, g_free);
 
@@ -372,7 +372,7 @@ server_callback (SoupServer * server, SoupMessage * msg, const char *path,
   *id_ptr = id;
   g_hash_table_insert (cookies, id_ptr, pipe);
 
-  webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_END_POINT);
+  webrtcendpoint = g_object_get_data (G_OBJECT (pipe), WEBRTC_ENDPOINT);
   g_object_set_data_full (G_OBJECT (webrtcendpoint), FILTER_TYPE, filter_type,
       g_free);
 

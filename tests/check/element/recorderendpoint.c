@@ -30,23 +30,23 @@ static guint state;
 
 struct state_controller
 {
-  KmsUriEndPointState state;
+  KmsUriEndpointState state;
   guint seconds;
 };
 
 static const struct state_controller trasnsitions0[] = {
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 1},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_PAUSE, 1},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 1}
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_STOP, 1},
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_PAUSE, 1},
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_STOP, 1}
 };
 
 static const struct state_controller trasnsitions1[] = {
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 1},
-  {KMS_URI_END_POINT_STATE_START, 1}
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_STOP, 1},
+  {KMS_URI_ENDPOINT_STATE_START, 1}
 };
 
 static const struct state_controller *
@@ -64,14 +64,14 @@ get_transtions ()
 }
 
 static const gchar *
-state2string (KmsUriEndPointState state)
+state2string (KmsUriEndpointState state)
 {
   switch (state) {
-    case KMS_URI_END_POINT_STATE_STOP:
+    case KMS_URI_ENDPOINT_STATE_STOP:
       return "STOP";
-    case KMS_URI_END_POINT_STATE_START:
+    case KMS_URI_ENDPOINT_STATE_START:
       return "START";
-    case KMS_URI_END_POINT_STATE_PAUSE:
+    case KMS_URI_ENDPOINT_STATE_PAUSE:
       return "PAUSE";
     default:
       return "Invalid state";
@@ -79,7 +79,7 @@ state2string (KmsUriEndPointState state)
 }
 
 static void
-change_state (KmsUriEndPointState state)
+change_state (KmsUriEndpointState state)
 {
   GST_DEBUG ("Setting recorder to state %s", state2string (state));
   g_object_set (G_OBJECT (recorder), "state", state, NULL);
@@ -149,7 +149,7 @@ transite_cb (gpointer loop)
 }
 
 static void
-state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+state_changed_cb (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   const struct state_controller *transitions = get_transtions ();
@@ -314,12 +314,12 @@ quit_main_loop_idle (gpointer data)
 }
 
 static void
-state_changed_cb2 (GstElement * recorder, KmsUriEndPointState newState,
+state_changed_cb2 (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   GST_DEBUG ("State changed %s.", state2string (newState));
 
-  if (newState == KMS_URI_END_POINT_STATE_STOP)
+  if (newState == KMS_URI_ENDPOINT_STATE_STOP)
     g_idle_add (quit_main_loop_idle, loop);
 }
 
@@ -374,7 +374,7 @@ GST_START_TEST (finite_video_test)
       GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
 
   g_object_set (G_OBJECT (recorder), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_main_loop_run (loop);
@@ -396,20 +396,20 @@ stop_recorder (gpointer data)
 {
   GST_DEBUG ("Setting recorder to STOP");
 
-  g_object_set (G_OBJECT (recorder), "state", KMS_URI_END_POINT_STATE_STOP,
+  g_object_set (G_OBJECT (recorder), "state", KMS_URI_ENDPOINT_STATE_STOP,
       NULL);
   return FALSE;
 }
 
 static void
-state_changed_cb3 (GstElement * recorder, KmsUriEndPointState newState,
+state_changed_cb3 (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   GST_DEBUG ("State changed %s.", state2string (newState));
 
-  if (newState == KMS_URI_END_POINT_STATE_START)
+  if (newState == KMS_URI_ENDPOINT_STATE_START)
     g_timeout_add (3000, stop_recorder, NULL);
-  else if (newState == KMS_URI_END_POINT_STATE_STOP)
+  else if (newState == KMS_URI_ENDPOINT_STATE_STOP)
     g_idle_add (quit_main_loop_idle, loop);
 }
 
@@ -458,7 +458,7 @@ GST_START_TEST (check_video_only)
       GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
 
   g_object_set (G_OBJECT (recorder), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_main_loop_run (loop);
@@ -477,7 +477,7 @@ GST_START_TEST (check_video_only)
 
 GST_END_TEST
 /******************************/
-/* RecorderEndPoint test suit */
+/* RecorderEndpoint test suit */
 /******************************/
 static Suite *
 recorderendpoint_suite (void)

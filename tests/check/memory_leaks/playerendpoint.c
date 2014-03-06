@@ -103,7 +103,7 @@ start_playerendpoint (void)
 
   mark_point ();
   g_object_set (G_OBJECT (playerendpoint), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
 
   mark_point ();
   g_main_loop_run (loop);

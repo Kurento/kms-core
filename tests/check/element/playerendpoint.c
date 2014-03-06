@@ -27,26 +27,26 @@ static gboolean start_buffer = FALSE;
 
 struct state_controller
 {
-  KmsUriEndPointState state;
+  KmsUriEndpointState state;
   guint seconds;
 };
 
 static const struct state_controller trasnsitions[] = {
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_PAUSE, 1},
-  {KMS_URI_END_POINT_STATE_START, 2},
-  {KMS_URI_END_POINT_STATE_STOP, 1}
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_PAUSE, 1},
+  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_STOP, 1}
 };
 
 static gchar *
-state2string (KmsUriEndPointState state)
+state2string (KmsUriEndpointState state)
 {
   switch (state) {
-    case KMS_URI_END_POINT_STATE_STOP:
+    case KMS_URI_ENDPOINT_STATE_STOP:
       return "STOP";
-    case KMS_URI_END_POINT_STATE_START:
+    case KMS_URI_ENDPOINT_STATE_START:
       return "START";
-    case KMS_URI_END_POINT_STATE_PAUSE:
+    case KMS_URI_ENDPOINT_STATE_PAUSE:
       return "PAUSE";
     default:
       return "Invalid state";
@@ -58,13 +58,13 @@ handoff (GstElement * object, GstBuffer * arg0,
     GstPad * arg1, gpointer user_data)
 {
   switch (trasnsitions[state].state) {
-    case KMS_URI_END_POINT_STATE_STOP:
+    case KMS_URI_ENDPOINT_STATE_STOP:
       GST_DEBUG ("handoff in STOP state");
       break;
-    case KMS_URI_END_POINT_STATE_START:
+    case KMS_URI_ENDPOINT_STATE_START:
       start_buffer = TRUE;
       break;
-    case KMS_URI_END_POINT_STATE_PAUSE:
+    case KMS_URI_ENDPOINT_STATE_PAUSE:
       break;
     default:
       break;
@@ -72,7 +72,7 @@ handoff (GstElement * object, GstBuffer * arg0,
 }
 
 static void
-change_state (KmsUriEndPointState state)
+change_state (KmsUriEndpointState state)
 {
   GST_DEBUG ("Setting player to state %s", state2string (state));
   g_object_set (G_OBJECT (player), "state", state, NULL);
@@ -123,7 +123,7 @@ transite_cb (gpointer data)
 }
 
 static void
-state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+state_changed_cb (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   guint seconds = trasnsitions[state].seconds;
@@ -284,8 +284,7 @@ GST_START_TEST (check_live_stream)
   kms_element_link_pads (player, "video_src_%u", fakesink_video, "sink");
 
   /* Set player to start state */
-  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
-      NULL);
+  g_object_set (G_OBJECT (player), "state", KMS_URI_ENDPOINT_STATE_START, NULL);
 
   g_main_loop_run (loop);
 
@@ -339,8 +338,7 @@ GST_START_TEST (check_eos)
   g_object_set (G_OBJECT (player), "uri",
       "http://ci.kurento.com/downloads/small.webm", NULL);
 
-  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
-      NULL);
+  g_object_set (G_OBJECT (player), "state", KMS_URI_ENDPOINT_STATE_START, NULL);
 
   gst_bin_add (GST_BIN (pipeline), player);
 
@@ -395,8 +393,7 @@ GST_START_TEST (check_set_encoded_media)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* Set player to start state */
-  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
-      NULL);
+  g_object_set (G_OBJECT (player), "state", KMS_URI_ENDPOINT_STATE_START, NULL);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_entering_main_loop_live_stream");

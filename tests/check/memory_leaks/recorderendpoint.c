@@ -32,14 +32,14 @@ quit_main_loop_idle (gpointer data)
 }
 
 static const gchar *
-state2string (KmsUriEndPointState state)
+state2string (KmsUriEndpointState state)
 {
   switch (state) {
-    case KMS_URI_END_POINT_STATE_STOP:
+    case KMS_URI_ENDPOINT_STATE_STOP:
       return "STOP";
-    case KMS_URI_END_POINT_STATE_START:
+    case KMS_URI_ENDPOINT_STATE_START:
       return "START";
-    case KMS_URI_END_POINT_STATE_PAUSE:
+    case KMS_URI_ENDPOINT_STATE_PAUSE:
       return "PAUSE";
     default:
       return "Invalid state";
@@ -69,7 +69,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       GST_DEBUG ("EOS received");
       recorderendpoint = gst_bin_get_by_name (GST_BIN (pipe), RECORDER_NAME);
       g_object_set (G_OBJECT (recorderendpoint), "state",
-          KMS_URI_END_POINT_STATE_STOP, NULL);
+          KMS_URI_ENDPOINT_STATE_STOP, NULL);
       g_object_unref (recorderendpoint);
       break;
     }
@@ -101,11 +101,11 @@ play_element (const gchar * element_name)
 }
 
 static void
-state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+state_changed_cb (GstElement * recorder, KmsUriEndpointState newState,
     gpointer data)
 {
   GST_DEBUG ("State changed %s.", state2string (newState));
-  if (newState == KMS_URI_END_POINT_STATE_STOP) {
+  if (newState == KMS_URI_ENDPOINT_STATE_STOP) {
     GST_DEBUG ("Recorder stopped. Exiting the main loop.");
     g_idle_add (quit_main_loop_idle, loop);
   }
@@ -151,7 +151,7 @@ start_audio_recorderendpoint ()
 
   mark_point ();
   g_object_set (G_OBJECT (recorderendpoint), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
 
   mark_point ();
   g_main_loop_run (loop);
@@ -205,7 +205,7 @@ start_video_recorderendpoint ()
 
   mark_point ();
   g_object_set (G_OBJECT (recorderendpoint), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
 
   mark_point ();
   g_main_loop_run (loop);
@@ -273,7 +273,7 @@ start_audio_video_recorderendpoint ()
 
   mark_point ();
   g_object_set (G_OBJECT (recorderendpoint), "state",
-      KMS_URI_END_POINT_STATE_START, NULL);
+      KMS_URI_ENDPOINT_STATE_START, NULL);
 
   mark_point ();
   g_main_loop_run (loop);

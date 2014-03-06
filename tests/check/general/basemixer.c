@@ -20,8 +20,8 @@ GST_START_TEST (link_port_after_internal_link)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
-  KmsMixerEndPoint *mixer_end_point =
-      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  KmsMixerEndpoint *mixer_endpoint =
+      g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiosrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *videofakesink = gst_element_factory_make ("fakesink", NULL);
@@ -30,9 +30,9 @@ GST_START_TEST (link_port_after_internal_link)
   gint id;
 
   gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer), videosrc, audiosrc,
-      GST_ELEMENT (mixer_end_point), NULL);
+      GST_ELEMENT (mixer_endpoint), NULL);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  g_signal_emit_by_name (mixer, "handle-port", mixer_endpoint, &id);
   fail_unless (id >= 0);
 
   gst_bin_add (GST_BIN (mixer), videofakesink);
@@ -49,7 +49,7 @@ GST_START_TEST (link_port_after_internal_link)
     g_free (pad_name);
   }
 
-  gst_element_link_pads (videosrc, "src", GST_ELEMENT (mixer_end_point),
+  gst_element_link_pads (videosrc, "src", GST_ELEMENT (mixer_endpoint),
       "video_sink");
 
   {
@@ -76,7 +76,7 @@ GST_START_TEST (link_port_after_internal_link)
     g_free (pad_name);
   }
 
-  gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_end_point),
+  gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_endpoint),
       "audio_sink");
 
   {
@@ -117,8 +117,8 @@ GST_START_TEST (link_port_before_internal_link)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
-  KmsMixerEndPoint *mixer_end_point =
-      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  KmsMixerEndpoint *mixer_endpoint =
+      g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiosrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *videofakesink = gst_element_factory_make ("fakesink", NULL);
@@ -127,14 +127,14 @@ GST_START_TEST (link_port_before_internal_link)
   gint id;
 
   gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer), videosrc, audiosrc,
-      GST_ELEMENT (mixer_end_point), NULL);
+      GST_ELEMENT (mixer_endpoint), NULL);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  g_signal_emit_by_name (mixer, "handle-port", mixer_endpoint, &id);
   fail_unless (id >= 0);
 
-  gst_element_link_pads (videosrc, "src", GST_ELEMENT (mixer_end_point),
+  gst_element_link_pads (videosrc, "src", GST_ELEMENT (mixer_endpoint),
       "video_sink");
-  gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_end_point),
+  gst_element_link_pads (audiosrc, "src", GST_ELEMENT (mixer_endpoint),
       "audio_sink");
 
   ret =
@@ -201,23 +201,23 @@ GST_START_TEST (handle_port_action)
 {
   GstElement *pipe = gst_pipeline_new (NULL);
   KmsBaseMixer *mixer = g_object_new (KMS_TYPE_BASE_MIXER, NULL);
-  KmsMixerEndPoint *mixer_end_point =
-      g_object_new (KMS_TYPE_MIXER_END_POINT, NULL);
+  KmsMixerEndpoint *mixer_endpoint =
+      g_object_new (KMS_TYPE_MIXER_ENDPOINT, NULL);
   gint id = -1;
 
   fail_unless (mixer != NULL);
-  fail_unless (mixer_end_point != NULL);
+  fail_unless (mixer_endpoint != NULL);
 
   gst_bin_add_many (GST_BIN (pipe), GST_ELEMENT (mixer),
-      GST_ELEMENT (mixer_end_point), NULL);
+      GST_ELEMENT (mixer_endpoint), NULL);
 
-  g_signal_emit_by_name (mixer, "handle-port", mixer_end_point, &id);
+  g_signal_emit_by_name (mixer, "handle-port", mixer_endpoint, &id);
   fail_unless (id >= 0);
   GST_DEBUG ("Got id: %d", id);
-  fail_unless (G_OBJECT (mixer_end_point)->ref_count == 2);
+  fail_unless (G_OBJECT (mixer_endpoint)->ref_count == 2);
 
   g_signal_emit_by_name (mixer, "unhandle-port", id);
-  fail_unless (G_OBJECT (mixer_end_point)->ref_count == 1);
+  fail_unless (G_OBJECT (mixer_endpoint)->ref_count == 1);
 
   g_signal_emit_by_name (mixer, "handle-port", mixer, &id);
   fail_unless (id < 0);

@@ -48,14 +48,14 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 }
 
 static const gchar *
-state2string (KmsUriEndPointState state)
+state2string (KmsUriEndpointState state)
 {
   switch (state) {
-    case KMS_URI_END_POINT_STATE_STOP:
+    case KMS_URI_ENDPOINT_STATE_STOP:
       return "STOP";
-    case KMS_URI_END_POINT_STATE_START:
+    case KMS_URI_ENDPOINT_STATE_START:
       return "START";
-    case KMS_URI_END_POINT_STATE_PAUSE:
+    case KMS_URI_ENDPOINT_STATE_PAUSE:
       return "PAUSE";
     default:
       return "Invalid state";
@@ -72,7 +72,7 @@ stop_recorder (gpointer user_data)
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "before_stopping_recorder");
 
-  g_object_set (G_OBJECT (recorder), "state", KMS_URI_END_POINT_STATE_STOP,
+  g_object_set (G_OBJECT (recorder), "state", KMS_URI_ENDPOINT_STATE_STOP,
       NULL);
   return FALSE;
 }
@@ -87,17 +87,17 @@ player_eos (GstElement * player, gpointer user_data)
 }
 
 static void
-recorder_state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+recorder_state_changed_cb (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   GST_INFO ("Element %s changed its state to %s.", GST_ELEMENT_NAME (recorder),
       state2string (newState));
-  if (newState == KMS_URI_END_POINT_STATE_STOP)
+  if (newState == KMS_URI_ENDPOINT_STATE_STOP)
     g_main_loop_quit (loop);
 }
 
 static void
-player_state_changed_cb (GstElement * recorder, KmsUriEndPointState newState,
+player_state_changed_cb (GstElement * recorder, KmsUriEndpointState newState,
     gpointer loop)
 {
   GST_INFO ("Element %s changed its state to %s.", GST_ELEMENT_NAME (recorder),
@@ -143,9 +143,8 @@ GST_START_TEST (check_agnostic_signal)
       recorder);
 
   /* Set player and recorder to start state */
-  g_object_set (G_OBJECT (player), "state", KMS_URI_END_POINT_STATE_START,
-      NULL);
-  g_object_set (G_OBJECT (recorder), "state", KMS_URI_END_POINT_STATE_START,
+  g_object_set (G_OBJECT (player), "state", KMS_URI_ENDPOINT_STATE_START, NULL);
+  g_object_set (G_OBJECT (recorder), "state", KMS_URI_ENDPOINT_STATE_START,
       NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
