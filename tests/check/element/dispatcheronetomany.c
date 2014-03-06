@@ -14,12 +14,12 @@
  */
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
-#include "kmsmainmixer.h"
+#include "kmsdispatcheronetomany.h"
 
 GST_START_TEST (create)
 {
   GstElement *pipe = gst_pipeline_new (__FUNCTION__);
-  GstElement *mixer = gst_element_factory_make ("mainmixer", NULL);
+  GstElement *mixer = gst_element_factory_make ("dispatcheronetomany", NULL);
   GstElement *mixerport = gst_element_factory_make ("mixerport", NULL);
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
@@ -53,7 +53,7 @@ cb_new_pad (GstElement * element, GstPad * pad, gpointer data)
 GST_START_TEST (manage_ports)
 {
   GstElement *pipe = gst_pipeline_new (__FUNCTION__);
-  GstElement *mixer = gst_element_factory_make ("mainmixer", NULL);
+  GstElement *mixer = gst_element_factory_make ("dispatcheronetomany", NULL);
   GstElement *mixerport1 = gst_element_factory_make ("mixerport", NULL);
   GstElement *mixerport2 = gst_element_factory_make ("mixerport", NULL);
   GstElement *player1 = gst_element_factory_make ("uridecodebin", NULL);
@@ -91,9 +91,9 @@ GST_END_TEST
  * End of test cases
  */
 static Suite *
-main_mixer_suite (void)
+dispatcher_one_to_many_suite (void)
 {
-  Suite *s = suite_create ("mainmixer");
+  Suite *s = suite_create ("dispatcheronetomany");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
@@ -103,4 +103,4 @@ main_mixer_suite (void)
   return s;
 }
 
-GST_CHECK_MAIN (main_mixer);
+GST_CHECK_MAIN (dispatcher_one_to_many);
