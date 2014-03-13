@@ -55,6 +55,7 @@ check_PROGRAMS =						\
 	element/agnosticbin					\
 	element/sctp                                            \
 	element/dispatcheronetomany				\
+	element/audiomixer					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -150,6 +151,11 @@ element_sctp_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_dispatcheronetomany_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_dispatcheronetomany_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_audiomixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_audiomixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
 
 # Integration tests
 if INTEGRATIONTESTS
