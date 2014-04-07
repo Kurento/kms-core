@@ -7,7 +7,8 @@ REGISTRY_ENVIRONMENT =						\
 TESTS_ENVIRONMENT =						\
 	CK_DEFAULT_TIMEOUT=20					\
 	G_SLICE=always-malloc 					\
-	MALLOC_CHECK=1						\
+	G_DEBUG=gc-friendly					\
+	MALLOC_CHECK_=1						\
 	$(REGISTRY_ENVIRONMENT)
 
 # run any given test by running make test.check
@@ -15,6 +16,47 @@ TESTS_ENVIRONMENT =						\
 %.check: %
 	@$(TESTS_ENVIRONMENT)					\
 	$*
+
+SUPPRESSIONS = valgrind.supp
+
+%.valgrind: %
+	@$(TESTS_ENVIRONMENT)					\
+	CK_DEFAULT_TIMEOUT=360					\
+	G_SLICE=always-malloc					\
+	$(LIBTOOL) --mode=execute				\
+	valgrind -q						\
+	$(foreach s,$(SUPPRESSIONS),--suppressions=$(s))	\
+	--tool=memcheck --leak-check=yes --trace-children=yes	\
+	--leak-resolution=high --show-possibly-lost=no		\
+	--num-callers=20					\
+	./$* 2>&1 | tee valgrind.log
+	@cp valgrind.log $*.valgrind.log
+	@cp valgrind.xml $*.valgrind.xml
+	@if grep "==" valgrind.log > /dev/null 2>&1; then	\
+	    rm valgrind.log;					\
+	    exit 1;						\
+	fi
+	@rm valgrind.log
+
+# # valgrind any given test by running make test.valgrind
+# %.valgrind: %
+# 	@$(TESTS_ENVIRONMENT)					\
+# 	CK_DEFAULT_TIMEOUT=360					\
+# 	G_SLICE=always-malloc					\
+# 	$(LIBTOOL) --mode=execute				\
+# 	valgrind -q						\
+# 	$(foreach s,$(SUPPRESSIONS),--suppressions=$(s))	\
+# 	--tool=memcheck --leak-check=yes --trace-children=yes	\
+# 	--show-possibly-lost=no --xml=yes			\
+# 	--xml-file=valgrind.xml					\
+# 	./$* 2>&1 | tee valgrind.log
+# 	@if grep "==" valgrind.log > /dev/null 2>&1; then	\
+# 	    cp valgrind.log $*.valgrind.log			\
+# 	    rm valgrind.log;					\
+# 	    exit 1;						\
+# 	fi
+# 	@cp valgrind.xml $*.valgrind.xml
+# 	@rm valgrind.log
 
 CLEANFILES = core.* test-registry.*
 
@@ -180,3 +222,22 @@ memory_leaks_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 memory_leaks_recorderendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -I$(top_srcdir)/src -Werror
 memory_leaks_recorderendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
+VALGRIND_TESTS_DISABLE = element/rtpendpoint element/rtpendpoint_audio
+
+# valgrind all tests
+valgrind: $(TESTS)
+	@echo "Valgrinding tests ..."
+	@failed=0;							\
+	for t in $(filter-out $(VALGRIND_TESTS_DISABLE),$(TESTS)); do	\
+		$(MAKE) $$t.valgrind;					\
+		if test "$$?" -ne 0; then                               \
+			echo "Valgrind error for test $$t";		\
+			failed=`expr $$failed + 1`;			\
+			whicht="$$whicht $$t";				\
+		fi;							\
+	done;								\
+	if test "$$failed" -ne 0; then					\
+		echo "$$failed tests had leaks or errors under valgrind:";	\
+		echo "$$whicht";					\
+		false;							\
+	fi

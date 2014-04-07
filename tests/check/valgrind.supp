@@ -1,0 +1,50 @@
+# G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --leak-check=yes --log-file=valgrind.log --xml-file=valgrind.xml --xml=yes --suppressions=../valgrind.supp sever/kurento <command line options for kurento>
+{
+   Glib type register static
+   Memcheck:Leak
+   ...
+   fun:g_type_register_static
+   ...
+}
+{
+   Glib type interface static registration
+   Memcheck:Leak
+   ...
+   fun:g_type_add_interface_static
+   ...
+}
+{
+   Glib type register fundamental
+   Memcheck:Leak
+   ...
+   fun:g_type_register_fundamental
+   ...
+}
+{
+   Glib type class ref
+   Memcheck:Leak
+   ...
+   fun:g_type_class_ref
+   ...
+}
+{
+   Glib init ctor
+   Memcheck:Leak
+   ...
+   fun:gobject_init_ctor
+   ...
+}
+{
+   Quark from static string
+   Memcheck:Leak
+   ...
+   fun:g_quark_from_static_string
+   ...
+}
+{
+   Gstreamer load plugin
+   Memcheck:Leak
+   ...
+   fun:gst_plugin_feature_load
+   ...
+}
