@@ -37,26 +37,6 @@ SUPPRESSIONS = valgrind.supp
 	fi
 	@rm valgrind.log
 
-# # valgrind any given test by running make test.valgrind
-# %.valgrind: %
-# 	@$(TESTS_ENVIRONMENT)					\
-# 	CK_DEFAULT_TIMEOUT=360					\
-# 	G_SLICE=always-malloc					\
-# 	$(LIBTOOL) --mode=execute				\
-# 	valgrind -q						\
-# 	$(foreach s,$(SUPPRESSIONS),--suppressions=$(s))	\
-# 	--tool=memcheck --leak-check=yes --trace-children=yes	\
-# 	--show-possibly-lost=no --xml=yes			\
-# 	--xml-file=valgrind.xml					\
-# 	./$* 2>&1 | tee valgrind.log
-# 	@if grep "==" valgrind.log > /dev/null 2>&1; then	\
-# 	    cp valgrind.log $*.valgrind.log			\
-# 	    rm valgrind.log;					\
-# 	    exit 1;						\
-# 	fi
-# 	@cp valgrind.xml $*.valgrind.xml
-# 	@rm valgrind.log
-
 CLEANFILES = core.* test-registry.*
 
 $(CHECK_REGISTRY):
