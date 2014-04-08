@@ -48,3 +48,10 @@
    fun:gst_plugin_feature_load
    ...
 }
+{
+   Gstreamer load plugin file
+   Memcheck:Leak
+   ...
+   fun:gst_plugin_load_file
+   ...
+}
