@@ -32,8 +32,8 @@ SUPPRESSIONS = valgrind.supp
 	./$* 2>&1 | tee valgrind.log
 	@cp valgrind.log $*.valgrind.log
 	@if grep "==" valgrind.log > /dev/null 2>&1; then	\
-	    rm valgrind.log;					\
-	    exit 1;						\
+		rm valgrind.log;				\
+		exit 1;						\
 	fi
 	@rm valgrind.log
 
@@ -58,7 +58,7 @@ endif
 
 check_PROGRAMS =						\
 	$(TEST_AUTOMUXER)					\
-        $(TEST_INTEGRATION)                                     \
+	$(TEST_INTEGRATION)					\
 	element/rtpendpoint					\
 	element/rtpendpoint_audio				\
 	element/rtpendpoint_video				\
@@ -71,13 +71,13 @@ check_PROGRAMS =						\
 	element/filterelement					\
 	element/uriendpoint					\
 	element/recorderendpoint				\
-	element/playerendpoint                                  \
+	element/playerendpoint					\
 	element/httpendpoint					\
 	element/agnosticbin					\
-	element/sctp                                            \
+	element/sctp						\
 	element/dispatcheronetomany				\
 	element/audiomixer					\
-	element/compositemixer   				\
+	element/compositemixer					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -185,7 +185,7 @@ element_compositemixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 # Integration tests
 if INTEGRATIONTESTS
 integration_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
-                -I$(top_srcdir)/src
+		-I$(top_srcdir)/src
 integration_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/tests/check/libkms_test_utils.la
 endif
@@ -216,7 +216,7 @@ valgrind: $(TESTS)
 		fi;							\
 	done;								\
 	if test "$$failed" -ne 0; then					\
-		echo "$$failed tests had leaks or errors under valgrind:";	\
+		echo "$$failed, had leaks or errors under valgrind:";	\
 		echo "$$whicht";					\
 		false;							\
 	fi
