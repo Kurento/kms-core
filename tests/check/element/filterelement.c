@@ -126,6 +126,7 @@ GST_START_TEST (check_properties)
   fail_unless (factory != NULL);
   GST_DEBUG ("Got factory: %s", GST_OBJECT_NAME (factory));
   fail_unless (g_strcmp0 (filter_factory, GST_OBJECT_NAME (factory)) == 0);
+  g_object_unref (filter);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (filterelement),
       GST_DEBUG_GRAPH_SHOW_ALL, "filter");
@@ -141,6 +142,7 @@ GST_START_TEST (check_properties)
   factory = gst_element_get_factory (filter);
   fail_unless (factory != NULL);
   GST_DEBUG ("Got factory: %s", GST_OBJECT_NAME (factory));
+  g_object_unref (filter);
   /* Factory changes are not allowed */
   fail_unless (g_strcmp0 (filter_factory, GST_OBJECT_NAME (factory)));
 
