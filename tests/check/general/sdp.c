@@ -114,6 +114,8 @@ GST_START_TEST (intersect)
 
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
+  gst_sdp_message_free (offer_result);
+  gst_sdp_message_free (answer_result);
 }
 
 GST_END_TEST
