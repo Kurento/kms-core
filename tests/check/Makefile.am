@@ -31,7 +31,6 @@ SUPPRESSIONS = valgrind.supp
 	--num-callers=20					\
 	./$* 2>&1 | tee valgrind.log
 	@cp valgrind.log $*.valgrind.log
-	@cp valgrind.xml $*.valgrind.xml
 	@if grep "==" valgrind.log > /dev/null 2>&1; then	\
 	    rm valgrind.log;					\
 	    exit 1;						\
