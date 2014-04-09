@@ -55,3 +55,10 @@
    fun:gst_plugin_load_file
    ...
 }
+{
+   Gstreamer statuc_caps_get
+   Memcheck:Leak
+   ...
+   fun:gst_static_caps_get
+   ...
+}
