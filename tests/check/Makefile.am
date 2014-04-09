@@ -78,6 +78,7 @@ check_PROGRAMS =						\
 	element/dispatcheronetomany				\
 	element/audiomixer					\
 	element/compositemixer					\
+	element/vp8parse					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -181,6 +182,9 @@ element_audiomixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_compositemixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_compositemixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_vp8parse_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
+element_vp8parse_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 # Integration tests
 if INTEGRATIONTESTS
