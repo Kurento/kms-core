@@ -40,9 +40,9 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 GST_START_TEST (push_buffers)
 {
   GstBus *bus;
-  GstElement *pipe = gst_parse_launch ("videotestsrc num-buffers=5 ! vp8enc ! "
-      "vp8parse deadline=200000 threads=1 cpu-used=16 resize-allowed=TRUE "
-      "target-bitrate=300000 end-usage=cbr ! fakesink", NULL);
+  GstElement *pipe = gst_parse_launch ("videotestsrc num-buffers=5 !"
+      "vp8enc deadline=200000 threads=1 cpu-used=16 resize-allowed=TRUE "
+      "target-bitrate=300000 end-usage=cbr ! vp8parse ! fakesink", NULL);
 
   loop = g_main_loop_new (NULL, TRUE);
 
