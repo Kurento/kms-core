@@ -45,7 +45,9 @@ $(CHECK_REGISTRY):
 TESTS =	$(check_PROGRAMS)
 
 if INTEGRATIONTESTS
-TEST_INTEGRATION = integration/playerendpoint
+TEST_INTEGRATION = integration/playerendpoint			\
+		   integration/playerwithfilter
+
 else
 TEST_INTEGRATION =
 endif
@@ -191,6 +193,11 @@ if INTEGRATIONTESTS
 integration_playerendpoint_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
 		-I$(top_srcdir)/src
 integration_playerendpoint_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
+
+integration_playerwithfilter_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+		-I$(top_srcdir)/src
+integration_playerwithfilter_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 		$(top_builddir)/tests/check/libkms_test_utils.la
 endif
 
