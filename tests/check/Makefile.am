@@ -81,6 +81,7 @@ check_PROGRAMS =						\
 	element/audiomixer					\
 	element/compositemixer					\
 	element/vp8parse					\
+	element/crowddetector					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -187,6 +188,11 @@ element_compositemixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_vp8parse_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror
 element_vp8parse_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_crowddetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_crowddetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+		$(top_builddir)/tests/check/libkms_test_utils.la
 
 # Integration tests
 if INTEGRATIONTESTS
