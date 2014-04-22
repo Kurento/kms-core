@@ -85,6 +85,7 @@ check_PROGRAMS =						\
 	element/faceoverlay					\
 	element/chroma						\
 	element/pointerdetector					\
+	element/pointerdetector2				\
 	element/platedetector					\
 	element/jackvader					\
 	memory_leaks/agnosticbin				\
@@ -212,6 +213,11 @@ element_chroma_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 element_pointerdetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_pointerdetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+                $(top_builddir)/tests/check/libkms_test_utils.la
+
+element_pointerdetector2_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_pointerdetector2_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
                 $(top_builddir)/tests/check/libkms_test_utils.la
 
 element_platedetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
