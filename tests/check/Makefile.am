@@ -5,7 +5,7 @@ REGISTRY_ENVIRONMENT =						\
 	GST_PLUGIN_PATH=$(top_builddir):$(GST_PLUGINS_DIR)
 
 TESTS_ENVIRONMENT =						\
-	CK_DEFAULT_TIMEOUT=20					\
+	CK_DEFAULT_TIMEOUT=25					\
 	G_SLICE=always-malloc 					\
 	G_DEBUG=gc-friendly					\
 	MALLOC_CHECK_=1						\
@@ -85,6 +85,7 @@ check_PROGRAMS =						\
 	element/faceoverlay					\
 	element/chroma						\
 	element/pointerdetector					\
+	element/platedetector					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -210,6 +211,11 @@ element_chroma_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 element_pointerdetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_pointerdetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+                $(top_builddir)/tests/check/libkms_test_utils.la
+
+element_platedetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_platedetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
                 $(top_builddir)/tests/check/libkms_test_utils.la
 
 # Integration tests
