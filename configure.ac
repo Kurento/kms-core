@@ -163,7 +163,7 @@ AC_SUBST(VPX_LIBS)
 AC_SUBST(VPX_CFLAGS)
 
 dnl *** opencv ***
-PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.5 , [
+PKG_CHECK_MODULES(OPENCV, opencv >= 2.0.0 opencv <= 2.4.8 , [
   AC_CHECK_HEADERS([highgui.h opencv2/highgui/highgui_c.h])
   AC_LANG([C])
 
