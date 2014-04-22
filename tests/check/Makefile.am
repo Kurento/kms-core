@@ -86,6 +86,7 @@ check_PROGRAMS =						\
 	element/chroma						\
 	element/pointerdetector					\
 	element/platedetector					\
+	element/jackvader					\
 	memory_leaks/agnosticbin				\
 	memory_leaks/playerendpoint				\
 	memory_leaks/recorderendpoint
@@ -216,6 +217,11 @@ element_pointerdetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
 element_platedetector_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_platedetector_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
+                $(top_builddir)/tests/check/libkms_test_utils.la
+
+element_jackvader_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_jackvader_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS) \
                 $(top_builddir)/tests/check/libkms_test_utils.la
 
 # Integration tests
