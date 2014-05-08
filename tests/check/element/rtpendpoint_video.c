@@ -64,8 +64,14 @@ check_caps (GstPad * pad, HandOffData * hod)
   GstCaps *caps, *expected_caps;
   gboolean is_subset = FALSE;
 
-  expected_caps = gst_static_caps_get (&hod->expected_caps);
   caps = gst_pad_get_current_caps (pad);
+
+  if (caps == NULL) {
+    return;
+  }
+
+  expected_caps = gst_static_caps_get (&hod->expected_caps);
+
   is_subset = gst_caps_is_subset (caps, expected_caps);
   GST_DEBUG ("expected caps: %" GST_PTR_FORMAT ", caps: %" GST_PTR_FORMAT
       ", is subset: %d", expected_caps, caps, is_subset);
