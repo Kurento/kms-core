@@ -57,6 +57,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
 include(FindLibSctp)
 include(FindLibVpx)
+include(FindLibTesseract)
 
 find_program(VALGRIND valgrind)
 
