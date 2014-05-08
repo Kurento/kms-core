@@ -270,6 +270,12 @@ else
   AC_DEFINE_UNQUOTED([FINAL_INSTALL_DIR], ["$FINAL_INSTALL_DIR"],"Final installation Path")
 fi
 
+if test "x${DATAROOTDIR}" = "x"; then
+  AC_DEFINE([DATAROOTDIR], [""],"Data root dir")
+else
+  AC_DEFINE_UNQUOTED([DATAROOTDIR], ["$(FINAL_INSTALL_DIR)/share"],"Data root dir")
+fi
+
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/filters/Makefile

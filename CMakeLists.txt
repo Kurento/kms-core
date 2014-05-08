@@ -63,6 +63,7 @@ find_program(VALGRIND valgrind)
 set (VERSION ${PROJECT_VERSION})
 set (PACKAGE ${PROJECT_NAME})
 set (GETTEXT_PACKAGE "gst-kurento-plugins")
+set (DATAROOTDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})
 
 include(GNUInstallDirs)
 

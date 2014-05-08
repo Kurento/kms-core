@@ -10,4 +10,7 @@
 /* The gettext domain name */
 #cmakedefine GETTEXT_PACKAGE "@GETTEXT_PACKAGE@"
 
+/* Shared files install */
+#cmakedefine DATAROOTDIR "@DATAROOTDIR@"
+
 #endif /* __KMS_DTLS_PLUGINS_CONFIG_H__ */
