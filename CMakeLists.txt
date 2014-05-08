@@ -53,6 +53,7 @@ pkg_check_modules(NICE REQUIRED nice>=${NICE_REQUIRED})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
 include(FindLibSctp)
+include(FindLibVpx)
 
 find_program(VALGRIND valgrind)
 
