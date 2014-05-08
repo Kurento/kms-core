@@ -36,8 +36,8 @@ get_roi_structure (const gchar * id)
 
     name = g_strdup_printf ("point%d", pointCount);
     pointSt = gst_structure_new (name,
-        "x", G_TYPE_INT, 10 + pointCount,
-        "y", G_TYPE_INT, 10 + pointCount, NULL);
+        "x", G_TYPE_FLOAT, 0.1 + ((float) pointCount / 100.0),
+        "y", G_TYPE_FLOAT, 0.1 + ((float) pointCount / 100.0), NULL);
     gst_structure_set (roiStructure, name, GST_TYPE_STRUCTURE, pointSt, NULL);
     gst_structure_free (pointSt);
     g_free (name);
