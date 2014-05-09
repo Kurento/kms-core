@@ -22,6 +22,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 struct tmp_data
 {
+  GRecMutex rmutex;
   gchar *src_pad_name;
   GstElement *sink;
   gchar *sink_pad_name;
@@ -42,6 +43,8 @@ destroy_tmp_data (gpointer data, GClosure * closure)
   if (tmp->sink_pad_name != NULL)
     g_free (tmp->sink_pad_name);
 
+  g_rec_mutex_clear (&tmp->rmutex);
+
   g_slice_free (struct tmp_data, tmp);
 }
 
@@ -53,6 +56,7 @@ create_tmp_data (const gchar * src_pad_name, GstElement * sink,
 
   tmp = g_slice_new0 (struct tmp_data);
 
+  g_rec_mutex_init (&tmp->rmutex);
   tmp->src_pad_name = g_strdup (src_pad_name);
   tmp->sink = gst_object_ref (sink);
   tmp->sink_pad_name = g_strdup (sink_pad_name);
@@ -99,17 +103,26 @@ agnosticbin_added_cb (GstElement * element, gpointer data)
   struct tmp_data *tmp = data;
   GstPad *pad;
 
-  pad = gst_element_get_request_pad (element, tmp->src_pad_name);
-  if (pad == NULL)
-    return;
+  g_rec_mutex_lock (&tmp->rmutex);
 
-  GST_DEBUG ("Connecting pad %s", tmp->src_pad_name);
+  if (tmp->handler == 0L) {
+    goto end;
+  }
+
+  pad = gst_element_get_request_pad (element, tmp->src_pad_name);
+  if (pad == NULL) {
+    goto end;
+  }
+
+  GST_DEBUG_OBJECT (element, "Connecting pad %s", tmp->src_pad_name);
 
   connect_to_sink (tmp->sink, tmp->sink_pad_name, pad);
   gst_object_unref (pad);
+  g_signal_handler_disconnect (element, tmp->handler);
+  tmp->handler = 0L;
 
-  if (tmp->handler != 0L)
-    g_signal_handler_disconnect (element, tmp->handler);
+end:
+  g_rec_mutex_unlock (&tmp->rmutex);
 }
 
 void
