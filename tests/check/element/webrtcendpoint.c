@@ -51,6 +51,7 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
 
 typedef struct HandOffData
 {
+  const gchar *type;
   GMainLoop *loop;
   GstStaticCaps expected_caps;
 } HandOffData;
@@ -464,6 +465,237 @@ test_audio_sendrecv (const gchar * audio_enc_name,
   g_slice_free (HandOffData, hod);
 }
 
+#define OFFERER_RECEIVES_AUDIO "offerer_receives_audio"
+#define OFFERER_RECEIVES_VIDEO "offerer_receives_video"
+#define ANSWERER_RECEIVES_AUDIO "answerer_receives_audio"
+#define ANSWERER_RECEIVES_VIDEO "answerer_receives_video"
+
+static gboolean
+check_offerer_and_answerer_receive_audio_and_video (gpointer pipeline)
+{
+  return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+          OFFERER_RECEIVES_AUDIO)) &&
+      GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+          OFFERER_RECEIVES_VIDEO)) &&
+      GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+          ANSWERER_RECEIVES_AUDIO)) &&
+      GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pipeline),
+          ANSWERER_RECEIVES_VIDEO));
+}
+
+static void
+sendrecv_fakesink_hand_off (GstElement * fakesink,
+    GstBuffer * buf, GstPad * pad, gpointer data)
+{
+  HandOffData *hod = (HandOffData *) data;
+  GstElement *pipeline;
+
+  if (!check_caps (pad, hod)) {
+    return;
+  }
+
+  pipeline = GST_ELEMENT (gst_element_get_parent (fakesink));
+
+  G_LOCK (check_receive_lock);
+  g_object_set_data (G_OBJECT (pipeline), hod->type, GINT_TO_POINTER (TRUE));
+  if (check_offerer_and_answerer_receive_audio_and_video (pipeline)) {
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
+    g_idle_add (quit_main_loop_idle, hod->loop);
+  }
+  G_UNLOCK (check_receive_lock);
+
+  g_object_unref (pipeline);
+}
+
+static void
+test_audio_video_sendrecv (const gchar * audio_enc_name,
+    GstStaticCaps audio_expected_caps, const gchar * video_enc_name,
+    GstStaticCaps video_expected_caps, const gchar * pattern_sdp_sendrcv_str)
+{
+  HandOffData *hod_audio_offerer, *hod_video_offerer, *hod_audio_answerer,
+      *hod_video_answerer;
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstSDPMessage *pattern_sdp, *offer, *answer;
+  GstElement *pipeline = gst_pipeline_new (NULL);
+
+  GstElement *audiotestsrc_offerer =
+      gst_element_factory_make ("audiotestsrc", NULL);
+  GstElement *audiotestsrc_answerer =
+      gst_element_factory_make ("audiotestsrc", NULL);
+  GstElement *capsfilter_offerer =
+      gst_element_factory_make ("capsfilter", NULL);
+  GstElement *capsfilter_answerer =
+      gst_element_factory_make ("capsfilter", NULL);
+  GstElement *audio_enc_offerer =
+      gst_element_factory_make (audio_enc_name, NULL);
+  GstElement *audio_enc_answerer =
+      gst_element_factory_make (audio_enc_name, NULL);
+
+  GstElement *videotestsrc_offerer =
+      gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *videotestsrc_answerer =
+      gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *video_enc_offerer =
+      gst_element_factory_make (video_enc_name, NULL);
+  GstElement *video_enc_answerer =
+      gst_element_factory_make (video_enc_name, NULL);
+
+  GstElement *offerer = gst_element_factory_make ("webrtcendpoint", NULL);
+  GstElement *answerer = gst_element_factory_make ("webrtcendpoint", NULL);
+
+  GstElement *audio_fakesink_offerer =
+      gst_element_factory_make ("fakesink", NULL);
+  GstElement *audio_fakesink_answerer =
+      gst_element_factory_make ("fakesink", NULL);
+  GstElement *video_fakesink_offerer =
+      gst_element_factory_make ("fakesink", NULL);
+  GstElement *video_fakesink_answerer =
+      gst_element_factory_make ("fakesink", NULL);
+
+  GstCaps *caps;
+  gchar *sdp_str = NULL;
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  gst_bus_add_watch (bus, gst_bus_async_signal_func, NULL);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+  g_object_unref (bus);
+
+  fail_unless (gst_sdp_message_new (&pattern_sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_sendrcv_str, -1, pattern_sdp) == GST_SDP_OK);
+  g_object_set (offerer, "pattern-sdp", pattern_sdp, NULL);
+  g_object_set (answerer, "pattern-sdp", pattern_sdp, NULL);
+  fail_unless (gst_sdp_message_free (pattern_sdp) == GST_SDP_OK);
+
+  hod_audio_offerer = g_slice_new (HandOffData);
+  hod_audio_offerer->type = OFFERER_RECEIVES_AUDIO;
+  hod_audio_offerer->expected_caps = audio_expected_caps;
+  hod_audio_offerer->loop = loop;
+  g_object_set (G_OBJECT (audio_fakesink_offerer), "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (audio_fakesink_offerer), "handoff",
+      G_CALLBACK (sendrecv_fakesink_hand_off), hod_audio_offerer);
+
+  hod_video_offerer = g_slice_new (HandOffData);
+  hod_video_offerer->type = OFFERER_RECEIVES_VIDEO;
+  hod_video_offerer->expected_caps = video_expected_caps;
+  hod_video_offerer->loop = loop;
+  g_object_set (G_OBJECT (video_fakesink_offerer), "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (video_fakesink_offerer), "handoff",
+      G_CALLBACK (sendrecv_fakesink_hand_off), hod_video_offerer);
+
+  hod_audio_answerer = g_slice_new (HandOffData);
+  hod_audio_answerer->type = ANSWERER_RECEIVES_AUDIO;
+  hod_audio_answerer->expected_caps = audio_expected_caps;
+  hod_audio_answerer->loop = loop;
+  g_object_set (G_OBJECT (audio_fakesink_answerer), "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (audio_fakesink_answerer), "handoff",
+      G_CALLBACK (sendrecv_fakesink_hand_off), hod_audio_answerer);
+
+  hod_video_answerer = g_slice_new (HandOffData);
+  hod_video_answerer->type = ANSWERER_RECEIVES_VIDEO;
+  hod_video_answerer->expected_caps = video_expected_caps;
+  hod_video_answerer->loop = loop;
+  g_object_set (G_OBJECT (video_fakesink_answerer), "signal-handoffs", TRUE,
+      NULL);
+  g_signal_connect (G_OBJECT (video_fakesink_answerer), "handoff",
+      G_CALLBACK (sendrecv_fakesink_hand_off), hod_video_answerer);
+
+  g_object_set (G_OBJECT (audiotestsrc_offerer), "is-live", TRUE, NULL);
+  g_object_set (G_OBJECT (audiotestsrc_answerer), "is-live", TRUE, NULL);
+
+  caps = gst_caps_new_simple ("audio/x-raw", "rate", G_TYPE_INT, 8000, NULL);
+  g_object_set (capsfilter_offerer, "caps", caps, NULL);
+  g_object_set (capsfilter_answerer, "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  /* Add elements */
+  gst_bin_add (GST_BIN (pipeline), offerer);
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc_offerer, audio_enc_offerer,
+      capsfilter_offerer, NULL);
+  gst_element_link_many (audiotestsrc_offerer, capsfilter_offerer,
+      audio_enc_offerer, NULL);
+  gst_element_link_pads (audio_enc_offerer, NULL, offerer, "audio_sink");
+
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc_offerer, video_enc_offerer,
+      NULL);
+  gst_element_link (videotestsrc_offerer, video_enc_offerer);
+  gst_element_link_pads (video_enc_offerer, NULL, offerer, "video_sink");
+
+  gst_bin_add (GST_BIN (pipeline), answerer);
+  gst_bin_add_many (GST_BIN (pipeline)
+      , audiotestsrc_answerer, audio_enc_answerer, capsfilter_answerer, NULL);
+  gst_element_link_many (audiotestsrc_answerer, capsfilter_answerer,
+      audio_enc_answerer, NULL);
+  gst_element_link_pads (audio_enc_answerer, NULL, answerer, "audio_sink");
+
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc_answerer,
+      video_enc_answerer, NULL);
+  gst_element_link (videotestsrc_answerer, video_enc_answerer);
+  gst_element_link_pads (video_enc_answerer, NULL, answerer, "video_sink");
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* SDP negotiation */
+  mark_point ();
+  g_signal_emit_by_name (offerer, "generate-offer", &offer);
+  fail_unless (offer != NULL);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+  sdp_str = NULL;
+
+  mark_point ();
+  g_signal_emit_by_name (answerer, "process-offer", offer, &answer);
+  fail_unless (answer != NULL);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+  sdp_str = NULL;
+
+  mark_point ();
+  g_signal_emit_by_name (offerer, "process-answer", answer);
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  gst_bin_add_many (GST_BIN (pipeline), audio_fakesink_offerer,
+      audio_fakesink_answerer, NULL);
+  kms_element_link_pads (offerer, "audio_src_%u", audio_fakesink_offerer,
+      "sink");
+  kms_element_link_pads (answerer, "audio_src_%u", audio_fakesink_answerer,
+      "sink");
+  gst_element_sync_state_with_parent (audio_fakesink_offerer);
+  gst_element_sync_state_with_parent (audio_fakesink_answerer);
+
+  gst_bin_add_many (GST_BIN (pipeline), video_fakesink_offerer,
+      video_fakesink_answerer, NULL);
+  kms_element_link_pads (offerer, "video_src_%u", video_fakesink_offerer,
+      "sink");
+  kms_element_link_pads (answerer, "video_src_%u", video_fakesink_answerer,
+      "sink");
+  gst_element_sync_state_with_parent (video_fakesink_offerer);
+  gst_element_sync_state_with_parent (video_fakesink_answerer);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_sendrecv_before_entering_loop");
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, "test_sendrecv_end");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_slice_free (HandOffData, hod_audio_offerer);
+  g_slice_free (HandOffData, hod_video_offerer);
+  g_slice_free (HandOffData, hod_audio_answerer);
+  g_slice_free (HandOffData, hod_video_answerer);
+}
+
 static const gchar *pattern_sdp_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
@@ -613,6 +845,21 @@ GST_START_TEST (test_pcmu_sendrecv)
 }
 
 GST_END_TEST
+    static const gchar *pattern_sdp_pcmu_vp8_sendrecv_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=audio 0 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendrecv\r\n"
+    "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendrecv\r\n";
+
+GST_START_TEST (test_pcmu_vp8_sendrecv)
+{
+  test_audio_video_sendrecv ("mulawenc", pcmu_expected_caps, "vp8enc",
+      vp8_expected_caps, pattern_sdp_pcmu_vp8_sendrecv_str);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -629,6 +876,8 @@ webrtcendpoint_test_suite (void)
 
   tcase_add_test (tc_chain, test_vp8_sendonly_recvonly);
   tcase_add_test (tc_chain, test_vp8_sendrecv);
+
+  tcase_add_test (tc_chain, test_pcmu_vp8_sendrecv);
 
   return s;
 }
