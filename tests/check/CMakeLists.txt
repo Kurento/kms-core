@@ -33,5 +33,8 @@ set (TEST_PROPERTIES
 
 add_subdirectory(element)
 add_subdirectory(general)
-# add_subdirectory(integration)
+
+if (${ENABLE_INTEGRATION_TESTS})
+  add_subdirectory(integration)
+endif()
 # add_subdirectory(memory_leaks)
