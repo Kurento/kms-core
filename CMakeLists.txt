@@ -79,10 +79,17 @@ enable_testing()
 
 add_subdirectory(kms-dtls-plugins)
 
+set (ENABLE_AUTOMUXER_TESTS FALSE CACHE BOOL "Enable automuxer tests")
+set (ENABLE_DEBUGGING_TESTS FALSE CACHE BOOL "Enable debugging tests")
+
+if (${ENABLE_DEBUGGING_TESTS})
+  add_definitions(-DDEBUGGING_TESTS)
+endif()
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(src)
-# add_subdirectory(tests)
+add_subdirectory(tests)
 
 message(STATUS "Compiling : ${PROJECT_NAME}-${PROJECT_VERSION}")
