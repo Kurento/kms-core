@@ -209,6 +209,7 @@ GST_START_TEST (loopback)
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+  g_main_loop_unref (loop);
 }
 
 GST_END_TEST

@@ -182,6 +182,7 @@ test_video_sendonly (const gchar * video_enc_name, GstStaticCaps expected_caps,
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+  g_main_loop_unref (loop);
   g_slice_free (HandOffData, hod);
 }
 
@@ -343,6 +344,7 @@ test_video_sendrecv (const gchar * video_enc_name,
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+  g_main_loop_unref (loop);
   g_slice_free (HandOffData, hod);
 }
 
@@ -462,6 +464,7 @@ test_audio_sendrecv (const gchar * audio_enc_name,
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+  g_main_loop_unref (loop);
   g_slice_free (HandOffData, hod);
 }
 
@@ -690,6 +693,7 @@ test_audio_video_sendrecv (const gchar * audio_enc_name,
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+  g_main_loop_unref (loop);
   g_slice_free (HandOffData, hod_audio_offerer);
   g_slice_free (HandOffData, hod_video_offerer);
   g_slice_free (HandOffData, hod_audio_answerer);
