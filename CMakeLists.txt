@@ -82,6 +82,7 @@ add_subdirectory(kms-dtls-plugins)
 set (ENABLE_AUTOMUXER_TESTS FALSE CACHE BOOL "Enable automuxer tests")
 set (ENABLE_DEBUGGING_TESTS FALSE CACHE BOOL "Enable debugging tests")
 set (ENABLE_INTEGRATION_TESTS FALSE CACHE BOOL "Enable integration tests")
+set (ENABLE_MEMORY_LEAKS_TESTS FALSE CACHE BOOL "Enable memory leaks tests")
 
 if (${ENABLE_DEBUGGING_TESTS})
   add_definitions(-DDEBUGGING_TESTS)
