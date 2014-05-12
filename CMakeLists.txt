@@ -75,10 +75,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror")
 
-enable_testing()
-
-add_subdirectory(kms-dtls-plugins)
-
 set (ENABLE_AUTOMUXER_TESTS FALSE CACHE BOOL "Enable automuxer tests")
 set (ENABLE_DEBUGGING_TESTS FALSE CACHE BOOL "Enable debugging tests")
 set (ENABLE_INTEGRATION_TESTS FALSE CACHE BOOL "Enable integration tests")
@@ -88,6 +84,12 @@ set (DISABLE_TESTS FALSE CACHE BOOL "Disable make check")
 if (${ENABLE_DEBUGGING_TESTS})
   add_definitions(-DDEBUGGING_TESTS)
 endif()
+
+if (NOT ${DISABLE_TESTS})
+  enable_testing()
+endif ()
+
+add_subdirectory(kms-dtls-plugins)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
