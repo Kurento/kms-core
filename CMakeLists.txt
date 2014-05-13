@@ -85,9 +85,7 @@ if (${ENABLE_DEBUGGING_TESTS})
   add_definitions(-DDEBUGGING_TESTS)
 endif()
 
-if (NOT ${DISABLE_TESTS})
-  enable_testing()
-endif ()
+enable_testing()
 
 add_subdirectory(kms-dtls-plugins)
 
