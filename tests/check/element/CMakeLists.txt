@@ -1,3 +1,5 @@
+set (SUPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/../valgrind.supp")
+
 add_test_program (test_rtpendpoint rtpendpoint.c)
 add_dependencies(test_rtpendpoint kmstestutils kmsplugin)
 target_include_directories(test_rtpendpoint PRIVATE
@@ -133,6 +135,15 @@ target_include_directories(test_dispatcheronetomany PRIVATE
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
                            "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
 target_link_libraries(test_dispatcheronetomany
+                      ${GSTREAMER_LIBRARIES}
+                      ${GSTREAMER_CHECK_LIBRARIES})
+
+add_test_program (test_audiomixerbin audiomixerbin.c)
+add_dependencies(test_audiomixerbin kmsplugin)
+target_include_directories(test_audiomixerbin PRIVATE
+                           ${GSTREAMER_INCLUDE_DIRS}
+                           ${GSTREAMER_CHECK_INCLUDE_DIRS})
+target_link_libraries(test_audiomixerbin
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
 

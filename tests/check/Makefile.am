@@ -78,6 +78,7 @@ check_PROGRAMS =						\
 	element/agnosticbin					\
 	element/sctp						\
 	element/dispatcheronetomany				\
+	element/audiomixerbin					\
 	element/audiomixer					\
 	element/compositemixer					\
 	element/vp8parse					\
@@ -187,6 +188,10 @@ element_dispatcheronetomany_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 element_audiomixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
 element_audiomixer_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
+
+element_audiomixerbin_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
+                -I$(top_srcdir)/src
+element_audiomixerbin_LDADD = $(GST_LIBS) $(GST_CHECK_LIBS)
 
 element_compositemixer_CFLAGS = $(GST_CFLAGS) $(GST_CHECK_CFLAGS) -Werror \
                 -I$(top_srcdir)/src
