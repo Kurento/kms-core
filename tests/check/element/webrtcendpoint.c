@@ -834,6 +834,13 @@ GST_START_TEST (test_vp8_sendrecv)
 }
 
 GST_END_TEST
+GST_START_TEST (test_vp8_sendrecv_but_sendonly)
+{
+  test_video_sendonly ("vp8enc", vp8_expected_caps,
+      pattern_sdp_vp8_sendrecv_str, pattern_sdp_vp8_sendrecv_str);
+}
+
+GST_END_TEST
 /* Audio tests */
 static GstStaticCaps pcmu_expected_caps = GST_STATIC_CAPS ("audio/x-mulaw");
 
@@ -877,6 +884,7 @@ webrtcendpoint_test_suite (void)
   tcase_add_test (tc_chain, negotiation);
 
   tcase_add_test (tc_chain, test_pcmu_sendrecv);
+  tcase_add_test (tc_chain, test_vp8_sendrecv_but_sendonly);
 
   tcase_add_test (tc_chain, test_vp8_sendonly_recvonly);
   tcase_add_test (tc_chain, test_vp8_sendrecv);
