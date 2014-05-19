@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
@@ -19,7 +23,7 @@
 
 #include <kmstestutils.h>
 
-#define TEST_VIDEO "https://ci.kurento.com/video/plates.webm"
+#define VIDEO_PATH BINARY_LOCATION "/video/plates.webm"
 
 GMainLoop *loop;
 
@@ -68,7 +72,7 @@ GST_START_TEST (player_with_filter)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri", TEST_VIDEO, NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 

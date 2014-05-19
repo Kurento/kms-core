@@ -12,12 +12,18 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
 #include "kmsuriendpointstate.h"
 
 #include <kmstestutils.h>
+
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 GMainLoop *loop;
 
@@ -73,8 +79,7 @@ GST_START_TEST (integration)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   g_object_set (G_OBJECT (vp8enc), "deadline", 200000, "threads", 1,
       "cpu-used", 16, "resize-allowed", TRUE,

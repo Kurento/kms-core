@@ -1,5 +1,5 @@
-#ifndef __KMS_DTLS_PLUGINS_CONFIG_H__
-#define __KMS_DTLS_PLUGINS_CONFIG_H__
+#ifndef __GST_KURENTO_PLUGINS_CONFIG_H__
+#define __GST_KURENTO_PLUGINS_CONFIG_H__
 
 /* Version */
 #cmakedefine VERSION "@VERSION@"
@@ -13,4 +13,7 @@
 /* Shared files install */
 #cmakedefine DATAROOTDIR "@DATAROOTDIR@"
 
-#endif /* __KMS_DTLS_PLUGINS_CONFIG_H__ */
+/* Binary files directory */
+#cmakedefine BINARY_LOCATION "@BINARY_LOCATION@"
+
+#endif /* __GST_KURENTO_PLUGINS_CONFIG_H__ */

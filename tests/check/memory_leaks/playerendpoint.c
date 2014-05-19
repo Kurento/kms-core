@@ -12,11 +12,15 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <kmscheck.h>
 #include "kmsuriendpointstate.h"
 
 #define ITERATIONS 1
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 static int iterations = ITERATIONS;
 
@@ -95,8 +99,7 @@ start_playerendpoint (void)
 
   g_signal_connect (G_OBJECT (playerendpoint), "eos",
       G_CALLBACK (playerendpoint_eos), loop);
-  g_object_set (G_OBJECT (playerendpoint), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (playerendpoint), "uri", VIDEO_PATH, NULL);
 
   gst_bin_add (GST_BIN (pipeline), playerendpoint);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);

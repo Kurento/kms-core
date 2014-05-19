@@ -65,6 +65,8 @@ set (VERSION ${PROJECT_VERSION})
 set (PACKAGE ${PROJECT_NAME})
 set (GETTEXT_PACKAGE "gst-kurento-plugins")
 set (DATAROOTDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})
+set (BINARY_LOCATION "http://files.kurento.org/kurento/" CACHE STRING "Local binary directory expressed as an URI ( http:// or file:/// )")
+message ("Binary location: " ${BINARY_LOCATION})
 
 include(GNUInstallDirs)
 

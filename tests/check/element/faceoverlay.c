@@ -12,12 +12,19 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
 #include "kmsuriendpointstate.h"
 
 #include <kmstestutils.h>
+
+#define IMG_PATH BINARY_LOCATION "/imgs/mario-wings.png"
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 GMainLoop *loop;
 
@@ -34,7 +41,7 @@ GST_START_TEST (set_properties)
       "offsetYPercent", G_TYPE_DOUBLE, -1.2,
       "widthPercent", G_TYPE_DOUBLE, 1.6,
       "heightPercent", G_TYPE_DOUBLE, 1.6,
-      "url", G_TYPE_STRING, "http://ci.kurento.com/imgs/mario-wings.png", NULL);
+      "url", G_TYPE_STRING, IMG_PATH, NULL);
   g_object_set (G_OBJECT (faceoverlay), "image-to-overlay", imageSt, NULL);
   gst_structure_free (imageSt);
 
@@ -44,7 +51,7 @@ GST_START_TEST (set_properties)
       "offsetYPercent", G_TYPE_DOUBLE, -1.2,
       "widthPercent", G_TYPE_DOUBLE, 1.6,
       "heightPercent", G_TYPE_DOUBLE, 1.6,
-      "url", G_TYPE_STRING, "http://ci.kurento.com/imgs/mario-wings.png", NULL);
+      "url", G_TYPE_STRING, IMG_PATH, NULL);
   g_object_set (G_OBJECT (faceoverlay), "image-to-overlay", imageSt, NULL);
   gst_structure_free (imageSt);
 
@@ -63,7 +70,7 @@ GST_START_TEST (set_properties)
       "offsetYPercent", G_TYPE_DOUBLE, -1.2,
       "widthPercent", G_TYPE_DOUBLE, 1.6,
       "heightPercent", G_TYPE_DOUBLE, 1.6,
-      "url", G_TYPE_STRING, "http://ci.kurento.com/imgs/mario-wings.png", NULL);
+      "url", G_TYPE_STRING, IMG_PATH, NULL);
   g_object_set (G_OBJECT (faceoverlay), "image-to-overlay", imageSt, NULL);
   gst_structure_free (imageSt);
 
@@ -117,8 +124,7 @@ GST_START_TEST (player_with_filter)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -138,7 +144,7 @@ GST_START_TEST (player_with_filter)
       "offsetYPercent", G_TYPE_DOUBLE, -1.2,
       "widthPercent", G_TYPE_DOUBLE, 1.6,
       "heightPercent", G_TYPE_DOUBLE, 1.6,
-      "url", G_TYPE_STRING, "http://ci.kurento.com/imgs/mario-wings.png", NULL);
+      "url", G_TYPE_STRING, IMG_PATH, NULL);
   g_object_set (G_OBJECT (filter), "image-to-overlay", imageSt, NULL);
   gst_structure_free (imageSt);
 

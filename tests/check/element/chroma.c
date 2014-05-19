@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
@@ -21,6 +25,9 @@
 
 #define SET_BACKGROUND_URI "image-background"
 #define SET_CALIBRATION_AREA "calibration-area"
+
+#define IMG_PATH BINARY_LOCATION "/imgs/mario.jpg"
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 GMainLoop *loop;
 
@@ -38,16 +45,13 @@ GST_START_TEST (set_properties)
   g_object_set (G_OBJECT (chroma), SET_CALIBRATION_AREA, calibrationArea, NULL);
   gst_structure_free (calibrationArea);
 
-  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI,
-      "http://ci.kurento.com/imgs/mario.jpg", NULL);
+  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, IMG_PATH, NULL);
   g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, NULL, NULL);
 
-  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI,
-      "http://ci.kurento.com/imgs/mario.jpg", NULL);
+  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, IMG_PATH, NULL);
   g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, NULL, NULL);
 
-  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI,
-      "http://ci.kurento.com/imgs/mario.jpg", NULL);
+  g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, IMG_PATH, NULL);
   g_object_set (G_OBJECT (chroma), SET_BACKGROUND_URI, NULL, NULL);
 
   g_object_unref (chroma);
@@ -100,8 +104,7 @@ GST_START_TEST (player_with_filter)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   calibrationArea = gst_structure_new ("calibration_area",
       "x", G_TYPE_INT, 20,
@@ -111,8 +114,7 @@ GST_START_TEST (player_with_filter)
   g_object_set (G_OBJECT (filter), SET_CALIBRATION_AREA, calibrationArea, NULL);
   gst_structure_free (calibrationArea);
 
-  g_object_set (G_OBJECT (filter), SET_BACKGROUND_URI,
-      "http://ci.kurento.com/imgs/mario.jpg", NULL);
+  g_object_set (G_OBJECT (filter), SET_BACKGROUND_URI, IMG_PATH, NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 

@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
@@ -21,6 +25,7 @@
 
 #define COSTUME_PATH "costume-images-path"
 #define FILTER_VERSION "filter-version"
+#define VIDEO_PATH BINARY_LOCATION "/video/pointerDetector.mp4"
 
 GMainLoop *loop;
 
@@ -84,8 +89,7 @@ GST_START_TEST (player_with_filter_v1)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/pointerDetector.mp4", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -127,8 +131,7 @@ GST_START_TEST (player_with_filter_v2)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/pointerDetector.mp4", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   g_object_set (G_OBJECT (filter), FILTER_VERSION, FALSE, NULL);
 

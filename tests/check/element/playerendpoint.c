@@ -12,11 +12,19 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include "kmsuriendpointstate.h"
 
 #include <kmstestutils.h>
+
+#define VIDEO_PATH BINARY_LOCATION "/video/fiwarecut.webm"
+#define VIDEO_PATH2 BINARY_LOCATION "/video/sintel.webm"
+#define VIDEO_PATH3 BINARY_LOCATION "/video/small.webm"
 
 static GMainLoop *loop = NULL;
 static GstElement *player = NULL;
@@ -32,9 +40,9 @@ struct state_controller
 };
 
 static const struct state_controller trasnsitions[] = {
-  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_START, 4},
   {KMS_URI_ENDPOINT_STATE_PAUSE, 1},
-  {KMS_URI_ENDPOINT_STATE_START, 2},
+  {KMS_URI_ENDPOINT_STATE_START, 4},
   {KMS_URI_ENDPOINT_STATE_STOP, 1}
 };
 
@@ -150,8 +158,7 @@ GST_START_TEST (check_states)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/fiwarecut.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
   g_object_set (G_OBJECT (fakesink), "signal-handoffs", TRUE, NULL);
   g_signal_connect (fakesink, "handoff", G_CALLBACK (handoff), loop);
 
@@ -259,8 +266,7 @@ GST_START_TEST (check_live_stream)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/sintel.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH2, NULL);
 
   g_object_set (G_OBJECT (fakesink_audio), "signal-handoffs", TRUE, NULL);
   g_signal_connect (fakesink_audio, "handoff", G_CALLBACK (handoff_audio),
@@ -335,8 +341,7 @@ GST_START_TEST (check_eos)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH3, NULL);
 
   g_object_set (G_OBJECT (player), "state", KMS_URI_ENDPOINT_STATE_START, NULL);
 
@@ -381,8 +386,7 @@ GST_START_TEST (check_set_encoded_media)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH3, NULL);
 
   g_object_set (G_OBJECT (player), "use-encoded-media", TRUE, NULL);
 

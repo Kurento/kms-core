@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
@@ -20,11 +24,11 @@
 
 #define WAIT_TIMEOUT 3
 //#define LOCATION "http://ci.kurento.com/downloads/sintel_trailer-480p.webm"
-#define LOCATION "http://ci.kurento.com/downloads/small.webm"
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 static GMainLoop *loop = NULL;
 static KmsHttpEndpointMethod method;
-GstElement *src_pipeline, *souphttpsrc, *appsink;
+GstElement *src_pipeline, *souphttpsrc, *appsink, *uridecodebin;
 GstElement *test_pipeline, *httpep, *fakesink;
 
 static void
@@ -143,10 +147,17 @@ http_eos_cb (GstElement * appsink, gpointer user_data)
   g_main_loop_quit (loop);
 }
 
+static void
+link_pad (GstElement * uridecodebin, GstPad * pad, GstElement * appsink)
+{
+  gst_element_link_pads (uridecodebin, GST_OBJECT_NAME (pad), appsink, "sink");
+}
+
 GST_START_TEST (check_push_buffer)
 {
   guint bus_watch_id1, bus_watch_id2;
   GstBus *srcbus, *testbus;
+  GstCaps *caps;
 
   GST_INFO ("Running test check_push_buffer");
 
@@ -154,7 +165,7 @@ GST_START_TEST (check_push_buffer)
 
   /* Create source pipeline */
   src_pipeline = gst_pipeline_new ("src-pipeline");
-  souphttpsrc = gst_element_factory_make ("souphttpsrc", NULL);
+  uridecodebin = gst_element_factory_make ("uridecodebin", NULL);
   appsink = gst_element_factory_make ("appsink", NULL);
 
   srcbus = gst_pipeline_get_bus (GST_PIPELINE (src_pipeline));
@@ -163,12 +174,14 @@ GST_START_TEST (check_push_buffer)
   g_signal_connect (srcbus, "message", G_CALLBACK (bus_msg_cb), src_pipeline);
   g_object_unref (srcbus);
 
-  gst_bin_add_many (GST_BIN (src_pipeline), souphttpsrc, appsink, NULL);
-  gst_element_link (souphttpsrc, appsink);
+  gst_bin_add_many (GST_BIN (src_pipeline), uridecodebin, appsink, NULL);
 
-  /* configure objects */
-  g_object_set (G_OBJECT (souphttpsrc), "location", LOCATION,
-      "is-live", TRUE, "do-timestamp", TRUE, NULL);
+  caps = gst_caps_new_any ();
+  g_object_set (G_OBJECT (uridecodebin), "uri", VIDEO_PATH, "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  g_signal_connect (G_OBJECT (uridecodebin), "pad-added", G_CALLBACK (link_pad),
+      appsink);
 
   g_object_set (appsink, "emit-signals", TRUE, NULL);
   g_signal_connect (appsink, "new-sample", G_CALLBACK (post_recv_sample), NULL);
@@ -336,6 +349,7 @@ GST_START_TEST (check_emit_encoded_media)
 {
   guint bus_watch_id1, bus_watch_id2;
   GstBus *srcbus, *testbus;
+  GstCaps *caps;
 
   GST_INFO ("Running test check_push_buffer");
 
@@ -343,7 +357,7 @@ GST_START_TEST (check_emit_encoded_media)
 
   /* Create source pipeline */
   src_pipeline = gst_pipeline_new ("src-pipeline");
-  souphttpsrc = gst_element_factory_make ("souphttpsrc", NULL);
+  uridecodebin = gst_element_factory_make ("uridecodebin", NULL);
   appsink = gst_element_factory_make ("appsink", NULL);
 
   srcbus = gst_pipeline_get_bus (GST_PIPELINE (src_pipeline));
@@ -352,12 +366,14 @@ GST_START_TEST (check_emit_encoded_media)
   g_signal_connect (srcbus, "message", G_CALLBACK (bus_msg_cb), src_pipeline);
   g_object_unref (srcbus);
 
-  gst_bin_add_many (GST_BIN (src_pipeline), souphttpsrc, appsink, NULL);
-  gst_element_link (souphttpsrc, appsink);
+  gst_bin_add_many (GST_BIN (src_pipeline), uridecodebin, appsink, NULL);
 
-  /* configure objects */
-  g_object_set (G_OBJECT (souphttpsrc), "location", LOCATION,
-      "is-live", TRUE, "do-timestamp", TRUE, NULL);
+  caps = gst_caps_new_any ();
+  g_object_set (G_OBJECT (uridecodebin), "uri", VIDEO_PATH, "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  g_signal_connect (G_OBJECT (uridecodebin), "pad-added", G_CALLBACK (link_pad),
+      appsink);
 
   g_object_set (appsink, "emit-signals", TRUE, NULL);
   g_signal_connect (appsink, "new-sample", G_CALLBACK (post_recv_sample), NULL);

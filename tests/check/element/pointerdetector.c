@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include <glib.h>
@@ -19,8 +23,8 @@
 
 #include <kmstestutils.h>
 
-#define TEST_URI "http://ci.kurento.com/imgs/mario-wings.png"
-#define TEST_VIDEO "http://ci.kurento.com/video/small.webm"
+#define IMG_PATH BINARY_LOCATION "/imgs/mario-wings.png"
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 GMainLoop *loop;
 
@@ -30,7 +34,8 @@ configure_structure (GstStructure * buttonsLayout)
   GstStructure *buttonsLayoutAux;
   int counter;
 
-  for (counter = 0; counter < 4; counter++) {
+  //for (counter = 0; counter < 4; counter++) {
+  for (counter = 0; counter < 2; counter++) {
     gchar *id;
 
     id = g_strdup_printf ("id%d", counter);
@@ -40,9 +45,9 @@ configure_structure (GstStructure * buttonsLayout)
         "width", G_TYPE_INT, 25 + counter,
         "height", G_TYPE_INT, 12 + counter,
         "id", G_TYPE_STRING, id,
-        "inactive_uri", G_TYPE_STRING, TEST_URI,
-        "transparency", G_TYPE_DOUBLE, (double) 0.3,
-        "active_uri", G_TYPE_STRING, TEST_URI, NULL);
+        "inactive_uri", G_TYPE_STRING, IMG_PATH,
+        "transparency", G_TYPE_DOUBLE, (double) 0.3, NULL);
+    //"active_uri", G_TYPE_STRING, IMG_PATH, NULL);
 
     gst_structure_set (buttonsLayout,
         id, GST_TYPE_STRUCTURE, buttonsLayoutAux, NULL);
@@ -95,12 +100,6 @@ GST_START_TEST (set_properties)
   g_object_set (G_OBJECT (pointerdetector), "windows-layout", buttonsLayout2,
       NULL);
   gst_structure_free (buttonsLayout2);
-
-  buttonsLayout3 = gst_structure_new_empty ("windowsLayout1");
-  configure_structure (buttonsLayout3);
-  g_object_set (G_OBJECT (pointerdetector), "windows-layout", buttonsLayout3,
-      NULL);
-  gst_structure_free (buttonsLayout3);
 
   message = FALSE;
   g_object_set (G_OBJECT (pointerdetector), "message", message, NULL);
@@ -166,7 +165,7 @@ GST_START_TEST (player_with_pointer)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri", TEST_VIDEO, NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
 
   buttonsLayout = gst_structure_new_empty ("windowsLayout");
   configure_structure (buttonsLayout);

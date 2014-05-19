@@ -12,6 +12,10 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include "kmsuriendpointstate.h"
@@ -22,6 +26,8 @@
 #define KMS_KEY_HANDLER_ID "kms-key-handler-id"
 #define KMS_KEY_SINK_ID "kms-key-sink-id"
 #define KMS_KEY_SINK_PAD_NAME_ID "kms-key-sink-pad-name-id"
+
+#define VIDEO_PATH BINARY_LOCATION "/video/small.webm"
 
 static GstElement *pipeline;
 
@@ -123,8 +129,7 @@ GST_START_TEST (check_agnostic_signal)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
   g_object_unref (bus);
 
-  g_object_set (G_OBJECT (player), "uri",
-      "http://ci.kurento.com/downloads/small.webm", NULL);
+  g_object_set (G_OBJECT (player), "uri", VIDEO_PATH, NULL);
   g_object_set (G_OBJECT (recorder), "uri",
       "file:///tmp/player_recorder_integration.webm", NULL);
 

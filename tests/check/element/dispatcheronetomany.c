@@ -12,9 +12,15 @@
  * Lesser General Public License for more details.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/check/gstcheck.h>
 #include <gst/gst.h>
 #include "kmsdispatcheronetomany.h"
+
+#define VIDEO_PATH BINARY_LOCATION "/video/sintel.webm"
 
 GST_START_TEST (create)
 {
@@ -67,10 +73,8 @@ GST_START_TEST (manage_ports)
       mixerport2, mixer, NULL);
   gst_element_set_state (pipe, GST_STATE_NULL);
 
-  g_object_set (player1, "uri", "https://ci.kurento.com/video/sintel.webm",
-      NULL);
-  g_object_set (player2, "uri", "https://ci.kurento.com/video/sintel.webm",
-      NULL);
+  g_object_set (player1, "uri", VIDEO_PATH, NULL);
+  g_object_set (player2, "uri", VIDEO_PATH, NULL);
 
   g_signal_emit_by_name (mixer, "handle-port", mixerport1, &handlerId1);
   g_signal_emit_by_name (mixer, "handle-port", mixerport2, &handlerId2);
