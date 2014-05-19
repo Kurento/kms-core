@@ -1032,6 +1032,14 @@ GST_START_TEST (test_pcmu_vp8_sendrecv)
 }
 
 GST_END_TEST
+GST_START_TEST (test_pcmu_vp8_sendrecv_but_sendonly)
+{
+  test_audio_video_sendonly_recvonly ("mulawenc", pcmu_expected_caps, "vp8enc",
+      vp8_expected_caps, pattern_sdp_pcmu_vp8_sendrecv_str,
+      pattern_sdp_pcmu_vp8_sendrecv_str);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -1052,6 +1060,7 @@ webrtcendpoint_test_suite (void)
 
   tcase_add_test (tc_chain, test_pcmu_vp8_sendrecv);
   tcase_add_test (tc_chain, test_pcmu_vp8_sendonly_recvonly);
+  tcase_add_test (tc_chain, test_pcmu_vp8_sendrecv_but_sendonly);
 
   return s;
 }
