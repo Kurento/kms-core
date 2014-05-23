@@ -74,9 +74,8 @@ include(GNUInstallDirs)
 set (CMAKE_INSTALL_MODULESDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-#TODO: Enable -Wall once code is fixec
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall")
 
 set (ENABLE_AUTOMUXER_TESTS FALSE CACHE BOOL "Enable automuxer tests")
 set (ENABLE_DEBUGGING_TESTS FALSE CACHE BOOL "Enable debugging tests")
