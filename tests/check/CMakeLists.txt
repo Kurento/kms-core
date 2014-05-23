@@ -19,6 +19,8 @@ target_link_libraries(kmstestutils
 
 include (TestHelper)
 
+set (SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
+
 set (TEST_PROPERTIES
   GST_PLUGIN_PATH=${CMAKE_BINARY_DIR}
   CK_DEFAULT_TIMEOUT=25
