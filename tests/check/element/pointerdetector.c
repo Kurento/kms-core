@@ -62,7 +62,7 @@ GST_START_TEST (set_properties)
   GstElement *pointerdetector;
   int nregions, scale;
   gboolean debug, message, show;
-  GstStructure *buttonsLayout1, *buttonsLayout2, *buttonsLayout3;
+  GstStructure *buttonsLayout1, *buttonsLayout2;
 
   pointerdetector = gst_element_factory_make ("pointerdetector", NULL);
 

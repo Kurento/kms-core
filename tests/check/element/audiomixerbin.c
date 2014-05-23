@@ -27,7 +27,6 @@ static guint id = 0;
 
 static GstElement *pipeline, *audiomixer;
 static GMainLoop *loop;
-static GHashTable *hash;
 
 static gboolean
 quit_main_loop ()
@@ -286,20 +285,6 @@ block_audiotestsrc (GstElement * audiotestsrc)
   gst_pad_add_probe (srcpad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM,
       unlink_audiotestsrc, audiotestsrc, NULL);
   gst_object_unref (srcpad);
-
-  return G_SOURCE_REMOVE;
-}
-
-static gboolean
-new_connection (GstElement * audiomixer)
-{
-  GstElement *audiotestsrc;
-
-  audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  g_object_set (G_OBJECT (audiotestsrc), "wave", 0, "num-buffers", 100, NULL);
-  gst_bin_add (GST_BIN (pipeline), audiotestsrc);
-  gst_element_link (audiotestsrc, audiomixer);
-  gst_element_sync_state_with_parent (audiotestsrc);
 
   return G_SOURCE_REMOVE;
 }
