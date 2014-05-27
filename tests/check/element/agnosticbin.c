@@ -22,6 +22,13 @@
 #define FAKESINK_KEY "fakesink"
 
 #define VALVE_KEY "valve"
+#define COUNT_KEY "count"
+
+/*
+ * By now we only enable one output, otherwise the test will probably fail
+ * once the bug is solved this value should be incremented
+ */
+#define N_ITERS 1
 
 typedef struct _ElementsData
 {
@@ -347,6 +354,42 @@ appsink_handle (GstElement * appsink, gpointer data)
 }
 
 static gboolean
+check_pipeline_termination (gpointer data)
+{
+  GstElement *pipeline = GST_ELEMENT (data);
+  int *count = g_object_get_data (G_OBJECT (pipeline), COUNT_KEY);
+
+  if (count != NULL && g_atomic_int_dec_and_test (count)) {
+    GST_DEBUG ("Terminating main loop");
+    quit_main_loop_idle (loop);
+  }
+
+  return FALSE;
+}
+
+static GstFlowReturn
+appsink_handle_many (GstElement * appsink, gpointer data)
+{
+  int *count = g_object_get_data (G_OBJECT (appsink), COUNT_KEY);
+  GstSample *sample;
+
+  if (count == NULL) {
+    count = g_malloc0 (sizeof (int));
+    g_object_set_data_full (G_OBJECT (appsink), COUNT_KEY, count, g_free);
+  }
+
+  g_signal_emit_by_name (appsink, "pull-sample", &sample);
+  gst_sample_unref (sample);
+
+  if (g_atomic_int_add (count, 1) == 40) {
+    GST_DEBUG_OBJECT (appsink, "Terminatig");
+    g_idle_add (check_pipeline_termination, GST_OBJECT_PARENT (appsink));
+  }
+
+  return GST_FLOW_OK;
+}
+
+static gboolean
 connect_appsink (gpointer pipeline)
 {
   GstElement *appsink = gst_element_factory_make ("appsink", NULL);
@@ -367,6 +410,50 @@ connect_appsink (gpointer pipeline)
   g_object_set (G_OBJECT (valve), "drop", FALSE, NULL);
 
   g_object_unref (valve);
+  return FALSE;
+}
+
+static gboolean
+open_valve (gpointer valve)
+{
+  g_object_set (G_OBJECT (valve), "drop", FALSE, NULL);
+
+  return FALSE;
+}
+
+static gboolean
+connect_output (gpointer pipeline)
+{
+  GstElement *agnosticbin =
+      gst_bin_get_by_name (GST_BIN (pipeline), "agnosticbin");
+  GstElement *appsink = gst_element_factory_make ("appsink", NULL);
+  GstElement *valve = gst_element_factory_make ("valve", NULL);
+  GstCaps *caps = gst_caps_from_string ("audio/x-vorbis");
+
+  gst_bin_add_many (GST_BIN (pipeline), appsink, valve, NULL);
+  gst_element_sync_state_with_parent (valve);
+  gst_element_sync_state_with_parent (appsink);
+  g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "caps", caps, "sync",
+      FALSE, NULL);
+  g_object_set (G_OBJECT (valve), "drop", TRUE, NULL);
+  gst_caps_unref (caps);
+
+  g_signal_connect (G_OBJECT (appsink), "new-sample",
+      G_CALLBACK (appsink_handle_many), NULL);
+
+  if (!gst_element_link (valve, appsink)) {
+    GST_ERROR ("Error linking elements");
+  }
+
+  if (!gst_element_link (agnosticbin, valve)) {
+    GST_ERROR ("Error linking elements");
+  }
+
+  g_timeout_add_full (G_PRIORITY_DEFAULT, 500, open_valve, g_object_ref (valve),
+      g_object_unref);
+
+  g_object_unref (agnosticbin);
+
   return FALSE;
 }
 
@@ -659,6 +746,60 @@ GST_START_TEST (static_link)
 }
 
 GST_END_TEST
+GST_START_TEST (encoded_input_n_encoded_ouput)
+{
+  loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
+  GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  GstElement *encoder = gst_element_factory_make ("alawenc", NULL);
+  GstElement *agnosticbin =
+      gst_element_factory_make ("agnosticbin", "agnosticbin");
+  gboolean ret;
+  int *count, i;
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, encoder, agnosticbin,
+      NULL);
+  mark_point ();
+  ret = gst_element_link_many (audiotestsrc, encoder, agnosticbin, NULL);
+  fail_unless (ret);
+  mark_point ();
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+
+  count = g_malloc0 (sizeof (int));
+  *count = N_ITERS;
+  g_object_set_data_full (G_OBJECT (pipeline), COUNT_KEY, count, g_free);
+  GST_INFO ("Connecting %d outputs", N_ITERS);
+
+  g_timeout_add_seconds (6, timeout_check, pipeline);
+  for (i = 0; i < N_ITERS; i++) {
+    g_timeout_add (700, connect_output, pipeline);
+  }
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 GST_START_TEST (encoded_input_to_valve)
 {
   loop = g_main_loop_new (NULL, TRUE);
@@ -845,6 +986,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, delay_stream);
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
+  tcase_add_test (tc_chain, encoded_input_n_encoded_ouput);
 
   return s;
 }
