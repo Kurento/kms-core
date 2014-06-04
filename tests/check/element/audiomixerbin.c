@@ -98,6 +98,7 @@ create_sink_element ()
   return sink;
 }
 
+#ifdef ENABLE_DEBUGGING_TESTS
 GST_START_TEST (check_audio_connection)
 {
   GstElement *audiotestsrc1, *audiotestsrc2, *wavenc, *sink;
@@ -156,7 +157,9 @@ GST_START_TEST (check_audio_connection)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST static gboolean
+GST_END_TEST;
+
+static gboolean
 connect_audio_source (gpointer data)
 {
   GstElement *audiotestsrc2;
@@ -228,7 +231,11 @@ GST_START_TEST (check_delayed_audio_connection)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST static gboolean
+GST_END_TEST;
+
+#endif
+
+static gboolean
 remove_audiotestsrc (GstElement * audiotestsrc)
 {
   GstElement *pipeline = GST_ELEMENT (gst_element_get_parent (audiotestsrc));
@@ -367,8 +374,10 @@ audiomixerbin_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+#ifdef ENABLE_DEBUGGING_TESTS
   tcase_add_test (tc_chain, check_audio_connection);
   tcase_add_test (tc_chain, check_delayed_audio_connection);
+#endif
   tcase_add_test (tc_chain, check_audio_disconnection);
 
   return s;

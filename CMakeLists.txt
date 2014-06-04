@@ -66,6 +66,7 @@ set (PACKAGE ${PROJECT_NAME})
 set (GETTEXT_PACKAGE "gst-kurento-plugins")
 set (DATAROOTDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})
 set (MANUAL_CHECK OFF CACHE BOOL "Tests will generate files")
+set (ENABLE_DEBUGGING_TESTS OFF CACHE BOOL "Enable test that are not yet stable")
 set (BINARY_LOCATION "http://files.kurento.org/" CACHE STRING "Local binary directory expressed as an URI ( http:// or file:/// )")
 message ("Binary location: " ${BINARY_LOCATION})
 
@@ -84,7 +85,8 @@ set (ENABLE_MEMORY_LEAKS_TESTS FALSE CACHE BOOL "Enable memory leaks tests")
 set (DISABLE_TESTS FALSE CACHE BOOL "Disable make check")
 
 if (${ENABLE_DEBUGGING_TESTS})
-  add_definitions(-DDEBUGGING_TESTS)
+  message (STATUS "Enabling debugging tests")
+  add_definitions(-DDEBUGGING_TESTS -DENABLE_DEBUGGING_TESTS)
 endif()
 
 enable_testing()

@@ -369,6 +369,7 @@ GST_START_TEST (check_eos)
 
 GST_END_TEST
 /* set_encoded_media test */
+#ifdef ENABLE_DEBUGGING_TESTS
 GST_START_TEST (check_set_encoded_media)
 {
   GstElement *player, *pipeline;
@@ -414,7 +415,10 @@ GST_START_TEST (check_set_encoded_media)
 
 }
 
-GST_END_TEST
+GST_END_TEST;
+
+#endif
+
 /* Define test suite */
 static Suite *
 playerendpoint_suite (void)
@@ -426,7 +430,9 @@ playerendpoint_suite (void)
   tcase_add_test (tc_chain, check_states);
   tcase_add_test (tc_chain, check_live_stream);
   tcase_add_test (tc_chain, check_eos);
+#ifdef ENABLE_DEBUGGING_TESTS
   tcase_add_test (tc_chain, check_set_encoded_media);
+#endif
   return s;
 }
 

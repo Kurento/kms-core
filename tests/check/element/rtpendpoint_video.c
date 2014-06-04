@@ -342,6 +342,7 @@ test_video_sendrecv (const gchar * video_enc_name,
 
 static GstStaticCaps vp8_expected_caps = GST_STATIC_CAPS ("video/x-vp8");
 
+#ifdef ENABLE_DEBUGGING_TESTS
 static const gchar *pattern_sdp_vp8_sendonly_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
@@ -355,6 +356,7 @@ static const gchar *pattern_sdp_vp8_recvonly_str = "v=0\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=recvonly\r\n";
+#endif
 
 static const gchar *pattern_sdp_vp8_sendrecv_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
@@ -363,6 +365,7 @@ static const gchar *pattern_sdp_vp8_sendrecv_str = "v=0\r\n"
     "t=0 0\r\n"
     "m=video 0 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendrecv\r\n";
 
+#ifdef ENABLE_DEBUGGING_TESTS
 static void
 test_vp8_sendonly (gboolean play_after_negotiation)
 {
@@ -382,7 +385,8 @@ GST_START_TEST (test_vp8_sendonly_play_after_negotiation)
   test_vp8_sendonly (TRUE);
 }
 
-GST_END_TEST
+GST_END_TEST;
+#endif
 GST_START_TEST (test_vp8_sendrecv)
 {
   test_video_sendrecv ("vp8enc", vp8_expected_caps,
@@ -561,8 +565,10 @@ rtpendpoint_video_test_suite (void)
 
   suite_add_tcase (s, tc_chain);
 
+#ifdef ENABLE_DEBUGGING_TESTS
   tcase_add_test (tc_chain, test_vp8_sendonly_play_before_negotiation);
   tcase_add_test (tc_chain, test_vp8_sendonly_play_after_negotiation);
+#endif
   tcase_add_test (tc_chain, test_vp8_sendrecv);
 
   tcase_add_test (tc_chain, test_h264_sendonly_play_before_negotiation);
