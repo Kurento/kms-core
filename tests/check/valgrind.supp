@@ -42,6 +42,13 @@
    ...
 }
 {
+   Static pad Template
+   Memcheck:Leak
+   ...
+   fun:gst_static_pad_template_get
+   ...
+}
+{
    Gstreamer load plugin
    Memcheck:Leak
    ...
