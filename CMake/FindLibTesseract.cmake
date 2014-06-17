@@ -13,8 +13,7 @@ find_library(TESSERACT_LIBRARIES
     NAMES tesseract
 )
 
-if ((NOT ${TESSERACT_INCLUDE_DIRS} MATCHES ".*NOTFOUND") AND (NOT ${TESSERACT_LIBRARIES} MATCHES ".*NOTFOUND"))
-  set (TESSERACT_FOUND "1")
-else ()
-  message (SEND_ERROR "tesseract not found")
-endif ()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LIBTESSERACT REQUIRED_VARS TESSERACT_INCLUDE_DIRS TESSERACT_LIBRARIES)
+
+mark_as_advanced(TESSERACT_INCLUDE_DIRS TESSERACT_LIBRARIES)

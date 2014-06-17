@@ -13,8 +13,7 @@ find_library(VPX_LIBRARIES
     NAMES vpx
 )
 
-if ((NOT ${VPX_INCLUDE_DIRS} MATCHES ".*NOTFOUND") AND (NOT ${VPX_LIBRARIES} MATCHES ".*NOTFOUND"))
-  set (VPX_FOUND "1")
-else ()
-  message (SEND_ERROR "libvpx not found")
-endif ()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LIBVPX REQUIRED_VARS VPX_INCLUDE_DIRS VPX_LIBRARIES)
+
+mark_as_advanced(VPX_INCLUDE_DIRS VPX_LIBRARIES)

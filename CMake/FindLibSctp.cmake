@@ -13,8 +13,7 @@ find_library(SCTP_LIBRARIES
     NAMES sctp
 )
 
-if ((NOT ${SCTP_INCLUDE_DIRS} MATCHES ".*NOTFOUND") AND (NOT ${SCTP_LIBRARIES} MATCHES ".*NOTFOUND"))
-  set (SCTP_FOUND "1")
-else ()
-  message (SEND_ERROR "libsctp not found")
-endif ()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LIBSCTP REQUIRED_VARS SCTP_INCLUDE_DIRS SCTP_LIBRARIES)
+
+mark_as_advanced(SCTP_INCLUDE_DIRS SCTP_LIBRARIES)

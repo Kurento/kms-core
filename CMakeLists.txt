@@ -31,9 +31,9 @@ pkg_check_modules(OPENCV REQUIRED opencv>=${OPENCV_REQUIRED})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
-include(FindLibSctp)
-include(FindLibVpx)
-include(FindLibTesseract)
+find_package(LibSctp REQUIRED)
+find_package(LibVpx REQUIRED)
+find_package(LibTesseract REQUIRED)
 
 find_program(VALGRIND valgrind)
 
