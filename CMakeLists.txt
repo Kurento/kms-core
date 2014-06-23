@@ -14,7 +14,7 @@ install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
 find_package(PkgConfig)
 
-set (GST_REQUIRED 1.2.0)
+set (GST_REQUIRED 1.3.3)
 set (GLIB_REQUIRED 2.38)
 set (GNUTLS_REQUIRED 3.2.0)
 set (SOUP_REQUIRED 2.40)
