@@ -12,6 +12,16 @@ include (KurentoGitHelpers)
 get_git_version (PROJECT_VERSION 1.2.15-dev)
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
+string(REPLACE "." ";" VERSION_LIST ${PROJECT_VERSION})
+list(GET VERSION_LIST 0 PROJECT_VERSION_MAJOR)
+list (LENGTH VERSION_LIST _len)
+if (${_len} GREATER 1)
+  list(GET VERSION_LIST 1 PROJECT_VERSION_MINOR)
+endif ()
+if (${_len} GREATER 2)
+  list(GET VERSION_LIST 2 PROJECT_VERSION_PATCH)
+endif ()
+
 find_package(PkgConfig)
 
 set (GST_REQUIRED 1.3.3)

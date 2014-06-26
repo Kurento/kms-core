@@ -74,7 +74,7 @@ add_dependencies(test_uriendpoint kmsplugin)
 target_include_directories(test_uriendpoint PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_uriendpoint
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
@@ -84,7 +84,7 @@ add_dependencies(test_recorderendpoint kmsplugin)
 target_include_directories(test_recorderendpoint PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_recorderendpoint
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
@@ -94,7 +94,7 @@ add_dependencies(test_playerendpoint kmstestutils kmsplugin)
 target_include_directories(test_playerendpoint PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_playerendpoint
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -105,7 +105,7 @@ add_dependencies(test_httpendpoint kmsplugin)
 target_include_directories(test_httpendpoint PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_httpendpoint
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
@@ -133,7 +133,8 @@ add_dependencies(test_dispatcheronetomany kmsplugin)
 target_include_directories(test_dispatcheronetomany PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src"
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_dispatcheronetomany
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
@@ -161,7 +162,8 @@ add_dependencies(test_compositemixer kmsplugin)
 target_include_directories(test_compositemixer PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src"
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_compositemixer
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
@@ -180,7 +182,7 @@ add_dependencies(test_crowddetector crowddetector kmsplugin)
 target_include_directories(test_crowddetector PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_crowddetector
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -191,7 +193,7 @@ add_dependencies(test_faceoverlay faceoverlay kmsplugin)
 target_include_directories(test_faceoverlay PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_faceoverlay
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -202,7 +204,7 @@ add_dependencies(test_chroma chroma kmsplugin kmsutils)
 target_include_directories(test_chroma PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_chroma
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -213,7 +215,7 @@ add_dependencies(test_pointerdetector pointerdetector kmsplugin)
 target_include_directories(test_pointerdetector PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_pointerdetector
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -224,7 +226,7 @@ add_dependencies(test_pointerdetector2 pointerdetector2 kmsplugin)
 target_include_directories(test_pointerdetector2 PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_pointerdetector2
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -235,7 +237,7 @@ add_dependencies(test_platedetector platedetector kmsplugin)
 target_include_directories(test_platedetector PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_platedetector
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
@@ -246,7 +248,7 @@ add_dependencies(test_jackvader jackvader kmsplugin)
 target_include_directories(test_jackvader PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
 target_link_libraries(test_jackvader
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES}
