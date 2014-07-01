@@ -333,7 +333,8 @@ play_agnosticbin_raw_to_vorbis (void)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 100, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "num-buffers", 100, "is-live", TRUE,
+      NULL);
 
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, agnosticbin, vorbisdec,
