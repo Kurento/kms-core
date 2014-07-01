@@ -15,12 +15,32 @@
 #include <config.h>
 #include <gst/gst.h>
 
-#include "kmschroma.h"
+#include <kmsagnosticbin.h>
+#include <kmsmixerport.h>
+#include <kmsuriendpoint.h>
+#include <kmsfilterelement.h>
+#include <kmsaudiomixer.h>
+#include <kmsaudiomixerbin.h>
 
 static gboolean
-init (GstPlugin * plugin)
+kurento_init (GstPlugin * kurento)
 {
-  if (!kms_chroma_plugin_init (plugin))
+  if (!kms_agnostic_bin2_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_uri_endpoint_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_filter_element_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_mixer_port_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_audio_mixer_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_audio_mixer_bin_plugin_init (kurento))
     return FALSE;
 
   return TRUE;
@@ -28,6 +48,6 @@ init (GstPlugin * plugin)
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    kmschroma,
-    "Kurento chroma filter",
-    init, VERSION, "LGPL", "Kurento", "http://kurento.com/")
+    kurento,
+    "Kurento core",
+    kurento_init, VERSION, "LGPL", "Kurento", "http://kurento.com/")

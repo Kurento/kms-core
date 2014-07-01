@@ -29,10 +29,6 @@ set (TEST_PROPERTIES
 add_subdirectory(element)
 add_subdirectory(general)
 
-if (${ENABLE_INTEGRATION_TESTS})
-  add_subdirectory(integration)
-endif()
-
 if (${ENABLE_MEMORY_LEAKS_TESTS})
   add_subdirectory(memory_leaks)
 endif()
