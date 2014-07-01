@@ -205,12 +205,15 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 static gboolean
 timeout_check (gpointer pipeline)
 {
-  gchar *timeout_file =
-      g_strdup_printf ("timeout-%s", GST_OBJECT_NAME (pipeline));
+  if (GST_IS_BIN (pipeline)) {
+    gchar *timeout_file =
+        g_strdup_printf ("timeout-%s", GST_OBJECT_NAME (pipeline));
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, timeout_file);
-  g_free (timeout_file);
+    GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+        GST_DEBUG_GRAPH_SHOW_ALL, timeout_file);
+    g_free (timeout_file);
+  }
+
   return FALSE;
 }
 
