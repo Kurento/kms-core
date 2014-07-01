@@ -226,20 +226,17 @@ toggle_thread (gpointer data)
 
   for (i = 0; i < 15; i++) {
     if (g_main_loop_is_running (loop)) {
-      GST_PAD_STREAM_LOCK (sink);
       g_object_set (valve, "drop", i % 2, NULL);
-      GST_PAD_STREAM_UNLOCK (sink);
+      g_usleep (20000);
     } else {
       GST_DEBUG ("Main loop stopped");
       break;
     }
   }
 
-  g_usleep (10000);
+  g_usleep (100000);
 
-  GST_PAD_STREAM_LOCK (sink);
   g_object_set (valve, "drop", FALSE, NULL);
-  GST_PAD_STREAM_UNLOCK (sink);
 
   g_object_unref (sink);
 
@@ -255,17 +252,6 @@ toggle_thread (gpointer data)
   }
 
   return NULL;
-}
-
-static gboolean
-start_thread (gpointer data)
-{
-  GThread *thread;
-
-  thread = g_thread_new ("toggle", toggle_thread, data);
-  g_thread_unref (thread);
-
-  return FALSE;
 }
 
 static gboolean
@@ -301,7 +287,7 @@ type_found (GstElement * typefind, guint prob, GstCaps * caps,
   g_object_unref (fakesink);
 }
 
-static gboolean
+static void
 change_input (gpointer pipeline)
 {
   GstBin *pipe = GST_BIN (pipeline);
@@ -331,6 +317,63 @@ change_input (gpointer pipeline)
   g_object_unref (agnosticbin2);
   g_object_unref (sink);
   g_object_unref (peer);
+}
+
+static GstPadProbeReturn
+block_agnostic_sink (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  static gboolean configuring = FALSE;
+
+  /* HACK: Ignore caps event and stream start event that causes negotiation
+   * failures.This is a workaround that should be removed
+   */
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
+    GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+    if (GST_EVENT_TYPE (event) == GST_EVENT_STREAM_START
+        || GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
+      return GST_PAD_PROBE_PASS;
+    }
+  }
+
+  /* HACK: Ignore query accept caps that causes negotiation errors.
+   * This is a workaround that should be removed
+   */
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM) {
+    GstQuery *query = GST_PAD_PROBE_INFO_QUERY (info);
+
+    if (GST_QUERY_TYPE (query) == GST_QUERY_ACCEPT_CAPS) {
+      return GST_PAD_PROBE_PASS;
+    }
+  }
+
+  if (!g_atomic_int_get (&configuring)) {
+    g_atomic_int_set (&configuring, TRUE);
+    change_input (data);
+    g_atomic_int_set (&configuring, FALSE);
+    return GST_PAD_PROBE_REMOVE;
+  }
+
+  return GST_PAD_PROBE_PASS;
+}
+
+static gboolean
+change_input_cb (gpointer pipeline)
+{
+  GstBin *pipe = GST_BIN (pipeline);
+  GstPad *sink;
+  GstElement *agnosticbin2 = gst_bin_get_by_name (pipe, "agnosticbin_2");
+
+  sink = gst_element_get_static_pad (agnosticbin2, "sink");
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BLOCK, block_agnostic_sink,
+      pipeline, NULL);
+  // HACK: Sending a dummy event to ensure the block probe is called
+  gst_pad_send_event (sink,
+      gst_event_new_custom (GST_EVENT_TYPE_DOWNSTREAM,
+          gst_structure_new_from_string ("dummy")));
+
+  g_object_unref (agnosticbin2);
+  g_object_unref (sink);
   return FALSE;
 }
 
@@ -470,6 +513,7 @@ GST_START_TEST (input_reconfiguration)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
+  g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
   g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
       NULL);
 
@@ -482,7 +526,7 @@ GST_START_TEST (input_reconfiguration)
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  g_timeout_add_seconds (1, change_input, pipeline);
+  g_timeout_add_seconds (1, change_input_cb, pipeline);
 
   g_timeout_add_seconds (6, timeout_check, pipeline);
 
@@ -594,11 +638,13 @@ GST_START_TEST (valve_test)
   GstElement *fakesink2 = gst_element_factory_make ("fakesink", "fakesink");
   gboolean ret;
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+  GThread *thread;
 
   g_object_set_data (G_OBJECT (pipeline), VALVE_KEY, valve);
 
   loop = g_main_loop_new (NULL, TRUE);
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -618,7 +664,8 @@ GST_START_TEST (valve_test)
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  g_timeout_add (500, start_thread, pipeline);
+  thread = g_thread_new ("toggle", toggle_thread, pipeline);
+  g_thread_unref (thread);
 
   g_timeout_add_seconds (10, timeout_check, pipeline);
 
@@ -651,6 +698,7 @@ GST_START_TEST (reconnect_test)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -707,6 +755,7 @@ GST_START_TEST (static_link)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
