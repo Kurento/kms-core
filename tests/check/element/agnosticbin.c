@@ -537,9 +537,6 @@ GST_START_TEST (input_reconfiguration)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (pipeline);
@@ -579,9 +576,6 @@ GST_START_TEST (add_later)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (pipeline);
@@ -618,9 +612,6 @@ GST_START_TEST (delay_stream)
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -676,9 +667,6 @@ GST_START_TEST (valve_test)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (pipeline);
@@ -733,9 +721,6 @@ GST_START_TEST (reconnect_test)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
@@ -786,9 +771,6 @@ GST_START_TEST (static_link)
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -841,9 +823,6 @@ GST_START_TEST (encoded_input_n_encoded_ouput)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
@@ -887,9 +866,6 @@ GST_START_TEST (encoded_input_to_valve)
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
@@ -944,9 +920,6 @@ GST_START_TEST (encoded_input_link)
   g_main_loop_run (loop);
   mark_point ();
 
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
@@ -991,9 +964,6 @@ GST_START_TEST (simple_link)
   mark_point ();
   g_main_loop_run (loop);
   mark_point ();
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, __FUNCTION__);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_bus_remove_signal_watch (bus);
