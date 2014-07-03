@@ -23,7 +23,7 @@ add_dependencies(test_uriendpoint kmscore)
 target_include_directories(test_uriendpoint PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
-                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/commons/")
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/")
 
 target_link_libraries(test_uriendpoint
                       ${GSTREAMER_LIBRARIES}
