@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 2.8)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+
+include (CodeGenerator)
+
+set(GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated-cpp)
+set(MODEL ${CMAKE_CURRENT_SOURCE_DIR}/core.kmd.json)
+set(TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/templates/cpp)
+
+generate_sources (${MODEL} ${GEN_FILES_DIR} ${TEMPLATES_DIR} GENERATED_SOURCES GENERATED_HEADERS)
+
+set (KMS_CORE_INTERFACE_SOURCES
+)
+set (KMS_CORE_INTERFACE_HEADERS
+  KurentoException.hpp
+)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
+add_library (kms-core-interface
+  ${KMS_CORE_INTERFACE_SOURCES}
+  ${KMS_CORE_INTERFACE_HEADERS}
+  ${GENERATED_SOURCES}
+  ${GENERATED_HEADERS}
+)
+
+target_link_libraries (kms-core-interface
+  ${JSONRPC_LIBRARIES}
+  ${SIGCPP_LIBRARIES}
+)
+
+set_property (TARGET kms-core-interface
+  PROPERTY INCLUDE_DIRECTORIES
+    ${JSONRPC_INCLUDE_DIRS}
+    ${SIGCPP_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
