@@ -52,9 +52,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall")
 
-set (ENABLE_MEMORY_LEAKS_TESTS FALSE CACHE BOOL "Enable memory leaks tests")
-set (DISABLE_TESTS FALSE CACHE BOOL "Disable make check")
-
 enable_testing()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

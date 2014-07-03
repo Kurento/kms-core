@@ -29,6 +29,8 @@ set (TEST_PROPERTIES
 add_subdirectory(element)
 add_subdirectory(general)
 
+set (ENABLE_MEMORY_LEAKS_TESTS FALSE CACHE BOOL "Enable memory leaks tests")
+
 if (${ENABLE_MEMORY_LEAKS_TESTS})
   add_subdirectory(memory_leaks)
 endif()
