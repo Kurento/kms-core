@@ -17,8 +17,6 @@ target_link_libraries(kmstestutils
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
-include (TestHelpers)
-
 set (SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
 
 set (TEST_PROPERTIES
