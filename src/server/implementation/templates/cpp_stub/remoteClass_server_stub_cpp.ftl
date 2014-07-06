@@ -29,8 +29,8 @@ ${remoteClass.name}Impl::${remoteClass.name}Impl ()
 {
   // FIXME: Implement this
 }
+<#macro methodStub method>
 
-<#list remoteClass.methods as method><#rt>
 ${getCppObjectType(method.return,false)}
 ${remoteClass.name}Impl::${method.name} (<#rt>
     <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>)
@@ -38,7 +38,12 @@ ${remoteClass.name}Impl::${method.name} (<#rt>
   // FIXME: Implement this
   throw KurentoException(NOT_IMPLEMENTED, "Not implemented");
 }
-
+</#macro>
+<#list remoteClass.methods as method><#rt>
+  <#list method.expandIfOpsParams() as expandedMethod ><#rt>
+    <#lt><@methodStub expandedMethod />
+  </#list>
+  <#lt><@methodStub method />
 </#list>
 
 <#list remoteClass.constructors as constructor><#rt>

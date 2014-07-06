@@ -41,12 +41,18 @@ public:
 </#if>
 
   virtual ~${remoteClass.name}Impl () {};
-  <#list remoteClass.methods as method><#rt>
-  <#if method_index = 0 >
-
-  </#if>
+  <#macro methodHeader method>
   ${getCppObjectType(method.return,false)} ${method.name} (<#rt>
       <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>);
+  </#macro>
+  <#list remoteClass.methods as method><#rt>
+    <#if method_index = 0 >
+
+    </#if>
+    <#list method.expandIfOpsParams() as expandedMethod ><#rt>
+      <#lt><@methodHeader expandedMethod />
+    </#list>
+    <#lt><@methodHeader method />
   </#list>
 
   virtual bool connect(const std::string &eventType, std::shared_ptr<EventHandler> handler);

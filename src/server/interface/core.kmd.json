@@ -922,41 +922,19 @@
       "methods": [
         {
           "name": "getMediaSrcs",
-          "doc": "Get the :rom:cls:`sources <MediaSource>` of this element",
-          "params": [],
-          "return": {
-            "doc": "A list of sources. The list will be empty if no sources are found.",
-            "type": "MediaSource[]"
-          }
-        },
-        {
-          "name": "getMediaSrcs",
           "doc": "Get the media sources of the given type and description",
           "params": [
             {
               "name": "mediaType",
               "doc": "One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.VIDEO` or :rom:attr:`MediaType.DATA`",
-              "type": "MediaType"
+              "type": "MediaType",
+              "optional": true
             },
             {
               "name": "description",
               "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
-              "type": "String"
-            }
-          ],
-          "return": {
-            "doc": "A list of sources. The list will be empty if no sources are found.",
-            "type": "MediaSource[]"
-          }
-        },
-        {
-          "name": "getMediaSrcs",
-          "doc": "get media sources of the given type",
-          "params": [
-            {
-              "name": "mediaType",
-              "doc": "One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.VIDEO` or :rom:attr:`MediaType.DATA`",
-              "type": "MediaType"
+              "type": "String",
+              "optional": true
             }
           ],
           "return": {
@@ -966,41 +944,19 @@
         },
         {
           "name": "getMediaSinks",
-          "doc": "Get the :rom:cls:`sinks <MediaSink>` of this element",
-          "params": [],
-          "return": {
-            "doc": "A list of sinks. The list will be empty if no sinks are found.",
-            "type": "MediaSink[]"
-          }
-        },
-        {
-          "name": "getMediaSinks",
           "doc": "A list of sinks of the given :rom:ref:`MediaType`. The list will be empty if no sinks are found.",
           "params": [
             {
               "name": "mediaType",
               "doc": "One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.VIDEO` or :rom:attr:`MediaType.DATA`",
-              "type": "MediaType"
-            }
-          ],
-          "return": {
-            "doc": "A list of sinks. The list will be empty if no sinks are found.",
-            "type": "MediaSink[]"
-          }
-        },
-        {
-          "name": "getMediaSinks",
-          "doc": "A list of sinks of the given :rom:ref:`MediaType`. The list will be empty if no sinks are found.",
-          "params": [
-            {
-              "name": "mediaType",
-              "doc": "One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.VIDEO` or :rom:attr:`MediaType.DATA`",
-              "type": "MediaType"
+              "type": "MediaType",
+              "optional": true
             },
             {
               "name": "description",
               "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
-              "type": "String"
+              "type": "String",
+              "optional": true
             }
           ],
           "return": {
@@ -1020,39 +976,14 @@
             {
               "name": "mediaType",
               "doc": "the :rom:enum:`MediaType` of the pads that will be connected",
-              "type": "MediaType"
+              "type": "MediaType",
+              "optional": true
             },
             {
               "name": "mediaDescription",
               "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
-              "type": "String"
-            }
-          ]
-        },
-        {
-          "name": "connect",
-          "doc": "Connects every :rom:cls:`MediaSource` of this element belonging to the specified :rom:enum:`MediaType` to the corresponding :rom:cls:`MediaSink` of the target :rom:cls:`MediaElement`. This method will throw an exception if any of the following occur:\n\n   ..\n\n   * The number of sources for the specified :rom:enum:`MediaType` in this element is different than the number of sinks on the target element.\n   * There are duplicate mediaDescriptions on this' element sources for the specified :rom:enum:`MediaType`.\n   * There are duplicate mediaDescriptions on target's element sinks for the specified :rom:enum:`MediaType`.\n   * Target sinks' media descriptions are different form this sources' media descriptions for the specified :rom:enum:`MediaType`\n\nThis method is not transactional. In case of exception some of this element sources may be connected with target sinks.",
-          "params": [
-            {
-              "name": "sink",
-              "doc": "the target :rom:cls:`MediaElement`  from which :rom:cls:`MediaSink` will be obtained",
-              "type": "MediaElement"
-            },
-            {
-              "name": "mediaType",
-              "doc": "the :rom:enum:`MediaType` of the pads that will be connected",
-              "type": "MediaType"
-            }
-          ]
-        },
-        {
-          "name": "connect",
-          "doc": "perform :rom:meth:`connect(sink,mediaType)` for every available :rom:cls:`MediaType` in this source",
-          "params": [
-            {
-              "name": "sink",
-              "doc": "the target :rom:cls:`MediaElement`  from which :rom:cls:`MediaSink` will be obtained",
-              "type": "MediaElement"
+              "type": "String",
+              "optional": true
             }
           ]
         }

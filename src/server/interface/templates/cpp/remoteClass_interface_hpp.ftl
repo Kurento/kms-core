@@ -31,15 +31,20 @@ class ${remoteClass.name}<#if remoteClass.extends??><#rt>
    </#if> {
 
 public:
-
   ${remoteClass.name} () {};
   virtual ~${remoteClass.name} () {};
-  <#list remoteClass.methods as method><#rt>
-  <#if method_index = 0 >
-
-  </#if>
+  <#macro methodHeader method>
   virtual ${getCppObjectType(method.return,false)} ${method.name} (<#rt>
-      <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>) {throw "Not implemented";};
+      <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>) = 0;
+  </#macro>
+  <#list remoteClass.methods as method><#rt>
+    <#if method_index = 0 >
+
+    </#if>
+    <#list method.expandIfOpsParams() as expandedMethod ><#rt>
+      <#lt><@methodHeader expandedMethod />
+    </#list>
+    <#lt><@methodHeader method />
   </#list>
 
   virtual std::string getType () const {
