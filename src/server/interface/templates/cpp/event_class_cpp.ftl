@@ -11,19 +11,21 @@ ${event.name}.cpp
 </#if>
 </#list>
 
-namespace kurento {
+namespace kurento
+{
 
 void
-Serialize(kurento::${event.name}& event, JsonSerializer& s)
+Serialize (kurento::${event.name} &event, JsonSerializer &s)
 {
 <#list event.properties as property>
-  s.Serialize("${property.name}", event.${property.name});
+  s.Serialize ("${property.name}", event.${property.name});
 </#list>
 <#if event.extends??>
-  try {
-    kurento::${event.extends.name} &parent = dynamic_cast<kurento::${event.extends.name}&> (event);
 
-    Serialize(parent, s);
+  try {
+    kurento::${event.extends.name} &parent = dynamic_cast<kurento::${event.extends.name} &> (event);
+
+    Serialize (parent, s);
   } catch (std::bad_cast) {
 
   }

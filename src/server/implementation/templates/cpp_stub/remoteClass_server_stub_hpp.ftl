@@ -10,7 +10,8 @@ ${remoteClass.name}Impl.hpp
 #include "${remoteClass.name}.hpp"
 #include <EventHandler.hpp>
 
-namespace kurento {
+namespace kurento
+{
 
 <#list remoteClassDependencies(remoteClass) as dependency>
 <#if model.remoteClasses?seq_contains(dependency)>
@@ -22,7 +23,8 @@ class ${dependency.name};
 
 class ${remoteClass.name}Impl :<#if remoteClass.extends??><#rt>
    <#lt> public ${remoteClass.extends.name}Impl<#rt>,
-   </#if><#lt> public virtual ${remoteClass.name} {
+   </#if><#lt> public virtual ${remoteClass.name}
+{
 
 public:
 
@@ -30,9 +32,9 @@ public:
   ${remoteClass.name}Impl (<#rt>
      <#lt><#list remoteClass.constructors[0].params as param><#rt>
         <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")} ${param.name}<#rt>
+        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
         <#else>
-        <#lt>${getCppObjectType(param.type, true)} ${param.name}<#rt>
+        <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
         </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>);
@@ -43,7 +45,7 @@ public:
   virtual ~${remoteClass.name}Impl () {};
   <#macro methodHeader method>
   ${getCppObjectType(method.return,false)} ${method.name} (<#rt>
-      <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>);
+      <#lt><#list method.params as param>${getCppObjectType(param.type)}${param.name}<#if param_has_next>, </#if></#list>);
   </#macro>
   <#list remoteClass.methods as method><#rt>
     <#if method_index = 0 >
@@ -55,7 +57,7 @@ public:
     <#lt><@methodHeader method />
   </#list>
 
-  virtual bool connect(const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
   <#list remoteClass.events as event>
     <#if event_index = 0 >
 
@@ -77,16 +79,16 @@ public:
 
 </#if>
 <#if (!remoteClass.abstract) && (remoteClass.constructors[0])??>
-    virtual MediaObjectImpl * createObjectPointer (const Json::Value &params) const;
+    virtual MediaObjectImpl *createObjectPointer (const Json::Value &params) const;
 
 </#if>
     <#list remoteClass.constructors as constructor><#rt>
-    MediaObjectImpl * createObject (<#rt>
+    MediaObjectImpl *createObject (<#rt>
      <#lt><#list remoteClass.constructors[0].params as param><#rt>
         <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")} ${param.name}<#rt>
+        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
         <#else>
-        <#lt>${getCppObjectType(param.type, true)} ${param.name}<#rt>
+        <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
         </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>) const;
@@ -94,8 +96,8 @@ public:
   };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
-        const std::string &methodName, const Json::Value &params,
-        Json::Value &response);
+                       const std::string &methodName, const Json::Value &params,
+                       Json::Value &response);
 
 private:
 

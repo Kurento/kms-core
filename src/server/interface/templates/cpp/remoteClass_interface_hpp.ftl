@@ -18,24 +18,26 @@ ${remoteClass.name}.hpp
 #include <sigc++/sigc++.h>
 </#if>
 
-namespace kurento {
+namespace kurento
+{
 
 <#list remoteClassDependencies(remoteClass) as dependency>
 class ${dependency.name};
 </#list>
 
 class ${remoteClass.name}<#if remoteClass.extends??><#rt>
-   <#lt> : public virtual ${remoteClass.extends.name}<#rt>
+   <#lt> : public virtual ${remoteClass.extends.name}
    <#else>
-   <#lt> : public std::enable_shared_from_this<${remoteClass.name}><#rt>
-   </#if> {
+   <#lt> : public std::enable_shared_from_this<${remoteClass.name}>
+</#if>
+{
 
 public:
   ${remoteClass.name} () {};
   virtual ~${remoteClass.name} () {};
   <#macro methodHeader method>
   virtual ${getCppObjectType(method.return,false)} ${method.name} (<#rt>
-      <#lt><#list method.params as param>${getCppObjectType(param.type)} ${param.name}<#if param_has_next>, </#if></#list>) = 0;
+      <#lt><#list method.params as param>${getCppObjectType(param.type)}${param.name}<#if param_has_next>, </#if></#list>) = 0;
   </#macro>
   <#list remoteClass.methods as method><#rt>
     <#if method_index = 0 >

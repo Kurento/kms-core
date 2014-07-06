@@ -11,7 +11,9 @@ ${event.name}.hpp
 #include "${event.extends.name}.hpp"
 </#if>
 
-namespace kurento {
+namespace kurento
+{
+
 class JsonSerializer;
 class ${event.name};
 <#list event.properties as property>
@@ -22,7 +24,7 @@ class ${property.type.name};
 </#if>
 </#list>
 
-void Serialize(kurento::${event.name}& event, JsonSerializer& s);
+void Serialize (kurento::${event.name} &event, JsonSerializer &s);
 
 class ${event.name}<#if event.extends??> : public virtual ${event.extends.name}</#if>
 {
@@ -35,14 +37,14 @@ public:
       <#lt><#if !property.optional><#rt>
         <#lt><#if !first>, </#if><#rt>
         <#lt><#assign first = false><#rt>
-        <#lt>${getCppObjectType(property.type.name)} ${property.name}<#rt>
+        <#lt>${getCppObjectType(property.type.name)}${property.name}<#rt>
       <#lt></#if><#rt>
     <#lt></#list><#rt>
     <#lt><#list event.parentProperties as property><#rt>
       <#lt><#if !property.optional><#rt>
         <#lt><#if !first>, </#if><#rt>
         <#lt><#assign first = false><#rt>
-        <#lt>${getCppObjectType(property.type.name)} ${property.name}<#rt>
+        <#lt>${getCppObjectType(property.type.name)}${property.name}<#rt>
       <#lt></#if><#rt>
     <#lt></#list>)<#rt>
     <#lt><#assign first = true><#rt>
@@ -64,14 +66,14 @@ public:
   ${event.name} (const Json::Value &value);
 
   <#list event.properties as property>
-  virtual void set${property.name?cap_first} (${getCppObjectType(property.type.name, false)} ${property.name}) {
+  virtual void set${property.name?cap_first} (${getCppObjectType(property.type.name, true)}${property.name}) {
     this->${property.name} = ${property.name};
     <#if property.optional>
     _isSet${property.name?cap_first} = true;
     </#if>
   };
 
-  virtual ${getCppObjectType(property.type.name)} get${property.name?cap_first} () {
+  virtual ${getCppObjectType(property.type.name)}get${property.name?cap_first} () {
     return ${property.name};
   };
 
@@ -98,7 +100,7 @@ private:
   </#if>
   </#list>
 
-  friend void Serialize(${event.name}& event, JsonSerializer& s);
+  friend void Serialize (${event.name} &event, JsonSerializer &s);
 };
 
 } /* kurento */

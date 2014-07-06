@@ -9,11 +9,11 @@ Module.cpp
 
 extern "C" {
 
-const kurento::FactoryRegistrar* getFactoryRegistrar ();
+  const kurento::FactoryRegistrar *getFactoryRegistrar ();
 
 }
 
-const kurento::FactoryRegistrar*
+const kurento::FactoryRegistrar *
 getFactoryRegistrar ()
 {
   static bool loaded = false;
@@ -22,7 +22,7 @@ getFactoryRegistrar ()
   if (!loaded) {
 <#list model.remoteClasses as remoteClass>
   <#if !(remoteClass.abstract)>
-    factories.push_back (std::shared_ptr <kurento::Factory> (new kurento::${remoteClass.name}Impl::Factory()));
+    factories.push_back (std::shared_ptr <kurento::Factory> (new kurento::${remoteClass.name}Impl::Factory() ) );
   </#if>
 </#list>
     loaded = true;

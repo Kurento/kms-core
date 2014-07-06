@@ -11,16 +11,18 @@ ${complexType.name}.cpp
 #include "${complexType.name}.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 
-namespace kurento {
-
+namespace kurento
+{
 <#if complexType.typeFormat == "REGISTER">
-${complexType.name}::${complexType.name} (const Json::Value &value) {
+
+${complexType.name}::${complexType.name} (const Json::Value &value)
+{
   Json::Value aux;
 
   <#list complexType.properties as property>
   <#assign json_value_type = "">
   <#assign type_description = "">
-  if (value.isMember ("${property.name}")) {
+  if (value.isMember ("${property.name}") ) {
     <#if model.remoteClasses?seq_contains(property.type.type) >
     std::shared_ptr<MediaObject> obj;
 
@@ -50,15 +52,15 @@ ${complexType.name}::${complexType.name} (const Json::Value &value) {
     </#if>
     <#if json_value_type != "" && type_description != "">
 
-    if (!aux.isConvertibleTo (Json::ValueType::${json_value_type})) {
+    if (!aux.isConvertibleTo (Json::ValueType::${json_value_type}) ) {
       /* param '${property.name}' has invalid type value, raise exception */
       JsonRpc::CallException e (JsonRpc::ErrorCode::SERVER_ERROR_INIT,
                                 "'${property.name}' parameter should be a ${type_description}");
       throw e;
     } else {
-      JsonSerializer s(false);
+      JsonSerializer s (false);
       s.JsonValue = value;
-      s.SerializeNVP(${property.name});
+      s.SerializeNVP (${property.name});
       <#if property.optional>
       _isSet${property.name?cap_first} = true;
       </#if>
@@ -81,16 +83,16 @@ ${complexType.name}::${complexType.name} (const Json::Value &value) {
 </#if>
 
 void
-Serialize(std::shared_ptr<kurento::${complexType.name}>& object, JsonSerializer& s)
+Serialize (std::shared_ptr<kurento::${complexType.name}> &object, JsonSerializer &s)
 {
 <#if complexType.typeFormat == "REGISTER">
   if (!s.IsWriter && !object) {
-    object.reset(new kurento::${complexType.name}());
+    object.reset (new kurento::${complexType.name}() );
   }
 
   if (object) {
   <#list complexType.properties as property>
-    s.Serialize("${property.name}", object->${property.name});
+    s.Serialize ("${property.name}", object->${property.name});
   </#list>
   }
 
@@ -98,7 +100,7 @@ Serialize(std::shared_ptr<kurento::${complexType.name}>& object, JsonSerializer&
   <#list complexType.properties as property>
     <#if property.optional>
 
-    if (s.JsonValue.isMember("${property.name}")) {
+    if (s.JsonValue.isMember ("${property.name}") ) {
       object->_isSet${property.name?cap_first} = true;
     }
     </#if>
@@ -112,7 +114,7 @@ Serialize(std::shared_ptr<kurento::${complexType.name}>& object, JsonSerializer&
 
     s.JsonValue = v;
   } else {
-    object.reset (new kurento::${complexType.name}(s.JsonValue.asString()));
+    object.reset (new kurento::${complexType.name} (s.JsonValue.asString() ) );
   }
 </#if>
 }

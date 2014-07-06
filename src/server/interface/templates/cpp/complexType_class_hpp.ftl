@@ -8,12 +8,13 @@ ${complexType.name}.hpp
 #include <jsonrpc/JsonRpcException.hpp>
 #include <memory>
 
-namespace kurento {
+namespace kurento
+{
+
 class JsonSerializer;
 class ${complexType.name};
 
-void Serialize(std::shared_ptr<kurento::${complexType.name}>& object, JsonSerializer& s);
-
+void Serialize (std::shared_ptr<kurento::${complexType.name}> &object, JsonSerializer &s);
 <#list complexType.getChildren() as dependency>
 <#if childs??>
 
@@ -38,9 +39,9 @@ public:
       <#lt><#if !property.optional><#rt>
         <#lt><#if (first) ??>, </#if><#rt>
         <#lt><#assign first = true><#rt>
-        <#lt>${getCppObjectType(property.type)} ${property.name}<#rt>
+        <#lt>${getCppObjectType(property.type)}${property.name}<#rt>
       <#lt></#if><#rt>
-    <#lt></#list>){
+    <#lt></#list>) {
     <#list complexType.properties as property><#rt>
       <#lt><#if !property.optional><#rt>
       <#assign createEmptyConstructor = true>
@@ -52,7 +53,7 @@ public:
   ${complexType.name} (const Json::Value &value);
 
   <#list complexType.properties as property>
-  void set${property.name?cap_first} (${getCppObjectType(property.type)} ${property.name}) {
+  void set${property.name?cap_first} (${getCppObjectType(property.type, true)}${property.name}) {
     this->${property.name} = ${property.name};
     <#if property.optional>
     _isSet${property.name?cap_first} = true;
@@ -125,7 +126,7 @@ private:
   ${complexType.name}() {};
   </#if>
 
-  friend void Serialize(std::shared_ptr<${complexType.name}>& object, JsonSerializer& s);
+  friend void Serialize (std::shared_ptr<${complexType.name}> &object, JsonSerializer &s);
 };
 
 } /* kurento */
