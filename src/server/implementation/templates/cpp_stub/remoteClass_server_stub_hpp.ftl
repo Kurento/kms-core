@@ -20,6 +20,9 @@ class ${dependency.name}Impl;
 class ${dependency.name};
 </#if>
 </#list>
+class ${remoteClass.name}Impl;
+
+void Serialize (std::shared_ptr<${remoteClass.name}Impl> &object, JsonSerializer &serializer);
 
 class ${remoteClass.name}Impl :<#if remoteClass.extends??><#rt>
    <#lt> public ${remoteClass.extends.name}Impl<#rt>,
@@ -98,6 +101,8 @@ public:
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
                        Json::Value &response);
+
+  virtual void Serialize (JsonSerializer &serializer);
 
 private:
 

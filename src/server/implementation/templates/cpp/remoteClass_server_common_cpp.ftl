@@ -259,9 +259,7 @@ Serialize (std::shared_ptr<kurento::${remoteClass.name}Impl> &object, JsonSerial
 {
   if (serializer.IsWriter) {
     if (object) {
-      Json::Value v (object->getId() );
-
-      serializer.JsonValue = v;
+      object->Serialize (serializer);
     }
   } else {
     try {
@@ -269,20 +267,19 @@ Serialize (std::shared_ptr<kurento::${remoteClass.name}Impl> &object, JsonSerial
       aux = kurento::${remoteClass.name}Impl::Factory::getObject (serializer.JsonValue.asString () );
       object = std::dynamic_pointer_cast<kurento::${remoteClass.name}Impl> (aux);
       return;
-    } catch (kurento::JsonRpc::CallException &ex) {
-      kurento::JsonRpc::CallException e (kurento::JsonRpc::ErrorCode::SERVER_ERROR_INIT,
-                                         "'${remoteClass.name}Impl' object not found: " + ex.getMessage() );
-      throw e;
+    } catch (KurentoException &ex) {
+      throw KurentoException (MARSHALL_ERROR,
+                              "'${remoteClass.name}Impl' object not found: " + ex.getMessage() );
     }
   }
 }
 
 void
-Serialize (kurento::${remoteClass.name}Impl &object, JsonSerializer &serializer)
+${remoteClass.name}Impl::Serialize (JsonSerializer &serializer)
 {
   if (serializer.IsWriter) {
     try {
-      Json::Value v (object.getId() );
+      Json::Value v (getId() );
 
       serializer.JsonValue = v;
     } catch (std::bad_cast &e) {
@@ -291,12 +288,11 @@ Serialize (kurento::${remoteClass.name}Impl &object, JsonSerializer &serializer)
     try {
       std::shared_ptr<kurento::MediaObjectImpl> aux;
       aux = kurento::${remoteClass.name}Impl::Factory::getObject (serializer.JsonValue.asString () );
-      object = *std::dynamic_pointer_cast<kurento::${remoteClass.name}Impl> (aux).get();
+      *this = *std::dynamic_pointer_cast<kurento::${remoteClass.name}Impl> (aux).get();
       return;
-    } catch (kurento::JsonRpc::CallException &ex) {
-      kurento::JsonRpc::CallException e (kurento::JsonRpc::ErrorCode::SERVER_ERROR_INIT,
-                                         "'${remoteClass.name}Impl' object not found: " + ex.getMessage() );
-      throw e;
+    } catch (KurentoException &ex) {
+      throw KurentoException (MARSHALL_ERROR,
+                              "'${remoteClass.name}Impl' object not found: " + ex.getMessage() );
     }
   }
 }
@@ -307,15 +303,6 @@ Serialize (std::shared_ptr<kurento::${remoteClass.name}> &object, JsonSerializer
   std::shared_ptr<kurento::${remoteClass.name}Impl> aux = std::dynamic_pointer_cast<kurento::${remoteClass.name}Impl> (object);
 
   Serialize (aux, serializer);
-}
-
-void
-Serialize (kurento::${remoteClass.name} &object, JsonSerializer &serializer)
-{
-  try {
-    Serialize (dynamic_cast<kurento::${remoteClass.name}Impl &> (object), serializer);
-  } catch (std::bad_cast) {
-  }
 }
 
 } /* kurento */

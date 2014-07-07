@@ -24,6 +24,10 @@ namespace kurento
 <#list remoteClassDependencies(remoteClass) as dependency>
 class ${dependency.name};
 </#list>
+class ${remoteClass.name};
+class JsonSerializer;
+
+void Serialize (std::shared_ptr<${remoteClass.name}> &object, JsonSerializer &serializer);
 
 class ${remoteClass.name}<#if remoteClass.extends??><#rt>
    <#lt> : public virtual ${remoteClass.extends.name}
@@ -52,6 +56,8 @@ public:
   virtual std::string getType () const {
     return "${remoteClass.name}";
   }
+
+  virtual void Serialize (JsonSerializer &serializer) = 0;
 
 <#if !(remoteClass.extends)??>
   std::string getId () {
