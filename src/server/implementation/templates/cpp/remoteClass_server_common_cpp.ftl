@@ -14,61 +14,21 @@ ${remoteClass.name}ImplInternal.cpp
 
 namespace kurento
 {
-<#if (!remoteClass.abstract) && (remoteClass.constructors[0])??>
+<#if (!remoteClass.abstract) && remoteClass.constructor??>
 
 MediaObjectImpl *${remoteClass.name}Impl::Factory::createObjectPointer (const Json::Value &params) const
 {
-  <#list remoteClass.constructors[0].params as param>
-  <#if model.remoteClasses?seq_contains(param.type.type)><#lt>
-  ${getCppObjectType(param.type, false, "", "Impl")} ${param.name}<#rt>
-  <#else><#lt>
-  ${getCppObjectType(param.type, false)} ${param.name}<#rt>
-  </#if>
-    <#lt><#if param.type.name = "int"> = 0<#rt>
-    <#lt><#elseif param.type.name = "boolean"> = false<#rt>
-    <#lt><#elseif param.type.name = "float"> = 0.0<#rt>
-    <#lt></#if>;
-  </#list>
+  kurento::JsonSerializer s (false);
+  ${remoteClass.name}Constructor constructor;
 
-  <#list remoteClass.constructors[0].params as param>
-  if (!params.isMember ("${param.name}") ) {
-    <#if (param.defaultValue)??>
-    /* param '${param.name}' not present, using default */
-    <#if param.type.name = "String" || param.type.name = "int" || param.type.name = "boolean">
-    ${param.name} = ${param.defaultValue};
-    <#elseif model.complexTypes?seq_contains(param.type.type) >
-      <#if param.type.type.typeFormat == "REGISTER">
-    // TODO, deserialize default param value for type '${param.type}'
-      <#elseif param.type.type.typeFormat == "ENUM">
-    ${param.name} = std::shared_ptr<${param.type.name}> (new ${param.type.name} (${param.defaultValue}) );
-      <#else>
-    // TODO, deserialize default param value for type '${param.type}' not expected
-      </#if>
-    <#else>
-    // TODO, deserialize default param value for type '${param.type}'
-    </#if>
-    <#else>
-    <#if (param.optional)>
-    // Warning, optional constructor parameter '${param.name}' but no default value provided
-    <#else>
-    /* param '${param.name}' not present, raise exception */
-    JsonRpc::CallException e (JsonRpc::ErrorCode::SERVER_ERROR_INIT,
-                              "'${param.name}' parameter is requiered");
-    throw e;
-    </#if>
-    </#if>
-  } else {
-    JsonSerializer s (false);
-    s.JsonValue = params;
-    s.SerializeNVP (${param.name});
-  }
+  s.JsonValue = params;
+  constructor.Serialize (s);
 
-  </#list>
   return createObject (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
-        <#lt>${param.name}<#rt>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
+        <#lt>constructor.get${param.name?cap_first}()<#rt>
         <#lt><#if param_has_next>, </#if><#rt>
-     <#lt></#list>);
+     <#lt></#list> );
 }
 </#if>
 

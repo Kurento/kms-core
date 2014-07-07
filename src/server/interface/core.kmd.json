@@ -4,30 +4,28 @@
       "name": "PlayerEndpoint",
       "extends": "UriEndpoint",
       "doc": "Retrieves content from seekable sources in reliable\nmode (does not discard media information) and inject \nthem into :term:`KMS`. It\ncontains one :rom:cls:`MediaSource` for each media type detected.",
-      "constructors": [
-        {
-          "doc": "Create a PlayerEndpoint",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "The :rom:cls:`MediaPipeline` this PlayerEndpoint belongs to.",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "uri",
-              "doc": "URI that will be played",
-              "type": "String"
-            },
-            {
-              "name": "useEncodedMedia",
-              "doc": "use encoded instead of raw media. If the parameter is false then the\nelement uses raw media. Changing this parameter can affect stability\nseverely, as lost key frames lost will not be regenerated. Changing the media type does not\naffect to the result except in the performance (just in the case where\noriginal media and target media are the same) and in the problem with the\nkey frames. We strongly recommended not to use this parameter because\ncorrect behaviour is not guarantied.",
-              "type": "boolean",
-              "optional": true,
-              "defaultValue": false
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a PlayerEndpoint",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "The :rom:cls:`MediaPipeline` this PlayerEndpoint belongs to.",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "uri",
+            "doc": "URI that will be played",
+            "type": "String"
+          },
+          {
+            "name": "useEncodedMedia",
+            "doc": "use encoded instead of raw media. If the parameter is false then the\nelement uses raw media. Changing this parameter can affect stability\nseverely, as lost key frames lost will not be regenerated. Changing the media type does not\naffect to the result except in the performance (just in the case where\noriginal media and target media are the same) and in the problem with the\nkey frames. We strongly recommended not to use this parameter because\ncorrect behaviour is not guarantied.",
+            "type": "boolean",
+            "optional": true,
+            "defaultValue": false
+          }
+        ]
+      },
       "methods": [
         {
           "name": "play",
@@ -61,6 +59,17 @@
           "doc": "unique identifier of the mediaobject.",
           "type": "String",
           "final": true
+        },
+        {
+          "name": "testReadOnly",
+          "doc": "To test readOnly property",
+          "type": "String",
+          "readOnly": true
+        },
+        {
+          "name": "readWrite",
+          "doc": "To test read/write property",
+          "type": "boolean"
         }
       ],
       "events": [
@@ -71,56 +80,52 @@
       "name": "HttpGetEndpoint",
       "extends": "HttpEndpoint",
       "doc": "An ``HttpGetEndpoint`` contains SOURCE pads for AUDIO and VIDEO, delivering media using HTML5 pseudo-streaming mechanism.\n\n   This type of endpoint provide unidirectional communications. Its :rom:cls:`MediaSink` is associated with the HTTP GET method",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`HttpGetEndpoint`.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "terminateOnEOS",
-              "doc": "raise a :rom:evnt:`MediaSessionTerminated` event when the associated player raises a :rom:evnt:`EndOfStream`, and thus terminate the media session",
-              "type": "boolean",
-              "optional": true,
-              "defaultValue": false
-            },
-            {
-              "name": "mediaProfile",
-              "doc": "the :rom:enum:`MediaProfileSpecType` (WEBM, MP4...) for the endpoint",
-              "type": "MediaProfileSpecType",
-              "optional": true,
-              "defaultValue": "WEBM"
-            },
-            {
-              "name": "disconnectionTimeout",
-              "doc": "disconnection timeout in seconds.\n\nThis is the time that an http endpoint will wait for a reconnection, in case an HTTP connection is lost.",
-              "type": "int",
-              "optional": true,
-              "defaultValue": 2
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`HttpGetEndpoint`.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "terminateOnEOS",
+            "doc": "raise a :rom:evnt:`MediaSessionTerminated` event when the associated player raises a :rom:evnt:`EndOfStream`, and thus terminate the media session",
+            "type": "boolean",
+            "optional": true,
+            "defaultValue": false
+          },
+          {
+            "name": "mediaProfile",
+            "doc": "the :rom:enum:`MediaProfileSpecType` (WEBM, MP4...) for the endpoint",
+            "type": "MediaProfileSpecType",
+            "optional": true,
+            "defaultValue": "WEBM"
+          },
+          {
+            "name": "disconnectionTimeout",
+            "doc": "disconnection timeout in seconds.\n\nThis is the time that an http endpoint will wait for a reconnection, in case an HTTP connection is lost.",
+            "type": "int",
+            "optional": true,
+            "defaultValue": 2
+          }
+        ]
+      }
     },
     {
       "name": "WebRtcEndpoint",
       "extends": "SdpEndpoint",
       "doc": "WebRtcEndpoint interface. This type of ``Endpoint`` offers media streaming using WebRTC.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`WebRtcEndpoint`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`WebRtcEndpoint`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      }
     },
     {
       "name": "SessionEndpoint",
@@ -142,18 +147,16 @@
       "name": "ZBarFilter",
       "extends": "Filter",
       "doc": "This filter detects :term:`QR` codes in a video feed. When a code is found, the filter raises a :rom:evnt:`CodeFound` event.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`ZBarFilter`.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`ZBarFilter`.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "events": [
         "CodeFound"
       ]
@@ -174,46 +177,42 @@
       "name": "HubPort",
       "extends": "MediaElement",
       "doc": "This :rom:cls:`MediaElement` specifies a connection with a :rom:cls:`Hub`",
-      "constructors": [
-        {
-          "doc": "Creates a :rom:cls:`HubPort` for the given :rom:cls:`Hub`",
-          "params": [
-            {
-              "name": "hub",
-              "doc": ":rom:cls:`Hub` to which this port belongs",
-              "type": "Hub"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Creates a :rom:cls:`HubPort` for the given :rom:cls:`Hub`",
+        "params": [
+          {
+            "name": "hub",
+            "doc": ":rom:cls:`Hub` to which this port belongs",
+            "type": "Hub"
+          }
+        ]
+      }
     },
     {
       "name": "PointerDetectorAdvFilter",
       "extends": "Filter",
       "doc": "This type of :rom:cls:`Filter` detects UI pointers in a video feed.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`PointerDetectorAdvFilter`.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "calibrationRegion",
-              "doc": "region to calibrate the filter",
-              "type": "WindowParam"
-            },
-            {
-              "name": "windows",
-              "doc": "list of detection windows for the filter.",
-              "type": "PointerDetectorWindowMediaParam[]",
-              "optional": true
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`PointerDetectorAdvFilter`.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "calibrationRegion",
+            "doc": "region to calibrate the filter",
+            "type": "WindowParam"
+          },
+          {
+            "name": "windows",
+            "doc": "list of detection windows for the filter.",
+            "type": "PointerDetectorWindowMediaParam[]",
+            "optional": true
+          }
+        ]
+      },
       "methods": [
         {
           "name": "addWindow",
@@ -284,32 +283,30 @@
       "name": "HttpPostEndpoint",
       "extends": "HttpEndpoint",
       "doc": "An :rom:cls:`HttpPostEndpoint` contains SINK pads for AUDIO and VIDEO, which provide access to an HTTP file upload function\n\n   This type of endpoint provide unidirectional communications. Its :rom:cls:`MediaSources <MediaSource>` are accessed through the :term:`HTTP` POST method.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`HttpPostEndpoint`.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "disconnectionTimeout",
-              "doc": "This is the time that an http endpoint will wait for a reconnection, in case an HTTP connection is lost.",
-              "type": "int",
-              "optional": true,
-              "defaultValue": 2
-            },
-            {
-              "name": "useEncodedMedia",
-              "doc": "configures the endpoint to use encoded media instead of raw media. If the parameter is not set then the element uses raw media. Changing this parameter could affect in a severe way to stability because key frames lost will not be generated. Changing the media type does not affect to the result except in the performance (just in the case where original media and target media are the same) and in the problem with the key frames. We strongly recommended not to use this parameter because correct behaviour is not guarantied.",
-              "type": "boolean",
-              "optional": true,
-              "defaultValue": false
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`HttpPostEndpoint`.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "disconnectionTimeout",
+            "doc": "This is the time that an http endpoint will wait for a reconnection, in case an HTTP connection is lost.",
+            "type": "int",
+            "optional": true,
+            "defaultValue": 2
+          },
+          {
+            "name": "useEncodedMedia",
+            "doc": "configures the endpoint to use encoded media instead of raw media. If the parameter is not set then the element uses raw media. Changing this parameter could affect in a severe way to stability because key frames lost will not be generated. Changing the media type does not affect to the result except in the performance (just in the case where original media and target media are the same) and in the problem with the key frames. We strongly recommended not to use this parameter because correct behaviour is not guarantied.",
+            "type": "boolean",
+            "optional": true,
+            "defaultValue": false
+          }
+        ]
+      },
       "events": [
         "EndOfStream"
       ]
@@ -318,18 +315,16 @@
       "name": "RtpEndpoint",
       "extends": "SdpEndpoint",
       "doc": "Endpoint that provides bidirectional content delivery capabilities with remote networked peers through RTP protocol. An :rom:cls:`RtpEndpoint` contains paired sink and source :rom:cls:`MediaPad` for audio and video.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`RtpEndpoint`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`RtpEndpoint`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      }
     },
     {
       "name": "MediaPad",
@@ -370,24 +365,22 @@
       "name": "PointerDetectorFilter",
       "extends": "Filter",
       "doc": "This type of :rom:cls:`Filter` detects pointers in a video feed.",
-      "constructors": [
-        {
-          "doc": "Builder for the :rom:cls:`PointerDetectorFilter`.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "windows",
-              "doc": "list of detection windows for the filter to detect pointers entering or exiting the window",
-              "type": "PointerDetectorWindowMediaParam[]",
-              "optional": true
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`PointerDetectorFilter`.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "windows",
+            "doc": "list of detection windows for the filter to detect pointers entering or exiting the window",
+            "type": "PointerDetectorWindowMediaParam[]",
+            "optional": true
+          }
+        ]
+      },
       "methods": [
         {
           "name": "addWindow",
@@ -454,29 +447,27 @@
       "name": "ChromaFilter",
       "extends": "Filter",
       "doc": "ChromaFilter interface. This type of :rom:cls:`Filter` makes transparent a colour\nrange in the top layer, revealing another image behind",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`ChromaFilter`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "window",
-              "doc": "Window of replacement for the :rom:cls:`ChromaFilter`",
-              "type": "WindowParam"
-            },
-            {
-              "name": "backgroundImage",
-              "doc": "url of image to be used to replace the detected background",
-              "type": "String",
-              "optional": true
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`ChromaFilter`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "window",
+            "doc": "Window of replacement for the :rom:cls:`ChromaFilter`",
+            "type": "WindowParam"
+          },
+          {
+            "name": "backgroundImage",
+            "doc": "url of image to be used to replace the detected background",
+            "type": "String",
+            "optional": true
+          }
+        ]
+      },
       "methods": [
         {
           "name": "setBackground",
@@ -500,13 +491,11 @@
       "name": "MediaPipeline",
       "extends": "MediaObject",
       "doc": "A pipeline is a container for a collection of :rom:cls:`MediaElements<MediaElement>` and :rom:cls:`MediaMixers<MediaMixer>`. It offers the methods needed to control the creation and connection of elements inside a certain pipeline.",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`MediaPipeline`",
-          "params": [
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Create a :rom:cls:`MediaPipeline`",
+        "params": [
+        ]
+      }
     },
     {
       "name": "MediaSink",
@@ -540,18 +529,16 @@
       "name": "Dispatcher",
       "doc": "A :rom:cls:`Hub` that allows routing between arbitrary port pairs",
       "extends": "Hub",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`Dispatcher` belonging to the given pipeline.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`Dispatcher` belonging to the given pipeline.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "methods": [
         {
           "name": "connect",
@@ -575,18 +562,16 @@
       "name": "DispatcherOneToMany",
       "extends": "Hub",
       "doc": "A :rom:cls:`Hub` that sends a given source to all the connected sinks",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`DispatcherOneToMany` belonging to the given pipeline.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`DispatcherOneToMany` belonging to the given pipeline.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "methods": [
         {
           "name": "setSource",
@@ -610,18 +595,16 @@
       "name": "Mixer",
       "doc": "A :rom:cls:`Hub` that allows routing of video between arbitrary port pairs and mixing of audio among several ports",
       "extends": "Hub",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`Mixer` belonging to the given pipeline.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the Mixer belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`Mixer` belonging to the given pipeline.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the Mixer belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "methods": [
         {
           "name": "connect",
@@ -671,35 +654,31 @@
       "name": "Composite",
       "extends": "Hub",
       "doc": "A :rom:cls:`Hub` that mixes the :rom:attr:`MediaType.AUDIO` stream of its connected sources and constructs a grid with the :rom:attr:`MediaType.VIDEO` streams of its connected sources into its sink",
-      "constructors": [
-        {
-          "doc": "Create for the given pipeline",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Create for the given pipeline",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the dispatcher belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      }
     },
     {
       "name": "JackVaderFilter",
       "extends": "Filter",
       "doc": "Filter that detects faces in a video feed. Those on the right half of the feed are overlaid with a pirate hat, and those on the left half are covered by a Darth Vader helmet. This is an example filter, intended to demonstrate how to integrate computer vision capabilities into the multimedia infrastructure.",
-      "constructors": [
-        {
-          "doc": "Create a new :rom:cls:`Filter`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Create a new :rom:cls:`Filter`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      }
     },
     {
       "name": "HttpEndpoint",
@@ -787,18 +766,16 @@
       "name": "FaceOverlayFilter",
       "extends": "Filter",
       "doc": "FaceOverlayFilter interface. This type of :rom:cls:`Filter` detects faces in a video feed. The face is then overlaid with an image.",
-      "constructors": [
-        {
-          "doc": "FaceOverlayFilter interface. This type of :rom:cls:`Filter` detects faces in a video feed. The face is then overlaid with an image.",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "pipeline to which this :rom:cls:`Filter` belons",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "FaceOverlayFilter interface. This type of :rom:cls:`Filter` detects faces in a video feed. The face is then overlaid with an image.",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "pipeline to which this :rom:cls:`Filter` belons",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "methods": [
         {
           "name": "unsetOverlayedImage",
@@ -842,18 +819,16 @@
       "name": "PlateDetectorFilter",
       "extends": "Filter",
       "doc": "PlateDetectorFilter interface. This type of :rom:cls:`Endpoint` detects\nvehicle plates in a video feed.",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`PlateDetectorFilter` for the given :rom:cls:`MediaPipeline`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the parent :rom:cls:`MediaPipeline` of this :rom:cls:`PlateDetectorFilter`",
-              "type": "MediaPipeline"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`PlateDetectorFilter` for the given :rom:cls:`MediaPipeline`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the parent :rom:cls:`MediaPipeline` of this :rom:cls:`PlateDetectorFilter`",
+            "type": "MediaPipeline"
+          }
+        ]
+      },
       "methods": [
         {
           "name": "setPlateWidthPercentage",
@@ -875,37 +850,35 @@
       "name": "RecorderEndpoint",
       "extends": "UriEndpoint",
       "doc": "Provides function to store contents in reliable mode (doesn't discard data). It contains :rom:cls:`MediaSink` pads for audio and video.",
-      "constructors": [
-        {
-          "doc": "",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "uri",
-              "doc": "URI where the recording will be stored",
-              "type": "String"
-            },
-            {
-              "name": "mediaProfile",
-              "doc": "Choose either a :rom:attr:`MediaProfileSpecType.WEBM` or a :rom:attr:`MediaProfileSpecType.MP4` profile for recording",
-              "type": "MediaProfileSpecType",
-              "optional": true,
-              "defaultValue": "WEBM"
-            },
-            {
-              "name": "stopOnEndOfStream",
-              "doc": "Forces the recorder endpoint to finish processing data when an :term:`EOS` is detected in the stream",
-              "type": "boolean",
-              "optional": true,
-              "defaultValue": false
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "uri",
+            "doc": "URI where the recording will be stored",
+            "type": "String"
+          },
+          {
+            "name": "mediaProfile",
+            "doc": "Choose either a :rom:attr:`MediaProfileSpecType.WEBM` or a :rom:attr:`MediaProfileSpecType.MP4` profile for recording",
+            "type": "MediaProfileSpecType",
+            "optional": true,
+            "defaultValue": "WEBM"
+          },
+          {
+            "name": "stopOnEndOfStream",
+            "doc": "Forces the recorder endpoint to finish processing data when an :term:`EOS` is detected in the stream",
+            "type": "boolean",
+            "optional": true,
+            "defaultValue": false
+          }
+        ]
+      },
       "methods": [
         {
           "name": "record",
@@ -993,45 +966,41 @@
       "name": "GStreamerFilter",
       "extends": "Filter",
       "doc": "This is a generic filter interface, that creates GStreamer filters in the media server.",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`GStreamerFilter`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "command",
-              "doc": "command that would be used to instantiate the filter, as in `gst-launch <http://rpm.pbone.net/index.php3/stat/45/idpl/19531544/numer/1/nazwa/gst-launch-1.0>`__",
-              "type": "String"
-            }
-          ]
-        }
-      ]
+      "constructor": {
+        "doc": "Create a :rom:cls:`GStreamerFilter`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "command",
+            "doc": "command that would be used to instantiate the filter, as in `gst-launch <http://rpm.pbone.net/index.php3/stat/45/idpl/19531544/numer/1/nazwa/gst-launch-1.0>`__",
+            "type": "String"
+          }
+        ]
+      }
     },
     {
       "name": "CrowdDetectorFilter",
       "doc": "Filter that detects people agglomeration in video streams",
       "extends": "Filter",
-      "constructors": [
-        {
-          "doc": "Create a :rom:cls:`CrowdDetectorFilter`",
-          "params": [
-            {
-              "name": "mediaPipeline",
-              "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
-              "type": "MediaPipeline"
-            },
-            {
-              "name": "rois",
-              "doc": "Regions of interest for the filter",
-              "type": "RegionOfInterest[]"
-            }
-          ]
-        }
-      ],
+      "constructor": {
+        "doc": "Create a :rom:cls:`CrowdDetectorFilter`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the filter belongs",
+            "type": "MediaPipeline"
+          },
+          {
+            "name": "rois",
+            "doc": "Regions of interest for the filter",
+            "type": "RegionOfInterest[]"
+          }
+        ]
+      },
       "events": [
         "CrowdDetectorFluidity",
         "CrowdDetectorOccupancy",

@@ -14,14 +14,10 @@ ${remoteClass.name}Impl.cpp
 namespace kurento
 {
 
-<#if remoteClass.constructors[0]??>
+<#if remoteClass.constructor??>
 ${remoteClass.name}Impl::${remoteClass.name}Impl (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
-        <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
-        <#else>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
         <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
-        </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>)
 <#else>
@@ -46,24 +42,20 @@ ${getCppObjectType(method.return,false)} ${remoteClass.name}Impl::${method.name}
   <#lt><@methodStub method />
 </#list>
 
-<#list remoteClass.constructors as constructor><#rt>
+<#if remoteClass.constructor??><#rt>
 MediaObjectImpl *
 ${remoteClass.name}Impl::Factory::createObject (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
-        <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
-        <#else>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
         <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
-        </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>) const
 {
   return new ${remoteClass.name}Impl (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
         <#lt>${param.name}<#rt>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>);
 }
 
-</#list>
+</#if>
 } /* kurento */

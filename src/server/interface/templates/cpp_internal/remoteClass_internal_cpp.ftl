@@ -75,11 +75,11 @@ void ${remoteClass.name}Method${method.name?cap_first}::Serialize (JsonSerialize
 }
 
 </#list>
-<#list remoteClass.constructors as method><#rt>
-void ${remoteClass.name}Constructor${method_index}::Serialize (JsonSerializer &s)
+<#if remoteClass.constructor??><#rt>
+void ${remoteClass.name}Constructor::Serialize (JsonSerializer &s)
 {
   if (s.IsWriter) {
-  <#list method.params as param>
+  <#list remoteClass.constructor.params as param>
     <#if param.optional>
     if (__isSet${param.name?cap_first}) {
       s.SerializeNVP (${param.name});
@@ -91,7 +91,7 @@ void ${remoteClass.name}Constructor${method_index}::Serialize (JsonSerializer &s
     </#if>
   </#list>
   } else {
-  <#list method.params as param>
+  <#list remoteClass.constructor.params as param>
     <#assign jsonData = getJsonCppTypeData(param.type)>
     <#if param.optional>
     if (s.JsonValue.isMember ("${param.name}") ) {
@@ -117,5 +117,5 @@ void ${remoteClass.name}Constructor${method_index}::Serialize (JsonSerializer &s
   }
 }
 
-</#list>
+</#if>
 } /* kurento */

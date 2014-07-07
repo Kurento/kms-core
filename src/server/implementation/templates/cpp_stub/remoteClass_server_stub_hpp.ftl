@@ -31,14 +31,10 @@ class ${remoteClass.name}Impl :<#if remoteClass.extends??><#rt>
 
 public:
 
-<#if remoteClass.constructors[0]?? >
+<#if remoteClass.constructor?? >
   ${remoteClass.name}Impl (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
-        <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
-        <#else>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
         <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
-        </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>);
 <#else>
@@ -77,25 +73,21 @@ public:
       return "${remoteClass.name}";
     };
 
-<#if (remoteClass.constructors[0])??>
+<#if (remoteClass.constructor)??>
   private:
 
 </#if>
-<#if (!remoteClass.abstract) && (remoteClass.constructors[0])??>
+<#if (!remoteClass.abstract) && (remoteClass.constructor)??>
     virtual MediaObjectImpl *createObjectPointer (const Json::Value &params) const;
 
 </#if>
-    <#list remoteClass.constructors as constructor><#rt>
+    <#if remoteClass.constructor??><#rt>
     MediaObjectImpl *createObject (<#rt>
-     <#lt><#list remoteClass.constructors[0].params as param><#rt>
-        <#lt><#if model.remoteClasses?seq_contains(param.type.type)>
-        <#lt>${getCppObjectType(param.type, true, "", "Impl")}${param.name}<#rt>
-        <#else>
+     <#lt><#list remoteClass.constructor.params as param><#rt>
         <#lt>${getCppObjectType(param.type, true)}${param.name}<#rt>
-        </#if>
         <#lt><#if param_has_next>, </#if><#rt>
      <#lt></#list>) const;
-    </#list>
+    </#if>
   };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
