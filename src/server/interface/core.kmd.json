@@ -43,24 +43,24 @@
       "name": "MediaObject",
       "doc": "Base for all objects that can be created in the media server.",
       "abstract": true,
-      "methods": [
+      "properties": [
         {
-          "name": "getMediaPipeline",
-          "doc": "Returns the pipeline to which this MediaObject belong, or the pipeline itself if invoked over a :rom:cls:`MediaPipeline`",
-          "params": [],
-          "return": {
-            "doc": "the MediaPipeline this MediaObject belongs to.\n\nIf called on a :rom:cls:`MediaPipeline` it will return ``this``.",
-            "type": "MediaPipeline"
-          }
+          "name": "mediaPipeline",
+          "doc": ":rom:cls:`MediaPipeline` to which this MediaObject belong, or the pipeline itself if invoked over a :rom:cls:`MediaPipeline`",
+          "type": "MediaPipeline",
+          "final": true
         },
         {
-          "name": "getParent",
-          "doc": "Returns the parent of this media object. The type of the parent depends on the type of the element that this method is called upon:\n\nThe parent of a :rom:cls:`MediaPad` is its :rom:cls:`MediaElement`; the parent of a :rom:cls:`MediaMixer` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`.\n\nA :rom:cls:`MediaPipeline` has no parent, i.e. the method returns null",
-          "params": [],
-          "return": {
-            "doc": "the parent of this MediaObject or null if called on a MediaPipeline",
-            "type": "MediaObject"
-          }
+          "name": "parent",
+          "doc": "parent of this media object. The type of the parent depends on the type of the element. The parent of a :rom:cls:`MediaPad` is its :rom:cls:`MediaElement`; the parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, i.e. the property is null",
+          "type": "MediaObject",
+          "final": true
+        },
+        {
+          "name": "id",
+          "doc": "unique identifier of the mediaobject.",
+          "type": "String",
+          "final": true
         }
       ],
       "events": [

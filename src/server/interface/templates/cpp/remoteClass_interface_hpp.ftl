@@ -58,16 +58,27 @@ public:
   }
 
   virtual void Serialize (JsonSerializer &serializer) = 0;
+<#list remoteClass.properties as property>
 
-<#if !(remoteClass.extends)??>
-  std::string getId () {
-    return id;
+  ${getCppObjectType (property.type, false)} get${property.name?cap_first} () {
+    return ${property.name};
   }
+  <#if !property.final && !property.readOnly>
 
-private:
+  void set${property.name?cap_first} (${getCppObjectType (property.type, true)}${property.name}) {
+    this->${property.name} = ${property.name};
+  }
+  </#if>
+</#list>
+<#if remoteClass.properties[0]??>
 
-  std::string id;
+protected:
+
 </#if>
+<#list remoteClass.properties as property>
+  ${getCppObjectType(property.type, false)} ${property.name};
+</#list>
+
 };
 
 } /* kurento */
