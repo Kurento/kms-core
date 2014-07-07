@@ -11,8 +11,26 @@ namespace kurento
 <#list remoteClass.methods as method><#rt>
 ${getCppObjectType(method.return, false)} ${remoteClass.name}Method${method.name?cap_first}::invoke (std::shared_ptr<${remoteClass.name}> obj)
 {
-  // TODO:
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented");
+  if (!obj) {
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Invalid object while invoking method ${remoteClass.name}::${method.name}");
+  }
+
+  <#list method.params as param>
+  <#if param.optional>
+  <#assign optionalParam = param>
+  if (!__isSet${param.name?cap_first}) {
+    return obj->${method.name} (<#rt>
+    <#lt><#list method.params as param>
+      <#lt><#if optionalParam == param><#break></#if><#if param_index != 0>, </#if>${param.name}<#rt>
+    <#lt></#list>);
+  }
+
+  </#if>
+  </#list>
+  return obj->${method.name} (<#rt>
+    <#lt><#list method.params as param>
+      <#lt><#if param_index != 0>, </#if>${param.name}<#rt>
+    <#lt></#list>);
 }
 
 void ${remoteClass.name}Method${method.name?cap_first}::Serialize (JsonSerializer &s)
