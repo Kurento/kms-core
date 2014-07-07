@@ -36,7 +36,7 @@ ${getCppObjectType(method.return,false)} ${remoteClass.name}Impl::${method.name}
     <#lt><#list method.params as param>${getCppObjectType(param.type)}${param.name}<#if param_has_next>, </#if></#list>)
 {
   // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented");
+  throw KurentoException (NOT_IMPLEMENTED, "${remoteClass.name}Impl::${method.name}: Not implemented");
 }
 </#macro>
 <#list remoteClass.methods as method><#rt>
