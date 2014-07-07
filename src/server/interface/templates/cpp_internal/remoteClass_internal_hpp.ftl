@@ -48,6 +48,40 @@ private:
   </#list>
 };
 </#list>
+<#list remoteClass.constructors as method><#rt>
+
+class ${remoteClass.name}Constructor${method_index}
+{
+public:
+  ${remoteClass.name}Constructor${method_index}() {}
+  ~${remoteClass.name}Constructor${method_index}() {}
+
+  void Serialize (JsonSerializer &serializer);
+  <#list method.params as param>
+
+  ${getCppObjectType (param.type, false)} get${param.name?cap_first} () {
+    return ${param.name};
+  }
+
+  void set${param.name?cap_first} (${getCppObjectType (param.type, true)}${param.name}) {
+    this->${param.name} = ${param.name};
+    <#if param.optional>
+    __isSet${param.name?cap_first} = true;
+    </#if>
+  }
+  </#list>
+
+<#if method.params[0]??>
+private:
+</#if>
+  <#list method.params as param>
+  ${getCppObjectType(param.type, false)} ${param.name};
+  <#if param.optional>
+  bool __isSet${param.name?cap_first} = false;
+  </#if>
+  </#list>
+};
+</#list>
 
 } /* kurento */
 

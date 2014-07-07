@@ -75,4 +75,47 @@ void ${remoteClass.name}Method${method.name?cap_first}::Serialize (JsonSerialize
 }
 
 </#list>
+<#list remoteClass.constructors as method><#rt>
+void ${remoteClass.name}Constructor${method_index}::Serialize (JsonSerializer &s)
+{
+  if (s.IsWriter) {
+  <#list method.params as param>
+    <#if param.optional>
+    if (__isSet${param.name?cap_first}) {
+      s.SerializeNVP (${param.name});
+    }
+
+    <#else>
+    s.SerializeNVP (${param.name});
+
+    </#if>
+  </#list>
+  } else {
+  <#list method.params as param>
+    <#assign jsonData = getJsonCppTypeData(param.type)>
+    <#if param.optional>
+    if (s.JsonValue.isMember ("${param.name}") ) {
+      if (s.JsonValue["${param.name}"].isConvertibleTo (Json::ValueType::${jsonData.getJsonValueType()}) ) {
+        __isSet${param.name?cap_first} = true;
+        s.SerializeNVP (${param.name});
+      } else {
+        throw KurentoException (MARSHALL_ERROR,
+                                "'${param.name}' parameter should be a ${jsonData.getTypeDescription()}");
+      }
+    }
+
+    <#else>
+    if (!s.JsonValue.isMember ("${param.name}") || !s.JsonValue["${param.name}"].isConvertibleTo (Json::ValueType::${jsonData.getJsonValueType()}) ) {
+      throw KurentoException (MARSHALL_ERROR,
+                              "'${param.name}' parameter should be a ${jsonData.getTypeDescription()}");
+    }
+
+    s.SerializeNVP (${param.name});
+
+    </#if>
+  </#list>
+  }
+}
+
+</#list>
 } /* kurento */
