@@ -10,113 +10,91 @@ ${complexType.name}.cpp
 </#list>
 #include "${complexType.name}.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
+#include <KurentoException.hpp>
 
 namespace kurento
 {
-<#if complexType.typeFormat == "REGISTER">
+<#if complexType.typeFormat == "ENUM">
 
-${complexType.name}::${complexType.name} (const Json::Value &value)
+${complexType.name}::type ${complexType.name}::getValueFromString (const std::string &value)
 {
-  Json::Value aux;
 
-  <#list complexType.properties as property>
-  <#assign json_value_type = "">
-  <#assign type_description = "">
-  if (value.isMember ("${property.name}") ) {
-    <#if model.remoteClasses?seq_contains(property.type.type) >
-    std::shared_ptr<MediaObject> obj;
-
-    </#if>
-    aux = value["${property.name}"];
-    <#if property.type.isList()>
-      <#assign json_value_type = "arrayValue">
-      <#assign type_description = "array">
-    <#elseif property.type.name = "String">
-      <#assign json_value_type = "stringValue">
-      <#assign type_description = "string">
-    <#elseif property.type.name = "int">
-      <#assign json_value_type = "intValue">
-      <#assign type_description = "integer">
-    <#elseif property.type.name = "boolean">
-      <#assign json_value_type = "booleanValue">
-      <#assign type_description = "boolean">
-    <#elseif property.type.name = "double" || property.type.name = "float">
-      <#assign json_value_type = "realValue">
-      <#assign type_description = "double">
-    <#elseif model.complexTypes?seq_contains(property.type.type) >
-      <#assign json_value_type = "stringValue">
-      <#assign type_description = "string">
-    <#elseif model.remoteClasses?seq_contains(property.type.type) >
-      <#assign json_value_type = "stringValue">
-      <#assign type_description = "string">
-    </#if>
-    <#if json_value_type != "" && type_description != "">
-
-    if (!aux.isConvertibleTo (Json::ValueType::${json_value_type}) ) {
-      /* param '${property.name}' has invalid type value, raise exception */
-      JsonRpc::CallException e (JsonRpc::ErrorCode::SERVER_ERROR_INIT,
-                                "'${property.name}' parameter should be a ${type_description}");
-      throw e;
-    } else {
-      JsonSerializer s (false);
-      s.JsonValue = value;
-      s.SerializeNVP (${property.name});
-      <#if property.optional>
-      _isSet${property.name?cap_first} = true;
-      </#if>
-    }
-    <#else>
-    // TODO, deserialize param type '${property.type}'
-    </#if>
-  }<#if !property.optional> else {
-    /* Requiered property '${property.name}' not present, raise exception */
-    JsonRpc::CallException e (JsonRpc::ErrorCode::SERVER_ERROR_INIT,
-                              "'${property.name}' property is requiered");
-    throw e;
+  <#list complexType.values as value>
+  if (value ==  "${value}") {
+    return ${value};
   }
-   <#else>
-
-   </#if>
 
   </#list>
+  throw KurentoException (MARSHALL_ERROR,
+                          "Invalid value for '${complexType.name}'");
+
 }
 </#if>
+
+void ${complexType.name}::Serialize (JsonSerializer &s)
+{
+<#if complexType.typeFormat == "REGISTER">
+  if (s.IsWriter) {
+  <#list complexType.properties as property>
+    <#if property.optional>
+    if (__isSet${property.name?cap_first}) {
+      s.SerializeNVP (${property.name});
+    }
+
+    <#else>
+    s.SerializeNVP (${property.name});
+
+    </#if>
+  </#list>
+  } else {
+  <#list complexType.properties as property>
+    <#assign jsonData = getJsonCppTypeData(property.type)>
+    <#if property.optional>
+    if (s.JsonValue.isMember ("${property.name}") ) {
+      if (s.JsonValue["${property.name}"].isConvertibleTo (Json::ValueType::${jsonData.getJsonValueType()}) ) {
+        __isSet${property.name?cap_first} = true;
+        s.SerializeNVP (${property.name});
+      } else {
+        throw KurentoException (MARSHALL_ERROR,
+                                "'${property.name}' property should be a ${jsonData.getTypeDescription()}");
+      }
+    }
+
+    <#else>
+    if (!s.JsonValue.isMember ("${property.name}") || !s.JsonValue["${property.name}"].isConvertibleTo (Json::ValueType::${jsonData.getJsonValueType()}) ) {
+      throw KurentoException (MARSHALL_ERROR,
+                              "'${property.name}' property should be a ${jsonData.getTypeDescription()}");
+    }
+
+    s.SerializeNVP (${property.name});
+
+    </#if>
+  </#list>
+  }
+<#else>
+  if (s.IsWriter) {
+    s.JsonValue = getString();
+  } else {
+    if (s.JsonValue.isConvertibleTo (Json::ValueType::stringValue) ) {
+      enumValue = getValueFromString (s.JsonValue.asString() );
+    } else {
+      throw KurentoException (MARSHALL_ERROR,
+                              "'${complexType.name}' type should be a string");
+    }
+  }
+</#if>
+}
 
 void
 Serialize (std::shared_ptr<kurento::${complexType.name}> &object, JsonSerializer &s)
 {
-<#if complexType.typeFormat == "REGISTER">
   if (!s.IsWriter && !object) {
     object.reset (new kurento::${complexType.name}() );
   }
 
   if (object) {
-  <#list complexType.properties as property>
-    s.Serialize ("${property.name}", object->${property.name});
-  </#list>
+    object->Serialize (s);
   }
-
-  if (!s.IsWriter) {
-  <#list complexType.properties as property>
-    <#if property.optional>
-
-    if (s.JsonValue.isMember ("${property.name}") ) {
-      object->_isSet${property.name?cap_first} = true;
-    }
-    </#if>
-  </#list>
-
-  }
-
-<#else>
-  if (s.IsWriter && object) {
-    Json::Value v (object->getString() );
-
-    s.JsonValue = v;
-  } else {
-    object.reset (new kurento::${complexType.name} (s.JsonValue.asString() ) );
-  }
-</#if>
 }
 
 } /* kurento */

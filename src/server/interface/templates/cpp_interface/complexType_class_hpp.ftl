@@ -50,13 +50,11 @@ public:
     <#lt></#list>
   };
 
-  ${complexType.name} (const Json::Value &value);
-
   <#list complexType.properties as property>
   void set${property.name?cap_first} (${getCppObjectType(property.type, true)}${property.name}) {
     this->${property.name} = ${property.name};
     <#if property.optional>
-    _isSet${property.name?cap_first} = true;
+    __isSet${property.name?cap_first} = true;
     </#if>
   };
 
@@ -66,18 +64,28 @@ public:
 
   <#if property.optional>
   bool isSet${property.name?cap_first} () {
-    return _isSet${property.name?cap_first};
+    return __isSet${property.name?cap_first};
   };
 
   </#if>
   </#list>
+  void Serialize (JsonSerializer &s);
+  <#if createEmptyConstructor >
+
+protected:
+
+  ${complexType.name}() {};
+  </#if>
+
 private:
+
   <#list complexType.properties as property>
   ${getCppObjectType(property.type, false)} ${property.name};
   <#if property.optional>
-  bool _isSet${property.name?cap_first} = false;
+  bool __isSet${property.name?cap_first} = false;
   </#if>
   </#list>
+
 <#elseif complexType.typeFormat == "ENUM">
   typedef enum {
   <#list complexType.values as value>
@@ -85,14 +93,8 @@ private:
   </#list>
   } type;
 
-  ${complexType.name} (const std::string &type) {
-
-    <#list complexType.values as value>
-    if (type ==  "${value}") {
-      enumValue = ${value};
-    }
-
-    </#list>
+  ${complexType.name} (const std::string &value) {
+    enumValue = getValueFromString (value);
   };
 
   ${complexType.name} (type value) {
@@ -114,19 +116,23 @@ private:
     return "";
   }
 
+  void Serialize (JsonSerializer &s);
+
+  <#if createEmptyConstructor >
+  ${complexType.name}() {};
+  </#if>
+
 private:
+
+  static type getValueFromString (const std::string &value);
 
   type enumValue;
 
 <#else>
 // TODO: Type format ${complexType.typeFormat} not supported
 </#if>
+  friend void Serialize (std::shared_ptr<kurento::${complexType.name}> &object, JsonSerializer &s);
 
-  <#if createEmptyConstructor >
-  ${complexType.name}() {};
-  </#if>
-
-  friend void Serialize (std::shared_ptr<${complexType.name}> &object, JsonSerializer &s);
 };
 
 } /* kurento */
