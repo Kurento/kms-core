@@ -59,14 +59,13 @@ public:
   void Serialize (JsonSerializer &serializer);
   <#list remoteClass.constructor.params as param>
 
-  ${getCppObjectType (param.type, false)} get${param.name?cap_first} () {
-    return ${param.name};
-  }
+  ${getCppObjectType (param.type, false)} get${param.name?cap_first} ();
 
   void set${param.name?cap_first} (${getCppObjectType (param.type, true)}${param.name}) {
     this->${param.name} = ${param.name};
     <#if param.optional>
     __isSet${param.name?cap_first} = true;
+    __isSetDefault${param.name?cap_first} = false;
     </#if>
   }
   </#list>
@@ -78,6 +77,7 @@ private:
   ${getCppObjectType(param.type, false)} ${param.name};
   <#if param.optional>
   bool __isSet${param.name?cap_first} = false;
+  bool __isSetDefault${param.name?cap_first} = false;
   </#if>
   </#list>
 };

@@ -4,6 +4,9 @@ ${remoteClass.name}Internal.cpp
 #include "${remoteClass.name}Internal.hpp"
 #include <KurentoException.hpp>
 #include <jsonrpc/JsonSerializer.hpp>
+<#list remoteClassDependencies(remoteClass) as dependency>
+#include "${dependency.name}.hpp"
+</#list>
 
 namespace kurento
 {
@@ -76,6 +79,33 @@ void ${remoteClass.name}Method${method.name?cap_first}::Serialize (JsonSerialize
 
 </#list>
 <#if remoteClass.constructor??><#rt>
+<#list remoteClass.constructor.params as param>
+${getCppObjectType (param.type, false)} ${remoteClass.name}Constructor::get${param.name?cap_first} ()
+{
+  <#if param.optional>
+  <#if param.defaultValue?? >
+  if (!__isSet${param.name?cap_first} && !__isSetDefault${param.name?cap_first}) {
+    try {
+      JsonSerializer s (false);
+      Json::Reader reader;
+      std::string defaultValue = "${escapeString (param.defaultValue)}";
+
+      reader.parse (defaultValue, s.JsonValue["${param.name}"]);
+      s.SerializeNVP (${param.name});
+      __isSetDefault${param.name?cap_first} = true;
+    } catch (std::exception &e) {
+      std::cerr << "Unexpected exception deserializing default value ${param.name} of ${remoteClass.name} constructor, check your model: " << e.what() << std::endl;
+    }
+  }
+
+  <#else>
+#error "${param.name} optional param must have a default value"
+  </#if>
+  </#if>
+  return ${param.name};
+}
+
+</#list>
 void ${remoteClass.name}Constructor::Serialize (JsonSerializer &s)
 {
   if (s.IsWriter) {

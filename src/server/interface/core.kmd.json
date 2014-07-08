@@ -209,7 +209,8 @@
             "name": "windows",
             "doc": "list of detection windows for the filter.",
             "type": "PointerDetectorWindowMediaParam[]",
-            "optional": true
+            "optional": true,
+            "defaultValue": []
           }
         ]
       },
@@ -377,7 +378,8 @@
             "name": "windows",
             "doc": "list of detection windows for the filter to detect pointers entering or exiting the window",
             "type": "PointerDetectorWindowMediaParam[]",
-            "optional": true
+            "optional": true,
+            "defaultValue": []
           }
         ]
       },
@@ -464,7 +466,8 @@
             "name": "backgroundImage",
             "doc": "url of image to be used to replace the detected background",
             "type": "String",
-            "optional": true
+            "optional": true,
+            "defaultValue": ""
           }
         ]
       },
