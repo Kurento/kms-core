@@ -1,4 +1,4 @@
-SerializerExpander.cpp
+SerializerExpander${model.name?cap_first}.cpp
 /* Generated using ktool-rom-processor */
 
 <#list model.remoteClasses as remoteClass>
@@ -16,7 +16,7 @@ SerializerExpander.cpp
 namespace kurento
 {
 
-void dummy_${.now?long?c} ()
+void dummy${model.name?cap_first} ()
 {
 <#list model.remoteClasses as remoteClass>
   {
