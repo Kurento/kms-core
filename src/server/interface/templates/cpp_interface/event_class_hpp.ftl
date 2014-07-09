@@ -15,7 +15,6 @@ namespace kurento
 {
 
 class JsonSerializer;
-class ${event.name};
 <#list event.properties as property>
 <#if model.remoteClasses?seq_contains(property.type.type) ||
   model.complexTypes?seq_contains(property.type.type) ||
@@ -23,8 +22,6 @@ class ${event.name};
 class ${property.type.name};
 </#if>
 </#list>
-
-void Serialize (kurento::${event.name} &event, JsonSerializer &s);
 
 class ${event.name}<#if event.extends??> : public virtual ${event.extends.name}</#if>
 {
@@ -88,6 +85,8 @@ public:
     return "${event.name}";
   }
 
+  virtual void Serialize (JsonSerializer &s);
+
 protected:
 
   ${event.name}() {};
@@ -100,7 +99,7 @@ private:
   </#if>
   </#list>
 
-  friend void Serialize (${event.name} &event, JsonSerializer &s);
+  friend void Serialize (std::shared_ptr<${event.name}> &event, JsonSerializer &s);
 };
 
 } /* kurento */

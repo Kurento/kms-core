@@ -15,21 +15,26 @@ namespace kurento
 {
 
 void
-Serialize (kurento::${event.name} &event, JsonSerializer &s)
+${event.name}::Serialize (JsonSerializer &s)
 {
-<#list event.properties as property>
-  s.Serialize ("${property.name}", event.${property.name});
-</#list>
 <#if event.extends??>
+  ${event.extends.name}::Serialize (s);
 
-  try {
-    kurento::${event.extends.name} &parent = dynamic_cast<kurento::${event.extends.name} &> (event);
-
-    Serialize (parent, s);
-  } catch (std::bad_cast) {
-
-  }
 </#if>
+<#list event.properties as property>
+  s.SerializeNVP (${property.name});
+</#list>
+}
+
+void Serialize (std::shared_ptr<${event.name}> &event, JsonSerializer &s)
+{
+  if (!s.IsWriter && !event) {
+    event.reset (new kurento::${event.name}() );
+  }
+
+  if (event) {
+    event->Serialize (s);
+  }
 }
 
 } /* kurento */
