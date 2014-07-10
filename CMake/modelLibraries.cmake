@@ -35,29 +35,31 @@ function (generate_kurento_libraries)
 
   find_package(PkgConfig)
 
+  ###############################################################
+  # Dependencies
+  ###############################################################
+
   set (GST_REQUIRED 1.3.3)
 
   set (JSONRPC_REQUIRED 0.0.6)
   set (SIGCPP_REQUIRED 2.0.10)
   set (GLIBMM_REQUIRED 2.37)
 
-  #gst-plugins dependencies
   pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0>=${GST_REQUIRED})
 
-  #server dependencies
   pkg_check_modules(JSONRPC REQUIRED libjsonrpc>=${JSONRPC_REQUIRED})
   pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=${SIGCPP_REQUIRED})
   pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=${GLIBMM_REQUIRED})
 
-  set (PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
-    ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
-    ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
-  )
+  ###############################################################
+  # Interface library
+  ###############################################################
 
   set(GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp)
 
   set(INTERFACE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface)
 
+  #Generate source for public interface files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${GEN_FILES_DIR}
@@ -68,6 +70,7 @@ function (generate_kurento_libraries)
 
   set(INTERFACE_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface_internal)
 
+  #Generate source for internal interface files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${GEN_FILES_DIR}
@@ -76,6 +79,7 @@ function (generate_kurento_libraries)
     HEADER_FILES_OUTPUT INTERFACE_INTERNAL_GENERATED_HEADERS
   )
 
+  #Generate source for internal interface files
   add_library (kms-core-interface
     ${PARAM_INTERFACE_LIB_EXTRA_SOURCES}
     ${PARAM_INTERFACE_LIB_EXTRA_HEADERS}
@@ -98,15 +102,36 @@ function (generate_kurento_libraries)
       ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
-  set_property(TARGET kms-core-interface
-    PROPERTY  COMPILE_FLAGS "-fPIC"
+  set(CUSTOM_PREFIX "kurento")
+  set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/core")
+
+  set_property (TARGET kms-core-interface
+    PROPERTY PUBLIC_HEADER
+      ${PARAM_INTERFACE_LIB_EXTRA_HEADERS}
+      ${INTERFACE_GENERATED_HEADERS}
   )
 
-  set(MODEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface)
+  set_target_properties(kms-core-interface PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    COMPILE_FLAGS "-fPIC"
+  )
+
+  install(TARGETS kms-core-interface
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
+  )
+
+  ###############################################################
+  # Server implementation library
+  ###############################################################
 
   set(SERVER_INTERNAL_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
   set(SERVER_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server_internal)
 
+  # Generate internal server files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${SERVER_INTERNAL_GEN_FILES_DIR}
@@ -118,6 +143,7 @@ function (generate_kurento_libraries)
   set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
   set(MODULE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_module)
 
+  # Generate stub files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
@@ -129,6 +155,7 @@ function (generate_kurento_libraries)
   set(SERVER_GEN_FILES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/generated-cpp)
   set(SERVER_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server)
 
+  # Generate public server files
   # TODO: Add an option to not delete the code if already exists
   generate_sources (
     MODELS ${PARAM_MODELS}
@@ -161,6 +188,35 @@ function (generate_kurento_libraries)
     kms-core-interface
   )
 
+  set (SERVER_PUBLIC_HEADERS
+    ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS}
+    ${SERVER_GENERATED_HEADERS}
+  )
+
+  set_property (TARGET kms-core-impl
+    PROPERTY PUBLIC_HEADER
+      ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS}
+      ${SERVER_GENERATED_HEADERS}
+  )
+
+  set_target_properties(kms-core-impl PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+  )
+
+  install(
+    TARGETS kms-core-impl
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
+  )
+
+  set (PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
+    ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
+    ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
+  )
+
   set_property (TARGET kms-core-impl
     PROPERTY INCLUDE_DIRECTORIES
       ${GLIBMM_INCLUDE_DIRS}
@@ -172,6 +228,9 @@ function (generate_kurento_libraries)
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
   )
 
+  ###############################################################
+  # Server module
+  ###############################################################
   add_library (kms-core-module MODULE
     ${MODULE_GENERATED_SOURCES}
     ${MODULE_GENERATED_HEADERS}
@@ -193,6 +252,13 @@ function (generate_kurento_libraries)
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
+  )
+
+  install(
+    TARGETS kms-core-module
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
   )
 
 endfunction()
