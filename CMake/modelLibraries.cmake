@@ -33,6 +33,22 @@ function (generate_kurento_libraries)
     endif()
   endforeach()
 
+  find_package(PkgConfig)
+
+  set (GST_REQUIRED 1.3.3)
+
+  set (JSONRPC_REQUIRED 0.0.6)
+  set (SIGCPP_REQUIRED 2.0.10)
+  set (GLIBMM_REQUIRED 2.37)
+
+  #gst-plugins dependencies
+  pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0>=${GST_REQUIRED})
+
+  #server dependencies
+  pkg_check_modules(JSONRPC REQUIRED libjsonrpc>=${JSONRPC_REQUIRED})
+  pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=${SIGCPP_REQUIRED})
+  pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=${GLIBMM_REQUIRED})
+
   set (PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
     ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
     ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
