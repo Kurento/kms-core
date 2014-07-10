@@ -122,16 +122,56 @@ function (generate_sources)
   set (${PARAM_SOURCE_FILES_OUTPUT} ${${PARAM_SOURCE_FILES_OUTPUT}} ${GENERATED_SOURCE_FILES} PARENT_SCOPE)
   set (${PARAM_HEADER_FILES_OUTPUT} ${${PARAM_HEADER_FILES_OUTPUT}} ${GENERATED_HEADER_FILES} PARENT_SCOPE)
 
-  if (DEFINED ${PARAM_TEMPLATES_DIR})
-    file (GLOB_RECURSE TEMPLATES ${PARAM_TEMPLATES_DIR}/*ftl)
-  endif()
+endfunction()
+
+function (generate_code)
+  set (OPTION_PARAMS
+  )
+
+  set (ONE_VALUE_PARAMS
+  )
+  set (MULTI_VALUE_PARAMS
+    MODELS
+  )
+
+  set (REQUIRED_PARAMS
+    MODELS
+  )
+
+  cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
+
+  foreach (REQUIRED_PARAM ${REQUIRED_PARAMS})
+    if (NOT DEFINED PARAM_${REQUIRED_PARAM})
+      message (FATAL_ERROR "Required param ${REQUIRED_PARAM} is not set")
+    endif()
+  endforeach()
+
+
+  foreach (MODEL ${PARAM_MODELS})
+    if (IS_DIRECTORY ${MODEL})
+      file (GLOB_RECURSE MODELS ${MODEL}/*kmd.json)
+      list (APPEND MODEL_FILES ${MODELS})
+    elseif (EXISTS ${MODEL})
+      list (APPEND MODEL_FILES ${MODEL})
+    endif()
+  endforeach()
+
+  if (NOT DEFINED MODEL_FILES)
+    message (FATAL_ERROR "No model files found")
+  endif ()
+
+  add_custom_target(generate_code
+    touch generate_code
+  )
 
   add_custom_command (
     COMMENT               "Regenerating source from: ${MODEL_FILE}"
-    OUTPUT                ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
-    DEPENDS               ${MODEL_FILES} ${TEMPLATES}
+    TARGET                generate_code
+    DEPENDS               ${MODEL_FILES}
     COMMAND               ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR}
     WORKING_DIRECTORY     ${CMAKE_BINARY_DIR}
   )
+
+  include(${CMAKE_SOURCE_DIR}/CMake/modelLibraries.cmake)
 
 endfunction()

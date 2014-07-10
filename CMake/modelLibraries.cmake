@@ -1,0 +1,164 @@
+cmake_minimum_required(VERSION 2.8)
+
+include (CodeGenerator)
+
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
+
+set(GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp)
+
+set(MODEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface)
+set(INTERFACE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface)
+
+generate_sources (
+  MODELS ${MODEL_DIR}
+  GEN_FILES_DIR ${GEN_FILES_DIR}
+  TEMPLATES_DIR ${INTERFACE_TEMPLATES_DIR}
+  SOURCE_FILES_OUTPUT INTERFACE_GENERATED_SOURCES
+  HEADER_FILES_OUTPUT INTERFACE_GENERATED_HEADERS
+)
+
+set(INTERFACE_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface_internal)
+
+generate_sources (
+  MODELS ${MODEL_DIR}
+  GEN_FILES_DIR ${GEN_FILES_DIR}
+  TEMPLATES_DIR ${INTERFACE_INTERNAL_TEMPLATES_DIR}
+  SOURCE_FILES_OUTPUT INTERFACE_INTERNAL_GENERATED_SOURCES
+  HEADER_FILES_OUTPUT INTERFACE_INTERNAL_GENERATED_HEADERS
+)
+
+set (KMS_CORE_INTERFACE_SOURCES
+)
+set (KMS_CORE_INTERFACE_HEADERS
+  interface/KurentoException.hpp
+)
+
+add_library (kms-core-interface
+  ${KMS_CORE_INTERFACE_SOURCES}
+  ${KMS_CORE_INTERFACE_HEADERS}
+  ${INTERFACE_INTERNAL_GENERATED_SOURCES}
+  ${INTERFACE_INTERNAL_GENERATED_HEADERS}
+  ${INTERFACE_GENERATED_SOURCES}
+  ${INTERFACE_GENERATED_HEADERS}
+)
+
+target_link_libraries (kms-core-interface
+  ${JSONRPC_LIBRARIES}
+  ${SIGCPP_LIBRARIES}
+)
+
+set_property (TARGET kms-core-interface
+  PROPERTY INCLUDE_DIRECTORIES
+    ${JSONRPC_INCLUDE_DIRS}
+    ${SIGCPP_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/interface
+)
+
+set_property(TARGET kms-core-interface
+  PROPERTY  COMPILE_FLAGS "-fPIC"
+)
+
+set(MODEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface)
+
+set(SERVER_INTERNAL_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
+set(SERVER_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server_internal)
+
+generate_sources (
+  MODELS ${MODEL_DIR}
+  GEN_FILES_DIR ${SERVER_INTERNAL_GEN_FILES_DIR}
+  TEMPLATES_DIR ${SERVER_INTERNAL_TEMPLATES_DIR}
+  SOURCE_FILES_OUTPUT SERVER_INTERNAL_GENERATED_SOURCES
+  HEADER_FILES_OUTPUT SERVER_INTERNAL_GENERATED_HEADERS
+)
+
+set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
+set(MODULE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_module)
+
+generate_sources (
+  MODELS ${MODEL_DIR}
+  GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
+  TEMPLATES_DIR ${MODULE_TEMPLATES_DIR}
+  SOURCE_FILES_OUTPUT MODULE_GENERATED_SOURCES
+  HEADER_FILES_OUTPUT MODULE_GENERATED_HEADERS
+)
+
+set(SERVER_GEN_FILES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/generated-cpp)
+set(SERVER_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server)
+
+# TODO: Add an option to not delete the code if already exists
+generate_sources (
+  MODELS ${MODEL_DIR}
+  GEN_FILES_DIR ${SERVER_GEN_FILES_DIR}
+  TEMPLATES_DIR ${SERVER_TEMPLATES_DIR}
+  SOURCE_FILES_OUTPUT SERVER_GENERATED_SOURCES
+  HEADER_FILES_OUTPUT SERVER_GENERATED_HEADERS
+)
+
+set (KMS_CORE_IMPL_SOURCES
+  implementation/EventHandler.cpp
+  implementation/Factory.cpp
+  implementation/MediaSet.cpp
+)
+set (KMS_CORE_IMPL_HEADERS
+  implementation/EventHandler.hpp
+  implementation/Factory.hpp
+  implementation/MediaSet.hpp
+  implementation/FactoryRegistrar.hpp
+)
+
+add_library (kms-core-impl SHARED
+  ${KMS_CORE_IMPL_SOURCES}
+  ${KMS_CORE_IMPL_HEADERS}
+  ${SERVER_GENERATED_SOURCES}
+  ${SERVER_GENERATED_HEADERS}
+  ${SERVER_INTERNAL_GENERATED_SOURCES}
+  ${SERVER_INTERNAL_GENERATED_HEADERS}
+)
+
+add_dependencies(kms-core-impl
+  kms-core-interface
+  kmscore
+)
+
+target_link_libraries (kms-core-impl
+  ${GLIBMM_LIBRARIES}
+  ${JSONRPC_LIBRARIES}
+  ${SIGCPP_LIBRARIES}
+  ${GSTREAMER_LIBRARIES}
+  kms-core-interface
+)
+
+set_property (TARGET kms-core-impl
+  PROPERTY INCLUDE_DIRECTORIES
+    ${GLIBMM_INCLUDE_DIRS}
+    ${JSONRPC_INCLUDE_DIRS}
+    ${SIGCPP_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/implementation
+    ${SERVER_GEN_FILES_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/interface
+    ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
+)
+
+add_library (kms-core-module MODULE
+  ${MODULE_GENERATED_SOURCES}
+  ${MODULE_GENERATED_HEADERS}
+)
+
+add_dependencies(kms-core-module
+  kms-core-impl
+)
+
+target_link_libraries (kms-core-module
+  kms-core-impl
+  kms-core-interface
+)
+
+set_property (TARGET kms-core-module
+  PROPERTY INCLUDE_DIRECTORIES
+    ${JSONRPC_INCLUDE_DIRS}
+    ${SIGCPP_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/implementation
+    ${SERVER_GEN_FILES_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
+)
