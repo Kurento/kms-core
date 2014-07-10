@@ -8,7 +8,9 @@ function (generate_kurento_libraries)
   )
 
   set (ONE_VALUE_PARAMS
+    SERVER_STUB_DESTINATION
   )
+
   set (MULTI_VALUE_PARAMS
     MODELS
     INTERFACE_LIB_EXTRA_SOURCES
@@ -23,6 +25,7 @@ function (generate_kurento_libraries)
 
   set (REQUIRED_PARAMS
     MODELS
+    SERVER_STUB_DESTINATION
   )
 
   cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
@@ -152,7 +155,7 @@ function (generate_kurento_libraries)
     HEADER_FILES_OUTPUT MODULE_GENERATED_HEADERS
   )
 
-  set(SERVER_GEN_FILES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/generated-cpp)
+  set(SERVER_GEN_FILES_DIR ${PARAM_SERVER_STUB_DESTINATION})
   set(SERVER_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server)
 
   # Generate public server files
