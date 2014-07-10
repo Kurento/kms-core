@@ -1,5 +1,5 @@
 add_test_program (test_module module.cpp)
-add_dependencies(test_module kms-core-module)
+add_dependencies(test_module kms-core-module kms-core-impl)
 set_property (TARGET test_module
   PROPERTY INCLUDE_DIRECTORIES
     ${JSONRPC_INCLUDE_DIRS}

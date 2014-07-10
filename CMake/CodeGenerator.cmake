@@ -146,7 +146,6 @@ function (generate_code)
     endif()
   endforeach()
 
-
   foreach (MODEL ${PARAM_MODELS})
     if (IS_DIRECTORY ${MODEL})
       file (GLOB_RECURSE MODELS ${MODEL}/*kmd.json)
@@ -173,5 +172,6 @@ function (generate_code)
   )
 
   include(${CMAKE_SOURCE_DIR}/CMake/modelLibraries.cmake)
+  generate_kurento_libraries (${ARGN})
 
 endfunction()
