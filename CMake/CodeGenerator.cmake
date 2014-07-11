@@ -5,6 +5,9 @@ find_package(KtoolRomProcessor REQUIRED)
 set (KTOOL_ROM_PROCESSOR_CHECK_FORMAT FALSE CACHE BOOL "Check if codding style of generated code is correct")
 mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
 
+set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE STRING "Directory where kurento modules are installed")
+mark_as_advanced(KURENTO_MODULES_DIR)
+
 include (CMakeParseArguments)
 
 set (PROCESSED_PREFIX "Processed file:\t")
@@ -46,7 +49,7 @@ function (generate_sources)
     endif()
   endforeach()
 
-  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -lf)
+  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -lf)
 
   if (DEFINED PARAM_TEMPLATES_DIR)
     set (COMMAND_LINE ${COMMAND_LINE} -t ${PARAM_TEMPLATES_DIR})
@@ -210,12 +213,15 @@ function (generate_kurento_libraries)
 
   set(CUSTOM_PREFIX "kurento")
 
+  set (KURENTO_MODULES_DIR /usr/share/kurento/modules)
+  set (KTOOL_PROCESSOR_LINE ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+
   ###############################################################
   # Calculate modules dependencies
   ###############################################################
 
   execute_process(
-    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates/ -c ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates/ -c ${CMAKE_CURRENT_BINARY_DIR}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -322,7 +328,7 @@ function (generate_kurento_libraries)
   set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
 
   execute_process (
-     COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -t ${CMAKE_CURRENT_SOURCE_DIR}/pkg-config-templates/ -c ${CMAKE_CURRENT_BINARY_DIR} -lf
+     COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/pkg-config-templates/ -c ${CMAKE_CURRENT_BINARY_DIR} -lf
      OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -517,7 +523,7 @@ function (get_values_from_model)
   endforeach()
 
   execute_process(
-    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -s ${PARAM_KEYS}
+    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
