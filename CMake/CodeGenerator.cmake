@@ -216,6 +216,10 @@ function (generate_kurento_libraries)
     endif()
   endforeach()
 
+  get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.implementation.lib)
+  string (REGEX REPLACE "^lib" "" VALUE_CODE_IMPLEMENTATION_LIB ${VALUE_CODE_IMPLEMENTATION_LIB})
+  set (LIBRARY_NAME ${VALUE_CODE_IMPLEMENTATION_LIB} CACHE INTERNAL "Library name got from model")
+
   set(CUSTOM_PREFIX "kurento")
 
   set (KURENTO_MODULES_DIR /usr/share/kurento/modules)
@@ -226,7 +230,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   execute_process(
-    COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates/ -c ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates -c ${CMAKE_CURRENT_BINARY_DIR} -lf
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -279,7 +283,7 @@ function (generate_kurento_libraries)
   )
 
   #Generate source for internal interface files
-  add_library (kms${PARAM_MODDULE_NAME}interface
+  add_library (${VALUE_CODE_IMPLEMENTATION_LIB}interface
     ${PARAM_INTERFACE_LIB_EXTRA_SOURCES}
     ${PARAM_INTERFACE_LIB_EXTRA_HEADERS}
     ${INTERFACE_INTERNAL_GENERATED_SOURCES}
@@ -288,13 +292,13 @@ function (generate_kurento_libraries)
     ${INTERFACE_GENERATED_HEADERS}
   )
 
-  target_link_libraries (kms${PARAM_MODDULE_NAME}interface
+  target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}interface
     ${JSONRPC_LIBRARIES}
     ${SIGCPP_LIBRARIES}
     ${PARAM_INTERFACE_LIB_EXTRA_LIBRARIES}
   )
 
-  set_property (TARGET kms${PARAM_MODDULE_NAME}interface
+  set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     PROPERTY INCLUDE_DIRECTORIES
       ${JSONRPC_INCLUDE_DIRS}
       ${SIGCPP_INCLUDE_DIRS}
@@ -303,19 +307,19 @@ function (generate_kurento_libraries)
 
   set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/core")
 
-  set_property (TARGET kms${PARAM_MODDULE_NAME}interface
+  set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     PROPERTY PUBLIC_HEADER
       ${PARAM_INTERFACE_LIB_EXTRA_HEADERS}
       ${INTERFACE_GENERATED_HEADERS}
   )
 
-  set_target_properties(kms${PARAM_MODDULE_NAME}interface PROPERTIES
+  set_target_properties(${VALUE_CODE_IMPLEMENTATION_LIB}interface PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
     COMPILE_FLAGS "-fPIC"
   )
 
-  install(TARGETS kms${PARAM_MODDULE_NAME}interface
+  install(TARGETS ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -402,7 +406,7 @@ function (generate_kurento_libraries)
     HEADER_FILES_OUTPUT SERVER_GENERATED_HEADERS
   )
 
-  add_library (kms-core-impl SHARED
+  add_library (${VALUE_CODE_IMPLEMENTATION_LIB}impl SHARED
     ${PARAM_SERVER_IMPL_LIB_EXTRA_SOURCES}
     ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS}
     ${SERVER_GENERATED_SOURCES}
@@ -411,18 +415,18 @@ function (generate_kurento_libraries)
     ${SERVER_INTERNAL_GENERATED_HEADERS}
   )
 
-  add_dependencies(kms-core-impl
-    kms${PARAM_MODDULE_NAME}interface
-    kmscore
+  add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}impl
+    ${VALUE_CODE_IMPLEMENTATION_LIB}interface
+    ${VALUE_CODE_IMPLEMENTATION_LIB}gstreamer
   )
 
-  target_link_libraries (kms-core-impl
+  target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}impl
     ${GLIBMM_LIBRARIES}
     ${JSONRPC_LIBRARIES}
     ${SIGCPP_LIBRARIES}
     ${GSTREAMER_LIBRARIES}
     ${PARAM_SERVER_IMPL_LIB_EXTRA_LIBRARIES}
-    kms${PARAM_MODDULE_NAME}interface
+    ${VALUE_CODE_IMPLEMENTATION_LIB}interface
   )
 
   set (SERVER_PUBLIC_HEADERS
@@ -430,19 +434,19 @@ function (generate_kurento_libraries)
     ${SERVER_GENERATED_HEADERS}
   )
 
-  set_property (TARGET kms-core-impl
+  set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     PROPERTY PUBLIC_HEADER
       ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS}
       ${SERVER_GENERATED_HEADERS}
   )
 
-  set_target_properties(kms-core-impl PROPERTIES
+  set_target_properties(${VALUE_CODE_IMPLEMENTATION_LIB}impl PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
   )
 
   install(
-    TARGETS kms-core-impl
+    TARGETS ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -454,7 +458,7 @@ function (generate_kurento_libraries)
     ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
-  set_property (TARGET kms-core-impl
+  set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     PROPERTY INCLUDE_DIRECTORIES
       ${GLIBMM_INCLUDE_DIRS}
       ${JSONRPC_INCLUDE_DIRS}
@@ -468,21 +472,21 @@ function (generate_kurento_libraries)
   ###############################################################
   # Server module
   ###############################################################
-  add_library (kms-core-module MODULE
+  add_library (${VALUE_CODE_IMPLEMENTATION_LIB}module MODULE
     ${MODULE_GENERATED_SOURCES}
     ${MODULE_GENERATED_HEADERS}
   )
 
-  add_dependencies(kms-core-module
-    kms-core-impl
+  add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}module
+    ${VALUE_CODE_IMPLEMENTATION_LIB}impl
   )
 
-  target_link_libraries (kms-core-module
-    kms-core-impl
-    kms${PARAM_MODDULE_NAME}interface
+  target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}module
+    ${VALUE_CODE_IMPLEMENTATION_LIB}impl
+    ${VALUE_CODE_IMPLEMENTATION_LIB}interface
   )
 
-  set_property (TARGET kms-core-module
+  set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}module
     PROPERTY INCLUDE_DIRECTORIES
       ${JSONRPC_INCLUDE_DIRS}
       ${SIGCPP_INCLUDE_DIRS}
@@ -492,7 +496,7 @@ function (generate_kurento_libraries)
   )
 
   install(
-    TARGETS kms-core-module
+    TARGETS ${VALUE_CODE_IMPLEMENTATION_LIB}module
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
@@ -513,7 +517,6 @@ function (generate_kurento_libraries)
     ${FINAL_MODELS}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
-
 
 endfunction()
 
@@ -559,7 +562,6 @@ function (get_values_from_model)
   foreach (_LINE ${PROCESSOR_OUTPUT})
     if (${_LINE} MATCHES "${VALUE_PREFIX}.*")
       string(REPLACE ${VALUE_PREFIX} "" _LINE ${_LINE})
-      message ("Got ${_LINE}")
       foreach (_KEY ${PARAM_KEYS})
           if (${_LINE} MATCHES "${_KEY} = ")
             string(REPLACE "${_KEY} = " "" _LINE ${_LINE})

@@ -7,7 +7,7 @@ target_link_libraries(test_dummytest
                       ${GSTREAMER_CHECK_LIBRARIES})
 
 add_test_program (test_sdp sdp.c)
-add_dependencies(test_sdp kmscore kmscommons)
+add_dependencies(test_sdp ${LIBRARY_NAME}plugins kmscommons)
 target_include_directories(test_sdp PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}
@@ -19,7 +19,7 @@ target_link_libraries(test_sdp
                       kmscommons)
 
 add_test_program (test_utils utils.c)
-add_dependencies(test_utils kmscore kmscommons)
+add_dependencies(test_utils ${LIBRARY_NAME}plugins kmscommons)
 target_include_directories(test_utils PRIVATE
                            ${GSTREAMER_INCLUDE_DIRS}
                            ${GSTREAMER_CHECK_INCLUDE_DIRS}

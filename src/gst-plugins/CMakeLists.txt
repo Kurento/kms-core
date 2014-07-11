@@ -13,9 +13,9 @@ set(KMS_CORE_SOURCES
   kmsaudiomixerbin.c kmsaudiomixerbin.h
 )
 
-add_library(kmscore MODULE ${KMS_CORE_SOURCES})
+add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
 
-add_dependencies(kmscore kmscommons)
+add_dependencies(${LIBRARY_NAME}plugins kmscommons)
 
 include_directories(
   ${GSTREAMER_INCLUDE_DIRS}
@@ -28,7 +28,7 @@ include_directories(
   "${CMAKE_CURRENT_SOURCE_DIR}/commons/"
 )
 
-target_link_libraries(kmscore
+target_link_libraries(${LIBRARY_NAME}plugins
   kmscommons
   ${GSTREAMER_LIBRARIES}
   ${GSTREAMER_BASE_LIBRARIES}
@@ -36,8 +36,10 @@ target_link_libraries(kmscore
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
+set (CMAKE_INSTALL_MODULESDIR ${CMAKE_INSTALL_LIBDIR}/kurento/gst-plugins)
+
 install(
-  TARGETS kmscore
+  TARGETS ${LIBRARY_NAME}plugins
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_MODULESDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

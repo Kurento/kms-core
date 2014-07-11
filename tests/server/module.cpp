@@ -22,7 +22,7 @@ main (int argc, char **argv)
   const kurento::FactoryRegistrar *registrar;
   void *registrarFactory;
 
-  std::string moduleName = "../../src/server/libkms-core-module.so";
+  std::string moduleName = "../../src/server/libkmscoremodule.so";
 
   Glib::Module module (moduleName);
 

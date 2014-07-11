@@ -1,3 +1,2 @@
-add_subdirectory(gst-plugins)
-
 add_subdirectory(server)
+add_subdirectory(gst-plugins)

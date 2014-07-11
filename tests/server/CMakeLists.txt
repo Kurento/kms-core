@@ -1,5 +1,5 @@
 add_test_program (test_module module.cpp)
-add_dependencies(test_module kms-core-module kms-core-impl)
+add_dependencies(test_module ${VALUE_CODE_IMPLEMENTATION_LIB}module ${VALUE_CODE_IMPLEMENTATION_LIB}impl)
 set_property (TARGET test_module
   PROPERTY INCLUDE_DIRECTORIES
     ${JSONRPC_INCLUDE_DIRS}
@@ -12,6 +12,6 @@ set_property (TARGET test_module
     ${GLIBMM_INCLUDE_DIRS}
 )
 target_link_libraries(test_module
-  kms-core-impl
+  ${LIBRARY_NAME}impl
   ${GLIBMM_LIBRARIES}
 )
