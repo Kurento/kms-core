@@ -24,17 +24,6 @@
           "doc": "unique identifier of the mediaobject.",
           "type": "String",
           "final": true
-        },
-        {
-          "name": "testReadOnly",
-          "doc": "To test readOnly property",
-          "type": "String",
-          "readOnly": true
-        },
-        {
-          "name": "readWrite",
-          "doc": "To test read/write property",
-          "type": "boolean"
         }
       ],
       "events": [
