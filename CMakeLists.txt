@@ -8,6 +8,7 @@ message ("If KurentoHelpers is not found, then it is necessary to install
 find_package(KurentoHelpers REQUIRED)
 
 include (KurentoGitHelpers)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
 get_git_version (PROJECT_VERSION 0.0.1-dev)
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
@@ -43,8 +44,6 @@ pkg_check_modules(GSTREAMER_PBUTILS REQUIRED gstreamer-pbutils-1.0>=${GST_REQUIR
 pkg_check_modules(JSONRPC REQUIRED libjsonrpc>=${JSONRPC_REQUIRED})
 pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=${SIGCPP_REQUIRED})
 pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=${GLIBMM_REQUIRED})
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 
 set (VERSION ${PROJECT_VERSION})
 set (PACKAGE ${PROJECT_NAME})
