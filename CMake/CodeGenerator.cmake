@@ -7,6 +7,8 @@ mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
 
 include (CMakeParseArguments)
 
+set (PROCESSED_PREFIX "Processed file:\t")
+
 # generate_sources (
 #  MODELS list of models or directories
 #  GEN_FILES_DIR directory to generate files
@@ -78,8 +80,6 @@ function (generate_sources)
   else()
     string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
   endif()
-
-  set (PROCESSED_PREFIX "Processed file:\t")
 
   foreach (_FILE ${PROCESSOR_OUTPUT})
     if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
@@ -208,23 +208,36 @@ function (generate_kurento_libraries)
     endif()
   endforeach()
 
-  find_package(PkgConfig)
+  set(CUSTOM_PREFIX "kurento")
 
   ###############################################################
-  # Dependencies
+  # Calculate modules dependencies
   ###############################################################
 
-  set (GST_REQUIRED 1.3.3)
+  execute_process(
+    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates/ -c ${CMAKE_CURRENT_BINARY_DIR}
+    OUTPUT_VARIABLE PROCESSOR_OUTPUT
+  )
 
-  set (JSONRPC_REQUIRED 0.0.6)
-  set (SIGCPP_REQUIRED 2.0.10)
-  set (GLIBMM_REQUIRED 2.37)
+  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+    message (FATAL_ERROR "No cmake dependencies generated")
+  else()
+    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+  endif()
 
-  pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0>=${GST_REQUIRED})
-
-  pkg_check_modules(JSONRPC REQUIRED libjsonrpc>=${JSONRPC_REQUIRED})
-  pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=${SIGCPP_REQUIRED})
-  pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=${GLIBMM_REQUIRED})
+  foreach (_FILE ${PROCESSOR_OUTPUT})
+    if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
+      string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
+      if (${_FILE} MATCHES ".*cmake")
+        include (${CMAKE_CURRENT_BINARY_DIR}/${_FILE})
+      else()
+        message (WARNING "Unexpected file generated ${_FILE}")
+      endif ()
+    else()
+      message (" Generator -> ${_FILE}")
+    endif()
+  endforeach()
 
   ###############################################################
   # Interface library
@@ -277,7 +290,6 @@ function (generate_kurento_libraries)
       ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
-  set(CUSTOM_PREFIX "kurento")
   set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/core")
 
   set_property (TARGET kms${PARAM_MODDULE_NAME}interface
@@ -298,6 +310,46 @@ function (generate_kurento_libraries)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
   )
+
+  ###############################################################
+  # Create pkgconfig files
+  ###############################################################
+
+  include (GNUInstallDirs)
+  set(prefix ${CMAKE_INSTALL_PREFIX})
+  set(exec_prefix "\${prefix}")
+  set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
+
+  execute_process (
+     COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -t ${CMAKE_CURRENT_SOURCE_DIR}/pkg-config-templates/ -c ${CMAKE_CURRENT_BINARY_DIR} -lf
+     OUTPUT_VARIABLE PROCESSOR_OUTPUT
+  )
+
+  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+    message (FATAL_ERROR "No cmake pkg-config files generated")
+  else()
+    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+  endif()
+
+  foreach (_FILE ${PROCESSOR_OUTPUT})
+    if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
+      string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
+      string(REPLACE ".pc.in" ".pc" _OUT_FILE ${_FILE})
+      if (${_FILE} MATCHES ".*pc.in")
+        configure_file(${CMAKE_CURRENT_BINARY_DIR}/${_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${_OUT_FILE} @ONLY)
+        install(FILES
+          ${CMAKE_CURRENT_BINARY_DIR}/${_OUT_FILE}
+          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+        )
+      else()
+        message (WARNING "Unexpected file generated ${_FILE}")
+      endif ()
+    else()
+      message (" Generator -> ${_FILE}")
+    endif()
+  endforeach()
 
   ###############################################################
   # Server implementation library
@@ -475,11 +527,11 @@ function (get_values_from_model)
     string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
   endif()
 
-  set (PROCESSED_PREFIX "Value: ")
+  set (VALUE_PREFIX "Value: ")
 
   foreach (_LINE ${PROCESSOR_OUTPUT})
-    if (${_LINE} MATCHES "${PROCESSED_PREFIX}.*")
-      string(REPLACE ${PROCESSED_PREFIX} "" _LINE ${_LINE})
+    if (${_LINE} MATCHES "${VALUE_PREFIX}.*")
+      string(REPLACE ${VALUE_PREFIX} "" _LINE ${_LINE})
       message ("Got ${_LINE}")
       foreach (_KEY ${PARAM_KEYS})
           if (${_LINE} MATCHES "${_KEY} = ")
