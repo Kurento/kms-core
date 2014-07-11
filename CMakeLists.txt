@@ -9,8 +9,11 @@ find_package(KurentoHelpers REQUIRED)
 
 include (KurentoGitHelpers)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+include (CodeGenerator)
 
-get_git_version (PROJECT_VERSION 0.0.1-dev)
+get_values_from_model(PREFIX VALUE MODELS ${CMAKE_SOURCE_DIR}/src/server/interface KEYS version)
+
+get_git_version (PROJECT_VERSION ${VALUE_VERSION})
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
 string(REPLACE "." ";" VERSION_LIST ${PROJECT_VERSION})

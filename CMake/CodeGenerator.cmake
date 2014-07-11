@@ -437,3 +437,65 @@ function (generate_kurento_libraries)
   )
 
 endfunction()
+
+function (get_values_from_model)
+  set (OPTION_PARAMS
+  )
+
+  set (ONE_VALUE_PARAMS
+    PREFIX
+  )
+
+  set (MULTI_VALUE_PARAMS
+    MODELS
+    KEYS
+  )
+
+  set (REQUIRED_PARAMS
+    MODELS
+    KEYS
+  )
+
+  cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
+
+  foreach (REQUIRED_PARAM ${REQUIRED_PARAMS})
+    if (NOT DEFINED PARAM_${REQUIRED_PARAM})
+      message (FATAL_ERROR "Required param ${REQUIRED_PARAM} is not set")
+    endif()
+  endforeach()
+
+  execute_process(
+    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -s ${PARAM_KEYS}
+    OUTPUT_VARIABLE PROCESSOR_OUTPUT
+  )
+
+  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+    message (FATAL_ERROR "No values found")
+  else()
+    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+  endif()
+
+  set (PROCESSED_PREFIX "Value: ")
+
+  foreach (_LINE ${PROCESSOR_OUTPUT})
+    if (${_LINE} MATCHES "${PROCESSED_PREFIX}.*")
+      string(REPLACE ${PROCESSED_PREFIX} "" _LINE ${_LINE})
+      message ("Got ${_LINE}")
+      foreach (_KEY ${PARAM_KEYS})
+          if (${_LINE} MATCHES "${_KEY} = ")
+            string(REPLACE "${_KEY} = " "" _LINE ${_LINE})
+            string(REPLACE "." "_" _KEY ${_KEY})
+            string(TOUPPER ${_KEY} _KEY)
+            if (DEFINED PARAM_PREFIX)
+              set (${PARAM_PREFIX}_${_KEY} ${_LINE} PARENT_SCOPE)
+            else()
+              set (${_KEY} ${_LINE} PARENT_SCOPE)
+            endif()
+          endif()
+      endforeach ()
+    else()
+      message (" Generator -> ${_LINE}")
+    endif()
+  endforeach()
+
+endfunction ()
