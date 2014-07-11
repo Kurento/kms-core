@@ -2,11 +2,16 @@ cmake_minimum_required(VERSION 2.8)
 
 find_package(KtoolRomProcessor REQUIRED)
 
+include (GNUInstallDirs)
+
 set (KTOOL_ROM_PROCESSOR_CHECK_FORMAT FALSE CACHE BOOL "Check if codding style of generated code is correct")
 mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
 
-set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE STRING "Directory where kurento modules are installed")
+set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE STRING "Directory where kurento modules descriptors can be found")
 mark_as_advanced(KURENTO_MODULES_DIR)
+
+set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE STRING "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTAL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})")
+mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
 include (CMakeParseArguments)
 
@@ -321,7 +326,6 @@ function (generate_kurento_libraries)
   # Create pkgconfig files
   ###############################################################
 
-  include (GNUInstallDirs)
   set(prefix ${CMAKE_INSTALL_PREFIX})
   set(exec_prefix "\${prefix}")
   set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
@@ -493,6 +497,23 @@ function (generate_kurento_libraries)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
   )
+
+  execute_process(
+    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
+    OUTPUT_VARIABLE PROCESSOR_OUTPUT
+  )
+
+  message (Generating final rom model\n
+    ${PROCESSOR_OUTPUT}
+  )
+
+  file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
+
+  install(FILES
+    ${FINAL_MODELS}
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
+  )
+
 
 endfunction()
 
