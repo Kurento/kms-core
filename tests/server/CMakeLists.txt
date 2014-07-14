@@ -1,5 +1,5 @@
 add_test_program (test_module module.cpp)
-add_dependencies(test_module ${VALUE_CODE_IMPLEMENTATION_LIB}module ${VALUE_CODE_IMPLEMENTATION_LIB}impl)
+add_dependencies(test_module ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module
   PROPERTY INCLUDE_DIRECTORIES
     ${JSONRPC_INCLUDE_DIRS}
