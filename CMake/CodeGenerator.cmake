@@ -216,13 +216,12 @@ function (generate_kurento_libraries)
     endif()
   endforeach()
 
-  get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.implementation.lib)
+  get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.implementation.lib name)
   string (REGEX REPLACE "^lib" "" VALUE_CODE_IMPLEMENTATION_LIB ${VALUE_CODE_IMPLEMENTATION_LIB})
   set (LIBRARY_NAME ${VALUE_CODE_IMPLEMENTATION_LIB} CACHE INTERNAL "Library name got from model")
 
   set(CUSTOM_PREFIX "kurento")
 
-  set (KURENTO_MODULES_DIR /usr/share/kurento/modules)
   set (KTOOL_PROCESSOR_LINE ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
 
   ###############################################################
@@ -333,7 +332,7 @@ function (generate_kurento_libraries)
   set(prefix ${CMAKE_INSTALL_PREFIX})
   set(exec_prefix "\${prefix}")
   set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
-  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
+  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/${VALUE_NAME}")
 
   execute_process (
      COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/pkg-config-templates/ -c ${CMAKE_CURRENT_BINARY_DIR} -lf
