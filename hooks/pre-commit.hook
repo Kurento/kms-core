@@ -84,7 +84,7 @@ for file in `git diff-index --cached --name-only HEAD --diff-filter=ACMR| grep "
     nf=`git checkout-index --temp ${file} | cut -f 1`
     newfile=`mktemp /tmp/${nf}.XXXXXX` || exit 1
     if [ "$(echo "$file" | grep -e "\.cpp$")" ]; then
-      astyle ${ASTYLE_PARAMS} < ${file} > ${newfile} 2>> /dev/null
+      astyle ${ASTYLE_PARAMS} < ${nf} > ${newfile} 2>> /dev/null
       FIX_COMMAND="astyle ${ASTYLE_PARAMS} $file; git add $file; git commit"
     else
       $INDENT ${INDENT_PARAMETERS} \
