@@ -28,6 +28,11 @@ set (PROCESSED_PREFIX "Processed file:\t")
 #
 #)
 function (generate_sources)
+
+  set (OPTION_PARAMS
+    NO_OVERWRITE
+  )
+
   set (ONE_VALUE_PARAMS
     GEN_FILES_DIR
     SOURCE_FILES_OUTPUT
@@ -46,7 +51,7 @@ function (generate_sources)
     HEADER_FILES_OUTPUT
   )
 
-  cmake_parse_arguments("PARAM" "" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
+  cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
 
   foreach (REQUIRED_PARAM ${REQUIRED_PARAMS})
     if (NOT DEFINED PARAM_${REQUIRED_PARAM})
@@ -62,6 +67,10 @@ function (generate_sources)
     set (COMMAND_LINE ${COMMAND_LINE} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
   else()
     message (FATAL_ERROR "Missing templates you have to set TEMPLATES_DIR INTERNAL_TEMPLATES_DIR")
+  endif()
+
+  if (PARAM_NO_OVERWRITE)
+    set (COMMAND_LINE ${COMMAND_LINE} -n)
   endif()
 
   foreach (MODEL ${PARAM_MODELS})
@@ -377,7 +386,6 @@ function (generate_kurento_libraries)
 
   set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
 
-  # Generate stub files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
@@ -388,14 +396,14 @@ function (generate_kurento_libraries)
 
   set(SERVER_GEN_FILES_DIR ${PARAM_SERVER_STUB_DESTINATION})
 
-  # Generate public server files
-  # TODO: Add an option to not delete the code if already exists
+  # Generate stub files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${SERVER_GEN_FILES_DIR}
     INTERNAL_TEMPLATES_DIR cpp_server
     SOURCE_FILES_OUTPUT SERVER_GENERATED_SOURCES
     HEADER_FILES_OUTPUT SERVER_GENERATED_HEADERS
+    NO_OVERWRITE
   )
 
   add_library (${VALUE_CODE_IMPLEMENTATION_LIB}impl SHARED
