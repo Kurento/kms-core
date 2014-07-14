@@ -229,7 +229,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   execute_process(
-    COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/templates -c ${CMAKE_CURRENT_BINARY_DIR} -lf
+    COMMAND ${KTOOL_PROCESSOR_LINE} -it cpp_cmake_dependencies -c ${CMAKE_CURRENT_BINARY_DIR} -lf
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -259,24 +259,20 @@ function (generate_kurento_libraries)
 
   set(GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp)
 
-  set(INTERFACE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface)
-
   #Generate source for public interface files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${GEN_FILES_DIR}
-    TEMPLATES_DIR ${INTERFACE_TEMPLATES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_interface
     SOURCE_FILES_OUTPUT INTERFACE_GENERATED_SOURCES
     HEADER_FILES_OUTPUT INTERFACE_GENERATED_HEADERS
   )
-
-  set(INTERFACE_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface/templates/cpp_interface_internal)
 
   #Generate source for internal interface files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${GEN_FILES_DIR}
-    TEMPLATES_DIR ${INTERFACE_INTERNAL_TEMPLATES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_interface_internal
     SOURCE_FILES_OUTPUT INTERFACE_INTERNAL_GENERATED_SOURCES
     HEADER_FILES_OUTPUT INTERFACE_INTERNAL_GENERATED_HEADERS
   )
@@ -335,7 +331,7 @@ function (generate_kurento_libraries)
   set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/${VALUE_NAME}")
 
   execute_process (
-     COMMAND ${KTOOL_PROCESSOR_LINE} -t ${CMAKE_CURRENT_SOURCE_DIR}/pkg-config-templates/ -c ${CMAKE_CURRENT_BINARY_DIR} -lf
+     COMMAND ${KTOOL_PROCESSOR_LINE} -it cpp_pkgconfig -c ${CMAKE_CURRENT_BINARY_DIR} -lf
      OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -369,38 +365,35 @@ function (generate_kurento_libraries)
   ###############################################################
 
   set(SERVER_INTERNAL_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
-  set(SERVER_INTERNAL_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server_internal)
 
   # Generate internal server files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${SERVER_INTERNAL_GEN_FILES_DIR}
-    TEMPLATES_DIR ${SERVER_INTERNAL_TEMPLATES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_server_internal
     SOURCE_FILES_OUTPUT SERVER_INTERNAL_GENERATED_SOURCES
     HEADER_FILES_OUTPUT SERVER_INTERNAL_GENERATED_HEADERS
   )
 
   set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
-  set(MODULE_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_module)
 
   # Generate stub files
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
-    TEMPLATES_DIR ${MODULE_TEMPLATES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_module
     SOURCE_FILES_OUTPUT MODULE_GENERATED_SOURCES
     HEADER_FILES_OUTPUT MODULE_GENERATED_HEADERS
   )
 
   set(SERVER_GEN_FILES_DIR ${PARAM_SERVER_STUB_DESTINATION})
-  set(SERVER_TEMPLATES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/templates/cpp_server)
 
   # Generate public server files
   # TODO: Add an option to not delete the code if already exists
   generate_sources (
     MODELS ${PARAM_MODELS}
     GEN_FILES_DIR ${SERVER_GEN_FILES_DIR}
-    TEMPLATES_DIR ${SERVER_TEMPLATES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_server
     SOURCE_FILES_OUTPUT SERVER_GENERATED_SOURCES
     HEADER_FILES_OUTPUT SERVER_GENERATED_HEADERS
   )
