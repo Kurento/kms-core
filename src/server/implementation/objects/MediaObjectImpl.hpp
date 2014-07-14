@@ -20,7 +20,11 @@ public:
 
   MediaObjectImpl ();
 
+  MediaObjectImpl (std::shared_ptr <MediaObject> parent);
+
   virtual ~MediaObjectImpl () {};
+
+  virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -44,6 +48,8 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  std::string createId();
 
   class StaticConstructor
   {
