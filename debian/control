@@ -1,0 +1,41 @@
+Source: kms-core
+Section: utils
+Priority: optional
+Maintainer: Kurento Maintenance Team <kurento@googlegroups.com>
+Build-Depends: debhelper (>= 8.0.0),
+ cmake,
+ pkg-config,
+ kms-cmake-utils,
+ libgstreamer1.0-dev (>= 1.3.3),
+ ktool-rom-processor,
+ kms-jsonrpc-dev (>= 0.0.6),
+ libsigc++-2.0-dev,
+ gtk-doc-tools,
+ libglibmm-2.4-dev,
+ libgstreamer1.0-dev (>= 1.3.3),
+ libgstreamer-plugins-base1.0-dev (>= 1.3.3),
+ uuid-dev,
+ ktool-rom-processor (> 1.1.0),
+ kms-jsonrpc-dev (>= 0.0.6)
+Standards-Version: 3.9.4
+Homepage: http://kurento.org
+Vcs-Git: git://github.com/Kurento/kms-core.git
+Vcs-Browser: https://github.com/Kurento/kms-core.git
+
+Package: kms-core
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Description: Kurento core module
+ Kurento core modele and libraries
+
+Package: kms-core-dev
+Architecture: any
+Depends: kms-core (= ${binary:Version})
+Description: Kurento core module
+ Kurento core modele and libraries development files
+
+Package: kms-core-dbg
+Architecture: any
+Depends: kms-core (= ${binary:Version})
+Description: Kurento core module
+ Kurento core modele and libraries debugging symbols
