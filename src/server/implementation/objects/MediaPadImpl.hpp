@@ -4,6 +4,7 @@
 #include "MediaObjectImpl.hpp"
 #include "MediaPad.hpp"
 #include <EventHandler.hpp>
+#include <gst/gst.h>
 
 namespace kurento
 {
@@ -19,13 +20,13 @@ class MediaPadImpl : public MediaObjectImpl, public virtual MediaPad
 
 public:
 
-  MediaPadImpl ();
+  MediaPadImpl (std::shared_ptr<MediaObjectImpl> parent,
+                std::shared_ptr<MediaType> mediaType,
+                const std::string &mediaDescription);
 
   virtual ~MediaPadImpl () {};
 
-  std::shared_ptr<MediaElement> getMediaElement ();
-  std::shared_ptr<MediaType> getMediaType ();
-  std::string getMediaDescription ();
+  GstElement *getGstreamerElement ();
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 

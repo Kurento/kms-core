@@ -105,33 +105,24 @@
       "abstract": true,
       "extends": "MediaObject",
       "doc": "A :rom:cls:`MediaPad` is an element´s interface with the outside world. The data streams flow from the :rom:cls:`MediaSource` pad to another element's :rom:cls:`MediaSink` pad.",
-      "methods": [
+      "properties": [
         {
-          "name": "getMediaElement",
-          "doc": "Obtains the :rom:cls:`MediaElement` that encloses this pad",
-          "params": [],
-          "return": {
-            "doc": "the element",
-            "type": "MediaElement"
-          }
+          "name": "mediaElement",
+          "doc": "The :rom:cls:`MediaElement` that encloses this pad",
+          "type": "MediaElement",
+          "final": true
         },
         {
-          "name": "getMediaType",
-          "doc": "Obtains the type of media that this pad accepts",
-          "params": [],
-          "return": {
-            "doc": "One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.DATA` or :rom:attr:`MediaType.VIDEO`",
-            "type": "MediaType"
-          }
+          "name": "mediaType",
+          "doc": "Media that this pad accepts. One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.DATA` or :rom:attr:`MediaType.VIDEO`",
+          "type": "MediaType",
+          "final": true
         },
         {
-          "name": "getMediaDescription",
-          "doc": "Obtains the description for this pad.\n\n   This method does not make a request to the media server, and is included to keep the simmetry with the rest of methods from the API.",
-          "params": [],
-          "return": {
-            "doc": "The description",
-            "type": "String"
-          }
+          "name": "mediaDescription",
+          "doc":  "The description for this pad.",
+          "type": "String",
+          "final": true
         }
       ]
     },

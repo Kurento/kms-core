@@ -13,27 +13,21 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaPadImpl::MediaPadImpl ()
+MediaPadImpl::MediaPadImpl (std::shared_ptr<MediaObjectImpl> parent,
+                            std::shared_ptr<MediaType> mediaType,
+                            const std::string &mediaDescription) : MediaObjectImpl (parent)
 {
-  // FIXME: Implement this
+  this->mediaElement = std::dynamic_pointer_cast<MediaElement> (parent);
+  this->mediaType = mediaType;
+  this->mediaDescription = mediaDescription;
 }
 
-std::shared_ptr<MediaElement> MediaPadImpl::getMediaElement ()
+GstElement *
+MediaPadImpl::getGstreamerElement ()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "MediaPadImpl::getMediaElement: Not implemented");
-}
+  std::shared_ptr<MediaElementImpl> element = std::dynamic_pointer_cast <MediaElementImpl> (getParent() );
 
-std::shared_ptr<MediaType> MediaPadImpl::getMediaType ()
-{
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "MediaPadImpl::getMediaType: Not implemented");
-}
-
-std::string MediaPadImpl::getMediaDescription ()
-{
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "MediaPadImpl::getMediaDescription: Not implemented");
+  return element->getGstreamerElement();
 }
 
 MediaPadImpl::StaticConstructor MediaPadImpl::staticConstructor;

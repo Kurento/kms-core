@@ -14,7 +14,8 @@ namespace kurento
 
 MediaSinkImpl::MediaSinkImpl (std::shared_ptr<MediaType> mediaType,
                               const std::string &mediaDescription,
-                              std::shared_ptr<MediaObjectImpl> parent)
+                              std::shared_ptr<MediaObjectImpl> parent) :
+  MediaPadImpl (parent, mediaType, mediaDescription)
 {
   // FIXME: Implement this
 }
