@@ -10,6 +10,7 @@ set_property (TARGET test_module
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${GLIBMM_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
 )
 target_link_libraries(test_module
   ${LIBRARY_NAME}impl
