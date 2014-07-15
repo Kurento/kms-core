@@ -8,12 +8,14 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoFilterImpl"
 
+#define FACTORY_NAME "filterelement"
+
 namespace kurento
 {
 
-FilterImpl::FilterImpl ()
+FilterImpl::FilterImpl (std::shared_ptr<MediaObjectImpl> parent) :
+  MediaElementImpl (parent, FACTORY_NAME)
 {
-  // FIXME: Implement this
 }
 
 FilterImpl::StaticConstructor FilterImpl::staticConstructor;

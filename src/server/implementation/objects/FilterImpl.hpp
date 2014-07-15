@@ -17,7 +17,7 @@ class FilterImpl : public MediaElementImpl, public virtual Filter
 
 public:
 
-  FilterImpl ();
+  FilterImpl (std::shared_ptr<MediaObjectImpl> parent);
 
   virtual ~FilterImpl () {};
 
