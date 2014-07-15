@@ -4,6 +4,7 @@
 #include "MediaObjectImpl.hpp"
 #include "MediaPipeline.hpp"
 #include <EventHandler.hpp>
+#include <gst/gst.h>
 
 namespace kurento
 {
@@ -19,7 +20,11 @@ public:
 
   MediaPipelineImpl ();
 
-  virtual ~MediaPipelineImpl () {};
+  virtual ~MediaPipelineImpl ();
+
+  GstElement *getPipeline() {
+    return pipeline;
+  }
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -46,6 +51,11 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  GstElement *pipeline;
+
+  std::function<void (GstMessage *) > busMessagePointer;
+  void busMessage (GstMessage *message);
 
   class StaticConstructor
   {
