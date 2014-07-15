@@ -16,7 +16,7 @@
 #include <gst/gst.h>
 
 #include <kmsagnosticbin.h>
-#include <kmsmixerport.h>
+#include <kmshubport.h>
 #include <kmsuriendpoint.h>
 #include <kmsfilterelement.h>
 #include <kmsaudiomixer.h>
@@ -34,7 +34,7 @@ kurento_init (GstPlugin * kurento)
   if (!kms_filter_element_plugin_init (kurento))
     return FALSE;
 
-  if (!kms_mixer_port_plugin_init (kurento))
+  if (!kms_hub_port_plugin_init (kurento))
     return FALSE;
 
   if (!kms_audio_mixer_plugin_init (kurento))

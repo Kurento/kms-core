@@ -19,7 +19,7 @@
 #include "kmsbasehub.h"
 #include "kmsagnosticcaps.h"
 #include "kms-marshal.h"
-#include "kmsmixerport.h"
+#include "kmshubport.h"
 
 #define PLUGIN_NAME "basehub"
 
@@ -559,7 +559,7 @@ kms_base_hub_link_video_sink_default (KmsBaseHub * mixer, gint id,
   gchar *gp_name = g_strdup_printf (VIDEO_SINK_PAD_PREFIX "%d", id);
 
   ret = kms_base_hub_link_sink_pad (mixer, id, gp_name, VIDEO_SINK_PAD_NAME,
-      internal_element, pad_name, MIXER_VIDEO_SRC_PAD,
+      internal_element, pad_name, HUB_VIDEO_SRC_PAD,
       G_STRUCT_OFFSET (KmsBaseHubPortData, video_sink_target),
       remove_on_unlink);
 
@@ -577,7 +577,7 @@ kms_base_hub_link_audio_sink_default (KmsBaseHub * mixer, gint id,
   gchar *gp_name = g_strdup_printf (AUDIO_SINK_PAD_PREFIX "%d", id);
 
   ret = kms_base_hub_link_sink_pad (mixer, id, gp_name, AUDIO_SINK_PAD_NAME,
-      internal_element, pad_name, MIXER_AUDIO_SRC_PAD,
+      internal_element, pad_name, HUB_AUDIO_SRC_PAD,
       G_STRUCT_OFFSET (KmsBaseHubPortData, audio_sink_target),
       remove_on_unlink);
 
@@ -727,31 +727,31 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
 }
 
 static gint
-kms_base_hub_handle_port (KmsBaseHub * mixer, GstElement * mixer_port)
+kms_base_hub_handle_port (KmsBaseHub * mixer, GstElement * hub_port)
 {
   KmsBaseHubPortData *port_data;
   gint *id;
 
-  if (!KMS_IS_MIXER_PORT (mixer_port)) {
-    GST_INFO_OBJECT (mixer, "Invalid MixerPort: %" GST_PTR_FORMAT, mixer_port);
+  if (!KMS_IS_HUB_PORT (hub_port)) {
+    GST_INFO_OBJECT (mixer, "Invalid HubPort: %" GST_PTR_FORMAT, hub_port);
 
     return -1;
   }
 
   if (GST_OBJECT_PARENT (mixer) == NULL ||
-      GST_OBJECT_PARENT (mixer) != GST_OBJECT_PARENT (mixer_port)) {
-    GST_ERROR_OBJECT (mixer, "Mixer and MixerPort do not have the same parent");
+      GST_OBJECT_PARENT (mixer) != GST_OBJECT_PARENT (hub_port)) {
+    GST_ERROR_OBJECT (mixer, "Mixer and HubPort do not have the same parent");
     return -1;
   }
 
-  GST_DEBUG_OBJECT (mixer, "Handle port: %" GST_PTR_FORMAT, mixer_port);
+  GST_DEBUG_OBJECT (mixer, "Handle port: %" GST_PTR_FORMAT, hub_port);
 
   id = kms_base_hub_generate_port_id (mixer);
 
   GST_DEBUG_OBJECT (mixer, "Adding new port %d", *id);
-  port_data = kms_base_hub_port_data_create (mixer, mixer_port, *id);
+  port_data = kms_base_hub_port_data_create (mixer, hub_port, *id);
 
-  port_data->signal_id = g_signal_connect (G_OBJECT (mixer_port),
+  port_data->signal_id = g_signal_connect (G_OBJECT (hub_port),
       "pad-added", G_CALLBACK (endpoint_pad_added), port_data);
 
   KMS_BASE_HUB_LOCK (mixer);

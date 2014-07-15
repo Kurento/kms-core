@@ -53,7 +53,7 @@ set(KMS_COMMONS_SOURCES kmsbasertpendpoint.c
                         kmselement.c
                         kmsloop.c
                         kmsrecordingprofile.c
-                        kmsmixerport.c
+                        kmshubport.c
                         kmsbasehub.c)
 
 set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
@@ -62,7 +62,7 @@ set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
                         kmselement.h
                         kmsloop.h
                         kmsrecordingprofile.h
-                        kmsmixerport.h
+                        kmshubport.h
                         kmsbasehub.h)
 
 set(ENUM_HEADERS
