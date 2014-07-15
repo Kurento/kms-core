@@ -4,6 +4,7 @@
 #include "MediaPadImpl.hpp"
 #include "MediaSource.hpp"
 #include <EventHandler.hpp>
+#include <glibmm.h>
 
 namespace kurento
 {
@@ -22,9 +23,8 @@ public:
                    const std::string &mediaDescription,
                    std::shared_ptr<MediaObjectImpl> parent);
 
-  virtual ~MediaSourceImpl () {};
+  virtual ~MediaSourceImpl ();
 
-  std::vector<std::shared_ptr<MediaSink>> getConnectedSinks ();
   void connect (std::shared_ptr<MediaSink> sink);
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
@@ -40,6 +40,8 @@ public:
 
   };
 
+  std::vector < std::shared_ptr<MediaSink> > getConnectedSinks ();
+
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
                        Json::Value &response);
@@ -47,6 +49,13 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+  std::vector < std::weak_ptr<MediaSinkImpl> > connectedSinks;
+  void removeSink (MediaSinkImpl *mediaSink);
+  void disconnect (MediaSinkImpl *mediaSink);
+
+  Glib::Threads::RecMutex mutex;
+
+  const gchar *getPadName ();
 
   class StaticConstructor
   {
@@ -56,6 +65,9 @@ private:
 
   static StaticConstructor staticConstructor;
 
+  friend class MediaSinkImpl;
+  friend gboolean link_media_elements (std::shared_ptr<MediaSourceImpl> src,
+                                       std::shared_ptr<MediaSinkImpl> sink);
 };
 
 } /* kurento */
