@@ -13,7 +13,13 @@ namespace kurento
 
 SessionEndpointImpl::SessionEndpointImpl ()
 {
-  // FIXME: Implement this
+  throw KurentoException (MEDIA_OBJECT_CONSTRUCTOR_NOT_FOUND, "Default constructor of SessionEndpoint should not be used");
+}
+
+SessionEndpointImpl::SessionEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+    const std::string &factoryName) :
+  EndpointImpl (parent, factoryName)
+{
 }
 
 SessionEndpointImpl::StaticConstructor SessionEndpointImpl::staticConstructor;
