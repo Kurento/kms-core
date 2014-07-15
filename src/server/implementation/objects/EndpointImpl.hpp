@@ -18,6 +18,8 @@ class EndpointImpl : public MediaElementImpl, public virtual Endpoint
 public:
 
   EndpointImpl ();
+  EndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+                const std::string &factoryName);
 
   virtual ~EndpointImpl () {};
 
