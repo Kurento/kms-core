@@ -18,9 +18,13 @@ class HubPortImpl : public MediaElementImpl, public virtual HubPort
 
 public:
 
-  HubPortImpl (std::shared_ptr<Hub> hub);
+  HubPortImpl (std::shared_ptr<HubImpl> hub);
 
-  virtual ~HubPortImpl () {};
+  virtual ~HubPortImpl ();
+
+  int getHandlerId () {
+    return handlerId;
+  }
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -47,6 +51,8 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  int handlerId;
 
   class StaticConstructor
   {
