@@ -18,7 +18,9 @@ class MediaSourceImpl : public MediaPadImpl, public virtual MediaSource
 
 public:
 
-  MediaSourceImpl ();
+  MediaSourceImpl (std::shared_ptr<MediaType> mediaType,
+                   const std::string &mediaDescription,
+                   std::shared_ptr<MediaObjectImpl> parent);
 
   virtual ~MediaSourceImpl () {};
 

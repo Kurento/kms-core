@@ -12,7 +12,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaSinkImpl::MediaSinkImpl ()
+MediaSinkImpl::MediaSinkImpl (std::shared_ptr<MediaType> mediaType,
+                              const std::string &mediaDescription,
+                              std::shared_ptr<MediaObjectImpl> parent)
 {
   // FIXME: Implement this
 }

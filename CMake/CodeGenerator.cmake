@@ -494,6 +494,7 @@ function (generate_kurento_libraries)
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
       ${GSTREAMER_INCLUDE_DIRS}
+      ${GLIBMM_INCLUDE_DIRS}
   )
 
   install(

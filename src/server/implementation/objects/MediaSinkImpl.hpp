@@ -18,7 +18,9 @@ class MediaSinkImpl : public MediaPadImpl, public virtual MediaSink
 
 public:
 
-  MediaSinkImpl ();
+  MediaSinkImpl (std::shared_ptr<MediaType> mediaType,
+                 const std::string &mediaDescription,
+                 std::shared_ptr<MediaObjectImpl> parent);
 
   virtual ~MediaSinkImpl () {};
 

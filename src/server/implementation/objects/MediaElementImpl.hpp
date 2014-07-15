@@ -4,6 +4,8 @@
 #include "MediaObjectImpl.hpp"
 #include "MediaElement.hpp"
 #include <EventHandler.hpp>
+#include <gst/gst.h>
+#include <glibmm.h>
 
 namespace kurento
 {
@@ -21,8 +23,13 @@ class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 public:
 
   MediaElementImpl ();
+  MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
 
-  virtual ~MediaElementImpl () {};
+  virtual ~MediaElementImpl ();
+
+  GstElement *getGstreamerElement() {
+    return element;
+  };
 
   std::vector<std::shared_ptr<MediaSource>> getMediaSrcs ();
   std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (std::shared_ptr<MediaType> mediaType);
@@ -53,7 +60,21 @@ public:
 
   virtual void Serialize (JsonSerializer &serializer);
 
+protected:
+  GstElement *element;
+
 private:
+  Glib::RecMutex mutex;
+
+  std::weak_ptr<MediaSourceImpl> audioMediaSrc;
+  std::weak_ptr<MediaSourceImpl> videoMediaSrc;
+  std::weak_ptr<MediaSinkImpl> audioMediaSink;
+  std::weak_ptr<MediaSinkImpl> videoMediaSink;
+
+  std::shared_ptr<MediaSourceImpl> getOrCreateAudioMediaSrc();
+  std::shared_ptr<MediaSourceImpl> getOrCreateVideoMediaSrc();
+  std::shared_ptr<MediaSinkImpl> getOrCreateAudioMediaSink();
+  std::shared_ptr<MediaSinkImpl> getOrCreateVideoMediaSink();
 
   class StaticConstructor
   {
