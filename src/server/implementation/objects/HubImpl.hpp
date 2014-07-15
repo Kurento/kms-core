@@ -4,6 +4,7 @@
 #include "MediaObjectImpl.hpp"
 #include "Hub.hpp"
 #include <EventHandler.hpp>
+#include <gst/gst.h>
 
 namespace kurento
 {
@@ -17,9 +18,14 @@ class HubImpl : public MediaObjectImpl, public virtual Hub
 
 public:
 
-  HubImpl ();
+  HubImpl (std::shared_ptr<MediaObjectImpl> parent,
+           const std::string &factoryName);
 
-  virtual ~HubImpl () {};
+  virtual ~HubImpl ();
+
+  GstElement *getGstreamerElement() {
+    return element;
+  };
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -39,6 +45,9 @@ public:
                        Json::Value &response);
 
   virtual void Serialize (JsonSerializer &serializer);
+
+protected:
+  GstElement *element;
 
 private:
 
