@@ -38,12 +38,12 @@ main (int argc, char **argv)
 
   std::cout << "symbol found" << std::endl;
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
-  const std::list <std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
+  const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
 
   std::cout << "Found " << factories.size() << " factories" << std::endl;
 
   for (auto factory : factories) {
-    std::cout << "factory " << factory->getName() << std::endl;
+    std::cout << "factory " << factory.second->getName() << std::endl;
   }
 
   // TODO:

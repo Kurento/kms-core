@@ -25,16 +25,16 @@ namespace kurento {
 class FactoryRegistrar
 {
 public:
-  FactoryRegistrar(std::list<std::shared_ptr<Factory>> &factories) :
+  FactoryRegistrar(std::map<std::string, std::shared_ptr<Factory>> &factories) :
                    factories (factories) {};
   ~FactoryRegistrar() {};
 
-  const std::list<std::shared_ptr<Factory>> &getFactories () const {
+  const std::map<std::string, std::shared_ptr<Factory>> &getFactories () const {
     return factories;
   }
 
 private:
-  std::list<std::shared_ptr<Factory>> factories;
+  std::map<std::string, std::shared_ptr<Factory>> factories;
 };
 
 } /* kurento */
