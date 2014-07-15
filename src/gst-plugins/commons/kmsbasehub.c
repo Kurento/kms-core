@@ -23,11 +23,11 @@
 
 #define PLUGIN_NAME "basehub"
 
-#define KMS_BASE_HUB_LOCK(mixer) \
-  (g_rec_mutex_lock (&(mixer)->priv->mutex))
+#define KMS_BASE_HUB_LOCK(hub) \
+  (g_rec_mutex_lock (&(hub)->priv->mutex))
 
-#define KMS_BASE_HUB_UNLOCK(mixer) \
-  (g_rec_mutex_unlock (&(mixer)->priv->mutex))
+#define KMS_BASE_HUB_UNLOCK(hub) \
+  (g_rec_mutex_unlock (&(hub)->priv->mutex))
 
 GST_DEBUG_CATEGORY_STATIC (kms_base_hub_debug_category);
 #define GST_CAT_DEFAULT kms_base_hub_debug_category
@@ -100,7 +100,7 @@ typedef struct _KmsBaseHubPortData KmsBaseHubPortData;
 
 struct _KmsBaseHubPortData
 {
-  KmsBaseHub *mixer;
+  KmsBaseHub *hub;
   GstElement *port;
   gulong signal_id;
   gint id;
@@ -142,11 +142,11 @@ end:
 }
 
 static KmsBaseHubPortData *
-kms_base_hub_port_data_create (KmsBaseHub * mixer, GstElement * port, gint id)
+kms_base_hub_port_data_create (KmsBaseHub * hub, GstElement * port, gint id)
 {
   KmsBaseHubPortData *data = g_slice_new0 (KmsBaseHubPortData);
 
-  data->mixer = mixer;
+  data->hub = hub;
   data->port = g_object_ref (port);
   data->id = id;
 
@@ -171,91 +171,89 @@ kms_base_hub_port_data_destroy (gpointer data)
 }
 
 gboolean
-kms_base_hub_link_video_src (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_video_src (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->link_video_src (mixer,
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->link_video_src (hub,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
 gboolean
-kms_base_hub_link_audio_src (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_audio_src (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->link_audio_src (mixer,
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->link_audio_src (hub,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
 gboolean
-kms_base_hub_link_video_sink (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_video_sink (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->link_video_sink (mixer,
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->link_video_sink (hub,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
 gboolean
-kms_base_hub_link_audio_sink (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_audio_sink (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->link_audio_sink (mixer,
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->link_audio_sink (hub,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
 gboolean
-kms_base_hub_unlink_video_src (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_video_src (KmsBaseHub * hub, gint id)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->unlink_video_src
-      (mixer, id);
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->unlink_video_src (hub, id);
 }
 
 gboolean
-kms_base_hub_unlink_audio_src (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_audio_src (KmsBaseHub * hub, gint id)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->unlink_audio_src
-      (mixer, id);
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->unlink_audio_src (hub, id);
 }
 
 gboolean
-kms_base_hub_unlink_video_sink (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_video_sink (KmsBaseHub * hub, gint id)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->unlink_video_sink
-      (mixer, id);
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->unlink_video_sink
+      (hub, id);
 }
 
 gboolean
-kms_base_hub_unlink_audio_sink (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_audio_sink (KmsBaseHub * hub, gint id)
 {
-  g_return_val_if_fail (KMS_IS_BASE_HUB (mixer), FALSE);
+  g_return_val_if_fail (KMS_IS_BASE_HUB (hub), FALSE);
 
   return
-      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (mixer))->unlink_audio_sink
-      (mixer, id);
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (hub))->unlink_audio_sink
+      (hub, id);
 }
 
 static void
@@ -265,12 +263,12 @@ release_gint (gpointer data)
 }
 
 static gboolean
-kms_base_hub_unlink_pad (KmsBaseHub * mixer, const gchar * gp_name)
+kms_base_hub_unlink_pad (KmsBaseHub * hub, const gchar * gp_name)
 {
   GstPad *gp;
   gboolean ret;
 
-  gp = gst_element_get_static_pad (GST_ELEMENT (mixer), gp_name);
+  gp = gst_element_get_static_pad (GST_ELEMENT (hub), gp_name);
 
   if (gp == NULL) {
     return TRUE;
@@ -282,12 +280,12 @@ kms_base_hub_unlink_pad (KmsBaseHub * mixer, const gchar * gp_name)
 }
 
 static gboolean
-kms_base_hub_unlink_video_src_default (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_video_src_default (KmsBaseHub * hub, gint id)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (VIDEO_SRC_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_unlink_pad (mixer, gp_name);
+  ret = kms_base_hub_unlink_pad (hub, gp_name);
 
   g_free (gp_name);
 
@@ -295,12 +293,12 @@ kms_base_hub_unlink_video_src_default (KmsBaseHub * mixer, gint id)
 }
 
 static gboolean
-kms_base_hub_unlink_audio_src_default (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_audio_src_default (KmsBaseHub * hub, gint id)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (AUDIO_SRC_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_unlink_pad (mixer, gp_name);
+  ret = kms_base_hub_unlink_pad (hub, gp_name);
 
   g_free (gp_name);
 
@@ -308,12 +306,12 @@ kms_base_hub_unlink_audio_src_default (KmsBaseHub * mixer, gint id)
 }
 
 static gboolean
-kms_base_hub_unlink_video_sink_default (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_video_sink_default (KmsBaseHub * hub, gint id)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (VIDEO_SINK_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_unlink_pad (mixer, gp_name);
+  ret = kms_base_hub_unlink_pad (hub, gp_name);
 
   g_free (gp_name);
 
@@ -321,12 +319,12 @@ kms_base_hub_unlink_video_sink_default (KmsBaseHub * mixer, gint id)
 }
 
 static gboolean
-kms_base_hub_unlink_audio_sink_default (KmsBaseHub * mixer, gint id)
+kms_base_hub_unlink_audio_sink_default (KmsBaseHub * hub, gint id)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (AUDIO_SINK_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_unlink_pad (mixer, gp_name);
+  ret = kms_base_hub_unlink_pad (hub, gp_name);
 
   g_free (gp_name);
 
@@ -350,15 +348,15 @@ remove_unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
 }
 
 static gboolean
-kms_base_hub_link_src_pad (KmsBaseHub * mixer, const gchar * gp_name,
+kms_base_hub_link_src_pad (KmsBaseHub * hub, const gchar * gp_name,
     const gchar * template_name, GstElement * internal_element,
     const gchar * pad_name, gboolean remove_on_unlink)
 {
   GstPad *gp, *target;
   gboolean ret;
 
-  if (GST_OBJECT_PARENT (internal_element) != GST_OBJECT (mixer)) {
-    GST_ERROR_OBJECT (mixer, "Cannot link %" GST_PTR_FORMAT " wrong hierarchy",
+  if (GST_OBJECT_PARENT (internal_element) != GST_OBJECT (hub)) {
+    GST_ERROR_OBJECT (hub, "Cannot link %" GST_PTR_FORMAT " wrong hierarchy",
         internal_element);
     return FALSE;
   }
@@ -374,27 +372,27 @@ kms_base_hub_link_src_pad (KmsBaseHub * mixer, const gchar * gp_name,
   }
 
   if (target == NULL) {
-    GST_ERROR_OBJECT (mixer, "Cannot get target pad");
+    GST_ERROR_OBJECT (hub, "Cannot get target pad");
     return FALSE;
   }
 
-  gp = gst_element_get_static_pad (GST_ELEMENT (mixer), gp_name);
+  gp = gst_element_get_static_pad (GST_ELEMENT (hub), gp_name);
 
   if (gp == NULL) {
     GstPadTemplate *templ;
 
     templ =
         gst_element_class_get_pad_template (GST_ELEMENT_CLASS
-        (G_OBJECT_GET_CLASS (mixer)), template_name);
+        (G_OBJECT_GET_CLASS (hub)), template_name);
     gp = gst_ghost_pad_new_from_template (gp_name, target, templ);
 
-    if (GST_STATE (mixer) >= GST_STATE_PAUSED
-        || GST_STATE_PENDING (mixer) >= GST_STATE_PAUSED
-        || GST_STATE_TARGET (mixer) >= GST_STATE_PAUSED) {
+    if (GST_STATE (hub) >= GST_STATE_PAUSED
+        || GST_STATE_PENDING (hub) >= GST_STATE_PAUSED
+        || GST_STATE_TARGET (hub) >= GST_STATE_PAUSED) {
       gst_pad_set_active (gp, TRUE);
     }
 
-    ret = gst_element_add_pad (GST_ELEMENT (mixer), gp);
+    ret = gst_element_add_pad (GST_ELEMENT (hub), gp);
     if (!ret) {
       g_object_unref (gp);
     }
@@ -409,7 +407,7 @@ kms_base_hub_link_src_pad (KmsBaseHub * mixer, const gchar * gp_name,
 }
 
 static gboolean
-kms_base_hub_link_audio_src_default (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_audio_src_default (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
@@ -417,7 +415,7 @@ kms_base_hub_link_audio_src_default (KmsBaseHub * mixer, gint id,
   gboolean ret;
 
   ret =
-      kms_base_hub_link_src_pad (mixer, gp_name, AUDIO_SRC_PAD_NAME,
+      kms_base_hub_link_src_pad (hub, gp_name, AUDIO_SRC_PAD_NAME,
       internal_element, pad_name, remove_on_unlink);
   g_free (gp_name);
 
@@ -425,7 +423,7 @@ kms_base_hub_link_audio_src_default (KmsBaseHub * mixer, gint id,
 }
 
 static gboolean
-kms_base_hub_link_video_src_default (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_video_src_default (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
@@ -433,7 +431,7 @@ kms_base_hub_link_video_src_default (KmsBaseHub * mixer, gint id,
   gboolean ret;
 
   ret =
-      kms_base_hub_link_src_pad (mixer, gp_name, VIDEO_SRC_PAD_NAME,
+      kms_base_hub_link_src_pad (hub, gp_name, VIDEO_SRC_PAD_NAME,
       internal_element, pad_name, remove_on_unlink);
   g_free (gp_name);
 
@@ -441,7 +439,7 @@ kms_base_hub_link_video_src_default (KmsBaseHub * mixer, gint id,
 }
 
 static gboolean
-kms_base_hub_create_and_link_ghost_pad (KmsBaseHub * mixer,
+kms_base_hub_create_and_link_ghost_pad (KmsBaseHub * hub,
     GstPad * src_pad, const gchar * gp_name, const gchar * gp_template_name,
     GstPad * target)
 {
@@ -451,16 +449,16 @@ kms_base_hub_create_and_link_ghost_pad (KmsBaseHub * mixer,
 
   templ =
       gst_element_class_get_pad_template (GST_ELEMENT_CLASS
-      (G_OBJECT_GET_CLASS (mixer)), gp_template_name);
+      (G_OBJECT_GET_CLASS (hub)), gp_template_name);
   gp = gst_ghost_pad_new_from_template (gp_name, target, templ);
 
-  if (GST_STATE (mixer) >= GST_STATE_PAUSED
-      || GST_STATE_PENDING (mixer) >= GST_STATE_PAUSED
-      || GST_STATE_TARGET (mixer) >= GST_STATE_PAUSED) {
+  if (GST_STATE (hub) >= GST_STATE_PAUSED
+      || GST_STATE_PENDING (hub) >= GST_STATE_PAUSED
+      || GST_STATE_TARGET (hub) >= GST_STATE_PAUSED) {
     gst_pad_set_active (gp, TRUE);
   }
 
-  ret = gst_element_add_pad (GST_ELEMENT (mixer), gp);
+  ret = gst_element_add_pad (GST_ELEMENT (hub), gp);
 
   if (ret) {
     gst_pad_link (src_pad, gp);
@@ -472,7 +470,7 @@ kms_base_hub_create_and_link_ghost_pad (KmsBaseHub * mixer,
 }
 
 static gboolean
-kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_sink_pad (KmsBaseHub * hub, gint id,
     const gchar * gp_name, const gchar * gp_template_name,
     GstElement * internal_element, const gchar * pad_name,
     const gchar * port_src_pad_name, gulong target_offset,
@@ -483,8 +481,8 @@ kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
   GstPad *gp, *target;
   GstPad **port_data_target;
 
-  if (GST_OBJECT_PARENT (internal_element) != GST_OBJECT (mixer)) {
-    GST_ERROR_OBJECT (mixer, "Cannot link %" GST_PTR_FORMAT " wrong hierarchy",
+  if (GST_OBJECT_PARENT (internal_element) != GST_OBJECT (hub)) {
+    GST_ERROR_OBJECT (hub, "Cannot link %" GST_PTR_FORMAT " wrong hierarchy",
         internal_element);
     return FALSE;
   }
@@ -500,13 +498,13 @@ kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
   }
 
   if (target == NULL) {
-    GST_ERROR_OBJECT (mixer, "Cannot get target pad");
+    GST_ERROR_OBJECT (hub, "Cannot get target pad");
     return FALSE;
   }
 
-  KMS_BASE_HUB_LOCK (mixer);
+  KMS_BASE_HUB_LOCK (hub);
 
-  port_data = g_hash_table_lookup (mixer->priv->ports, &id);
+  port_data = g_hash_table_lookup (hub->priv->ports, &id);
 
   if (port_data == NULL) {
     ret = FALSE;
@@ -519,7 +517,7 @@ kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
   }
   *port_data_target = g_object_ref (target);
 
-  gp = gst_element_get_static_pad (GST_ELEMENT (mixer), gp_name);
+  gp = gst_element_get_static_pad (GST_ELEMENT (hub), gp_name);
   if (gp != NULL) {
     ret = set_target (gp, target);
     g_object_unref (gp);
@@ -528,7 +526,7 @@ kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
         port_src_pad_name);
 
     if (src_pad != NULL) {
-      ret = kms_base_hub_create_and_link_ghost_pad (mixer, src_pad,
+      ret = kms_base_hub_create_and_link_ghost_pad (hub, src_pad,
           gp_name, gp_template_name, target);
       g_object_unref (src_pad);
     } else {
@@ -536,14 +534,14 @@ kms_base_hub_link_sink_pad (KmsBaseHub * mixer, gint id,
     }
   }
 
-  GST_DEBUG_OBJECT (mixer, "Audio target pad for port %d: %" GST_PTR_FORMAT,
+  GST_DEBUG_OBJECT (hub, "Audio target pad for port %d: %" GST_PTR_FORMAT,
       port_data->id, port_data->audio_sink_target);
-  GST_DEBUG_OBJECT (mixer, "Video target pad for port %d: %" GST_PTR_FORMAT,
+  GST_DEBUG_OBJECT (hub, "Video target pad for port %d: %" GST_PTR_FORMAT,
       port_data->id, port_data->video_sink_target);
 
 end:
 
-  KMS_BASE_HUB_UNLOCK (mixer);
+  KMS_BASE_HUB_UNLOCK (hub);
 
   g_object_unref (target);
 
@@ -551,14 +549,14 @@ end:
 }
 
 static gboolean
-kms_base_hub_link_video_sink_default (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_video_sink_default (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (VIDEO_SINK_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_link_sink_pad (mixer, id, gp_name, VIDEO_SINK_PAD_NAME,
+  ret = kms_base_hub_link_sink_pad (hub, id, gp_name, VIDEO_SINK_PAD_NAME,
       internal_element, pad_name, HUB_VIDEO_SRC_PAD,
       G_STRUCT_OFFSET (KmsBaseHubPortData, video_sink_target),
       remove_on_unlink);
@@ -569,14 +567,14 @@ kms_base_hub_link_video_sink_default (KmsBaseHub * mixer, gint id,
 }
 
 static gboolean
-kms_base_hub_link_audio_sink_default (KmsBaseHub * mixer, gint id,
+kms_base_hub_link_audio_sink_default (KmsBaseHub * hub, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
   gboolean ret;
   gchar *gp_name = g_strdup_printf (AUDIO_SINK_PAD_PREFIX "%d", id);
 
-  ret = kms_base_hub_link_sink_pad (mixer, id, gp_name, AUDIO_SINK_PAD_NAME,
+  ret = kms_base_hub_link_sink_pad (hub, id, gp_name, AUDIO_SINK_PAD_NAME,
       internal_element, pad_name, HUB_AUDIO_SRC_PAD,
       G_STRUCT_OFFSET (KmsBaseHubPortData, audio_sink_target),
       remove_on_unlink);
@@ -587,42 +585,42 @@ kms_base_hub_link_audio_sink_default (KmsBaseHub * mixer, gint id,
 }
 
 static void
-kms_base_hub_remove_port_pad (KmsBaseHub * mixer, gint id,
+kms_base_hub_remove_port_pad (KmsBaseHub * hub, gint id,
     const gchar * pad_prefix)
 {
   gchar *pad_name = g_strdup_printf ("%s%d", pad_prefix, id);
-  GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (mixer), pad_name);
+  GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (hub), pad_name);
 
-  GST_DEBUG_OBJECT (mixer, "Trying to remove pad: %s -> %" GST_PTR_FORMAT,
+  GST_DEBUG_OBJECT (hub, "Trying to remove pad: %s -> %" GST_PTR_FORMAT,
       pad_name, pad);
 
   if (pad != NULL) {
     set_target (pad, NULL);
-    gst_element_remove_pad (GST_ELEMENT (mixer), pad);
+    gst_element_remove_pad (GST_ELEMENT (hub), pad);
     g_object_unref (pad);
   }
   g_free (pad_name);
 }
 
 static void
-kms_base_hub_remove_port_pads (KmsBaseHub * mixer, gint id)
+kms_base_hub_remove_port_pads (KmsBaseHub * hub, gint id)
 {
-  kms_base_hub_remove_port_pad (mixer, id, AUDIO_SRC_PAD_PREFIX);
-  kms_base_hub_remove_port_pad (mixer, id, AUDIO_SINK_PAD_PREFIX);
-  kms_base_hub_remove_port_pad (mixer, id, VIDEO_SRC_PAD_PREFIX);
-  kms_base_hub_remove_port_pad (mixer, id, VIDEO_SINK_PAD_PREFIX);
+  kms_base_hub_remove_port_pad (hub, id, AUDIO_SRC_PAD_PREFIX);
+  kms_base_hub_remove_port_pad (hub, id, AUDIO_SINK_PAD_PREFIX);
+  kms_base_hub_remove_port_pad (hub, id, VIDEO_SRC_PAD_PREFIX);
+  kms_base_hub_remove_port_pad (hub, id, VIDEO_SINK_PAD_PREFIX);
 }
 
 static void
-kms_base_hub_unhandle_port (KmsBaseHub * mixer, gint id)
+kms_base_hub_unhandle_port (KmsBaseHub * hub, gint id)
 {
   KmsBaseHubPortData *port_data;
 
-  GST_DEBUG_OBJECT (mixer, "Unhandle port %" G_GINT32_FORMAT, id);
+  GST_DEBUG_OBJECT (hub, "Unhandle port %" G_GINT32_FORMAT, id);
 
-  KMS_BASE_HUB_LOCK (mixer);
+  KMS_BASE_HUB_LOCK (hub);
 
-  port_data = (KmsBaseHubPortData *) g_hash_table_lookup (mixer->priv->ports,
+  port_data = (KmsBaseHubPortData *) g_hash_table_lookup (hub->priv->ports,
       &id);
 
   if (port_data == NULL) {
@@ -631,33 +629,33 @@ kms_base_hub_unhandle_port (KmsBaseHub * mixer, gint id)
 
   GST_DEBUG ("Removing element: %" GST_PTR_FORMAT, port_data->port);
 
-  kms_base_hub_remove_port_pads (mixer, id);
+  kms_base_hub_remove_port_pads (hub, id);
 
-  g_hash_table_remove (mixer->priv->ports, &id);
+  g_hash_table_remove (hub->priv->ports, &id);
 
 end:
-  KMS_BASE_HUB_UNLOCK (mixer);
+  KMS_BASE_HUB_UNLOCK (hub);
 }
 
 static gint *
-kms_base_hub_generate_port_id (KmsBaseHub * mixer)
+kms_base_hub_generate_port_id (KmsBaseHub * hub)
 {
   gint *id;
 
   id = g_slice_new (gint);
-  *id = g_atomic_int_add (&mixer->priv->port_count, 1);
+  *id = g_atomic_int_add (&hub->priv->port_count, 1);
 
   return id;
 }
 
 static void
-mixer_pad_added (KmsBaseHub * mixer, GstPad * pad, gpointer data)
+hub_pad_added (KmsBaseHub * hub, GstPad * pad, gpointer data)
 {
   if (gst_pad_get_direction (pad) != GST_PAD_SRC) {
     return;
   }
 
-  KMS_BASE_HUB_LOCK (mixer);
+  KMS_BASE_HUB_LOCK (hub);
 
   if (g_str_has_prefix (GST_OBJECT_NAME (pad), VIDEO_SRC_PAD_PREFIX)) {
     KmsBaseHubPortData *port;
@@ -666,10 +664,10 @@ mixer_pad_added (KmsBaseHub * mixer, GstPad * pad, gpointer data)
 
     pad_name = GST_OBJECT_NAME (pad);
     id = g_ascii_strtoll (pad_name + LENGTH_VIDEO_SRC_PAD_PREFIX, NULL, 10);
-    port = g_hash_table_lookup (mixer->priv->ports, &id);
+    port = g_hash_table_lookup (hub->priv->ports, &id);
 
-    gst_element_link_pads (GST_ELEMENT (mixer), GST_OBJECT_NAME (pad),
-        port->port, "mixer_video_sink");
+    gst_element_link_pads (GST_ELEMENT (hub), GST_OBJECT_NAME (pad),
+        port->port, "hub_video_sink");
   } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), AUDIO_SRC_PAD_PREFIX)) {
     KmsBaseHubPortData *port;
     gint64 id;
@@ -677,13 +675,13 @@ mixer_pad_added (KmsBaseHub * mixer, GstPad * pad, gpointer data)
 
     pad_name = GST_OBJECT_NAME (pad);
     id = g_ascii_strtoll (pad_name + LENGTH_AUDIO_SRC_PAD_PREFIX, NULL, 10);
-    port = g_hash_table_lookup (mixer->priv->ports, &id);
+    port = g_hash_table_lookup (hub->priv->ports, &id);
 
-    gst_element_link_pads (GST_ELEMENT (mixer), GST_OBJECT_NAME (pad),
-        port->port, "mixer_audio_sink");
+    gst_element_link_pads (GST_ELEMENT (hub), GST_OBJECT_NAME (pad),
+        port->port, "hub_audio_sink");
   }
 
-  KMS_BASE_HUB_UNLOCK (mixer);
+  KMS_BASE_HUB_UNLOCK (hub);
 }
 
 static void
@@ -691,22 +689,22 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
     KmsBaseHubPortData * port_data)
 {
   if (gst_pad_get_direction (pad) != GST_PAD_SRC ||
-      !g_str_has_prefix (GST_OBJECT_NAME (pad), "mixer")) {
+      !g_str_has_prefix (GST_OBJECT_NAME (pad), "hub")) {
     return;
   }
 
-  KMS_BASE_HUB_LOCK (port_data->mixer);
+  KMS_BASE_HUB_LOCK (port_data->hub);
 
   if (port_data->video_sink_target != NULL
       && g_strstr_len (GST_OBJECT_NAME (pad), -1, "video")) {
     gchar *gp_name = g_strdup_printf (VIDEO_SINK_PAD_PREFIX "%d",
         port_data->id);
 
-    GST_DEBUG_OBJECT (port_data->mixer,
+    GST_DEBUG_OBJECT (port_data->hub,
         "Connect %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, pad,
         port_data->video_sink_target);
 
-    kms_base_hub_create_and_link_ghost_pad (port_data->mixer, pad, gp_name,
+    kms_base_hub_create_and_link_ghost_pad (port_data->hub, pad, gp_name,
         VIDEO_SINK_PAD_NAME, port_data->video_sink_target);
     g_free (gp_name);
   } else if (port_data->video_sink_target != NULL
@@ -714,49 +712,49 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
     gchar *gp_name = g_strdup_printf (AUDIO_SINK_PAD_PREFIX "%d",
         port_data->id);
 
-    GST_DEBUG_OBJECT (port_data->mixer,
+    GST_DEBUG_OBJECT (port_data->hub,
         "Connect %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, pad,
         port_data->audio_sink_target);
 
-    kms_base_hub_create_and_link_ghost_pad (port_data->mixer, pad, gp_name,
+    kms_base_hub_create_and_link_ghost_pad (port_data->hub, pad, gp_name,
         AUDIO_SINK_PAD_NAME, port_data->audio_sink_target);
     g_free (gp_name);
   }
 
-  KMS_BASE_HUB_UNLOCK (port_data->mixer);
+  KMS_BASE_HUB_UNLOCK (port_data->hub);
 }
 
 static gint
-kms_base_hub_handle_port (KmsBaseHub * mixer, GstElement * hub_port)
+kms_base_hub_handle_port (KmsBaseHub * hub, GstElement * hub_port)
 {
   KmsBaseHubPortData *port_data;
   gint *id;
 
   if (!KMS_IS_HUB_PORT (hub_port)) {
-    GST_INFO_OBJECT (mixer, "Invalid HubPort: %" GST_PTR_FORMAT, hub_port);
+    GST_INFO_OBJECT (hub, "Invalid HubPort: %" GST_PTR_FORMAT, hub_port);
 
     return -1;
   }
 
-  if (GST_OBJECT_PARENT (mixer) == NULL ||
-      GST_OBJECT_PARENT (mixer) != GST_OBJECT_PARENT (hub_port)) {
-    GST_ERROR_OBJECT (mixer, "Mixer and HubPort do not have the same parent");
+  if (GST_OBJECT_PARENT (hub) == NULL ||
+      GST_OBJECT_PARENT (hub) != GST_OBJECT_PARENT (hub_port)) {
+    GST_ERROR_OBJECT (hub, "Hub and HubPort do not have the same parent");
     return -1;
   }
 
-  GST_DEBUG_OBJECT (mixer, "Handle port: %" GST_PTR_FORMAT, hub_port);
+  GST_DEBUG_OBJECT (hub, "Handle port: %" GST_PTR_FORMAT, hub_port);
 
-  id = kms_base_hub_generate_port_id (mixer);
+  id = kms_base_hub_generate_port_id (hub);
 
-  GST_DEBUG_OBJECT (mixer, "Adding new port %d", *id);
-  port_data = kms_base_hub_port_data_create (mixer, hub_port, *id);
+  GST_DEBUG_OBJECT (hub, "Adding new port %d", *id);
+  port_data = kms_base_hub_port_data_create (hub, hub_port, *id);
 
   port_data->signal_id = g_signal_connect (G_OBJECT (hub_port),
       "pad-added", G_CALLBACK (endpoint_pad_added), port_data);
 
-  KMS_BASE_HUB_LOCK (mixer);
-  g_hash_table_insert (mixer->priv->ports, id, port_data);
-  KMS_BASE_HUB_UNLOCK (mixer);
+  KMS_BASE_HUB_LOCK (hub);
+  g_hash_table_insert (hub->priv->ports, id, port_data);
+  KMS_BASE_HUB_UNLOCK (hub);
 
   return *id;
 }
@@ -799,7 +797,7 @@ kms_base_hub_class_init (KmsBaseHubClass * klass)
   GstElementClass *gstelement_class = GST_ELEMENT_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "BaseHub", "Generic", "Kurento plugin for mixer connection",
+      "BaseHub", "Generic", "Kurento plugin for hub connection",
       "Jose Antonio Santos Cadenas <santoscadenas@gmail.com>");
 
   klass->handle_port = GST_DEBUG_FUNCPTR (kms_base_hub_handle_port);
@@ -866,5 +864,5 @@ kms_base_hub_init (KmsBaseHub * self)
       release_gint, kms_base_hub_port_data_destroy);
 
   self->priv->pad_added_id = g_signal_connect (G_OBJECT (self),
-      "pad-added", G_CALLBACK (mixer_pad_added), NULL);
+      "pad-added", G_CALLBACK (hub_pad_added), NULL);
 }
