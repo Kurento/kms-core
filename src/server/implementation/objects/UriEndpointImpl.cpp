@@ -11,27 +11,37 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-UriEndpointImpl::UriEndpointImpl ()
-{
-  // FIXME: Implement this
-}
+typedef enum {
+  KMS_URI_END_POINT_STATE_STOP,
+  KMS_URI_END_POINT_STATE_START,
+  KMS_URI_END_POINT_STATE_PAUSE
+} KmsUriEndPointState;
 
-std::string UriEndpointImpl::getUri ()
+UriEndpointImpl::UriEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+                                  const std::string &factoryName, const std::string &uri) :
+  EndpointImpl (parent, factoryName)
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "UriEndpointImpl::getUri: Not implemented");
+  this->uri = uri;
+  g_object_set (G_OBJECT (getGstreamerElement() ), "uri", uri.c_str(), NULL);
 }
 
 void UriEndpointImpl::pause ()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "UriEndpointImpl::pause: Not implemented");
+  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
+                KMS_URI_END_POINT_STATE_PAUSE, NULL);
 }
 
 void UriEndpointImpl::stop ()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "UriEndpointImpl::stop: Not implemented");
+  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
+                KMS_URI_END_POINT_STATE_STOP, NULL);
+}
+
+void
+UriEndpointImpl::start ()
+{
+  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
+                KMS_URI_END_POINT_STATE_START, NULL);
 }
 
 UriEndpointImpl::StaticConstructor UriEndpointImpl::staticConstructor;

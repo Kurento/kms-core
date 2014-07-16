@@ -17,11 +17,11 @@ class UriEndpointImpl : public EndpointImpl, public virtual UriEndpoint
 
 public:
 
-  UriEndpointImpl ();
+  UriEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+                   const std::string &factoryName, const std::string &uri);
 
   virtual ~UriEndpointImpl () {};
 
-  std::string getUri ();
   void pause ();
   void stop ();
 
@@ -43,6 +43,10 @@ public:
                        Json::Value &response);
 
   virtual void Serialize (JsonSerializer &serializer);
+
+protected:
+
+  void start ();
 
 private:
 

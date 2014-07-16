@@ -78,16 +78,15 @@
       "abstract": true,
       "extends": "Endpoint",
       "doc": "Interface for endpoints the require a URI to work. An example of this, would be a :rom:cls:`PlayerEndpoint` whose URI property could be used to locate a file to stream through its :rom:cls:`MediaSource`",
-      "methods": [
+      "properties": [
         {
-          "name": "getUri",
-          "doc": "Returns the uri for this endpoint.",
-          "params": [],
-          "return": {
-            "doc": "the uri as a String",
-            "type": "String"
-          }
-        },
+          "name": "uri",
+          "doc": "The uri for this endpoint.",
+          "type": "String",
+          "final": true
+        }
+      ],
+      "methods": [
         {
           "name": "pause",
           "doc": "Pauses the feed",
