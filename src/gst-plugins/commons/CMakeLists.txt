@@ -109,9 +109,9 @@ set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
 set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
 set(requires "gstreamer-1.0 gstreamer-base-1.0 gstreamer-sdp-1.0 gstreamer-pbutils-1.0")
 
-configure_file(libkmscommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libkmscommons.pc @ONLY)
+configure_file(kmscommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/kmscommons.pc @ONLY)
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/libkmscommons.pc
+  ${CMAKE_CURRENT_BINARY_DIR}/kmscommons.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
