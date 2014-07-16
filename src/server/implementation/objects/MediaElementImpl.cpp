@@ -16,11 +16,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaElementImpl::MediaElementImpl ()
-{
-  throw KurentoException (MEDIA_OBJECT_CONSTRUCTOR_NOT_FOUND, "Default constructor of MediaElement should not be used");
-}
-
 MediaElementImpl::MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName) : MediaObjectImpl (parent)
 {
   std::shared_ptr<MediaPipelineImpl> pipe;

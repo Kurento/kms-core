@@ -17,7 +17,6 @@ class SessionEndpointImpl : public EndpointImpl, public virtual SessionEndpoint
 
 public:
 
-  SessionEndpointImpl ();
   SessionEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
                        const std::string &factoryName);
 

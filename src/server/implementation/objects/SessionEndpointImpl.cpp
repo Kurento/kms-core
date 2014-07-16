@@ -11,11 +11,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-SessionEndpointImpl::SessionEndpointImpl ()
-{
-  throw KurentoException (MEDIA_OBJECT_CONSTRUCTOR_NOT_FOUND, "Default constructor of SessionEndpoint should not be used");
-}
-
 SessionEndpointImpl::SessionEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
     const std::string &factoryName) :
   EndpointImpl (parent, factoryName)

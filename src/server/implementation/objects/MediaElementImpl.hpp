@@ -22,7 +22,6 @@ class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 
 public:
 
-  MediaElementImpl ();
   MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
 
   virtual ~MediaElementImpl ();
