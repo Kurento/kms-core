@@ -21,8 +21,12 @@
 #include "kmsfilterelement.h"
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
+#include "kms-enumtypes.h"
+#include "kmsfiltertype.h"
 
 #define PLUGIN_NAME "filterelement"
+
+#define DEFAULT_FILTER_TYPE KMS_FILTER_TYPE_AUTODETECT
 
 GST_DEBUG_CATEGORY_STATIC (kms_filter_element_debug_category);
 #define GST_CAT_DEFAULT kms_filter_element_debug_category
@@ -43,12 +47,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_filter_element_debug_category);
   g_rec_mutex_unlock(&KMS_FILTER_ELEMENT(obj)->priv->mutex)     \
 )
 
-typedef enum
-{
-  KMS_FILTER_TYPE_AUDIO,
-  KMS_FILTER_TYPE_VIDEO,
-} KmsFilterType;
-
 struct _KmsFilterElementPrivate
 {
   GRecMutex mutex;
@@ -62,7 +60,8 @@ enum
 {
   PROP_0,
   PROP_FILTER_FACTORY,
-  PROP_FILTER
+  PROP_FILTER,
+  PROP_FILTER_TYPE
 };
 
 /* pad templates */
@@ -128,24 +127,39 @@ kms_filter_element_set_filter (KmsFilterElement * self)
   sink_caps = gst_pad_query_caps (sink, NULL);
   src_caps = gst_pad_query_caps (src, NULL);
 
-  if (gst_caps_can_intersect (audio_caps, sink_caps) &&
-      gst_caps_can_intersect (audio_caps, src_caps)) {
-    GST_DEBUG_OBJECT (self, "Connecting filter to audio");
-    self->priv->filter_type = KMS_FILTER_TYPE_AUDIO;
-    kms_filter_element_connect_filter (self, filter,
-        kms_element_get_audio_valve (KMS_ELEMENT (self)),
-        kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
-  } else if (gst_caps_can_intersect (video_caps, sink_caps)
-      && gst_caps_can_intersect (video_caps, src_caps)) {
-    GST_DEBUG_OBJECT (self, "Connecting filter to video");
-    self->priv->filter_type = KMS_FILTER_TYPE_VIDEO;
+  KMS_FILTER_ELEMENT_LOCK (self);
+
+  if (self->priv->filter_type == KMS_FILTER_TYPE_AUTODETECT) {
+    if (gst_caps_can_intersect (audio_caps, sink_caps) &&
+        gst_caps_can_intersect (audio_caps, src_caps)) {
+      GST_DEBUG_OBJECT (self, "Connecting filter to audio");
+      self->priv->filter_type = KMS_FILTER_TYPE_AUDIO;
+
+    } else if (gst_caps_can_intersect (video_caps, sink_caps)
+        && gst_caps_can_intersect (video_caps, src_caps)) {
+      GST_DEBUG_OBJECT (self, "Connecting filter to video");
+      self->priv->filter_type = KMS_FILTER_TYPE_VIDEO;
+
+    } else {
+      g_object_unref (filter);
+      GST_ERROR_OBJECT (self, "Filter element cannot be connected");
+      KMS_FILTER_ELEMENT_UNLOCK (self);
+      goto end;
+    }
+  }
+
+  if (self->priv->filter_type == KMS_FILTER_TYPE_VIDEO) {
     kms_filter_element_connect_filter (self, filter,
         kms_element_get_video_valve (KMS_ELEMENT (self)),
         kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
-  } else {
-    g_object_unref (filter);
-    GST_ERROR_OBJECT (self, "Filter element cannot be connected");
+
+  } else if (self->priv->filter_type == KMS_FILTER_TYPE_AUDIO) {
+    kms_filter_element_connect_filter (self, filter,
+        kms_element_get_audio_valve (KMS_ELEMENT (self)),
+        kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   }
+
+  KMS_FILTER_ELEMENT_UNLOCK (self);
 
 end:
   if (sink_caps != NULL)
@@ -227,6 +241,9 @@ kms_filter_element_get_property (GObject * object, guint prop_id,
     case PROP_FILTER_FACTORY:
       g_value_set_string (value, self->priv->filter_factory);
       break;
+    case PROP_FILTER_TYPE:
+      g_value_set_enum (value, self->priv->filter_type);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -255,6 +272,9 @@ kms_filter_element_set_property (GObject * object, guint prop_id,
         else
           kms_filter_element_set_filter (self);
       }
+      break;
+    case PROP_FILTER_TYPE:
+      self->priv->filter_type = g_value_get_enum (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -331,6 +351,12 @@ kms_filter_element_class_init (KmsFilterElementClass * klass)
   g_object_class_install_property (gobject_class, PROP_FILTER,
       g_param_spec_object ("filter", "filter", "Filter currently used",
           GST_TYPE_ELEMENT, G_PARAM_READABLE));
+
+  g_object_class_install_property (gobject_class, PROP_FILTER_TYPE,
+      g_param_spec_enum ("type",
+          "Filter element type",
+          "type of the filter",
+          KMS_TYPE_FILTER_TYPE, DEFAULT_FILTER_TYPE, G_PARAM_READWRITE));
 
   /* Registers a private structure for the instantiatable type */
   g_type_class_add_private (klass, sizeof (KmsFilterElementPrivate));

@@ -342,6 +342,16 @@
       ],
       "name": "MediaType",
       "doc": "Type of media stream to be exchanged.\nCan take the values AUDIO, DATA or VIDEO."
+    },
+    {
+      "typeFormat": "ENUM",
+      "values": [
+        "AUDIO",
+        "AUTODETECT",
+        "VIDEO"
+      ],
+      "name": "FilterType",
+      "doc": "Type of filter to be created.\nCan take the values AUDIO, VIDEO or AUTODETECT."
     }
   ],
   "events": [

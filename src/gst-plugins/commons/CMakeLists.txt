@@ -72,6 +72,7 @@ set(ENUM_HEADERS
   kmshttpendpointmethod.h
   kmsrecordingprofile.h
   kmsmediatype.h
+  kmsfiltertype.h
 )
 
 add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-enumtypes KMS ${ENUM_HEADERS})
