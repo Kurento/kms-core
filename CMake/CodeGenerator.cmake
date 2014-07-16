@@ -297,15 +297,13 @@ function (generate_kurento_libraries)
   )
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}interface
-    ${JSONRPC_LIBRARIES}
-    ${SIGCPP_LIBRARIES}
+    ${DEPENDENCIES_LIBRARIES}
     ${PARAM_INTERFACE_LIB_EXTRA_LIBRARIES}
   )
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     PROPERTY INCLUDE_DIRECTORIES
-      ${JSONRPC_INCLUDE_DIRS}
-      ${SIGCPP_INCLUDE_DIRS}
+      ${DEPENDENCIES_INCLUDE_DIRS}
       ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
@@ -421,10 +419,7 @@ function (generate_kurento_libraries)
   )
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}impl
-    ${GLIBMM_LIBRARIES}
-    ${JSONRPC_LIBRARIES}
-    ${SIGCPP_LIBRARIES}
-    ${GSTREAMER_LIBRARIES}
+    ${DEPENDENCIES_LIBRARIES}
     ${PARAM_SERVER_IMPL_LIB_EXTRA_LIBRARIES}
     ${VALUE_CODE_IMPLEMENTATION_LIB}interface
   )
@@ -460,10 +455,7 @@ function (generate_kurento_libraries)
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     PROPERTY INCLUDE_DIRECTORIES
-      ${GLIBMM_INCLUDE_DIRS}
-      ${JSONRPC_INCLUDE_DIRS}
-      ${SIGCPP_INCLUDE_DIRS}
-      ${GSTREAMER_INCLUDE_DIRS}
+      ${DEPENDENCIES_INCLUDE_DIRS}
       ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
@@ -488,13 +480,10 @@ function (generate_kurento_libraries)
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}module
     PROPERTY INCLUDE_DIRECTORIES
-      ${JSONRPC_INCLUDE_DIRS}
-      ${SIGCPP_INCLUDE_DIRS}
+      ${DEPENDENCIES_INCLUDE_DIRS}
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
-      ${GSTREAMER_INCLUDE_DIRS}
-      ${GLIBMM_INCLUDE_DIRS}
   )
 
   install(
