@@ -500,10 +500,6 @@ function (generate_kurento_libraries)
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
-  message (Generating final rom model\n
-    ${PROCESSOR_OUTPUT}
-  )
-
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
 
   install(FILES
