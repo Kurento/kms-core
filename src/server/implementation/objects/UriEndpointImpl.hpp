@@ -25,18 +25,8 @@ public:
   void pause ();
   void stop ();
 
+  /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
-
-  class Factory : public virtual EndpointImpl::Factory
-  {
-  public:
-    Factory () {};
-
-    virtual std::string getName () const {
-      return "UriEndpoint";
-    };
-
-  };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

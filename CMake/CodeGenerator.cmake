@@ -459,6 +459,7 @@ function (generate_kurento_libraries)
       ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
   )
 
   ###############################################################
@@ -484,6 +485,7 @@ function (generate_kurento_libraries)
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
   )
 
   install(

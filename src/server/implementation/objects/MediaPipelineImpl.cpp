@@ -1,4 +1,5 @@
 #include <gst/gst.h>
+#include <MediaPipelineImplFactory.hpp>
 #include "MediaPipelineImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
@@ -85,7 +86,7 @@ MediaPipelineImpl::~MediaPipelineImpl ()
 }
 
 MediaObjectImpl *
-MediaPipelineImpl::Factory::createObject () const
+MediaPipelineImplFactory::createObject () const
 {
   return new MediaPipelineImpl ();
 }

@@ -22,21 +22,11 @@ public:
 
   virtual ~SessionEndpointImpl () {};
 
+  /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, MediaSessionTerminated> signalMediaSessionTerminated;
   sigc::signal<void, MediaSessionStarted> signalMediaSessionStarted;
-
-  class Factory : public virtual EndpointImpl::Factory
-  {
-  public:
-    Factory () {};
-
-    virtual std::string getName () const {
-      return "SessionEndpoint";
-    };
-
-  };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

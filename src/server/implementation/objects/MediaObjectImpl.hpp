@@ -24,22 +24,12 @@ public:
 
   virtual ~MediaObjectImpl () {};
 
+  /* Next methods are automatically implemented by code generator */
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, Error> signalError;
-
-  class Factory : public virtual kurento::Factory
-  {
-  public:
-    Factory () {};
-
-    virtual std::string getName () const {
-      return "MediaObject";
-    };
-
-  };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

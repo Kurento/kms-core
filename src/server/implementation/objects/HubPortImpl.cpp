@@ -1,5 +1,6 @@
 #include <gst/gst.h>
 #include "HubImpl.hpp"
+#include <HubPortImplFactory.hpp>
 #include "HubPortImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
@@ -27,7 +28,7 @@ HubPortImpl::~HubPortImpl()
 }
 
 MediaObjectImpl *
-HubPortImpl::Factory::createObject (std::shared_ptr<Hub> hub) const
+HubPortImplFactory::createObject (std::shared_ptr<Hub> hub) const
 {
   return new HubPortImpl (std::dynamic_pointer_cast<HubImpl> (hub) );
 }

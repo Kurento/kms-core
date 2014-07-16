@@ -26,23 +26,8 @@ public:
     return handlerId;
   }
 
+  /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
-
-  class Factory : public virtual MediaElementImpl::Factory
-  {
-  public:
-    Factory () {};
-
-    virtual std::string getName () const {
-      return "HubPort";
-    };
-
-  private:
-
-    virtual MediaObjectImpl *createObjectPointer (const Json::Value &params) const;
-
-    MediaObjectImpl *createObject (std::shared_ptr<Hub> hub) const;
-  };
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

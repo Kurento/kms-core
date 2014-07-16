@@ -27,20 +27,10 @@ public:
 
   void connect (std::shared_ptr<MediaSink> sink);
 
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
-
-  class Factory : public virtual MediaPadImpl::Factory
-  {
-  public:
-    Factory () {};
-
-    virtual std::string getName () const {
-      return "MediaSource";
-    };
-
-  };
-
   std::vector < std::shared_ptr<MediaSink> > getConnectedSinks ();
+
+  /* Next methods are automatically implemented by code generator */
+  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
