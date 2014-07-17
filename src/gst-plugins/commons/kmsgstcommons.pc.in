@@ -3,12 +3,12 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: kmscommons
+Name: kmsgstcommons
 Description: Kurento plugins commons implementation
 Version: @PROJECT_VERSION@
 URL: https://github.com/Kurento/gst-kurento-plugins
 Requires: @requires@
 Requires.private: @requires_private@
-Libs: -L${libdir} -lkmscommons
+Libs: -L${libdir} -lkmsgstcommons
 Libs.private: @libs_private@
 CFlags: -I${includedir}

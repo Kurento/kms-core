@@ -15,7 +15,7 @@ set(KMS_CORE_SOURCES
 
 add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
 
-add_dependencies(${LIBRARY_NAME}plugins kmscommons)
+add_dependencies(${LIBRARY_NAME}plugins kmsgstcommons)
 
 include_directories(
   ${GSTREAMER_INCLUDE_DIRS}
@@ -29,7 +29,7 @@ include_directories(
 )
 
 target_link_libraries(${LIBRARY_NAME}plugins
-  kmscommons
+  kmsgstcommons
   ${GSTREAMER_LIBRARIES}
   ${GSTREAMER_BASE_LIBRARIES}
   ${GSTREAMER_SDP_LIBRARIES}

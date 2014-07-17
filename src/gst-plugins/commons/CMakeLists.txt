@@ -75,11 +75,11 @@ set(ENUM_HEADERS
 add_glib_enumtypes(KMS_COMMONS_HEADERS kms-enumtypes KMS ${ENUM_HEADERS})
 add_glib_marshal(KMS_COMMONS_HEADERS kms-marshal __kms_marshal)
 
-add_library(kmscommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
+add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
 
-add_dependencies(kmscommons kmsutils sdputils)
+add_dependencies(kmsgstcommons kmsutils sdputils)
 
-target_link_libraries(kmscommons
+target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
   ${GSTREAMER_LIBRARIES}
@@ -88,15 +88,15 @@ target_link_libraries(kmscommons
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
-set_target_properties(kmscommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")
+set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")
 
-set_target_properties(kmscommons PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+set_target_properties(kmsgstcommons PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
 set(CUSTOM_PREFIX "kurento")
 set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/commons")
 
 install(
-  TARGETS kmscommons
+  TARGETS kmsgstcommons
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -109,9 +109,9 @@ set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
 set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
 set(requires "gstreamer-1.0 gstreamer-base-1.0 gstreamer-sdp-1.0 gstreamer-pbutils-1.0")
 
-configure_file(kmscommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/kmscommons.pc @ONLY)
+configure_file(kmsgstcommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc @ONLY)
 
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/kmscommons.pc
+  ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
