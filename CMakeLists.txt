@@ -39,6 +39,8 @@ pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_SDP REQUIRED gstreamer-sdp-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_PBUTILS REQUIRED gstreamer-pbutils-1.0>=${GST_REQUIRED})
 
+find_package(LibVpx REQUIRED)
+
 set (VERSION ${PROJECT_VERSION})
 set (PACKAGE ${PROJECT_NAME})
 set (GETTEXT_PACKAGE "kms-core")
