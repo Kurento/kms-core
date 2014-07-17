@@ -48,6 +48,6 @@ kurento_init (GstPlugin * kurento)
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    kurento,
+    kmscore,
     "Kurento core",
     kurento_init, VERSION, "LGPL", "Kurento", "http://kurento.com/")
