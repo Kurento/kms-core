@@ -14,12 +14,14 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/EventHandler.cpp
   implementation/Factory.cpp
   implementation/MediaSet.cpp
+  implementation/ModuleManager.cpp
 )
 set (KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
   implementation/Factory.hpp
   implementation/MediaSet.hpp
   implementation/FactoryRegistrar.hpp
+  implementation/ModuleManager.hpp
 )
 
 generate_code (
