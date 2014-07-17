@@ -62,6 +62,12 @@ MediaPipelineImpl::MediaPipelineImpl ()
   GstBus *bus;
 
   pipeline = gst_pipeline_new (NULL);
+
+  if (pipeline == NULL) {
+    throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
+                            "Cannot create gstreamer pipeline");
+  }
+
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 

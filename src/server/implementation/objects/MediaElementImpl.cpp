@@ -24,6 +24,11 @@ MediaElementImpl::MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, con
 
   element = gst_element_factory_make (factoryName.c_str(), NULL);
 
+  if (element == NULL) {
+    throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
+                            "Cannot create gstreamer element: " + factoryName);
+  }
+
   g_object_ref (element);
   gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
   gst_element_sync_state_with_parent (element);
