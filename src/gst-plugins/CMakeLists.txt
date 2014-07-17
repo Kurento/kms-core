@@ -36,7 +36,7 @@ target_link_libraries(${LIBRARY_NAME}plugins
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
-set (CMAKE_INSTALL_MODULESDIR ${CMAKE_INSTALL_LIBDIR}/kurento/gst-plugins)
+set (CMAKE_INSTALL_MODULESDIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0/)
 
 install(
   TARGETS ${LIBRARY_NAME}plugins
