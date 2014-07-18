@@ -69,7 +69,6 @@ set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
 
 set(ENUM_HEADERS
   kmsuriendpointstate.h
-  kmshttpendpointmethod.h
   kmsrecordingprofile.h
   kmsmediatype.h
   kmsfiltertype.h
