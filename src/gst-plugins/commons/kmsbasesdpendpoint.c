@@ -20,7 +20,7 @@
 
 #include "kmsbasesdpendpoint.h"
 #include "kmsagnosticcaps.h"
-#include "kms-marshal.h"
+#include "kms-core-marshal.h"
 #include "sdp_utils.h"
 
 #define PLUGIN_NAME "base_sdp_endpoint"
@@ -413,14 +413,14 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseSdpEndpointClass, generate_offer), NULL, NULL,
-      __kms_marshal_BOXED__VOID, GST_TYPE_SDP_MESSAGE, 0);
+      __kms_core_marshal_BOXED__VOID, GST_TYPE_SDP_MESSAGE, 0);
 
   kms_base_sdp_endpoint_signals[SIGNAL_PROCESS_OFFER] =
       g_signal_new ("process-offer",
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseSdpEndpointClass, process_offer), NULL, NULL,
-      __kms_marshal_BOXED__BOXED, GST_TYPE_SDP_MESSAGE, 1,
+      __kms_core_marshal_BOXED__BOXED, GST_TYPE_SDP_MESSAGE, 1,
       GST_TYPE_SDP_MESSAGE);
 
   kms_base_sdp_endpoint_signals[SIGNAL_PROCESS_ANSWER] =
@@ -428,7 +428,7 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseSdpEndpointClass, process_answer), NULL, NULL,
-      __kms_marshal_VOID__BOXED, G_TYPE_NONE, 1, GST_TYPE_SDP_MESSAGE);
+      __kms_core_marshal_VOID__BOXED, G_TYPE_NONE, 1, GST_TYPE_SDP_MESSAGE);
 
   /* Properties initialization */
   g_object_class_install_property (gobject_class, PROP_USE_IPV6,

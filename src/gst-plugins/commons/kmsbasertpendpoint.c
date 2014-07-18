@@ -19,8 +19,8 @@
 #include <stdlib.h>
 #include <gst/gst.h>
 
-#include "kms-enumtypes.h"
-#include "kms-marshal.h"
+#include "kms-core-enumtypes.h"
+#include "kms-core-marshal.h"
 #include "kmsbasertpendpoint.h"
 #include "sdp_utils.h"
 
@@ -571,16 +571,16 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, media_start), NULL, NULL,
-      __kms_marshal_VOID__ENUM_BOOLEAN, G_TYPE_NONE, 2, KMS_TYPE_MEDIA_TYPE,
-      G_TYPE_BOOLEAN);
+      __kms_core_marshal_VOID__ENUM_BOOLEAN, G_TYPE_NONE, 2,
+      KMS_TYPE_MEDIA_TYPE, G_TYPE_BOOLEAN);
 
   obj_signals[MEDIA_STOP] =
       g_signal_new ("media-stop",
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, media_stop), NULL, NULL,
-      __kms_marshal_VOID__ENUM_BOOLEAN, G_TYPE_NONE, 2, KMS_TYPE_MEDIA_TYPE,
-      G_TYPE_BOOLEAN);
+      __kms_core_marshal_VOID__ENUM_BOOLEAN, G_TYPE_NONE, 2,
+      KMS_TYPE_MEDIA_TYPE, G_TYPE_BOOLEAN);
 
   g_type_class_add_private (klass, sizeof (KmsBaseRtpEndpointPrivate));
 }

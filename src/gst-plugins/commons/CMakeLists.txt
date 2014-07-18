@@ -74,8 +74,8 @@ set(ENUM_HEADERS
   kmsfiltertype.h
 )
 
-add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-enumtypes KMS ${ENUM_HEADERS})
-add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-marshal __kms_marshal)
+add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-enumtypes KMS ${ENUM_HEADERS})
+add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_core_marshal)
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
 

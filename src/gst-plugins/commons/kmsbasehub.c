@@ -18,7 +18,7 @@
 
 #include "kmsbasehub.h"
 #include "kmsagnosticcaps.h"
-#include "kms-marshal.h"
+#include "kms-core-marshal.h"
 #include "kmshubport.h"
 
 #define PLUGIN_NAME "basehub"
@@ -839,14 +839,14 @@ kms_base_hub_class_init (KmsBaseHubClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseHubClass, handle_port), NULL, NULL,
-      __kms_marshal_INT__OBJECT, G_TYPE_INT, 1, GST_TYPE_ELEMENT);
+      __kms_core_marshal_INT__OBJECT, G_TYPE_INT, 1, GST_TYPE_ELEMENT);
 
   kms_base_hub_signals[SIGNAL_UNHANDLE_PORT] =
       g_signal_new ("unhandle-port",
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseHubClass, unhandle_port), NULL, NULL,
-      __kms_marshal_VOID__INT, G_TYPE_NONE, 1, G_TYPE_INT);
+      __kms_core_marshal_VOID__INT, G_TYPE_NONE, 1, G_TYPE_INT);
 
   /* Registers a private structure for the instantiatable type */
   g_type_class_add_private (klass, sizeof (KmsBaseHubPrivate));

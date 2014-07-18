@@ -21,7 +21,7 @@
 #include "kmsfilterelement.h"
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
-#include "kms-enumtypes.h"
+#include "kms-core-enumtypes.h"
 #include "kmsfiltertype.h"
 
 #define PLUGIN_NAME "filterelement"

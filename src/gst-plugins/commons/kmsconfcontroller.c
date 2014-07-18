@@ -19,11 +19,11 @@
 
 #include <gst/gst.h>
 
-#include "kms-marshal.h"
+#include "kms-core-marshal.h"
 #include "kmsconfcontroller.h"
 #include "kmselement.h"
 #include "kmsrecordingprofile.h"
-#include "kms-enumtypes.h"
+#include "kms-core-enumtypes.h"
 #include "kmsloop.h"
 
 #define DEFAULT_RECORDING_PROFILE KMS_RECORDING_PROFILE_WEBM
@@ -1161,7 +1161,7 @@ kms_conf_controller_class_init (KmsConfControllerClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsConfControllerClass, matched_elements),
-      NULL, NULL, __kms_marshal_VOID__OBJECT_OBJECT, G_TYPE_NONE, 2,
+      NULL, NULL, __kms_core_marshal_VOID__OBJECT_OBJECT, G_TYPE_NONE, 2,
       GST_TYPE_ELEMENT, GST_TYPE_ELEMENT);
 
   obj_signals[SINK_REQUIRED] =
