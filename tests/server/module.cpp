@@ -20,7 +20,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <Error.hpp>
 #include <gst/gst.h>
-
+#include <MediaSet.hpp>
 
 int
 main (int argc, char **argv)
@@ -73,6 +73,9 @@ main (int argc, char **argv)
     std::cerr << "Unexpected exception: " << e.what() << std::endl;
     return 1;
   }
+
+  kurento::MediaSet::getMediaSet()->release (mediaPipeline->getId() );
+  kurento::MediaSet::destroyMediaSet();
 
   return 0;
 }

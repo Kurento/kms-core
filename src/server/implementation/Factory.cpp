@@ -22,14 +22,17 @@ namespace kurento
 std::shared_ptr<MediaObjectImpl>
 Factory::getObject (const std::string &id)
 {
-  return MediaSet::getMediaSet().getMediaObject (id);
+  return MediaSet::getMediaSet()->getMediaObject (id);
 }
 
 std::shared_ptr< MediaObjectImpl >
 Factory::createObject (const Json::Value &params) const
 {
-  return MediaSet::getMediaSet().ref (dynamic_cast <MediaObjectImpl *>
-                                      (createObjectPointer (params) ) );
+  std::shared_ptr< MediaObjectImpl > object;
+  object = MediaSet::getMediaSet()->ref (dynamic_cast <MediaObjectImpl *>
+                                         (createObjectPointer (params) ) );
+
+  return object;
 }
 
 } /* kurento */

@@ -45,12 +45,21 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaSet &
+static std::shared_ptr<MediaSet> mediaSet;
+
+const std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
-  static MediaSet mediaSet;
+  if (!mediaSet)
+    mediaSet = std::shared_ptr<MediaSet> (new MediaSet() );
 
   return mediaSet;
+}
+
+void
+MediaSet::destroyMediaSet()
+{
+  mediaSet.reset();
 }
 
 MediaSet::MediaSet()
@@ -195,8 +204,8 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
   } catch (std::bad_weak_ptr e) {
     mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [] (
     MediaObjectImpl * obj) {
-      if (!MediaSet::getMediaSet().terminated) {
-        MediaSet::getMediaSet().releasePointer (obj);
+      if (!MediaSet::getMediaSet()->terminated) {
+        MediaSet::getMediaSet()->releasePointer (obj);
       } else {
         delete obj;
       }

@@ -185,7 +185,7 @@ MediaElementImpl::getOrCreateAudioMediaSrc()
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     locked = std::dynamic_pointer_cast<MediaSourceImpl>
-             (MediaSet::getMediaSet().ref (source) );
+             (MediaSet::getMediaSet()->ref (source) );
 
     audioMediaSrc = std::weak_ptr<MediaSourceImpl> (locked);
   }
@@ -214,7 +214,7 @@ MediaElementImpl::getOrCreateVideoMediaSrc()
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     locked = std::dynamic_pointer_cast<MediaSourceImpl>
-             (MediaSet::getMediaSet().ref (source) );
+             (MediaSet::getMediaSet()->ref (source) );
 
     videoMediaSrc = std::weak_ptr<MediaSourceImpl> (locked);
   }
@@ -243,7 +243,7 @@ MediaElementImpl::getOrCreateAudioMediaSink()
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     locked = std::dynamic_pointer_cast<MediaSinkImpl>
-             (MediaSet::getMediaSet().ref (sink) );
+             (MediaSet::getMediaSet()->ref (sink) );
 
     audioMediaSink = std::weak_ptr<MediaSinkImpl> (locked);
   }
@@ -272,7 +272,7 @@ MediaElementImpl::getOrCreateVideoMediaSink()
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     locked = std::dynamic_pointer_cast<MediaSinkImpl>
-             (MediaSet::getMediaSet().ref (sink) );
+             (MediaSet::getMediaSet()->ref (sink) );
 
     videoMediaSink = std::weak_ptr<MediaSinkImpl> (locked);
   }
