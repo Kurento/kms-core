@@ -18,6 +18,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <Error.hpp>
 #include <gst/gst.h>
+#include <MediaSet.hpp>
 
 using namespace kurento;
 int
@@ -35,7 +36,7 @@ main (int argc, char **argv)
 
   mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
 
-  mediaPipeline = mediaPipelineFactory->createObject (Json::Value() );
+  mediaPipeline = mediaPipelineFactory->createObject ("", Json::Value() );
 
   try {
     kurento::JsonSerializer writer (true);
@@ -60,6 +61,8 @@ main (int argc, char **argv)
     std::cerr << "Unexpected exception: " << e.what() << std::endl;
     return 1;
   }
+
+  kurento::MediaSet::getMediaSet()->release (std::dynamic_pointer_cast <MediaObjectImpl> (mediaPipeline) );
 
   return 0;
 }

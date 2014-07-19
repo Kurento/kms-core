@@ -30,7 +30,7 @@ public:
   Factory() {};
   virtual ~Factory() {};
 
-  std::shared_ptr<MediaObjectImpl> createObject (const Json::Value &params) const;
+  std::shared_ptr<MediaObjectImpl> createObject (const std::string &session, const Json::Value &params) const;
 
   static std::shared_ptr<MediaObjectImpl> getObject (const std::string &id);
 

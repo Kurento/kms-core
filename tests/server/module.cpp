@@ -48,7 +48,7 @@ main (int argc, char **argv)
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
 
-  mediaPipeline = factories.at ("MediaPipeline")->createObject (Json::Value() );
+  mediaPipeline = factories.at ("MediaPipeline")->createObject ("", Json::Value() );
 
   try {
     kurento::JsonSerializer writer (true);

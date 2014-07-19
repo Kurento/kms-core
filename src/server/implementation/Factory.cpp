@@ -26,11 +26,13 @@ Factory::getObject (const std::string &id)
 }
 
 std::shared_ptr< MediaObjectImpl >
-Factory::createObject (const Json::Value &params) const
+Factory::createObject (const std::string &session, const Json::Value &params) const
 {
   std::shared_ptr< MediaObjectImpl > object;
   object = MediaSet::getMediaSet()->ref (dynamic_cast <MediaObjectImpl *>
                                          (createObjectPointer (params) ) );
+
+  MediaSet::getMediaSet()->ref (session, object);
 
   return object;
 }
