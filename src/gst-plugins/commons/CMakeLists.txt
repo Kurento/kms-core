@@ -78,7 +78,8 @@ set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
                         kmsbasehub.h
                         kmsagnosticcaps.h
                         kmsutils.h
-                        kmsuriendpointstate.h)
+                        kmsuriendpointstate.h
+                        kmsmediatype.h)
 
 set(ENUM_HEADERS
   kmsuriendpointstate.h
