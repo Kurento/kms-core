@@ -7,11 +7,15 @@ include_directories(
   ${GSTREAMER_PBUTILS_SOURCE_DIRS}
 )
 
-set(KMS_SDP_UTILS
-  sdp_utils.c sdp_utils.h
+set(KMS_SDP_UTILS_SOURCES
+  sdp_utils.c
 )
 
-add_library(sdputils ${KMS_SDP_UTILS})
+set(KMS_SDP_UTILS_HEADERS
+  sdp_utils.h
+)
+
+add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
 
 target_link_libraries(sdputils
   ${GSTREAMER_LIBRARIES}
@@ -20,11 +24,19 @@ target_link_libraries(sdputils
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
+set_target_properties(sdputils PROPERTIES PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}")
+
+set_target_properties(sdputils PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+
+set(CUSTOM_PREFIX "kurento")
+set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/commons")
+
 install(
   TARGETS sdputils
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_MODULESDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
 set(KMS_UTILS
@@ -94,9 +106,6 @@ target_link_libraries(kmsgstcommons
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")
 
 set_target_properties(kmsgstcommons PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-
-set(CUSTOM_PREFIX "kurento")
-set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/commons")
 
 install(
   TARGETS kmsgstcommons
