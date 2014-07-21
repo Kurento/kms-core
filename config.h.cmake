@@ -13,4 +13,7 @@
 /* Tests will generate files for manual check if this macro is defined */
 #cmakedefine MANUAL_CHECK
 
+/* Library installation directory */
+#cmakedefine KURENTO_MODULES_DIR "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@/@KURENTO_MODULES_DIR_INSTALL_PREFIX@"
+
 #endif /* __GST_KURENTO_CORE_CONFIG_H__ */

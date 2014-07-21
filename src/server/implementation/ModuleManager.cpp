@@ -12,13 +12,13 @@
  * Lesser General Public License for more details.
  *
  */
+#include <config.h>
 
 #include "ModuleManager.hpp"
 
 #include <gst/gst.h>
 #include <KurentoException.hpp>
-#include <glibmm/module.h>
-#include <MediaObjectImpl.hpp>
+#include <sstream>
 
 #define GST_CAT_DEFAULT kurento_media_set
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -27,7 +27,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 int
-ModuleManager::addModule (std::string modulePath)
+ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
   void *registrarFactory;
@@ -35,14 +35,14 @@ ModuleManager::addModule (std::string modulePath)
   Glib::Module module (modulePath);
 
   if (!module) {
-    std::cerr << "module cannot be loaded: " << Glib::Module::get_last_error() << std::endl;
+    GST_WARNING ("Module cannot be loaded: %s", Glib::Module::get_last_error().c_str() );
     return -1;
   }
 
   module.make_resident();
 
   if (!module.get_symbol ("getFactoryRegistrar", registrarFactory) ) {
-    std::cerr << "symbol not found" << std::endl;
+    GST_WARNING ("Symbol not found");
     return -1;
   }
 
@@ -51,7 +51,75 @@ ModuleManager::addModule (std::string modulePath)
 
   loadedFactories.insert (factories.begin(), factories.end() );
 
+  GST_INFO ("Module %s loaded", module.get_name().c_str() );
+
   return 0;
+}
+
+std::list<std::string> split (const std::string &s, char delim)
+{
+  std::list<std::string> elems;
+  std::stringstream ss (s);
+  std::string item;
+
+  while (std::getline (ss, item, delim) ) {
+    elems.push_back (item);
+  }
+
+  return elems;
+}
+
+void
+ModuleManager::loadModules (std::string dirPath)
+{
+  DIR *dir;
+  std::string name;
+  struct dirent *ent;
+
+  GST_INFO ("Looking for modules in %s", dirPath.c_str() );
+  dir = opendir (dirPath.c_str() );
+
+  if (dir == NULL) {
+    GST_WARNING ("Unable to load modules from:  %s", dirPath.c_str() );
+    return;
+  }
+
+  /* print all the files and directories within directory */
+  while ( (ent = readdir (dir) ) != NULL) {
+    name = ent->d_name;
+
+    if (ent->d_type == DT_REG) {
+      std::string ext = name.substr (name.size() - 3);
+
+      if ( ext == ".so" ) {
+        std::string name = dirPath + "/" + ent->d_name;
+        loadModule (name);
+      }
+    } else if (ent->d_type == DT_DIR && "." != name && ".." != name) {
+      std::string dirName = dirPath + "/" + ent->d_name;
+
+      this->loadModules (dirName);
+    }
+  }
+
+  closedir (dir);
+}
+
+void
+ModuleManager::loadModulesFromDirectories (std::string path)
+{
+  std::list <std::string> locations;
+
+  locations = split (path, ':');
+
+  for (std::string location : locations) {
+    this->loadModules (location);
+  }
+
+  //try to load modules from the default path
+  this->loadModules (KURENTO_MODULES_DIR);
+
+  return;
 }
 
 const std::map <std::string, std::shared_ptr <kurento::Factory > >
@@ -63,16 +131,12 @@ ModuleManager::getLoadedFactories ()
 std::shared_ptr<kurento::Factory>
 ModuleManager::getFactory (std::string symbolName)
 {
-  std::shared_ptr<kurento::Factory> ret;
-
   try {
-    ret = loadedFactories.at (symbolName);
+    return loadedFactories.at (symbolName);
   } catch (std::exception &e) {
-    std::cerr << "Factory not found: " << e.what() << std::endl;
-    ret = NULL;
+    GST_ERROR ("Factory not found: %s", e.what() );
+    throw kurento::KurentoException (MEDIA_OBJECT_NOT_AVAILABLE, "Factory not found");
   }
-
-  return ret;
 }
 
 ModuleManager::StaticConstructor ModuleManager::staticConstructor;

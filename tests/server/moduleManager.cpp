@@ -32,7 +32,7 @@ main (int argc, char **argv)
 
   std::string moduleName = "../../src/server/libkmscoremodule.so";
 
-  moduleManager->addModule (moduleName);
+  moduleManager->loadModule (moduleName);
 
   mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
 
