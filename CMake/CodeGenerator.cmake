@@ -10,7 +10,7 @@ mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
 set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE STRING "Directory where kurento modules descriptors can be found")
 mark_as_advanced(KURENTO_MODULES_DIR)
 
-set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE STRING "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTAL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})")
+set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE STRING "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
 include (CMakeParseArguments)
@@ -488,8 +488,8 @@ function (generate_kurento_libraries)
   install(
     TARGETS ${VALUE_CODE_IMPLEMENTATION_LIB}module
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CUSTOM_PREFIX}/modules
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
 
   execute_process(
