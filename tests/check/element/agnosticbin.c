@@ -28,7 +28,7 @@
  * By now we only enable one output, otherwise the test will probably fail
  * once the bug is solved this value should be incremented
  */
-#define N_ITERS 1
+#define N_ITERS 500
 
 typedef struct _ElementsData
 {
@@ -265,6 +265,7 @@ link_source (gpointer data)
       gst_bin_get_by_name (GST_BIN (pipeline), "agnosticbin");
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
 
+  g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
   gst_bin_add_many (GST_BIN (pipeline), videosrc, NULL);
   gst_element_sync_state_with_parent (videosrc);
   gst_element_link (videosrc, agnosticbin);
@@ -445,7 +446,7 @@ connect_appsink (gpointer pipeline)
   gst_bin_add (GST_BIN (pipeline), appsink);
   gst_element_sync_state_with_parent (appsink);
   g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "caps", caps, "sync",
-      FALSE, NULL);
+      TRUE, "async", FALSE, NULL);
   gst_caps_unref (caps);
 
   g_signal_connect (G_OBJECT (appsink), "new-sample",
@@ -460,43 +461,26 @@ connect_appsink (gpointer pipeline)
 }
 
 static gboolean
-open_valve (gpointer valve)
-{
-  g_object_set (G_OBJECT (valve), "drop", FALSE, NULL);
-
-  return FALSE;
-}
-
-static gboolean
 connect_output (gpointer pipeline)
 {
   GstElement *agnosticbin =
       gst_bin_get_by_name (GST_BIN (pipeline), "agnosticbin");
   GstElement *appsink = gst_element_factory_make ("appsink", NULL);
-  GstElement *valve = gst_element_factory_make ("valve", NULL);
   GstCaps *caps = gst_caps_from_string ("audio/x-vorbis");
 
-  gst_bin_add_many (GST_BIN (pipeline), appsink, valve, NULL);
-  gst_element_sync_state_with_parent (valve);
-  gst_element_sync_state_with_parent (appsink);
   g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "caps", caps, "sync",
-      FALSE, NULL);
-  g_object_set (G_OBJECT (valve), "drop", TRUE, NULL);
+      TRUE, "async", FALSE, NULL);
   gst_caps_unref (caps);
 
   g_signal_connect (G_OBJECT (appsink), "new-sample",
       G_CALLBACK (appsink_handle_many), NULL);
 
-  if (!gst_element_link (valve, appsink)) {
+  gst_bin_add (GST_BIN (pipeline), appsink);
+  gst_element_sync_state_with_parent (appsink);
+
+  if (!gst_element_link (agnosticbin, appsink)) {
     GST_ERROR ("Error linking elements");
   }
-
-  if (!gst_element_link (agnosticbin, valve)) {
-    GST_ERROR ("Error linking elements");
-  }
-
-  g_timeout_add_full (G_PRIORITY_DEFAULT, 500, open_valve, g_object_ref (valve),
-      g_object_unref);
 
   g_object_unref (agnosticbin);
 
@@ -517,8 +501,8 @@ GST_START_TEST (input_reconfiguration)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
-  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -557,8 +541,9 @@ GST_START_TEST (add_later)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
+  g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
@@ -596,7 +581,7 @@ GST_START_TEST (delay_stream)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, "sync", FALSE,
+  g_object_set (G_OBJECT (fakesink), "async", FALSE, "sync", TRUE,
       "signal-handoffs", TRUE, NULL);
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
@@ -646,6 +631,9 @@ GST_START_TEST (valve_test)
   g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
   g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
 
+  g_object_set (G_OBJECT (fakesink2), "sync", TRUE, "async", FALSE, NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "async", FALSE, NULL);
+
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
       valve, decoder, fakesink2, NULL);
@@ -694,8 +682,8 @@ GST_START_TEST (reconnect_test)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink2), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink2), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
   g_signal_connect (G_OBJECT (fakesink2), "handoff",
       G_CALLBACK (fakesink_hand_off2), loop);
   g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
@@ -748,8 +736,8 @@ GST_START_TEST (static_link)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink2), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink2), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
   g_signal_connect (G_OBJECT (fakesink2), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
@@ -794,6 +782,7 @@ GST_START_TEST (encoded_input_n_encoded_ouput)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -844,6 +833,7 @@ GST_START_TEST (encoded_input_to_valve)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
@@ -890,12 +880,13 @@ GST_START_TEST (encoded_input_link)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
@@ -940,12 +931,13 @@ GST_START_TEST (simple_link)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set (G_OBJECT (fakesink), "sync", FALSE, "signal-handoffs", TRUE,
-      NULL);
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off_simple), loop);
 
