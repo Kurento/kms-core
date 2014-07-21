@@ -17,7 +17,7 @@
 
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
-#include <kmselement.h>
+#include "kmselement.h"
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
