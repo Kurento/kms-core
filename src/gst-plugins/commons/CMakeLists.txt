@@ -66,7 +66,8 @@ set(KMS_COMMONS_SOURCES kmsbasertpendpoint.c
                         kmsloop.c
                         kmsrecordingprofile.c
                         kmshubport.c
-                        kmsbasehub.c)
+                        kmsbasehub.c
+                        kmsuriendpoint.c)
 
 set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
                         kmsbasesdpendpoint.h
@@ -79,7 +80,8 @@ set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
                         kmsagnosticcaps.h
                         kmsutils.h
                         kmsuriendpointstate.h
-                        kmsmediatype.h)
+                        kmsmediatype.h
+                        kmsuriendpoint.h)
 
 set(ENUM_HEADERS
   kmsuriendpointstate.h

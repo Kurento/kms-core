@@ -8,7 +8,6 @@ set(KMS_CORE_SOURCES
   kmscore.c
   kmsagnosticbin.c kmsagnosticbin.h
   kmsfilterelement.c kmsfilterelement.h
-  kmsuriendpoint.c kmsuriendpoint.h
   kmsaudiomixer.c kmsaudiomixer.h
   kmsaudiomixerbin.c kmsaudiomixerbin.h
 )
