@@ -175,7 +175,7 @@ GST_START_TEST (check_audio_connection)
   audiotestsrc1 = gst_element_factory_make ("audiotestsrc", NULL);
   audiotestsrc2 = gst_element_factory_make ("audiotestsrc", NULL);
   audiotestsrc3 = gst_element_factory_make ("audiotestsrc", NULL);
-  audiomixer = gst_element_factory_make ("audiomixer", NULL);
+  audiomixer = gst_element_factory_make ("kmsaudiomixer", NULL);
 
   g_object_set (G_OBJECT (audiotestsrc1), "wave", 0, NULL);
   g_object_set (G_OBJECT (audiotestsrc2), "wave", 8, NULL);
@@ -301,7 +301,7 @@ GST_START_TEST (check_audio_disconnection)
   audiotestsrc1 = gst_element_factory_make ("audiotestsrc", NULL);
   audiotestsrc2 = gst_element_factory_make ("audiotestsrc", NULL);
   audiotestsrc3 = gst_element_factory_make ("audiotestsrc", NULL);
-  audiomixer = gst_element_factory_make ("audiomixer", NULL);
+  audiomixer = gst_element_factory_make ("kmsaudiomixer", NULL);
 
   g_object_set (G_OBJECT (audiotestsrc1), "wave", 0, NULL);
   g_object_set (G_OBJECT (audiotestsrc2), "wave", 8, NULL);
@@ -365,7 +365,7 @@ GST_END_TEST
 static Suite *
 audiomixer_suite (void)
 {
-  Suite *s = suite_create ("audiomixer");
+  Suite *s = suite_create ("kmsaudiomixer");
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);

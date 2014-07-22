@@ -22,7 +22,7 @@
 #include "kmsaudiomixer.h"
 #include "kmsloop.h"
 
-#define PLUGIN_NAME "audiomixer"
+#define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
 #define KEY_CONDITION "kms-key-condition"
 
