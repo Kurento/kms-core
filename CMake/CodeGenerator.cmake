@@ -542,7 +542,10 @@ function (generate_kurento_libraries)
 
     execute_process(
       COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
-      OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    )
+
+    execute_process(
+      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
     )
 
     add_custom_target(js
