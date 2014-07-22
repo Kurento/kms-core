@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "0.0.2-dev",
+  "version": "5.0.0-dev",
   "remoteClasses": [
     {
       "name": "MediaObject",
