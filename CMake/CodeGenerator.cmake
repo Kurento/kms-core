@@ -5,6 +5,7 @@ find_package(KtoolRomProcessor REQUIRED)
 include (GNUInstallDirs)
 
 set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client library")
+set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
 
 set (KTOOL_ROM_PROCESSOR_CHECK_FORMAT FALSE CACHE BOOL "Check if codding style of generated code is correct")
 mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
@@ -524,6 +525,34 @@ function (generate_kurento_libraries)
     add_custom_target(java
       COMMAND ${Maven_EXECUTABLE} package
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
+    )
+
+    add_custom_target(java_install
+      COMMAND ${Maven_EXECUTABLE} install
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
+    )
+  endif()
+
+  ###############################################################
+  # Generate JavaScript Client Project
+  ###############################################################
+
+  if (${GENERATE_JS_CLIENT_PROJECT})
+    find_package(Npm REQUIRED)
+
+    execute_process(
+      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
+      OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    )
+
+    add_custom_target(js
+      COMMAND ${Npm_EXECUTABLE} pack
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
+    )
+
+    add_custom_target(js_install
+      COMMAND ${Npm_EXECUTABLE} install -g
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
     )
   endif()
 
