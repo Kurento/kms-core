@@ -492,9 +492,12 @@ function (generate_kurento_libraries)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
 
+  ###############################################################
+  # Generate output kmd file
+  ###############################################################
+
   execute_process(
     COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
-    OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
