@@ -522,6 +522,10 @@ function (generate_kurento_libraries)
       OUTPUT_VARIABLE PROCESSOR_OUTPUT
     )
 
+    execute_process(
+      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
+    )
+
     add_custom_target(java
       COMMAND ${Maven_EXECUTABLE} package
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
