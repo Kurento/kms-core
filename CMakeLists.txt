@@ -81,3 +81,8 @@ install(
   FILES "${CMAKE_SOURCE_DIR}/CMake/FindKtoolRomProcessor.cmake"
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
 )
+
+install(
+  FILES "${CMAKE_SOURCE_DIR}/CMake/FindMaven.cmake"
+  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
+)
