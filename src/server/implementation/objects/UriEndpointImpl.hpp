@@ -25,6 +25,8 @@ public:
   void pause ();
   void stop ();
 
+  virtual std::string getUri ();
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -39,6 +41,8 @@ protected:
   void start ();
 
 private:
+
+  std::string uri;
 
   class StaticConstructor
   {

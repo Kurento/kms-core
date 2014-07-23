@@ -44,6 +44,12 @@ UriEndpointImpl::start ()
                 KMS_URI_END_POINT_STATE_START, NULL);
 }
 
+std::string
+UriEndpointImpl::getUri ()
+{
+  return uri;
+}
+
 UriEndpointImpl::StaticConstructor UriEndpointImpl::staticConstructor;
 
 UriEndpointImpl::StaticConstructor::StaticConstructor()

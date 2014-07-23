@@ -25,9 +25,8 @@ public:
 
   virtual ~MediaSourceImpl ();
 
-  void connect (std::shared_ptr<MediaSink> sink);
-
   std::vector < std::shared_ptr<MediaSink> > getConnectedSinks ();
+  void connect (std::shared_ptr<MediaSink> sink);
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);

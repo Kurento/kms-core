@@ -24,9 +24,17 @@ public:
 
   virtual ~MediaObjectImpl () {};
 
-  /* Next methods are automatically implemented by code generator */
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
+  virtual std::shared_ptr<MediaObject> getParent () {
+    return parent;
+  }
+
+  virtual std::string getId () {
+    return id;
+  }
+
+  /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, Error> signalError;
@@ -38,6 +46,9 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  std::string id;
+  std::shared_ptr<MediaObject> parent;
 
   std::string createId();
 

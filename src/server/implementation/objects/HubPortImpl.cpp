@@ -23,7 +23,7 @@ HubPortImpl::HubPortImpl (std::shared_ptr<HubImpl> hub) : MediaElementImpl (hub,
 
 HubPortImpl::~HubPortImpl()
 {
-  g_signal_emit_by_name (std::dynamic_pointer_cast<HubImpl> (parent)->getGstreamerElement(),
+  g_signal_emit_by_name (std::dynamic_pointer_cast<HubImpl> (getParent() )->getGstreamerElement(),
                          "unhandle-port", handlerId);
 }
 
