@@ -11,10 +11,10 @@
 #
 #=============================================================================
 
-set (NPM_ROOT /usr/bin CACHE STRING "maven directory")
+set (MAVEN_ROOT /usr/bin CACHE STRING "maven directory")
 
-find_program(Maven_EXECUTABLE NAMES maven
-        HINTS ENV${NPM_ROOT}/maven ${NPM_ROOT}/maven)
+find_program(Maven_EXECUTABLE NAMES mvn
+        HINTS ENV${MAVEN_ROOT}/mvn ${MAVEN_ROOT}/mvn)
 
 # handle the QUIETLY and REQUIRED arguments and set Maven_FOUND to TRUE if
 # all listed variables are TRUE
