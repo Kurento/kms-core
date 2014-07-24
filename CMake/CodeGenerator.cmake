@@ -310,7 +310,7 @@ function (generate_kurento_libraries)
       ${PARAM_INTERFACE_LIB_EXTRA_INCLUDE_DIRS}
   )
 
-  set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/core")
+  set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/${VALUE_NAME}")
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}interface
     PROPERTY PUBLIC_HEADER
@@ -338,7 +338,7 @@ function (generate_kurento_libraries)
   set(prefix ${CMAKE_INSTALL_PREFIX})
   set(exec_prefix "\${prefix}")
   set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
-  set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/modules/${VALUE_NAME}")
+  set(includedir "\${prefix}/${INCLUDE_PREFIX}")
 
   execute_process (
      COMMAND ${KTOOL_PROCESSOR_LINE} -it cpp_pkgconfig -c ${CMAKE_CURRENT_BINARY_DIR} -lf
