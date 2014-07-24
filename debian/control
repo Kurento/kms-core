@@ -23,7 +23,7 @@ Package: kms-core
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 Description: Kurento core module
- Kurento core modele and libraries
+ Kurento core module and libraries
 
 Package: kms-core-dev
 Architecture: any
@@ -36,10 +36,10 @@ Depends: kms-core (= ${binary:Version}),
  libgstreamer-plugins-base1.0-dev (>= 1.3.3),
  kurento-module-creator
 Description: Kurento core module
- Kurento core modele and libraries development files
+ Kurento core module and libraries development files
 
 Package: kms-core-dbg
 Architecture: any
 Depends: kms-core (= ${binary:Version})
 Description: Kurento core module
- Kurento core modele and libraries debugging symbols
+ Kurento core module and libraries debugging symbols
