@@ -25,20 +25,7 @@ namespace kurento
 class MediaServerConfig
 {
 public:
-  MediaServerConfig (GstSDPMessage *sdpPattern, std::string stunServerAddress,
-             gint stunServerPort, std::string turnURL,
-             std::string pemCertificate, uint httpPort, std::string httpInterface,
-             std::string httpAnnouncedAddr)
-  {
-    this->sdpPattern = sdpPattern;
-    this->stunServerAddress = stunServerAddress;
-    this->stunServerPort = stunServerPort;
-    this->turnURL = turnURL;
-    this->pemCertificate = pemCertificate;
-    this->httpPort = httpPort;
-    this->httpInterface = httpInterface;
-    this->httpAnnouncedAddr = httpAnnouncedAddr;
-  };
+  MediaServerConfig () {};
 
   virtual ~MediaServerConfig() throw () {};
 
@@ -46,32 +33,64 @@ public:
     return this->sdpPattern;
   };
 
+  void setSdpPattern (GstSDPMessage* sdpPattern){
+    this->sdpPattern = sdpPattern;
+  };
+
   std::string getStunServerAddress (){
     return this->stunServerAddress;
+  };
+
+  void setStunServerAddress (std::string stunServerAddress){
+    this->stunServerAddress = stunServerAddress;
   };
 
   gint getStunServerPort (){
     return this->stunServerPort;
   };
 
+  void setStunServerPort (gint stunServerPort){
+    this->stunServerPort = stunServerPort;
+  };
+
   std::string getTurnURL (){
     return this->turnURL;
+  };
+
+  void setTurnURL (std::string turnURL){
+    this->turnURL = turnURL;
   };
 
   std::string getPemCertificate (){
     return this->pemCertificate;
   };
 
+  void setPemCertificate (std::string pemCertificate){
+    this->pemCertificate = pemCertificate;
+  };
+
   uint getHttpPort (){
     return this->httpPort;
+  };
+
+  void setHttpPort (uint httpPort){
+    this->httpPort = httpPort;
   };
 
   std::string getHttpInterface (){
     return this->httpInterface;
   };
 
+  void setHttpInterface (std::string httpInterface){
+    this->httpInterface = httpInterface;
+  };
+
   std::string getHttpAnnouncedAddr (){
     return this->httpAnnouncedAddr;
+  };
+
+  void setHttpAnnouncedAddr (std::string httpAnnouncedAddr){
+    this->httpAnnouncedAddr = httpAnnouncedAddr;
   };
 
 private:
