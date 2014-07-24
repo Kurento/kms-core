@@ -11,12 +11,17 @@
 #
 #=============================================================================
 
-FIND_PROGRAM(Maven_EXECUTABLE NAMES mvn
-        HINTS ENV${Maven_ROOT}/mvn ${Maven_ROOT}/mvn)
+set (NPM_ROOT /usr/bin CACHE STRING "maven directory")
+
+find_program(Maven_EXECUTABLE NAMES maven
+        HINTS ENV${NPM_ROOT}/maven ${NPM_ROOT}/maven)
 
 # handle the QUIETLY and REQUIRED arguments and set Maven_FOUND to TRUE if
 # all listed variables are TRUE
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Maven DEFAULT_MSG Maven_EXECUTABLE)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args (Maven
+  FOUND_VAR Maven_FOUND
+  REQUIRED_VARS Maven_EXECUTABLE
+)
 
-MARK_AS_ADVANCED(Maven_EXECUTABLE)
+mark_as_advanced(Maven_FOUND Maven_EXECUTABLE)

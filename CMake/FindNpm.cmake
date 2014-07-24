@@ -11,12 +11,17 @@
 #
 #=============================================================================
 
-FIND_PROGRAM(Npm_EXECUTABLE NAMES npm
-        HINTS ENV${Npm_ROOT}/npm ${Npm_ROOT}/npm)
+set (NPM_ROOT /usr/bin CACHE STRING "npm directory")
+
+find_program(Npm_EXECUTABLE NAMES npm
+        HINTS ENV${NPM_ROOT}/npm ${NPM_ROOT}/npm)
 
 # handle the QUIETLY and REQUIRED arguments and set Npm_FOUND to TRUE if
 # all listed variables are TRUE
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Npm DEFAULT_MSG Npm_EXECUTABLE)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args (Npm
+  FOUND_VAR Npm_FOUND
+  REQUIRED_VARS Npm_EXECUTABLE
+)
 
-MARK_AS_ADVANCED(Npm_EXECUTABLE)
+mark_as_advanced(Npm_FOUND Npm_EXECUTABLE)

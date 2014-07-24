@@ -515,7 +515,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   if (${GENERATE_JAVA_CLIENT_PROJECT})
-    find_package(Maven REQUIRED)
+    find_package(Maven)
 
     execute_process(
       COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -it maven
@@ -526,15 +526,19 @@ function (generate_kurento_libraries)
       COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
     )
 
-    add_custom_target(java
-      COMMAND ${Maven_EXECUTABLE} package
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
-    )
+    if (${Maven_FOUND})
+      add_custom_target(java
+        COMMAND ${Maven_EXECUTABLE} package
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
+      )
 
-    add_custom_target(java_install
-      COMMAND ${Maven_EXECUTABLE} install
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
-    )
+      add_custom_target(java_install
+        COMMAND ${Maven_EXECUTABLE} install
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
+      )
+    else()
+      message (WARNING "Maven not found, build targets for java are disabled")
+    endif()
   endif()
 
   ###############################################################
@@ -542,7 +546,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   if (${GENERATE_JS_CLIENT_PROJECT})
-    find_package(Npm REQUIRED)
+    find_package(Npm)
 
     get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.api.js.node.name)
 
@@ -556,15 +560,19 @@ function (generate_kurento_libraries)
       COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
     )
 
-    add_custom_target(js
-      COMMAND ${Npm_EXECUTABLE} pack
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
-    )
+    if (${Npm_FOUND})
+      add_custom_target(js
+        COMMAND ${Npm_EXECUTABLE} pack
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
+      )
 
-    add_custom_target(js_install
-      COMMAND ${Npm_EXECUTABLE} install -g
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
-    )
+      add_custom_target(js_install
+        COMMAND ${Npm_EXECUTABLE} install -g
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/js
+      )
+    else()
+      message (WARNING "Npm not found, build targets for js are disabled")
+    endif()
   endif()
 
 endfunction()
