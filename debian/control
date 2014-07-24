@@ -12,7 +12,7 @@ Build-Depends: debhelper (>= 8.0.0),
  gtk-doc-tools,
  libglibmm-2.4-dev,
  libgstreamer-plugins-base1.0-dev (>= 1.3.3),
- ktool-rom-processor (>> 1.1.0),
+ kurento-module-creator,
  libvpx-dev
 Standards-Version: 3.9.4
 Homepage: http://kurento.org
@@ -34,7 +34,7 @@ Depends: kms-core (= ${binary:Version}),
  libsigc++-2.0-dev,
  libglibmm-2.4-dev,
  libgstreamer-plugins-base1.0-dev (>= 1.3.3),
- ktool-rom-processor (>> 1.1.0)
+ kurento-module-creator
 Description: Kurento core module
  Kurento core modele and libraries development files
 

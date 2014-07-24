@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_package(KtoolRomProcessor REQUIRED)
+find_package(KurentoModuleCreator REQUIRED ~3.0.0)
 
 include (GNUInstallDirs)
 
@@ -91,7 +91,7 @@ function (generate_sources)
 
   message (STATUS "Running code generator")
   execute_process(
-    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} ${COMMAND_LINE}
+    COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -234,7 +234,7 @@ function (generate_kurento_libraries)
 
   set(CUSTOM_PREFIX "kurento")
 
-  set (KTOOL_PROCESSOR_LINE ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+  set (KTOOL_PROCESSOR_LINE ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
 
   ###############################################################
   # Calculate modules dependencies
@@ -500,7 +500,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   execute_process(
-    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
+    COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
   )
 
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
@@ -518,12 +518,12 @@ function (generate_kurento_libraries)
     find_package(Maven)
 
     execute_process(
-      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -it maven
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -it maven
       OUTPUT_VARIABLE PROCESSOR_OUTPUT
     )
 
     execute_process(
-      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
     )
 
     if (${Maven_FOUND})
@@ -553,11 +553,11 @@ function (generate_kurento_libraries)
     file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODE_NAME}")
 
     execute_process(
-      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
     )
 
     execute_process(
-      COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
     )
 
     if (${Npm_FOUND})
@@ -604,7 +604,7 @@ function (get_values_from_model)
   endforeach()
 
   execute_process(
-    COMMAND ${KTOOL_ROM_PROCESSOR_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
+    COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
