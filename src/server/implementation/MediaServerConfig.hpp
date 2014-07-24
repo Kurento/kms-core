@@ -27,13 +27,17 @@ class MediaServerConfig
 public:
   MediaServerConfig (GstSDPMessage *sdpPattern, std::string stunServerAddress,
              gint stunServerPort, std::string turnURL,
-              std::string pemCertificate)
+             std::string pemCertificate, uint httpPort, std::string httpInterface,
+             std::string httpAnnouncedAddr)
   {
     this->sdpPattern = sdpPattern;
     this->stunServerAddress = stunServerAddress;
     this->stunServerPort = stunServerPort;
     this->turnURL = turnURL;
     this->pemCertificate = pemCertificate;
+    this->httpPort = httpPort;
+    this->httpInterface = httpInterface;
+    this->httpAnnouncedAddr = httpAnnouncedAddr;
   };
 
   virtual ~MediaServerConfig() throw () {};
@@ -58,6 +62,18 @@ public:
     return this->pemCertificate;
   };
 
+  uint getHttpPort (){
+    return this->httpPort;
+  };
+
+  std::string getHttpInterface (){
+    return this->httpInterface;
+  };
+
+  std::string getHttpAnnouncedAddr (){
+    return this->httpAnnouncedAddr;
+  };
+
 private:
 
   GstSDPMessage *sdpPattern;
@@ -65,6 +81,9 @@ private:
   gint stunServerPort;
   std::string turnURL;
   std::string pemCertificate;
+  uint httpPort;
+  std::string httpInterface;
+  std::string httpAnnouncedAddr;
 };
 
 } /* kurento */
