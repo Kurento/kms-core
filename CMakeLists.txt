@@ -49,7 +49,7 @@ set (ENABLE_DEBUGGING_TESTS OFF CACHE BOOL "Enable test that are not yet stable"
 
 include(GNUInstallDirs)
 
-set (CMAKE_INSTALL_MODULESDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
+set (CMAKE_INSTALL_GST_PLUGINS_DIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
