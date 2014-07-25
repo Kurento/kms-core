@@ -95,12 +95,12 @@ public:
 
 private:
 
-  GstSDPMessage *sdpPattern;
+  GstSDPMessage *sdpPattern = NULL;
   std::string stunServerAddress;
   gint stunServerPort;
   std::string turnURL;
   std::string pemCertificate;
-  uint httpPort;
+  uint httpPort = 0;
   std::string httpInterface;
   std::string httpAnnouncedAddr;
 };
