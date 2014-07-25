@@ -89,11 +89,13 @@ ModuleManager::loadModules (std::string dirPath)
     name = ent->d_name;
 
     if (ent->d_type == DT_REG) {
-      std::string ext = name.substr (name.size() - 3);
+      if (name.size () > 3) {
+        std::string ext = name.substr (name.size() - 3);
 
-      if ( ext == ".so" ) {
-        std::string name = dirPath + "/" + ent->d_name;
-        loadModule (name);
+        if ( ext == ".so" ) {
+          std::string name = dirPath + "/" + ent->d_name;
+          loadModule (name);
+        }
       }
     } else if (ent->d_type == DT_DIR && "." != name && ".." != name) {
       std::string dirName = dirPath + "/" + ent->d_name;
