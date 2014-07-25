@@ -29,7 +29,7 @@ public:
 
   virtual ~MediaServerConfig() throw () {};
 
-  GstSDPMessage* getSdpPattern () {
+  const GstSDPMessage* getSdpPattern () const {
     return this->sdpPattern;
   };
 
@@ -37,7 +37,7 @@ public:
     this->sdpPattern = sdpPattern;
   };
 
-  std::string getStunServerAddress (){
+  const std::string getStunServerAddress () const {
     return this->stunServerAddress;
   };
 
@@ -45,7 +45,7 @@ public:
     this->stunServerAddress = stunServerAddress;
   };
 
-  gint getStunServerPort (){
+  const gint getStunServerPort () const {
     return this->stunServerPort;
   };
 
@@ -53,7 +53,7 @@ public:
     this->stunServerPort = stunServerPort;
   };
 
-  std::string getTurnURL (){
+  const std::string getTurnURL () const {
     return this->turnURL;
   };
 
@@ -61,7 +61,7 @@ public:
     this->turnURL = turnURL;
   };
 
-  std::string getPemCertificate (){
+  const std::string getPemCertificate () const {
     return this->pemCertificate;
   };
 
@@ -69,7 +69,7 @@ public:
     this->pemCertificate = pemCertificate;
   };
 
-  uint getHttpPort (){
+  const uint getHttpPort () const {
     return this->httpPort;
   };
 
@@ -77,7 +77,7 @@ public:
     this->httpPort = httpPort;
   };
 
-  std::string getHttpInterface (){
+  const std::string getHttpInterface () const {
     return this->httpInterface;
   };
 
@@ -85,7 +85,7 @@ public:
     this->httpInterface = httpInterface;
   };
 
-  std::string getHttpAnnouncedAddr (){
+  const std::string getHttpAnnouncedAddr () const {
     return this->httpAnnouncedAddr;
   };
 
