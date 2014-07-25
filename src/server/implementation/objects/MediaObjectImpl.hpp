@@ -4,6 +4,7 @@
 #include <Factory.hpp>
 #include "MediaObject.hpp"
 #include <EventHandler.hpp>
+#include <MediaServerConfig.hpp>
 
 namespace kurento
 {
@@ -29,6 +30,8 @@ public:
   virtual std::shared_ptr<MediaObject> getParent () {
     return parent;
   }
+
+  virtual void setConfig(const MediaServerConfig &config) {};
 
   virtual std::string getId () {
     return id;
