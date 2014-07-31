@@ -2,11 +2,11 @@
 
 Copyright © 2013 Kurento. Licensed under [LGPL License].
 
-gst-kurento-plugins
+kms-core
 ==========
-Gstreamer plugins for media server
+Core elements for kurento media server
 
-The gst-kurento-plugins project contains gstreamer plugins needed for
+The kms-core project contains core elements needed for
 the Kurento Media Server.
 
 
