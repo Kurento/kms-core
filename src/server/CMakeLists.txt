@@ -25,6 +25,8 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/MediaServerConfig.hpp
 )
 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
 generate_code (
   MODELS ${CMAKE_CURRENT_SOURCE_DIR}/interface
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}

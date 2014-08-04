@@ -21,7 +21,6 @@
 /* This is included to avoid problems with slots and lamdas */
 #include <type_traits>
 #include <sigc++/sigc++.h>
-#include <event2/event_struct.h>
 namespace sigc
 {
 template <typename Functor>
@@ -34,16 +33,14 @@ struct functor_trait<Functor, false> {
 };
 }
 
-using namespace Glib::Threads;
-
 #define GST_CAT_DEFAULT kurento_media_set
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaSet"
 
-#define COLLECTOR_INTERVAL 240000
-
 namespace kurento
 {
+
+static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (240);
 
 static std::shared_ptr<MediaSet> mediaSet;
 
@@ -62,48 +59,48 @@ MediaSet::destroyMediaSet()
   mediaSet.reset();
 }
 
+void MediaSet::doGarbageCollection ()
+{
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+  auto sessions = sessionInUse;
+
+  lock.unlock();
+
+  GST_DEBUG ("Running garbage collector");
+
+  for (auto it : sessions) {
+    if (it.second) {
+      lock.lock();
+      sessionInUse[it.first] = false;
+      lock.unlock();
+    } else {
+      GST_WARNING ("Session timeout: %s", it.first.c_str() );
+      unrefSession (it.first);
+    }
+  }
+}
+
 MediaSet::MediaSet()
 {
-  Glib::RefPtr<Glib::TimeoutSource> timeout;
+  std::cout << "Creating mediaset" << std::endl;
+  terminated = false;
 
-  context = Glib::MainContext::create();
-  loop = Glib::MainLoop::create (context, true);
+  thread = std::thread ( [&] () {
+    std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  thread = Glib::Thread::create ([&] () {
-    context->acquire();
-    loop->run();
-    GST_DEBUG ("Main loop thread stopped");
-  });
-
-  timeout = Glib::TimeoutSource::create (COLLECTOR_INTERVAL);
-  timeout->connect ( [&] () -> bool {
-    RecMutex::Lock lock (mutex);
-    auto sessions = sessionInUse;
-
-    lock.release();
-
-    GST_DEBUG ("Running garbage collector");
-
-    for (auto it : sessions) {
-      if (it.second) {
-        lock.acquire();
-        sessionInUse[it.first] = false;
-        lock.release();
-      } else {
-        GST_WARNING ("Session timeout: %s", it.first.c_str() );
-        unrefSession (it.first);
+    while (waitCond.wait_for (recMutex, COLLECTOR_INTERVAL) == std::cv_status::timeout) {
+      if (terminated) {
+        return;
       }
+
+      doGarbageCollection();
     }
-    return true;
   });
-  timeout->attach (context);
 }
 
 MediaSet::~MediaSet ()
 {
-  RecMutex::Lock lock (mutex);
-
-  terminated = true;
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if (!objectsMap.empty() ) {
     std::cerr << "Warning: Still " + std::to_string (objectsMap.size() ) +
@@ -120,77 +117,31 @@ MediaSet::~MediaSet ()
               " session/s with timeout" << std::endl;
   }
 
+  if (!empty() ) {
+    auto copy = sessionMap;
+
+    for (auto it : copy) {
+      unrefSession (it.first);
+    }
+  }
+
   childrenMap.clear();
   sessionMap.clear();
 
-  if (Glib::Thread::self() != thread) {
-    Glib::RefPtr<Glib::IdleSource> source = Glib::IdleSource::create ();
-    source->connect (sigc::mem_fun (*this, &MediaSet::finishLoop) );
-    source->attach (context);
+  terminated = true;
+  waitCond.notify_all();
 
-    thread->join();
-  } else {
-    finishLoop();
+  lock.unlock();
+
+  if (std::this_thread::get_id() != thread.get_id() ) {
+    thread.join();
   }
-
-  threadPool.shutdown (true);
-}
-
-void
-MediaSet::executeOnMainLoop (std::function<void () > func, bool force)
-{
-  if (terminated || !loop->is_running() ) {
-    if (force) {
-      func ();
-    }
-
-    return;
-  }
-
-  if (Glib::Thread::self() == thread) {
-    func ();
-  } else {
-    Glib::Threads::Cond cond;
-    Glib::Threads::Mutex mutex;
-    Mutex::Lock lock (mutex);
-    bool done = false;
-    Glib::RefPtr<Glib::IdleSource> source = Glib::IdleSource::create ();
-
-
-    source->connect ([&] ()->bool {
-      Mutex::Lock lock (mutex);
-
-      try {
-        func ();
-      } catch (...) {
-      }
-
-      done = true;
-      cond.signal();
-
-      return false;
-    });
-
-    source->attach (context);
-
-    while (!done) {
-      cond.wait (mutex);
-    }
-  }
-}
-
-bool
-MediaSet::finishLoop ()
-{
-  loop->quit();
-
-  return false;
 }
 
 std::shared_ptr<MediaObjectImpl>
 MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   std::shared_ptr<MediaObjectImpl> mediaObject;
 
@@ -202,13 +153,9 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     mediaObject = std::dynamic_pointer_cast<MediaObjectImpl>
                   (mediaObjectPtr->shared_from_this() );
   } catch (std::bad_weak_ptr e) {
-    mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [] (
+    mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
     MediaObjectImpl * obj) {
-      if (!MediaSet::getMediaSet()->terminated) {
-        MediaSet::getMediaSet()->releasePointer (obj);
-      } else {
-        delete obj;
-      }
+      this->releasePointer (obj);
     });
   }
 
@@ -229,7 +176,7 @@ void
 MediaSet::ref (const std::string &sessionId,
                std::shared_ptr<MediaObjectImpl> mediaObject)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   keepAliveSession (sessionId, true);
 
@@ -261,7 +208,7 @@ MediaSet::keepAliveSession (const std::string &sessionId)
 void
 MediaSet::keepAliveSession (const std::string &sessionId, bool create)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   auto it = sessionInUse.find (sessionId);
 
@@ -279,7 +226,7 @@ MediaSet::keepAliveSession (const std::string &sessionId, bool create)
 void
 MediaSet::releaseSession (const std::string &sessionId)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   auto it = sessionMap.find (sessionId);
 
@@ -299,7 +246,7 @@ MediaSet::releaseSession (const std::string &sessionId)
 void
 MediaSet::unrefSession (const std::string &sessionId)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   auto it = sessionMap.find (sessionId);
 
@@ -320,7 +267,7 @@ void
 MediaSet::unref (const std::string &sessionId,
                  std::shared_ptr< MediaObjectImpl > mediaObject)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if (!mediaObject) {
     return;
@@ -394,28 +341,19 @@ MediaSet::unref (const std::string &sessionId,
 
 void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+  std::string id = mediaObject->getId();
 
-  objectsMap.erase (mediaObject->getId() );
+  GST_DEBUG ("Destroying %s", id.c_str() );
+  delete mediaObject;
 
-  if (!terminated) {
-    lock.release();
-    threadPool.push ( [mediaObject] () {
-      GST_DEBUG ("Destroying %s", mediaObject->getId().c_str() );
-      delete mediaObject;
-    });
-    checkEmpty();
-  } else {
-    lock.release();
-    GST_DEBUG ("Thread pool finished, destroying on the same thread %s",
-               mediaObject->getId().c_str() );
-    delete mediaObject;
-  }
+  objectsMap.erase (id );
+  checkEmpty();
 }
 
 void MediaSet::release (std::shared_ptr< MediaObjectImpl > mediaObject)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   auto it = reverseSessionMap.find (mediaObject->getId() );
 
@@ -448,7 +386,7 @@ std::shared_ptr< MediaObjectImpl >
 MediaSet::getMediaObject (const std::string &mediaObjectRef)
 {
   std::shared_ptr <MediaObjectImpl> objectLocked;
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   auto it = objectsMap.find (mediaObjectRef);
 
@@ -485,7 +423,7 @@ MediaSet::addEventHandler (const std::string &sessionId,
                            const std::string &subscriptionId,
                            std::shared_ptr<EventHandler> handler)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   eventHandler[sessionId][objectId][subscriptionId] = handler;
 }
@@ -495,7 +433,7 @@ MediaSet::removeEventHandler (const std::string &sessionId,
                               const std::string &objectId,
                               const std::string &handlerId)
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
   auto it = eventHandler.find (sessionId);
 
   if (it != eventHandler.end() ) {
@@ -510,7 +448,7 @@ MediaSet::removeEventHandler (const std::string &sessionId,
 void
 MediaSet::checkEmpty()
 {
-  RecMutex::Lock lock (mutex);
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if ( empty() ) {
     signalEmpty.emit();

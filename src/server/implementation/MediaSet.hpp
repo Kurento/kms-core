@@ -18,10 +18,13 @@
 
 #include <MediaObjectImpl.hpp>
 
-#include <glibmm.h>
 #include <unordered_set>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
 
 namespace kurento
 {
@@ -71,13 +74,10 @@ public:
 
 private:
 
-  bool finishLoop ();
-  void executeOnMainLoop (std::function<void () > func, bool force = false);
   void keepAliveSession (const std::string &sessionId, bool create);
+  void doGarbageCollection ();
 
-  Glib::RefPtr<Glib::MainContext> context;
-  Glib::RefPtr<Glib::MainLoop> loop;
-  Glib::Thread *thread;
+  std::thread thread;
 
   void releasePointer (MediaObjectImpl *obj);
 
@@ -85,7 +85,9 @@ private:
 
   MediaSet ();
 
-  Glib::Threads::RecMutex mutex;
+  std::recursive_mutex recMutex;
+  std::condition_variable_any waitCond;
+  std::atomic<bool> terminated;
 
   std::map<std::string, std::weak_ptr <MediaObjectImpl>> objectsMap;
 
@@ -100,10 +102,6 @@ private:
   eventHandler;
 
   std::map<std::string, std::unordered_set<std::string>> reverseSessionMap;
-
-  Glib::ThreadPool threadPool;
-
-  bool terminated = false;
 
   class StaticConstructor
   {
