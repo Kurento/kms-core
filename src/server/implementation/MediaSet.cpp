@@ -82,7 +82,6 @@ void MediaSet::doGarbageCollection ()
 
 MediaSet::MediaSet()
 {
-  std::cout << "Creating mediaset" << std::endl;
   terminated = false;
 
   thread = std::thread ( [&] () {
