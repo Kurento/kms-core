@@ -68,7 +68,6 @@ public:
   bool empty();
 
   static const std::shared_ptr<MediaSet> getMediaSet();
-  static void destroyMediaSet();
 
   sigc::signal<void> signalEmpty;
 

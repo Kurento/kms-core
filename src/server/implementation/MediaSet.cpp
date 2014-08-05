@@ -53,12 +53,6 @@ MediaSet::getMediaSet()
   return mediaSet;
 }
 
-void
-MediaSet::destroyMediaSet()
-{
-  mediaSet.reset();
-}
-
 void MediaSet::doGarbageCollection ()
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
