@@ -28,7 +28,7 @@
  * By now we only enable one output, otherwise the test will probably fail
  * once the bug is solved this value should be incremented
  */
-#define N_ITERS 500
+#define N_ITERS 200
 
 typedef struct _ElementsData
 {
