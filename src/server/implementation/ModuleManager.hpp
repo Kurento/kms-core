@@ -16,7 +16,7 @@
 #ifndef __MODULE_MANAGER_H__
 #define __MODULE_MANAGER_H__
 
-#include <glibmm.h>
+#include <glibmm/module.h>
 #include <unordered_set>
 #include <map>
 #include <memory>

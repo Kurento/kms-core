@@ -5,7 +5,7 @@
 #include "MediaElement.hpp"
 #include <EventHandler.hpp>
 #include <gst/gst.h>
-#include <glibmm.h>
+#include <mutex>
 
 namespace kurento
 {
@@ -53,7 +53,7 @@ protected:
   GstElement *element;
 
 private:
-  Glib::RecMutex mutex;
+  std::recursive_mutex mutex;
 
   std::weak_ptr<MediaSourceImpl> audioMediaSrc;
   std::weak_ptr<MediaSourceImpl> videoMediaSrc;

@@ -5,6 +5,7 @@
 #include <KurentoException.hpp>
 #include <MediaType.hpp>
 #include <gst/gst.h>
+#include <condition_variable>
 
 #define GST_CAT_DEFAULT kurento_media_sink_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -120,7 +121,7 @@ src_unlinked (GstPad *pad, GstPad *peer, GstElement *filter)
 bool
 MediaSinkImpl::linkPad (std::shared_ptr<MediaSourceImpl> mediaSrc, GstPad *src)
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaSourceImpl> connectedSrcLocked;
   GstPad *sink;
   bool ret = false;
@@ -212,7 +213,7 @@ end:
 void
 MediaSinkImpl::unlink (std::shared_ptr<MediaSourceImpl> mediaSrc, GstPad *sink)
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaSourceImpl> connectedSrcLocked;
 
   try {
@@ -273,12 +274,14 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
   peer = gst_pad_get_peer (sinkPad);
 
   if (peer != NULL) {
-    Glib::Threads::Cond cond;
-    Glib::Threads::Mutex cmutex;
-    bool blocked = FALSE;
+    std::condition_variable cond;
+    std::mutex cmutex;
+
+    bool blocked = false;
+
     std::function <void (GstPad *, GstPadProbeInfo *) >
     blockedLambda = [&] (GstPad * pad, GstPadProbeInfo * info) {
-      Glib::Threads::Mutex::Lock lock (cmutex);
+      std::unique_lock<std::mutex> lock (cmutex);
 
       GST_DEBUG ("Peer pad blocked %" GST_PTR_FORMAT, pad);
 
@@ -289,19 +292,20 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
       gst_pad_unlink (pad, sinkPad);
       blocked = TRUE;
 
-      cond.signal();
+      cond.notify_all();
     };
 
     gst_pad_add_probe (peer, (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCKING),
                        pad_blocked_adaptor, &blockedLambda, NULL);
 
-    cmutex.lock ();
+    {
+      std::unique_lock<std::mutex> lock (cmutex);
 
-    while (!blocked) {
-      cond.wait (cmutex);
+      cond.wait (lock, [&blocked] () -> bool {
+        return blocked;
+      });
+      std::condition_variable_any any;
     }
-
-    cmutex.unlock ();
 
     g_object_unref (peer);
   }

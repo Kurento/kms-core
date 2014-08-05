@@ -4,7 +4,7 @@
 #include "MediaPadImpl.hpp"
 #include "MediaSource.hpp"
 #include <EventHandler.hpp>
-#include <glibmm.h>
+#include <mutex>
 
 namespace kurento
 {
@@ -42,7 +42,7 @@ private:
   void removeSink (MediaSinkImpl *mediaSink);
   void disconnect (MediaSinkImpl *mediaSink);
 
-  Glib::Threads::RecMutex mutex;
+  std::recursive_mutex mutex;
 
   const gchar *getPadName ();
 

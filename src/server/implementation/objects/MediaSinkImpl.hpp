@@ -4,7 +4,7 @@
 #include "MediaPadImpl.hpp"
 #include "MediaSink.hpp"
 #include <EventHandler.hpp>
-#include <glibmm.h>
+#include <mutex>
 
 namespace kurento
 {
@@ -46,7 +46,7 @@ private:
 
   std::weak_ptr <MediaSourceImpl> connectedSrc;
 
-  Glib::Threads::RecMutex mutex;
+  std::recursive_mutex mutex;
 
   class StaticConstructor
   {

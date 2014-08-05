@@ -58,7 +58,7 @@ gboolean
 link_media_elements (std::shared_ptr<MediaSourceImpl> src,
                      std::shared_ptr<MediaSinkImpl> sink)
 {
-  Glib::Threads::RecMutex::Lock lock (src->mutex);
+  std::unique_lock<std::recursive_mutex> lock (src->mutex);
   bool ret = FALSE;
   GstPad *pad;
 
@@ -131,7 +131,7 @@ MediaSourceImpl::MediaSourceImpl (std::shared_ptr<MediaType> mediaType,
 
 MediaSourceImpl::~MediaSourceImpl()
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
 
   for (auto it = connectedSinks.begin(); it != connectedSinks.end(); it++) {
     try {
@@ -162,7 +162,7 @@ MediaSourceImpl::getPadName ()
 
 void MediaSourceImpl::connect (std::shared_ptr<MediaSink> sink)
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaSinkImpl> mediaSinkImpl =
     std::dynamic_pointer_cast<MediaSinkImpl> (sink);
   GstPad *pad;
@@ -211,7 +211,7 @@ void MediaSourceImpl::connect (std::shared_ptr<MediaSink> sink)
 void
 MediaSourceImpl::removeSink (MediaSinkImpl *mediaSink)
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaSinkImpl> sinkLocked;
   std::vector< std::weak_ptr<MediaSinkImpl> >::iterator it;
 
@@ -234,7 +234,7 @@ MediaSourceImpl::removeSink (MediaSinkImpl *mediaSink)
 void
 MediaSourceImpl::disconnect (MediaSinkImpl *mediaSink)
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
 
   GST_INFO ("disconnect %s from %s", this->getId().c_str(),
             mediaSink->getId().c_str() );
@@ -246,7 +246,7 @@ MediaSourceImpl::disconnect (MediaSinkImpl *mediaSink)
 std::vector < std::shared_ptr<MediaSink> >
 MediaSourceImpl::getConnectedSinks ()
 {
-  Glib::Threads::RecMutex::Lock lock (mutex);
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::vector < std::shared_ptr<MediaSink> > sinks;
 
   std::shared_ptr<MediaSinkImpl> sinkLocked;
