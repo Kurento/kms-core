@@ -4,18 +4,18 @@
   "code": {
     "kmd": {
       "java": {
-        "maven.groupId": "com.kurento",
-        "maven.artifactId": "kms-media-api-core"
+        "maven.groupId": "org.kurento",
+        "maven.artifactId": "kms-api-core"
       }
     },
     "api": {
       "java": {
-        "packageName": "com.kurento.kmf.media",
-        "maven.groupId": "com.kurento.kmf",
-        "maven.artifactId": "kmf-media-api"
+        "packageName": "org.kurento.client",
+        "maven.groupId": "org.kurento",
+        "maven.artifactId": "kurento-client"
       },
       "js": {
-        "node.name": "kws-media-api-core",
+        "node.name": "kurento-client-core",
         "npm.description": "Base classes for kurento media server api"
       }
     }
