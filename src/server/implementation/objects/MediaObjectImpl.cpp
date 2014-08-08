@@ -15,12 +15,12 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaObjectImpl::MediaObjectImpl ()
+MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
   id = createId();
 }
 
-MediaObjectImpl::MediaObjectImpl (std::shared_ptr< MediaObject > parent)
+MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr< MediaObject > parent)
 {
   this->parent = parent;
   id = createId();

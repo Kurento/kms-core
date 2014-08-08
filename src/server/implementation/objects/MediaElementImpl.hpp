@@ -22,7 +22,7 @@ class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 
 public:
 
-  MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
+  MediaElementImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
 
   virtual ~MediaElementImpl ();
 
@@ -64,6 +64,8 @@ private:
   std::shared_ptr<MediaSourceImpl> getOrCreateVideoMediaSrc();
   std::shared_ptr<MediaSinkImpl> getOrCreateAudioMediaSink();
   std::shared_ptr<MediaSinkImpl> getOrCreateVideoMediaSink();
+
+  boost::property_tree::ptree config;
 
   class StaticConstructor
   {

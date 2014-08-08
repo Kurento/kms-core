@@ -4,7 +4,7 @@
 #include <Factory.hpp>
 #include "MediaObject.hpp"
 #include <EventHandler.hpp>
-#include <MediaServerConfig.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 namespace kurento
 {
@@ -19,9 +19,9 @@ class MediaObjectImpl : public virtual MediaObject
 
 public:
 
-  MediaObjectImpl ();
+  MediaObjectImpl (const boost::property_tree::ptree &config);
 
-  MediaObjectImpl (std::shared_ptr <MediaObject> parent);
+  MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr <MediaObject> parent);
 
   virtual ~MediaObjectImpl () {};
 
@@ -30,8 +30,6 @@ public:
   virtual std::shared_ptr<MediaObject> getParent () {
     return parent;
   }
-
-  virtual void setConfig(const MediaServerConfig &config) {};
 
   virtual std::string getId () {
     return id;

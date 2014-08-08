@@ -22,7 +22,6 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/MediaSet.hpp
   implementation/FactoryRegistrar.hpp
   implementation/ModuleManager.hpp
-  implementation/MediaServerConfig.hpp
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")

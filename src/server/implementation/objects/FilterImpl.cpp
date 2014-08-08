@@ -13,8 +13,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-FilterImpl::FilterImpl (std::shared_ptr<MediaObjectImpl> parent) :
-  MediaElementImpl (parent, FACTORY_NAME)
+FilterImpl::FilterImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent) :
+  MediaElementImpl (config, parent, FACTORY_NAME)
 {
 }
 

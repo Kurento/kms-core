@@ -17,7 +17,8 @@ class SdpEndpointImpl : public SessionEndpointImpl, public virtual SdpEndpoint
 
 public:
 
-  SdpEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+  SdpEndpointImpl (const boost::property_tree::ptree &config,
+                   std::shared_ptr< MediaObjectImpl > parent,
                    const std::string &factoryName);
 
   virtual ~SdpEndpointImpl () {};

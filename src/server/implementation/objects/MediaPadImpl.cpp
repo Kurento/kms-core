@@ -13,9 +13,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaPadImpl::MediaPadImpl (std::shared_ptr<MediaObjectImpl> parent,
+MediaPadImpl::MediaPadImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent,
                             std::shared_ptr<MediaType> mediaType,
-                            const std::string &mediaDescription) : MediaObjectImpl (parent)
+                            const std::string &mediaDescription) : MediaObjectImpl (config, parent)
 {
   this->mediaElement = std::dynamic_pointer_cast<MediaElement> (parent);
   this->mediaType = mediaType;

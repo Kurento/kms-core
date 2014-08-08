@@ -17,7 +17,7 @@ class FilterImpl : public MediaElementImpl, public virtual Filter
 
 public:
 
-  FilterImpl (std::shared_ptr<MediaObjectImpl> parent);
+  FilterImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent);
 
   virtual ~FilterImpl () {};
 

@@ -17,7 +17,8 @@ class EndpointImpl : public MediaElementImpl, public virtual Endpoint
 
 public:
 
-  EndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+  EndpointImpl (const boost::property_tree::ptree &config,
+                std::shared_ptr< MediaObjectImpl > parent,
                 const std::string &factoryName);
 
   virtual ~EndpointImpl () {};

@@ -20,7 +20,8 @@ class MediaPadImpl : public MediaObjectImpl, public virtual MediaPad
 
 public:
 
-  MediaPadImpl (std::shared_ptr<MediaObjectImpl> parent,
+  MediaPadImpl (const boost::property_tree::ptree &config,
+                std::shared_ptr<MediaObjectImpl> parent,
                 std::shared_ptr<MediaType> mediaType,
                 const std::string &mediaDescription);
 

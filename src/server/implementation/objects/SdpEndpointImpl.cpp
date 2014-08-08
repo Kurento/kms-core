@@ -48,9 +48,10 @@ sdp_to_str (std::string &_return, const GstSDPMessage *sdp)
   free (sdpGchar);
 }
 
-SdpEndpointImpl::SdpEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
+                                  std::shared_ptr< MediaObjectImpl > parent,
                                   const std::string &factoryName) :
-  SessionEndpointImpl (parent, factoryName)
+  SessionEndpointImpl (config, parent, factoryName)
 {
   //   TODO: Add support for this events
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);

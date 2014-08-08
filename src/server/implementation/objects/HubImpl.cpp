@@ -12,8 +12,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-HubImpl::HubImpl (std::shared_ptr<MediaObjectImpl> parent,
-                  const std::string &factoryName) : MediaObjectImpl (parent)
+HubImpl::HubImpl (const boost::property_tree::ptree &config,
+                  std::shared_ptr<MediaObjectImpl> parent,
+                  const std::string &factoryName) : MediaObjectImpl (config, parent)
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
 

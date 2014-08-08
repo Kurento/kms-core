@@ -15,7 +15,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-HubPortImpl::HubPortImpl (std::shared_ptr<HubImpl> hub) : MediaElementImpl (hub, FACTORY_NAME)
+HubPortImpl::HubPortImpl (const boost::property_tree::ptree &config, std::shared_ptr<HubImpl> hub) : MediaElementImpl (config, hub, FACTORY_NAME)
 {
   g_signal_emit_by_name (hub->getGstreamerElement(), "handle-port",
                          element, &handlerId);
@@ -28,9 +28,9 @@ HubPortImpl::~HubPortImpl()
 }
 
 MediaObjectImpl *
-HubPortImplFactory::createObject (std::shared_ptr<Hub> hub) const
+HubPortImplFactory::createObject (const boost::property_tree::ptree &conf, std::shared_ptr<Hub> hub) const
 {
-  return new HubPortImpl (std::dynamic_pointer_cast<HubImpl> (hub) );
+  return new HubPortImpl (conf, std::dynamic_pointer_cast<HubImpl> (hub) );
 }
 
 HubPortImpl::StaticConstructor HubPortImpl::staticConstructor;

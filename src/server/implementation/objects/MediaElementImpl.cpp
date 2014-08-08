@@ -16,7 +16,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaElementImpl::MediaElementImpl (std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName) : MediaObjectImpl (parent)
+MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName) : MediaObjectImpl (config, parent), config (config)
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
 
@@ -181,7 +181,7 @@ MediaElementImpl::getOrCreateAudioMediaSrc()
   if (src.get() == NULL) {
     std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::AUDIO) );
 
-    MediaSourceImpl *srcPtr = new  MediaSourceImpl (mediaType, "",
+    MediaSourceImpl *srcPtr = new  MediaSourceImpl (config, mediaType, "",
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     src = std::dynamic_pointer_cast<MediaSourceImpl>
@@ -208,7 +208,7 @@ MediaElementImpl::getOrCreateVideoMediaSrc()
   if (src.get() == NULL) {
     std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::VIDEO) );
 
-    MediaSourceImpl *srcPtr = new  MediaSourceImpl (mediaType, "",
+    MediaSourceImpl *srcPtr = new  MediaSourceImpl (config, mediaType, "",
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     src = std::dynamic_pointer_cast<MediaSourceImpl>
@@ -235,7 +235,7 @@ MediaElementImpl::getOrCreateAudioMediaSink()
   if (sink.get() == NULL) {
     std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::AUDIO) );
 
-    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (mediaType, "",
+    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (config, mediaType, "",
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     sink = std::dynamic_pointer_cast<MediaSinkImpl>
@@ -262,7 +262,7 @@ MediaElementImpl::getOrCreateVideoMediaSink()
   if (sink.get() == NULL) {
     std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::VIDEO) );
 
-    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (mediaType, "",
+    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (config, mediaType, "",
         std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
 
     sink = std::dynamic_pointer_cast<MediaSinkImpl>

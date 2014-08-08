@@ -19,7 +19,8 @@ class MediaSinkImpl : public MediaPadImpl, public virtual MediaSink
 
 public:
 
-  MediaSinkImpl (std::shared_ptr<MediaType> mediaType,
+  MediaSinkImpl (const boost::property_tree::ptree &config,
+                 std::shared_ptr<MediaType> mediaType,
                  const std::string &mediaDescription,
                  std::shared_ptr<MediaObjectImpl> parent);
 

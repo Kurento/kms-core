@@ -36,7 +36,7 @@ main (int argc, char **argv)
 
   mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
 
-  mediaPipeline = mediaPipelineFactory->createObject ("", Json::Value() );
+  mediaPipeline = mediaPipelineFactory->createObject (boost::property_tree::ptree(), "", Json::Value() );
 
   try {
     kurento::JsonSerializer writer (true);

@@ -5,6 +5,7 @@
 #include "MediaPipeline.hpp"
 #include <EventHandler.hpp>
 #include <gst/gst.h>
+#include <boost/property_tree/ptree.hpp>
 
 namespace kurento
 {
@@ -18,7 +19,7 @@ class MediaPipelineImpl : public MediaObjectImpl, public virtual MediaPipeline
 
 public:
 
-  MediaPipelineImpl ();
+  MediaPipelineImpl (const boost::property_tree::ptree &config);
 
   virtual ~MediaPipelineImpl ();
 

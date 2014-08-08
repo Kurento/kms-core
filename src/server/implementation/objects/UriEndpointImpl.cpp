@@ -17,9 +17,10 @@ typedef enum {
   KMS_URI_END_POINT_STATE_PAUSE
 } KmsUriEndPointState;
 
-UriEndpointImpl::UriEndpointImpl (std::shared_ptr< MediaObjectImpl > parent,
+UriEndpointImpl::UriEndpointImpl (const boost::property_tree::ptree &config,
+                                  std::shared_ptr< MediaObjectImpl > parent,
                                   const std::string &factoryName, const std::string &uri) :
-  EndpointImpl (parent, factoryName)
+  EndpointImpl (config, parent, factoryName)
 {
   this->uri = uri;
   g_object_set (G_OBJECT (getGstreamerElement() ), "uri", uri.c_str(), NULL);

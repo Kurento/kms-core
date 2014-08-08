@@ -14,10 +14,11 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaSinkImpl::MediaSinkImpl (std::shared_ptr<MediaType> mediaType,
+MediaSinkImpl::MediaSinkImpl (const boost::property_tree::ptree &config,
+                              std::shared_ptr<MediaType> mediaType,
                               const std::string &mediaDescription,
                               std::shared_ptr<MediaObjectImpl> parent) :
-  MediaPadImpl (parent, mediaType, mediaDescription)
+  MediaPadImpl (config, parent, mediaType, mediaDescription)
 {
 }
 

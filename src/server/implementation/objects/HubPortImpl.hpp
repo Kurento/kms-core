@@ -18,7 +18,7 @@ class HubPortImpl : public MediaElementImpl, public virtual HubPort
 
 public:
 
-  HubPortImpl (std::shared_ptr<HubImpl> hub);
+  HubPortImpl (const boost::property_tree::ptree &config, std::shared_ptr<HubImpl> hub);
 
   virtual ~HubPortImpl ();
 
