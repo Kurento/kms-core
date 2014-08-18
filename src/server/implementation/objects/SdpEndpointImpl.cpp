@@ -80,7 +80,7 @@ getSdpPattern (const boost::property_tree::ptree &config)
     return pattern.get();
 
   try {
-    sdp_pattern_file = boost::filesystem::path (config.get<std::string> ("modules.kurento.SdpEndpoint.pattern") );
+    sdp_pattern_file = boost::filesystem::path (config.get<std::string> ("modules.kurento.SdpEndpoint.sdpPattern") );
   } catch (boost::property_tree::ptree_error &e) {
     throw kurento::KurentoException (SDP_CONFIGURATION_ERROR, "Error reading SDP pattern from configuration, please contact the administrator: " + std::string (e.what() ) );
   }
