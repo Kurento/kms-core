@@ -18,6 +18,9 @@
         "node.name": "kurento-client-core",
         "npm.description": "Base classes for kurento media server api"
       }
+    },
+    "implementation": {
+      "cpp.namespace": "kurento"
     }
   },
   "remoteClasses": [
