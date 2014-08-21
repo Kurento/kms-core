@@ -69,7 +69,7 @@ link_media_elements (std::shared_ptr<MediaSourceImpl> src,
     return FALSE;
   }
 
-  GST_WARNING ("Connecting pad %s", src->getPadName() );
+  GST_DEBUG ("Connecting pad %s", src->getPadName() );
 
   g_signal_connect_data (G_OBJECT (pad), "unlinked", G_CALLBACK (pad_unlinked),
                          g_object_ref (src->getGstreamerElement() ),
