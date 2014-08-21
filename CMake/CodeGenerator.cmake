@@ -519,7 +519,6 @@ function (generate_kurento_libraries)
 
     execute_process(
       COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -it maven
-      OUTPUT_VARIABLE PROCESSOR_OUTPUT
     )
 
     execute_process(
