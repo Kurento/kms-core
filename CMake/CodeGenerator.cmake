@@ -547,9 +547,9 @@ function (generate_kurento_libraries)
   if (${GENERATE_JS_CLIENT_PROJECT})
     find_package(Npm)
 
-    get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.api.js.node.name)
+    get_values_from_model(PREFIX VALUE MODELS ${PARAM_MODELS} KEYS code.api.js.nodeName)
 
-    file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODE_NAME}")
+    file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODENAME}")
 
     execute_process(
       COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
