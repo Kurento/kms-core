@@ -27,6 +27,8 @@
 #define LINKING_DATA "linking-data"
 #define UNLINKING_DATA "unlinking-data"
 
+#define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
+
 static GstStaticCaps static_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
@@ -509,6 +511,13 @@ drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     send_force_key_unit_event (pad);
     return GST_PAD_PROBE_DROP;
   }
+
+  GST_OBJECT_LOCK (pad);
+  g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
+      GINT_TO_POINTER (FALSE));
+  GST_OBJECT_UNLOCK (pad);
+
+  GST_DEBUG_OBJECT (pad, "Finish dropping buffers until key frame");
 
   /* So this buffer is a keyframe we don't need this probe any more */
   return GST_PAD_PROBE_REMOVE;
@@ -1330,8 +1339,21 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_INFO_OBJECT (pad, "Gap detected, request key frame");
-    send_force_key_unit_event (pad);
+    GST_TRACE_OBJECT (pad, "Gap detected, request key frame");
+
+    GST_OBJECT_LOCK (pad);
+    if (g_object_get_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME)) {
+      GST_DEBUG_OBJECT (pad, "Already dropping buffers until key frame");
+      GST_OBJECT_UNLOCK (pad);
+    } else {
+      GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
+      g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
+          GINT_TO_POINTER (TRUE));
+      GST_OBJECT_UNLOCK (pad);
+      gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe,
+          NULL, NULL);
+      send_force_key_unit_event (pad);
+    }
   }
 
   return GST_PAD_PROBE_OK;
