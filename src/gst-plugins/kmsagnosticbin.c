@@ -511,9 +511,7 @@ drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   }
 
   /* So this buffer is a keyframe we don't need this probe any more */
-  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
-
-  return GST_PAD_PROBE_OK;
+  return GST_PAD_PROBE_REMOVE;
 }
 
 static void
@@ -548,7 +546,7 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target);
-  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe, self,
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe, NULL,
       NULL);
 
   g_object_unref (target);
@@ -1329,11 +1327,10 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
 static GstPadProbeReturn
 gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (data);
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_INFO_OBJECT (self, "Gap detected, request key frame");
+    GST_INFO_OBJECT (pad, "Gap detected, request key frame");
     send_force_key_unit_event (pad);
   }
 
@@ -1390,7 +1387,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->current_caps = NULL;
   self->priv->last_caps = NULL;
   gst_pad_add_probe (self->priv->sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      gap_detection_probe, self, NULL);
+      gap_detection_probe, NULL, NULL);
   g_object_unref (templ);
   g_object_unref (target);
 
