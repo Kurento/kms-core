@@ -256,7 +256,8 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
       rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
       caps =
-          kms_base_rtp_endpoint_get_caps_from_rtpmap (media->media, pt, rtpmap);
+          kms_base_rtp_endpoint_get_caps_from_rtpmap (gst_sdp_media_get_media
+          (media), pt, rtpmap);
     }
 
     if (caps == NULL)
@@ -338,8 +339,8 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
 
       rtpmap = sdp_utils_sdp_media_get_rtpmap (media, payload);
       caps =
-          kms_base_rtp_endpoint_get_caps_from_rtpmap (media->media, payload,
-          rtpmap);
+          kms_base_rtp_endpoint_get_caps_from_rtpmap (gst_sdp_media_get_media
+          (media), payload, rtpmap);
 
       if (caps != NULL) {
         gst_caps_set_simple (caps, "rtcp-fb-x-gstreamer-fir-as-repair",
