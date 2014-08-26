@@ -427,6 +427,15 @@ end:
 }
 
 static void
+kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
+    GstElement * jitterbuffer,
+    guint session, guint ssrc, KmsBaseRtpEndpoint * rtp_endpoint)
+{
+  g_object_set (jitterbuffer, "do-lost", TRUE,
+      "do-retransmission", (ssrc == rtp_endpoint->priv->video_ssrc), NULL);
+}
+
+static void
 kms_base_rtp_endpoint_audio_valve_added (KmsElement * self, GstElement * valve)
 {
   KmsBaseRtpEndpoint *base_rtp_endpoint = KMS_BASE_RTP_ENDPOINT (self);
@@ -700,8 +709,10 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * base_rtp_endpoint)
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_sender_timeout),
       base_rtp_endpoint);
 
-  g_object_set (base_rtp_endpoint->priv->rtpbin, "do-lost", TRUE,
-      "do-retransmission", TRUE, NULL);
+  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "new-jitterbuffer",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer),
+      base_rtp_endpoint);
+
   g_object_set (base_rtp_endpoint, "accept-eos", FALSE, NULL);
 
   gst_bin_add (GST_BIN (base_rtp_endpoint), base_rtp_endpoint->priv->rtpbin);
