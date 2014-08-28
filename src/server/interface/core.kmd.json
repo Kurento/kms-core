@@ -20,7 +20,7 @@
       }
     },
     "implementation": {
-      "cpp.namespace": "kurento"
+      "cppNamespace": "kurento"
     }
   },
   "remoteClasses": [
