@@ -337,10 +337,12 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
   std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::string id = mediaObject->getId();
 
-  GST_DEBUG ("Destroying %s", id.c_str() );
+  objectsMap.erase (id );
+
+  lock.unlock();
+  GST_DEBUG ("Destroying %s -> %s", mediaObject->getType().c_str(), id.c_str() );
   delete mediaObject;
 
-  objectsMap.erase (id );
   checkEmpty();
 }
 
