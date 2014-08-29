@@ -35,16 +35,16 @@ ModuleManager::loadModule (std::string modulePath)
   Glib::Module module (modulePath);
 
   if (!module) {
-    GST_WARNING ("Module cannot be loaded: %s", Glib::Module::get_last_error().c_str() );
+    GST_WARNING ("Module %s cannot be loaded: %s", modulePath.c_str(), Glib::Module::get_last_error().c_str() );
     return -1;
   }
-
-  module.make_resident();
 
   if (!module.get_symbol ("getFactoryRegistrar", registrarFactory) ) {
     GST_WARNING ("Symbol not found");
     return -1;
   }
+
+  module.make_resident();
 
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
