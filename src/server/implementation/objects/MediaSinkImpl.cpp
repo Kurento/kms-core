@@ -275,6 +275,7 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
   peer = gst_pad_get_peer (sinkPad);
 
   if (peer != NULL) {
+    gulong probe_id;
     std::condition_variable cond;
     std::mutex cmutex;
 
@@ -296,16 +297,22 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
       cond.notify_all();
     };
 
-    gst_pad_add_probe (peer, (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCKING),
-                       pad_blocked_adaptor, &blockedLambda, NULL);
+    probe_id = gst_pad_add_probe (peer,
+                                  (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCKING),
+                                  pad_blocked_adaptor, &blockedLambda, NULL);
 
     {
       std::unique_lock<std::mutex> lock (cmutex);
 
-      cond.wait (lock, [&blocked] () -> bool {
+      if (!blocked) {
+        if (!cond.wait_for (lock, std::chrono::seconds (2), [&blocked] () -> bool {
         return blocked;
-      });
-      std::condition_variable_any any;
+      }) ) {
+          GST_ERROR_OBJECT (peer, "Timeout waiting for pad to block. "
+                            "It will be removed without being blocked");
+          gst_pad_remove_probe (peer, probe_id);
+        };
+      }
     }
 
     g_object_unref (peer);
