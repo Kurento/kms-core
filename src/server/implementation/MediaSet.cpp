@@ -234,6 +234,8 @@ MediaSet::releaseSession (const std::string &sessionId)
   sessionMap.erase (sessionId);
   sessionInUse.erase (sessionId);
   eventHandler.erase (sessionId);
+  lock.unlock ();
+
 }
 
 void
@@ -254,6 +256,8 @@ MediaSet::unrefSession (const std::string &sessionId)
   sessionMap.erase (sessionId);
   sessionInUse.erase (sessionId);
   eventHandler.erase (sessionId);
+
+  lock.unlock();
 }
 
 void
@@ -315,6 +319,8 @@ MediaSet::unref (const std::string &sessionId,
   if (eventIt != eventHandler.end() ) {
     eventIt->second.erase (mediaObject->getId() );
   }
+
+  lock.unlock();
 }
 
 void
@@ -364,6 +370,8 @@ void MediaSet::release (std::shared_ptr< MediaObjectImpl > mediaObject)
   }
 
   objectsMap.erase (mediaObject->getId() );
+
+  lock.unlock();
 }
 
 void MediaSet::release (const std::string &mediaObjectRef)
@@ -446,6 +454,7 @@ MediaSet::checkEmpty()
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if ( empty() ) {
+    lock.unlock();
     signalEmpty.emit();
   }
 }
