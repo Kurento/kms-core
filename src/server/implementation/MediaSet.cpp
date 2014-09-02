@@ -81,13 +81,20 @@ MediaSet::MediaSet()
   thread = std::thread ( [&] () {
     std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-    while (waitCond.wait_for (recMutex, COLLECTOR_INTERVAL) == std::cv_status::timeout) {
+
+    while (waitCond.wait_for (recMutex,
+                              COLLECTOR_INTERVAL) == std::cv_status::timeout) {
       if (terminated) {
         return;
       }
 
-      doGarbageCollection();
+      try {
+        doGarbageCollection();
+      } catch (...) {
+        GST_ERROR ("Error during garbage collection");
+      }
     }
+
   });
 }
 
