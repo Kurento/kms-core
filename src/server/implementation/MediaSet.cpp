@@ -40,15 +40,17 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (240);
+static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (
+      240);
 
 static std::shared_ptr<MediaSet> mediaSet;
 
 const std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
-  if (!mediaSet)
+  if (!mediaSet) {
     mediaSet = std::shared_ptr<MediaSet> (new MediaSet() );
+  }
 
   return mediaSet;
 }
