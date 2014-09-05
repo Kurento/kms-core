@@ -6,6 +6,7 @@ include (GNUInstallDirs)
 
 set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client library")
 set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
+set (DISABLE_LIBRARIES_GENERATION FALSE CACHE BOOL "Disable C/C++ libraries generation, just useful for generating client code")
 
 set (KTOOL_ROM_PROCESSOR_CHECK_FORMAT FALSE CACHE BOOL "Check if codding style of generated code is correct")
 mark_as_advanced(KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
@@ -236,6 +237,7 @@ function (generate_kurento_libraries)
 
   set (KTOOL_PROCESSOR_LINE ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
 
+  if (NOT ${DISABLE_LIBRARIES_GENERATION})
   ###############################################################
   # Calculate modules dependencies
   ###############################################################
@@ -495,6 +497,7 @@ function (generate_kurento_libraries)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
 
+  endif (NOT ${DISABLE_LIBRARIES_GENERATION})
   ###############################################################
   # Generate output kmd file
   ###############################################################
