@@ -59,7 +59,6 @@ install(
 
 set(KMS_COMMONS_SOURCES kmsbasertpendpoint.c
                         kmsbasesdpendpoint.c
-                        kmsconfcontroller.c
                         kmselement.c
                         kmsloop.c
                         kmsrecordingprofile.c
@@ -69,7 +68,6 @@ set(KMS_COMMONS_SOURCES kmsbasertpendpoint.c
 
 set(KMS_COMMONS_HEADERS kmsbasertpendpoint.h
                         kmsbasesdpendpoint.h
-                        kmsconfcontroller.h
                         kmselement.h
                         kmsloop.h
                         kmsrecordingprofile.h
