@@ -38,6 +38,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define AUDIO_SINK_PAD "audio_sink"
 #define VIDEO_SINK_PAD "video_sink"
 
+#define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
+
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
 
@@ -153,6 +155,136 @@ kms_element_get_video_valve (KmsElement * self)
   return self->priv->video_valve;
 }
 
+static gboolean
+is_raw_caps (GstCaps * caps)
+{
+  gboolean ret;
+  GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
+
+  ret = gst_caps_is_always_compatible (caps, raw_caps);
+
+  gst_caps_unref (raw_caps);
+  return ret;
+}
+
+static void
+send_force_key_unit_event (GstPad * pad)
+{
+  GstStructure *s;
+  GstEvent *force_key_unit_event;
+  GstCaps *caps = gst_pad_get_current_caps (pad);
+
+  if (caps == NULL)
+    caps = gst_pad_get_allowed_caps (pad);
+
+  if (caps == NULL)
+    return;
+
+  if (is_raw_caps (caps))
+    goto end;
+
+  s = gst_structure_new ("GstForceKeyUnit",
+      "all-headers", G_TYPE_BOOLEAN, TRUE, NULL);
+  force_key_unit_event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, s);
+
+  if (GST_PAD_DIRECTION (pad) == GST_PAD_SRC) {
+    gst_pad_send_event (pad, force_key_unit_event);
+  } else {
+    gst_pad_push_event (pad, force_key_unit_event);
+  }
+
+end:
+  gst_caps_unref (caps);
+}
+
+/* Call this function holding the lock */
+static inline gboolean
+is_dropping (GstPad * pad)
+{
+  return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pad),
+          DROPPING_UNTIL_KEY_FRAME));
+}
+
+/* Call this function holding the lock */
+static inline void
+set_dropping (GstPad * pad, gboolean dropping)
+{
+  g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
+      GINT_TO_POINTER (dropping));
+}
+
+static GstPadProbeReturn
+drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  GstBuffer *buffer;
+
+  buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
+    /* Drop buffer until a keyframe is received */
+    send_force_key_unit_event (pad);
+    GST_WARNING_OBJECT (pad, "Dropping buffer");
+    return GST_PAD_PROBE_DROP;
+  }
+
+  GST_OBJECT_LOCK (pad);
+  set_dropping (pad, FALSE);
+  GST_OBJECT_UNLOCK (pad);
+
+  GST_DEBUG_OBJECT (pad, "Finish dropping buffers until key frame");
+
+  /* So this buffer is a keyframe we don't need this probe any more */
+  return GST_PAD_PROBE_REMOVE;
+}
+
+static void
+start_dropping_buffers (GstPad * pad)
+{
+  GST_OBJECT_LOCK (pad);
+  if (is_dropping (pad)) {
+    GST_DEBUG_OBJECT (pad, "Already dropping buffers until key frame");
+    GST_OBJECT_UNLOCK (pad);
+  } else {
+    GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
+    set_dropping (pad, TRUE);
+    GST_OBJECT_UNLOCK (pad);
+    gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe,
+        NULL, NULL);
+    send_force_key_unit_event (pad);
+  }
+}
+
+static GstPadProbeReturn
+check_leak (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)
+      || GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_GAP)) {
+    if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
+      start_dropping_buffers (pad);
+
+      return GST_PAD_PROBE_DROP;
+    }
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn
+gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
+    GST_TRACE_OBJECT (pad, "Gap detected, request key frame");
+
+    start_dropping_buffers (pad);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 static GstPad *
 kms_element_generate_sink_pad (KmsElement * element, const gchar * name,
     GstElement ** target, GstPadTemplate * templ)
@@ -163,11 +295,21 @@ kms_element_generate_sink_pad (KmsElement * element, const gchar * name,
   if (valve != NULL)
     return NULL;
 
-  valve = gst_element_factory_make ("valve", NULL);
+  valve = gst_element_factory_make ("valve", name);
   *target = valve;
   g_object_set (valve, "drop", TRUE, NULL);
   gst_bin_add (GST_BIN (element), valve);
   gst_element_sync_state_with_parent (valve);
+
+  if (g_str_has_prefix (name, "video")) {
+    GstPad *src = gst_element_get_static_pad (valve, "src");
+
+    start_dropping_buffers (src);
+    gst_pad_add_probe (src, GST_PAD_PROBE_TYPE_BUFFER, check_leak, NULL, NULL);
+    gst_pad_add_probe (src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+        gap_detection_probe, NULL, NULL);
+    g_object_unref (src);
+  }
 
   if (target == &element->priv->audio_valve) {
     KMS_ELEMENT_GET_CLASS (element)->audio_valve_added (element, valve);

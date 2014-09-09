@@ -99,7 +99,7 @@ GST_START_TEST (connect_sinks)
 
   /* Check if valves have been opened because of fakesink link */
 
-  valve0 = gst_bin_get_by_name (GST_BIN (hubport), "valve0");
+  valve0 = gst_bin_get_by_name (GST_BIN (hubport), "video_sink");
   fail_unless (valve0 != NULL);
   GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve0);
   drop = TRUE;
@@ -107,7 +107,7 @@ GST_START_TEST (connect_sinks)
   fail_unless (drop == FALSE);
   GST_DEBUG ("Drop value: %d", drop);
 
-  valve1 = gst_bin_get_by_name (GST_BIN (hubport), "valve1");
+  valve1 = gst_bin_get_by_name (GST_BIN (hubport), "audio_sink");
   fail_unless (valve1 != NULL);
   GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve1);
   drop = TRUE;
