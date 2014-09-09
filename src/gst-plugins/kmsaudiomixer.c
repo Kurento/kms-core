@@ -727,7 +727,7 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
     return FALSE;
   }
 
-  adder = gst_element_factory_make ("liveadder", NULL);
+  adder = gst_element_factory_make ("audiomixer", NULL);
   g_object_set_data_full (G_OBJECT (adder), KEY_SINK_PAD_NAME,
       g_strdup (padname), g_free);
 

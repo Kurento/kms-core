@@ -665,7 +665,7 @@ kms_audio_mixer_bin_init (KmsAudioMixerBin * self)
 
   self->priv = KMS_AUDIO_MIXER_BIN_GET_PRIVATE (self);
 
-  self->priv->adder = gst_element_factory_make ("liveadder", NULL);
+  self->priv->adder = gst_element_factory_make ("audiomixer", NULL);
   gst_bin_add (GST_BIN (self), self->priv->adder);
 
   srcpad = gst_element_get_static_pad (self->priv->adder, "src");
