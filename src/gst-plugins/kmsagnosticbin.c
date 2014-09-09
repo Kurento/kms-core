@@ -29,6 +29,8 @@
 
 #define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
 
+#define DEFAULT_QUEUE_SIZE 60
+
 static GstStaticCaps static_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
@@ -530,6 +532,9 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   GstElement *queue = gst_element_factory_make ("queue", NULL);
   GstPad *target;
 
+  g_object_set (queue, "leaky", 2 /* downstream */ ,
+      "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+
   gst_bin_add (GST_BIN (self), queue);
   gst_element_sync_state_with_parent (queue);
 
@@ -706,6 +711,9 @@ kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
   fakequeue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+
   g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (self), queue, decoder, tee, fakequeue, fakesink,
@@ -825,6 +833,9 @@ kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   fakequeue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+
   g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (self), queue, rate, convert, mediator, encoder,
@@ -942,8 +953,8 @@ kms_agnostic_bin2_process_pad_loop (gpointer data)
     GST_DEBUG_OBJECT (self,
         "Caps reconfiguration when reconnection is taking place");
     while (!g_queue_is_empty (self->priv->pads_to_link)) {
-      gst_object_unref (GST_OBJECT (g_queue_pop_head (self->
-                  priv->pads_to_link)));
+      gst_object_unref (GST_OBJECT (g_queue_pop_head (self->priv->
+                  pads_to_link)));
     }
     goto end;
   }
@@ -1095,6 +1106,9 @@ kms_agnostic_bin2_configure_input_tee (KmsAgnosticBin2 * self, GstCaps * caps)
   self->priv->current_tee = tee;
   queue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
 
   g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
 
@@ -1397,6 +1411,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
   g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
 
   gst_bin_add_many (GST_BIN (self), tee, queue, fakesink, NULL);
   gst_element_link (queue, fakesink);
