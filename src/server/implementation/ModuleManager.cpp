@@ -44,12 +44,19 @@ ModuleManager::loadModule (std::string modulePath)
     return -1;
   }
 
-  module.make_resident();
-
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
 
+  for (auto it : factories) {
+    if (loadedFactories.find (it.first) != loadedFactories.end() ) {
+      GST_WARNING ("Factory %s is already registered, skiping module %s", it.first.c_str(), module.get_name().c_str() );
+      return -1;
+    }
+  }
+
   loadedFactories.insert (factories.begin(), factories.end() );
+
+  module.make_resident();
 
   GST_INFO ("Module %s loaded", module.get_name().c_str() );
 
