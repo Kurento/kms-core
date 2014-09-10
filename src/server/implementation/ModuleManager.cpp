@@ -138,12 +138,12 @@ ModuleManager::getLoadedFactories ()
 }
 
 std::shared_ptr<kurento::Factory>
-ModuleManager::getFactory (std::string symbolName)
+ModuleManager::getFactory (std::string factoryName)
 {
   try {
-    return loadedFactories.at (symbolName);
+    return loadedFactories.at (factoryName);
   } catch (std::exception &e) {
-    GST_ERROR ("Factory not found: %s", e.what() );
+    GST_ERROR ("Factory %s not found: %s", factoryName.c_str(), e.what() );
     throw kurento::KurentoException (MEDIA_OBJECT_NOT_AVAILABLE, "Factory not found");
   }
 }
