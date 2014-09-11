@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 #include <FactoryRegistrar.hpp>
 #include <MediaObjectImpl.hpp>
 
@@ -41,6 +42,7 @@ public:
 private:
 
   std::map <std::string, std::shared_ptr <kurento::Factory > > loadedFactories;
+  std::set <std::string> loadedModules;
   void loadModules (std::string path);
 
 

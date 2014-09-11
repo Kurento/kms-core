@@ -19,6 +19,7 @@
 #include <gst/gst.h>
 #include <KurentoException.hpp>
 #include <sstream>
+#include <boost/filesystem.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_set
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -26,11 +27,22 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
+
 int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
   void *registrarFactory;
+  std::string moduleName;
+
+  boost::filesystem::path path (modulePath);
+
+  moduleName = path.filename().string();
+
+  if (loadedModules.find (moduleName) != loadedModules.end() ) {
+    GST_WARNING ("Module named %s already loaded", moduleName.c_str() );
+    return -1;
+  }
 
   Glib::Module module (modulePath);
 
@@ -54,9 +66,10 @@ ModuleManager::loadModule (std::string modulePath)
     }
   }
 
-  loadedFactories.insert (factories.begin(), factories.end() );
-
   module.make_resident();
+
+  loadedFactories.insert (factories.begin(), factories.end() );
+  loadedModules.insert (moduleName);
 
   GST_INFO ("Module %s loaded", module.get_name().c_str() );
 
