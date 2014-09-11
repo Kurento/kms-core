@@ -486,9 +486,9 @@ remove_target_pad_block (GstPad * pad, GstPadProbeInfo * info, gpointer gp)
 static void
 remove_target_pad (GstPad * pad)
 {
-  GST_DEBUG_OBJECT (pad, "Removing target pad");
-
   GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
+
+  GST_DEBUG_OBJECT (pad, "Removing target pad");
 
   if (target == NULL) {
     return;
@@ -691,11 +691,10 @@ static GstElement *
 kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
 {
   GstCaps *current_caps = self->priv->current_caps;
+  GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
 
   if (current_caps == NULL)
     return NULL;
-
-  GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
 
   decoder = create_decoder_for_caps (current_caps, raw_caps);
 

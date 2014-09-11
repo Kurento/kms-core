@@ -190,10 +190,10 @@ kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
     const GstSDPMessage * offer, const GstSDPMessage * answer,
     gboolean local_offer)
 {
-  GST_DEBUG ("Start media");
-
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+
+  GST_DEBUG ("Start media");
 
   base_sdp_endpoint_class->start_transport_send (base_sdp_endpoint, offer,
       answer, local_offer);

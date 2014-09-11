@@ -489,7 +489,6 @@ connect_output (gpointer pipeline)
 
 GST_START_TEST (input_reconfiguration)
 {
-  loop = g_main_loop_new (NULL, TRUE);
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *agnosticbin =
@@ -499,6 +498,8 @@ GST_START_TEST (input_reconfiguration)
   GstElement *fakesink = gst_element_factory_make ("fakesink", "fakesink");
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
 
   g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
   g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
@@ -770,7 +771,6 @@ GST_START_TEST (static_link)
 GST_END_TEST
 GST_START_TEST (encoded_input_n_encoded_ouput)
 {
-  loop = g_main_loop_new (NULL, TRUE);
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *encoder = gst_element_factory_make ("alawenc", NULL);
@@ -780,6 +780,8 @@ GST_START_TEST (encoded_input_n_encoded_ouput)
   int *count, i;
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
@@ -822,7 +824,6 @@ GST_START_TEST (encoded_input_n_encoded_ouput)
 GST_END_TEST
 GST_START_TEST (encoded_input_to_valve)
 {
-  loop = g_main_loop_new (NULL, TRUE);
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   GstElement *encoder = gst_element_factory_make ("alawenc", NULL);
@@ -831,6 +832,8 @@ GST_START_TEST (encoded_input_to_valve)
   gboolean ret;
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
