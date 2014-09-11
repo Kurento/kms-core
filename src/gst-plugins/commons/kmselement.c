@@ -223,7 +223,7 @@ drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
     /* Drop buffer until a keyframe is received */
     send_force_key_unit_event (pad);
-    GST_WARNING_OBJECT (pad, "Dropping buffer");
+    GST_TRACE_OBJECT (pad, "Dropping buffer");
     return GST_PAD_PROBE_DROP;
   }
 
@@ -255,13 +255,14 @@ start_dropping_buffers (GstPad * pad)
 }
 
 static GstPadProbeReturn
-check_leak (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
   GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)
       || GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_GAP)) {
     if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
+      GST_WARNING_OBJECT (pad, "Discont detected");
       start_dropping_buffers (pad);
 
       return GST_PAD_PROBE_DROP;
@@ -277,8 +278,7 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_TRACE_OBJECT (pad, "Gap detected, request key frame");
-
+    GST_WARNING_OBJECT (pad, "Gap detected");
     start_dropping_buffers (pad);
   }
 
@@ -305,7 +305,8 @@ kms_element_generate_sink_pad (KmsElement * element, const gchar * name,
     GstPad *src = gst_element_get_static_pad (valve, "src");
 
     start_dropping_buffers (src);
-    gst_pad_add_probe (src, GST_PAD_PROBE_TYPE_BUFFER, check_leak, NULL, NULL);
+    gst_pad_add_probe (src, GST_PAD_PROBE_TYPE_BUFFER, discont_detection_probe,
+        NULL, NULL);
     gst_pad_add_probe (src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         gap_detection_probe, NULL, NULL);
     g_object_unref (src);
