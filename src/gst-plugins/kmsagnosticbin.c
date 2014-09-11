@@ -1353,7 +1353,7 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_TRACE_OBJECT (pad, "Gap detected, request key frame");
+    GST_DEBUG_OBJECT (pad, "Gap detected, request key frame");
 
     GST_OBJECT_LOCK (pad);
     if (g_object_get_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME)) {
@@ -1368,6 +1368,8 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
           NULL, NULL);
       send_force_key_unit_event (pad);
     }
+
+    return GST_PAD_PROBE_DROP;
   }
 
   return GST_PAD_PROBE_OK;
