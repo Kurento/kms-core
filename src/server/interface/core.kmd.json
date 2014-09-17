@@ -351,6 +351,28 @@
               "optional": true
             }
           ]
+        },
+        {
+          "name": "setAudioFormat",
+          "doc": "Sets the type of data for the audio stream. MediaElements that do not support configuration of audio capabilities will raise an exception",
+          "params": [
+            {
+              "name": "caps",
+              "doc": "The format for the stream of audio",
+              "type": "AudioCaps"
+            }
+          ]
+        },
+        {
+          "name": "setVideoFormat",
+          "doc": "Sets the type of data for the video stream. MediaElements that do not support configuration of video capabilities will raise an exception",
+          "params": [
+            {
+              "name": "caps",
+              "doc": "The format for the stream of video",
+              "type": "VideoCaps"
+            }
+          ]
         }
       ]
     }
@@ -375,6 +397,73 @@
       ],
       "name": "FilterType",
       "doc": "Type of filter to be created.\nCan take the values AUDIO, VIDEO or AUTODETECT."
+    },
+    {
+      "typeFormat": "ENUM",
+      "values": [
+        "VP8",
+        "H264",
+        "RAW"
+      ],
+      "name": "VideoCodec",
+      "doc": "Codec used for transmission of video."
+    },
+    {
+      "typeFormat": "ENUM",
+      "values": [
+        "OPUS",
+        "PCMU",
+        "RAW"
+      ],
+      "name": "AudioCodec",
+      "doc": "Codec used for transmission of audio."
+    },
+    {
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "numerator",
+          "type": "int",
+          "doc": "the numerator of the fraction"
+        },
+        {
+          "name": "denominator",
+          "type": "int",
+          "doc": "the denominator of the fraction"
+        }
+      ],
+      "name": "Fraction",
+      "doc": "Type that represents a fraction of an integer numerator over an integer denominator"
+    },
+    {
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "codec",
+          "type" : "AudioCodec"
+        },
+        {
+          "name": "bitrate",
+          "type" : "int"
+        }
+      ],
+      "name": "AudioCaps",
+      "doc": "Format for audio media"
+    },
+    {
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "codec",
+          "type" : "VideoCodec"
+        },
+        {
+          "name": "framerate",
+          "type" : "Fraction"
+        }
+      ],
+      "name": "VideoCaps",
+      "doc": "Format for video media"
     }
   ],
   "events": [

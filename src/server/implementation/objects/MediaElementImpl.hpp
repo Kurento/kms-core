@@ -14,6 +14,8 @@ class MediaType;
 class MediaSourceImpl;
 class MediaSinkImpl;
 class MediaElementImpl;
+class AudioCodec;
+class VideoCodec;
 
 void Serialize (std::shared_ptr<MediaElementImpl> &object, JsonSerializer &serializer);
 
@@ -39,6 +41,8 @@ public:
   void connect (std::shared_ptr<MediaElement> sink);
   void connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType);
   void connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription);
+  void setAudioFormat (std::shared_ptr<AudioCaps> caps);
+  void setVideoFormat (std::shared_ptr<VideoCaps> caps);
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
