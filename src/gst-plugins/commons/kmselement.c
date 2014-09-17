@@ -55,6 +55,10 @@ struct _KmsElementPrivate
 
   GstElement *audio_agnosticbin;
   GstElement *video_agnosticbin;
+
+  /* Audio and video capabilities */
+  GstCaps *audio_caps;
+  GstCaps *video_caps;
 };
 
 /* Signals and args */
@@ -69,7 +73,9 @@ static guint element_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
-  PROP_ACCEPT_EOS
+  PROP_ACCEPT_EOS,
+  PROP_AUDIO_CAPS,
+  PROP_VIDEO_CAPS
 };
 
 /* the capabilities of the inputs and outputs. */
@@ -532,6 +538,41 @@ kms_element_release_pad (GstElement * element, GstPad * pad)
 }
 
 static void
+kms_element_endpoint_set_caps (KmsElement * self, const GstCaps * caps,
+    GstCaps ** out)
+{
+  GstCaps *old;
+
+  GST_DEBUG_OBJECT (self, "setting caps to %" GST_PTR_FORMAT, caps);
+
+  old = *out;
+
+  if (caps != NULL) {
+    *out = gst_caps_copy (caps);
+  } else {
+    *out = NULL;
+  }
+
+  if (old != NULL) {
+    gst_caps_unref (old);
+  }
+}
+
+static GstCaps *
+kms_element_endpoint_get_caps (KmsElement * self, GstCaps * caps)
+{
+  GstCaps *c;
+
+  if ((c = caps) != NULL) {
+    gst_caps_ref (caps);
+  }
+
+  GST_DEBUG_OBJECT (self, "caps: %" GST_PTR_FORMAT, c);
+
+  return c;
+}
+
+static void
 kms_element_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
@@ -542,6 +583,14 @@ kms_element_set_property (GObject * object, guint property_id,
       KMS_ELEMENT_LOCK (self);
       self->priv->accept_eos = g_value_get_boolean (value);
       KMS_ELEMENT_UNLOCK (self);
+      break;
+    case PROP_AUDIO_CAPS:
+      kms_element_endpoint_set_caps (self, gst_value_get_caps (value),
+          &self->priv->audio_caps);
+      break;
+    case PROP_VIDEO_CAPS:
+      kms_element_endpoint_set_caps (self, gst_value_get_caps (value),
+          &self->priv->video_caps);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -560,6 +609,14 @@ kms_element_get_property (GObject * object, guint property_id,
       KMS_ELEMENT_LOCK (self);
       g_value_set_boolean (value, self->priv->accept_eos);
       KMS_ELEMENT_UNLOCK (self);
+      break;
+    case PROP_AUDIO_CAPS:
+      g_value_take_boxed (value, kms_element_endpoint_get_caps (self,
+              self->priv->audio_caps));
+      break;
+    case PROP_VIDEO_CAPS:
+      g_value_take_boxed (value, kms_element_endpoint_get_caps (self,
+              self->priv->video_caps));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -645,6 +702,16 @@ kms_element_class_init (KmsElementClass * klass)
           "Accept EOS",
           "Indicates if the element should accept EOS events.",
           DEFAULT_ACCEPT_EOS, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_AUDIO_CAPS,
+      g_param_spec_boxed ("audio-caps", "Audio capabilities",
+          "The allowed caps for audio", GST_TYPE_CAPS,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_VIDEO_CAPS,
+      g_param_spec_boxed ("video-caps", "Video capabilities",
+          "The allowed caps for video", GST_TYPE_CAPS,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   klass->audio_valve_added =
       GST_DEBUG_FUNCPTR (kms_element_audio_valve_added_default);
