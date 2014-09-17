@@ -14,7 +14,8 @@ Build-Depends: debhelper (>= 8.0.0),
  kurento-module-creator,
  libvpx-dev,
  libboost-system-dev,
- libboost-filesystem-dev
+ libboost-filesystem-dev,
+ libxml2-utils
 Standards-Version: 3.9.4
 Homepage: http://kurento.org
 Vcs-Git: git://github.com/Kurento/kms-core.git

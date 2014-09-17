@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_package(KurentoModuleCreator REQUIRED ~3.0.0)
+find_package(KurentoModuleCreator REQUIRED ^3.0.0)
 
 include (GNUInstallDirs)
 
@@ -521,8 +521,24 @@ function (generate_kurento_libraries)
     find_package(Maven)
 
     execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -it maven
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -maven
     )
+
+    find_program(xmllint_EXECUTABLE NAMES xmllint)
+    mark_as_advanced(xmllint_EXECUTABLE)
+
+    if (xmllint_EXECUTABLE)
+      execute_process(
+        COMMAND xmllint --format -
+        INPUT_FILE ${CMAKE_BINARY_DIR}/java/pom.xml
+        OUTPUT_VARIABLE POM_CONTENT
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
+      )
+
+      file(WRITE ${CMAKE_BINARY_DIR}/java/pom.xml ${POM_CONTENT})
+    else()
+      message(STATUS "Pom willn ot be indented unless you intall xmllint")
+    endif()
 
     execute_process(
       COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
@@ -555,7 +571,7 @@ function (generate_kurento_libraries)
     file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODENAME}")
 
     execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -it npm
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
     )
 
     execute_process(
