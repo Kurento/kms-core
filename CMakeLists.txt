@@ -28,7 +28,7 @@ endif ()
 
 find_package(PkgConfig)
 
-set (GST_REQUIRED 1.3.3)
+set (GST_REQUIRED 1.4.0)
 set (GLIB_REQUIRED 2.38)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
