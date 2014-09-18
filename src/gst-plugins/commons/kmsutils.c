@@ -150,7 +150,7 @@ send_force_key_unit_event (GstPad * pad)
   }
 
   event =
-      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE, TRUE,
+      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE, FALSE,
       0);
 
   if (GST_PAD_DIRECTION (pad) == GST_PAD_SRC) {

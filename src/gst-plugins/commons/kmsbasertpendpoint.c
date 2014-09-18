@@ -344,7 +344,7 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
 
       if (caps != NULL) {
         if (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0) {
-          gst_caps_set_simple (caps, "rtcp-fb-x-gstreamer-fir-as-repair",
+          gst_caps_set_simple (caps, "rtcp-fb-ccm-fir",
               G_TYPE_BOOLEAN, TRUE, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, TRUE,
               NULL);
         }
@@ -371,7 +371,7 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
     return caps;
 
   return gst_caps_new_simple ("application/x-rtp", "payload", G_TYPE_INT, pt,
-      "rtcp-fb-x-gstreamer-fir-as-repair",
+      "rtcp-fb-ccm-fir",
       G_TYPE_BOOLEAN, TRUE, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, TRUE, NULL);
 }
 
