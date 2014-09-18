@@ -22,6 +22,7 @@
 
 #include <gst/gst.h>
 #include <gst/base/gstbaseparse.h>
+#include <gst/video/video-event.h>
 
 #define PLUGIN_NAME "vp8parse"
 
@@ -157,16 +158,12 @@ kms_vp8_parse_detect_framerate (KmsVp8Parse * self, GstBaseParseFrame * frame)
 static void
 kms_vp8_parse_force_key_unit_event (GstBaseParse * self)
 {
-  GstStructure *s;
-  GstEvent *key_unit_event;
+  GstEvent *event;
 
-  GST_DEBUG_OBJECT (self, "Request key frame");
-
-  s = gst_structure_new ("GstForceKeyUnit",
-      "all-headers", G_TYPE_BOOLEAN, TRUE, NULL);
-  key_unit_event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, s);
-
-  gst_pad_push_event (GST_BASE_PARSE_SINK_PAD (self), key_unit_event);
+  event =
+      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE, TRUE,
+      0);
+  gst_pad_push_event (GST_BASE_PARSE_SINK_PAD (self), event);
 }
 
 static gboolean

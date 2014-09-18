@@ -15,6 +15,7 @@
 
 #include "kmsutils.h"
 #include "kmsagnosticcaps.h"
+#include <gst/video/video-event.h>
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -133,8 +134,7 @@ is_raw_caps (GstCaps * caps)
 static void
 send_force_key_unit_event (GstPad * pad)
 {
-  GstStructure *s;
-  GstEvent *force_key_unit_event;
+  GstEvent *event;
   GstCaps *caps = gst_pad_get_current_caps (pad);
 
   if (caps == NULL) {
@@ -149,14 +149,14 @@ send_force_key_unit_event (GstPad * pad)
     goto end;
   }
 
-  s = gst_structure_new ("GstForceKeyUnit",
-      "all-headers", G_TYPE_BOOLEAN, TRUE, NULL);
-  force_key_unit_event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, s);
+  event =
+      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE, TRUE,
+      0);
 
   if (GST_PAD_DIRECTION (pad) == GST_PAD_SRC) {
-    gst_pad_send_event (pad, force_key_unit_event);
+    gst_pad_send_event (pad, event);
   } else {
-    gst_pad_push_event (pad, force_key_unit_event);
+    gst_pad_push_event (pad, event);
   }
 
 end:
