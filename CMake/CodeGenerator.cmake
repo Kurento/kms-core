@@ -21,6 +21,47 @@ include (CMakeParseArguments)
 
 set (PROCESSED_PREFIX "Processed file:\t")
 
+function (execute_code_generator)
+  set (OPTION_PARAMS
+  )
+
+  set (ONE_VALUE_PARAMS
+    OUTPUT_VARIABLE
+  )
+
+  set (MULTI_VALUE_PARAMS
+    EXEC_PARAMS
+  )
+
+  set (REQUIRED_PARAMS
+    EXEC_PARAMS
+  )
+
+  cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
+
+  foreach (REQUIRED_PARAM ${REQUIRED_PARAMS})
+    if (NOT DEFINED PARAM_${REQUIRED_PARAM})
+      message (FATAL_ERROR "Required param ${REQUIRED_PARAM} is not set")
+    endif()
+  endforeach()
+
+  execute_process(
+    COMMAND ${KurentoModuleCreator_EXECUTABLE} ${PARAM_EXEC_PARAMS}
+    OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    ERROR_VARIABLE PROCESSOR_ERROR
+    RESULT_VARIABLE PROCESSOR_RET
+  )
+
+  if (PROCESSOR_RET)
+    message ("Error calling code generator: " ${PROCESSOR_OUTPUT} )
+    message (FATAL_ERROR "Output error: " ${PROCESSOR_ERROR})
+  endif ()
+
+  if (DEFINED PARAM_OUTPUT_VARIABLE)
+    set (${PARAM_OUTPUT_VARIABLE} ${PROCESSOR_OUTPUT} PARENT_SCOPE)
+  endif()
+endfunction()
+
 # generate_sources (
 #  MODELS list of models or directories
 #  GEN_FILES_DIR directory to generate files
@@ -90,10 +131,9 @@ function (generate_sources)
     message (FATAL_ERROR "No model files found")
   endif ()
 
-  message (STATUS "Running code generator")
-  execute_process(
-    COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+  execute_code_generator (
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    EXEC_PARAMS ${COMMAND_LINE}
   )
 
   if ("${PROCESSOR_OUTPUT}" STREQUAL "")
@@ -108,12 +148,14 @@ function (generate_sources)
       string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
       if (${_FILE} MATCHES ".*cpp")
         list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
+        message (STATUS "Generated: ${_FILE}")
       elseif(${_FILE} MATCHES ".*hpp")
         list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
+        message (STATUS "Generated: ${_FILE}")
       endif ()
       if (KTOOL_ROM_PROCESSOR_CHECK_FORMAT)
         if (EXISTS ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
-          execute_process (COMMAND rm ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
+          file (REMOVE ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
         endif()
         execute_process (
           COMMAND astyle
@@ -135,8 +177,6 @@ function (generate_sources)
           message (WARNING "Style incorrect for file: ${PARAM_GEN_FILES_DIR}/${_FILE}")
         endif()
       endif()
-    else()
-      message (" Generator -> ${_FILE}")
     endif()
   endforeach()
 
@@ -235,17 +275,16 @@ function (generate_kurento_libraries)
 
   set(CUSTOM_PREFIX "kurento")
 
-  set (KTOOL_PROCESSOR_LINE ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+  set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
 
   if (NOT ${DISABLE_LIBRARIES_GENERATION})
   ###############################################################
   # Calculate modules dependencies
   ###############################################################
 
-  execute_process(
-    COMMAND ${KTOOL_PROCESSOR_LINE} -it cpp_cmake_dependencies -c ${CMAKE_CURRENT_BINARY_DIR} -lf
-    OUTPUT_VARIABLE PROCESSOR_OUTPUT
-  )
+  execute_code_generator (OUTPUT_VARIABLE PROCESSOR_OUTPUT
+      EXEC_PARAMS ${KTOOL_PROCESSOR_LINE}
+        -it cpp_cmake_dependencies -c ${CMAKE_CURRENT_BINARY_DIR} -lf)
 
   if ("${PROCESSOR_OUTPUT}" STREQUAL "")
     message (FATAL_ERROR "No cmake dependencies generated")
@@ -262,8 +301,6 @@ function (generate_kurento_libraries)
       else()
         message (WARNING "Unexpected file generated ${_FILE}")
       endif ()
-    else()
-      message (" Generator -> ${_FILE}")
     endif()
   endforeach()
 
@@ -342,9 +379,9 @@ function (generate_kurento_libraries)
   set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
   set(includedir "\${prefix}/${INCLUDE_PREFIX}")
 
-  execute_process (
-     COMMAND ${KTOOL_PROCESSOR_LINE} -it cpp_pkgconfig -c ${CMAKE_CURRENT_BINARY_DIR} -lf
-     OUTPUT_VARIABLE PROCESSOR_OUTPUT
+  execute_code_generator (OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    EXEC_PARAMS ${KTOOL_PROCESSOR_LINE}
+      -it cpp_pkgconfig -c ${CMAKE_CURRENT_BINARY_DIR} -lf
   )
 
   if ("${PROCESSOR_OUTPUT}" STREQUAL "")
@@ -364,11 +401,10 @@ function (generate_kurento_libraries)
           ${CMAKE_CURRENT_BINARY_DIR}/${_OUT_FILE}
           DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
         )
+        message (STATUS "Generated: ${_FILE}")
       else()
         message (WARNING "Unexpected file generated ${_FILE}")
       endif ()
-    else()
-      message (" Generator -> ${_FILE}")
     endif()
   endforeach()
 
@@ -502,8 +538,8 @@ function (generate_kurento_libraries)
   # Generate output kmd file
   ###############################################################
 
-  execute_process(
-    COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
+  execute_code_generator (
+    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
   )
 
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
@@ -520,8 +556,9 @@ function (generate_kurento_libraries)
   if (${GENERATE_JAVA_CLIENT_PROJECT})
     find_package(Maven)
 
-    execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -maven
+    execute_code_generator (
+      EXEC_PARAMS
+        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -maven
     )
 
     find_program(xmllint_EXECUTABLE NAMES xmllint)
@@ -540,8 +577,9 @@ function (generate_kurento_libraries)
       message(STATUS "Pom willn ot be indented unless you intall xmllint")
     endif()
 
-    execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
+    execute_code_generator (
+      EXEC_PARAMS
+        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
     )
 
     if (${Maven_FOUND})
@@ -570,12 +608,14 @@ function (generate_kurento_libraries)
 
     file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODENAME}")
 
-    execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
+    execute_code_generator (
+      EXEC_PARAMS
+        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
     )
 
-    execute_process(
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
+    execute_code_generator (
+      EXEC_PARAMS
+        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
     )
 
     if (EXISTS ${CMAKE_SOURCE_DIR}/LICENSE)
@@ -628,8 +668,8 @@ function (get_values_from_model)
     endif()
   endforeach()
 
-  execute_process(
-    COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
+  execute_code_generator (
+    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
@@ -656,8 +696,6 @@ function (get_values_from_model)
             endif()
           endif()
       endforeach ()
-    else()
-      message (" Generator -> ${_LINE}")
     endif()
   endforeach()
 
