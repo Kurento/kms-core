@@ -45,3 +45,11 @@ target_link_libraries(test_audiomixer
                       ${GSTREAMER_LIBRARIES}
                       ${GSTREAMER_CHECK_LIBRARIES})
 
+add_test_program (test_bufferinjector bufferinjector.c)
+add_dependencies(test_bufferinjector ${LIBRARY_NAME}plugins)
+target_include_directories(test_bufferinjector PRIVATE
+                           ${GSTREAMER_INCLUDE_DIRS}
+                           ${GSTREAMER_CHECK_INCLUDE_DIRS})
+target_link_libraries(test_bufferinjector
+                      ${GSTREAMER_LIBRARIES}
+                      ${GSTREAMER_CHECK_LIBRARIES})

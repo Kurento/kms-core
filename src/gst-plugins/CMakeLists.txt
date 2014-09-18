@@ -11,6 +11,7 @@ set(KMS_CORE_SOURCES
   kmsaudiomixer.c kmsaudiomixer.h
   kmsaudiomixerbin.c kmsaudiomixerbin.h
   kmsbitratefilter.c kmsbitratefilter.h
+  kmsbufferinjector.c kmsbufferinjector.h
 )
 
 add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})

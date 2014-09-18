@@ -21,6 +21,7 @@
 #include <kmsaudiomixer.h>
 #include <kmsaudiomixerbin.h>
 #include <kmsbitratefilter.h>
+#include <kmsbufferinjector.h>
 
 static gboolean
 kurento_init (GstPlugin * kurento)
@@ -41,6 +42,9 @@ kurento_init (GstPlugin * kurento)
     return FALSE;
 
   if (!kms_bitrate_filter_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_buffer_injector_plugin_init (kurento))
     return FALSE;
 
   return TRUE;
