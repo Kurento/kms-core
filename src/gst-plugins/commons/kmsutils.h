@@ -23,4 +23,8 @@ gboolean kms_is_valid_uri (const gchar * url);
 
 gboolean gst_element_sync_state_with_parent_target_state (GstElement * element);
 
+/* key frame management */
+void kms_utils_start_dropping_until_keyframe (GstPad *pad);
+void kms_utils_manage_gaps (GstPad *pad);
+
 #endif /* __KMS_UTILS_H__ */

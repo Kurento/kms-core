@@ -27,8 +27,6 @@
 #define LINKING_DATA "linking-data"
 #define UNLINKING_DATA "unlinking-data"
 
-#define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
-
 #define DEFAULT_QUEUE_SIZE 60
 
 static GstStaticCaps static_audio_caps =
@@ -141,36 +139,6 @@ is_raw_caps (GstCaps * caps)
   return ret;
 }
 
-static void
-send_force_key_unit_event (GstPad * pad)
-{
-  GstStructure *s;
-  GstEvent *force_key_unit_event;
-  GstCaps *caps = gst_pad_get_current_caps (pad);
-
-  if (caps == NULL)
-    caps = gst_pad_get_allowed_caps (pad);
-
-  if (caps == NULL)
-    return;
-
-  if (is_raw_caps (caps))
-    goto end;
-
-  s = gst_structure_new ("GstForceKeyUnit",
-      "all-headers", G_TYPE_BOOLEAN, TRUE, NULL);
-  force_key_unit_event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM, s);
-
-  if (GST_PAD_DIRECTION (pad) == GST_PAD_SRC) {
-    gst_pad_send_event (pad, force_key_unit_event);
-  } else {
-    gst_pad_push_event (pad, force_key_unit_event);
-  }
-
-end:
-  gst_caps_unref (caps);
-}
-
 static GstPadProbeReturn
 tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
@@ -179,7 +147,7 @@ tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 
     if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
       // Request key frame to upstream elements
-      send_force_key_unit_event (pad);
+      kms_utils_start_dropping_until_keyframe (pad);
       return GST_PAD_PROBE_DROP;
     }
   }
@@ -501,30 +469,6 @@ remove_target_pad (GstPad * pad)
   g_object_unref (target);
 }
 
-static GstPadProbeReturn
-drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
-{
-  GstBuffer *buffer;
-
-  buffer = GST_PAD_PROBE_INFO_BUFFER (info);
-
-  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-    /* Drop buffer until a keyframe is received */
-    send_force_key_unit_event (pad);
-    return GST_PAD_PROBE_DROP;
-  }
-
-  GST_OBJECT_LOCK (pad);
-  g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
-      GINT_TO_POINTER (FALSE));
-  GST_OBJECT_UNLOCK (pad);
-
-  GST_DEBUG_OBJECT (pad, "Finish dropping buffers until key frame");
-
-  /* So this buffer is a keyframe we don't need this probe any more */
-  return GST_PAD_PROBE_REMOVE;
-}
-
 static void
 kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement * tee, GstCaps * caps)
@@ -560,11 +504,7 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target);
-  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe, NULL,
-      NULL);
-
   g_object_unref (target);
-
   link_queue_to_tee (tee, queue);
 }
 
@@ -1346,34 +1286,6 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
   g_type_class_add_private (klass, sizeof (KmsAgnosticBin2Private));
 }
 
-static GstPadProbeReturn
-gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
-{
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
-
-  if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_DEBUG_OBJECT (pad, "Gap detected, request key frame");
-
-    GST_OBJECT_LOCK (pad);
-    if (g_object_get_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME)) {
-      GST_DEBUG_OBJECT (pad, "Already dropping buffers until key frame");
-      GST_OBJECT_UNLOCK (pad);
-    } else {
-      GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
-      g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
-          GINT_TO_POINTER (TRUE));
-      GST_OBJECT_UNLOCK (pad);
-      gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe,
-          NULL, NULL);
-      send_force_key_unit_event (pad);
-    }
-
-    return GST_PAD_PROBE_DROP;
-  }
-
-  return GST_PAD_PROBE_OK;
-}
-
 static gboolean
 kms_agnostic_bin2_sink_query (GstPad * pad, GstObject * parent,
     GstQuery * query)
@@ -1424,8 +1336,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   gst_pad_set_query_function (self->priv->sink, kms_agnostic_bin2_sink_query);
   self->priv->current_caps = NULL;
   self->priv->last_caps = NULL;
-  gst_pad_add_probe (self->priv->sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      gap_detection_probe, NULL, NULL);
+  kms_utils_manage_gaps (self->priv->sink);
   g_object_unref (templ);
   g_object_unref (target);
 
