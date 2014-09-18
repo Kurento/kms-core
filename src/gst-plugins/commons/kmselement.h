@@ -70,6 +70,8 @@ struct _KmsElementClass
 
   void (*video_valve_added) (KmsElement *self, GstElement * valve);
   void (*video_valve_removed) (KmsElement *self, GstElement * valve);
+
+  gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
 };
 
 GType kms_element_get_type (void);

@@ -374,6 +374,26 @@ accept_eos_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   return GST_PAD_PROBE_OK;
 }
 
+static gboolean
+kms_element_sink_query_default (KmsElement * self, GstPad * pad,
+    GstQuery * query)
+{
+  /* Invoke default pad query function */
+  return gst_pad_query_default (pad, GST_OBJECT (self), query);
+}
+
+static gboolean
+kms_element_pad_query (GstPad * pad, GstObject * parent, GstQuery * query)
+{
+  KmsElementClass *klass;
+  KmsElement *element;
+
+  element = KMS_ELEMENT (parent);
+  klass = KMS_ELEMENT_GET_CLASS (element);
+
+  return klass->sink_query (element, pad, query);
+}
+
 static GstPad *
 kms_element_request_new_pad (GstElement * element,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -424,6 +444,7 @@ kms_element_request_new_pad (GstElement * element,
         kms_element_generate_sink_pad (KMS_ELEMENT (element), AUDIO_SINK_PAD,
         &KMS_ELEMENT (element)->priv->audio_valve, templ);
 
+    gst_pad_set_query_function (ret_pad, kms_element_pad_query);
     gst_pad_add_probe (ret_pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         accept_eos_probe, element, NULL);
     KMS_ELEMENT_UNLOCK (element);
@@ -438,6 +459,7 @@ kms_element_request_new_pad (GstElement * element,
         kms_element_generate_sink_pad (KMS_ELEMENT (element), VIDEO_SINK_PAD,
         &KMS_ELEMENT (element)->priv->video_valve, templ);
 
+    gst_pad_set_query_function (ret_pad, kms_element_pad_query);
     gst_pad_add_probe (ret_pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         accept_eos_probe, element, NULL);
     KMS_ELEMENT_UNLOCK (element);
@@ -632,6 +654,7 @@ kms_element_class_init (KmsElementClass * klass)
       GST_DEBUG_FUNCPTR (kms_element_audio_valve_removed_default);
   klass->video_valve_removed =
       GST_DEBUG_FUNCPTR (kms_element_video_valve_removed_default);
+  klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
 
   /* set signals */
   element_signals[AGNOSTICBIN_ADDED] =
