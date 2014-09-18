@@ -578,6 +578,13 @@ function (generate_kurento_libraries)
       COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
     )
 
+    if (EXISTS ${CMAKE_SOURCE_DIR}/LICENSE)
+      file (READ ${CMAKE_SOURCE_DIR}/LICENSE LICENSE)
+      file (WRITE ${CMAKE_BINARY_DIR}/js/LICENSE ${LICENSE})
+    else()
+      message (WARNING "LICENSE file on project root directory is missing")
+    endif()
+
     if (${Npm_FOUND})
       add_custom_target(js
         COMMAND ${Npm_EXECUTABLE} pack
