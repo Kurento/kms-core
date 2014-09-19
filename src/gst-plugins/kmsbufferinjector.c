@@ -60,32 +60,74 @@ G_DEFINE_TYPE_WITH_CODE (KmsBufferInjector, kms_buffer_injector,
   g_mutex_unlock (&KMS_BUFFER_INJECTOR (obj)->priv->thread_mutex) \
 )
 
+typedef enum
+{
+  VIDEO,
+  AUDIO
+} MediaType;
+
 struct _KmsBufferInjectorPrivate
 {
   GMutex thread_mutex;
   GstPad *sinkpad;
   GstPad *srcpad;
+  gboolean configured;
+  MediaType type;
 };
+
+static gboolean
+kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
+{
+  const GstStructure *str;
+  const gchar *name;
+
+  if (caps == NULL) {
+    return FALSE;
+  }
+
+  str = gst_caps_get_structure (caps, 0);
+  name = gst_structure_get_name (str);
+
+  if (g_str_has_prefix (name, "video")) {
+    GST_DEBUG_OBJECT (self, "Injector configured as VIDEO");
+    self->priv->type = VIDEO;
+
+  } else {
+    GST_DEBUG_OBJECT (self, "Injector configured as AUDIO");
+    self->priv->type = AUDIO;
+  }
+
+  return TRUE;
+}
 
 static GstFlowReturn
 kms_buffer_injector_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 {
-  return GST_FLOW_OK;
+  GstFlowReturn ret;
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);
+
+  ret = gst_pad_push (buffer_injector->priv->srcpad, buffer);
+
+  return ret;
 }
 
 static gboolean
 kms_buffer_injector_handle_sink_event (GstPad * pad, GstObject * parent,
     GstEvent * event)
 {
-  switch (GST_EVENT_TYPE (event)) {
-    case GST_EVENT_CAPS:
-      GST_DEBUG ("CAPS RECEIVED");
-      break;
-    default:
-      break;
+  KmsBufferInjector *buffer_injector;
+
+  buffer_injector = KMS_BUFFER_INJECTOR (parent);
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
+    GstCaps *caps;
+
+    gst_event_parse_caps (event, &caps);
+    buffer_injector->priv->configured =
+        kms_buffer_injector_config (buffer_injector, caps);
   }
 
-  return TRUE;
+  return gst_pad_event_default (pad, parent, event);
 }
 
 static void
@@ -141,6 +183,7 @@ kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
       gst_static_pad_template_get (&sinktemplate));
 
   GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_chain);
+  GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_handle_sink_event);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 

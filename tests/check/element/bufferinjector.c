@@ -21,31 +21,54 @@
 #include <gst/gst.h>
 #include <glib.h>
 
-static gboolean
-quit_main_loop (gpointer data)
+static void
+bus_msg (GstBus * bus, GstMessage * msg, gpointer data)
 {
-  g_main_loop_quit (data);
+  switch (GST_MESSAGE_TYPE (msg)) {
+    case GST_MESSAGE_EOS:
+      g_main_loop_quit (data);
+      break;
+    default:
+      break;
+  }
+}
 
-  return G_SOURCE_REMOVE;
+static void
+fakesink_hand_off (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  GstElement *pipeline = (GstElement *) data;
+
+  gst_element_post_message (data, gst_message_new_eos (GST_OBJECT (pipeline)));
 }
 
 GST_START_TEST (test_buffer_injector)
 {
   GstElement *pipeline, *videotestsrc, *bufferinjector, *fakesink;
   GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+  GstBus *bus;
+
+  pipeline = gst_pipeline_new ("bufferinjector0-test");
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), loop);
 
   /* Create gstreamer elements */
-  pipeline = gst_pipeline_new ("bufferinjector0-test");
   videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   bufferinjector = gst_element_factory_make ("bufferinjector", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (fakesink, "sync", TRUE, "signal-handoffs", TRUE, NULL);
+  g_object_set (videotestsrc, "is-live", TRUE, NULL);
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), pipeline);
 
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc, bufferinjector,
       fakesink, NULL);
   gst_element_link (videotestsrc, bufferinjector);
   gst_element_link (bufferinjector, fakesink);
-
-  g_timeout_add (4000, quit_main_loop, loop);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -54,10 +77,10 @@ GST_START_TEST (test_buffer_injector)
   g_main_loop_run (loop);
 
   GST_DEBUG ("Stop executed");
-
   GST_DEBUG ("Setting pipline to NULL state");
   gst_element_set_state (pipeline, GST_STATE_NULL);
   GST_DEBUG ("Releasing pipeline");
+  gst_object_unref (GST_OBJECT (bus));
   gst_object_unref (GST_OBJECT (pipeline));
   GST_DEBUG ("Pipeline released");
   g_main_loop_unref (loop);
