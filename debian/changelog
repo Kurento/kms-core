@@ -1,3 +1,14 @@
+kms-core (5.0.2) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+  * Update kurento-module-creator dependencies
+  * Prepare release 5.0.2
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Sat, 20 Sep 2014 22:16:05 +0200
+
 kms-core (5.0.1) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
