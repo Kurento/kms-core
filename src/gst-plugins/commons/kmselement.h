@@ -37,6 +37,13 @@ G_BEGIN_DECLS
     KmsElementClass                        \
   )                                        \
 )
+
+typedef enum {
+  KMS_ELEMENT_PAD_TYPE_UNKNOWN,
+  KMS_ELEMENT_PAD_TYPE_AUDIO,
+  KMS_ELEMENT_PAD_TYPE_VIDEO
+} KmsElementPadType;
+
 typedef struct _KmsElement KmsElement;
 typedef struct _KmsElementClass KmsElementClass;
 typedef struct _KmsElementPrivate KmsElementPrivate;
@@ -82,6 +89,8 @@ GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 
 GstElement * kms_element_get_audio_valve (KmsElement * self);
 GstElement * kms_element_get_video_valve (KmsElement * self);
+
+KmsElementPadType kms_element_get_pad_type (KmsElement * self, GstPad * pad);
 
 G_END_DECLS
 #endif /* __KMS_ELEMENT_H__ */

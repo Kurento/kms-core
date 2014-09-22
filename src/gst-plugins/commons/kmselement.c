@@ -752,3 +752,36 @@ kms_element_init (KmsElement * element)
   element->priv->audio_valve = NULL;
   element->priv->video_valve = NULL;
 }
+
+KmsElementPadType
+kms_element_get_pad_type (KmsElement * self, GstPad * pad)
+{
+  KmsElementPadType type;
+  GstPadTemplate *templ;
+
+  g_return_val_if_fail (self != NULL, KMS_ELEMENT_PAD_TYPE_UNKNOWN);
+
+  templ = gst_pad_get_pad_template (pad);
+
+  if (templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (self)), "audio_src_%u") ||
+      templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (self)), AUDIO_SINK_PAD)) {
+    type = KMS_ELEMENT_PAD_TYPE_AUDIO;
+  } else if (templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (self)), "video_src_%u") ||
+      templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (self)), VIDEO_SINK_PAD)) {
+    type = KMS_ELEMENT_PAD_TYPE_VIDEO;
+  } else {
+    type = KMS_ELEMENT_PAD_TYPE_UNKNOWN;
+  }
+
+  gst_object_unref (templ);
+
+  return type;
+}
