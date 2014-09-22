@@ -254,3 +254,12 @@ init_debug (void)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
       GST_DEFAULT_NAME);
 }
+
+/* Type destroying */
+#define KMS_UTILS_DESTROY(type) \
+  void kms_utils_destroy_##type (type * data) { \
+    g_slice_free (type, data);                  \
+  }                                             \
+
+KMS_UTILS_DESTROY (guint64)
+KMS_UTILS_DESTROY (gsize)

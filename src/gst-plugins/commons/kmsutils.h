@@ -27,4 +27,9 @@ gboolean gst_element_sync_state_with_parent_target_state (GstElement * element);
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);
 void kms_utils_manage_gaps (GstPad *pad);
 
+/* Type destroying */
+#define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
+KMS_UTILS_DESTROY_H (guint64)
+KMS_UTILS_DESTROY_H (gsize)
+
 #endif /* __KMS_UTILS_H__ */
