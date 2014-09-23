@@ -613,6 +613,7 @@ kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
 {
   GstCaps *current_caps = self->priv->current_caps;
   GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
+  GstPad *pad;
 
   if (current_caps == NULL)
     return NULL;
@@ -625,6 +626,10 @@ kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
   }
 
   GST_DEBUG_OBJECT (self, "Decoder found: %" GST_PTR_FORMAT, decoder);
+
+  pad = gst_element_get_static_pad (decoder, "sink");
+  kms_utils_drop_until_keyframe (pad, TRUE);
+  gst_object_unref (pad);
 
   queue = gst_element_factory_make ("queue", NULL);
   tee = gst_element_factory_make ("tee", NULL);
