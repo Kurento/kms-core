@@ -136,6 +136,55 @@ GST_START_TEST (video_test_buffer_injector)
 
 GST_END_TEST;
 
+GST_START_TEST (buffer_injector_drop_buffers)
+{
+  GstElement *pipeline, *videotestsrc, *identity, *bufferinjector, *fakesink;
+  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+  GstBus *bus;
+
+  pipeline = gst_pipeline_new ("bufferinjector0-test");
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), loop);
+
+  /* Create gstreamer elements */
+  videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  identity = gst_element_factory_make ("identity", NULL);
+  bufferinjector = gst_element_factory_make ("bufferinjector", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (fakesink, "sync", TRUE, "signal-handoffs", TRUE, NULL);
+  g_object_set (identity, "sleep-time", 500000, NULL);
+  g_object_set (videotestsrc, "is-live", TRUE, NULL);
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), pipeline);
+
+  gst_bin_add_many (GST_BIN (pipeline), videotestsrc, identity, bufferinjector,
+      fakesink, NULL);
+  gst_element_link (videotestsrc, identity);
+  gst_element_link (identity, bufferinjector);
+  gst_element_link (bufferinjector, fakesink);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  GST_DEBUG ("Test running");
+
+  g_main_loop_run (loop);
+
+  GST_DEBUG ("Stop executed");
+
+  GST_DEBUG ("Setting pipline to NULL state");
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  GST_DEBUG ("Releasing pipeline");
+  gst_object_unref (GST_OBJECT (pipeline));
+  GST_DEBUG ("Pipeline released");
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST;
+
 static Suite *
 buffer_injector_suite (void)
 {
@@ -145,6 +194,7 @@ buffer_injector_suite (void)
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, audio_test_buffer_injector);
   tcase_add_test (tc_chain, video_test_buffer_injector);
+  tcase_add_test (tc_chain, buffer_injector_drop_buffers);
   return s;
 }
 

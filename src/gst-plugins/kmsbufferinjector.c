@@ -81,6 +81,18 @@ struct _KmsBufferInjectorPrivate
   gint64 wait_time;
 };
 
+static gint64
+kms_buffer_injector_get_wait_time (KmsBufferInjector * self)
+{
+  gint64 aux;
+
+  KMS_BUFFER_INJECTOR_LOCK (self);
+  aux = self->priv->wait_time;
+  KMS_BUFFER_INJECTOR_UNLOCK (self);
+
+  return aux;
+}
+
 static void
 kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
 {
@@ -91,9 +103,10 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     KMS_BUFFER_INJECTOR_UNLOCK (self);
     return;
   }
-
-  end_time = g_get_monotonic_time () + (2 * self->priv->wait_time);
   KMS_BUFFER_INJECTOR_UNLOCK (self);
+
+  end_time =
+      g_get_monotonic_time () + (2 * kms_buffer_injector_get_wait_time (self));
 
   g_mutex_lock (&self->priv->mutex_generate);
 
@@ -121,9 +134,11 @@ kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
 {
   const GstStructure *str;
   const gchar *name;
+  gint numerator, denominator;
+  gboolean ret = TRUE;
 
   if (caps == NULL) {
-    return FALSE;
+    ret = FALSE;
   }
 
   str = gst_caps_get_structure (caps, 0);
@@ -132,13 +147,25 @@ kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
   if (g_str_has_prefix (name, "video")) {
     GST_DEBUG_OBJECT (self, "Injector configured as VIDEO");
     self->priv->type = VIDEO;
+    gst_structure_get_fraction (str, "framerate", &numerator, &denominator);
 
+    //calculate waiting time based on caps
+    KMS_BUFFER_INJECTOR_LOCK (self);
+    if (numerator > 0) {
+      self->priv->wait_time = ((GST_SECOND * denominator) / numerator) / 1000;
+    } else {
+      self->priv->wait_time = DEFAULT_WAITING_TIME;
+    }
+    KMS_BUFFER_INJECTOR_UNLOCK (self);
+
+    GST_DEBUG ("Video: Wait time %" G_GINT64_FORMAT, self->priv->wait_time);
   } else {
     GST_DEBUG_OBJECT (self, "Injector configured as AUDIO");
     self->priv->type = AUDIO;
+    ret = FALSE;
   }
 
-  return TRUE;
+  return ret;
 }
 
 static GstFlowReturn
@@ -147,6 +174,20 @@ kms_buffer_injector_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
   KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);;
 
   KMS_BUFFER_INJECTOR_LOCK (buffer_injector);
+  if ((buffer_injector->priv->type == AUDIO)
+      && (!buffer_injector->priv->configured)) {
+    //calculate waiting time based on buffer duration
+    if ((GST_CLOCK_TIME_IS_VALID (buffer->duration)) && (buffer->duration > 0)) {
+      buffer_injector->priv->wait_time = buffer->duration;
+    } else {
+      buffer_injector->priv->wait_time = DEFAULT_WAITING_TIME;
+    }
+    buffer_injector->priv->configured = TRUE;
+
+    GST_DEBUG_OBJECT (buffer_injector, "Audio: Wait time %" G_GINT64_FORMAT,
+        buffer_injector->priv->wait_time);
+  }
+
   if (!buffer_injector->priv->configured) {
     gst_buffer_unref (buffer);
     KMS_BUFFER_INJECTOR_UNLOCK (buffer_injector);
@@ -273,6 +314,7 @@ kms_buffer_injector_finalize (GObject * object)
   g_rec_mutex_clear (&buffer_injector->priv->thread_mutex);
   g_mutex_clear (&buffer_injector->priv->mutex_generate);
   g_cond_clear (&buffer_injector->priv->cond_generate);
+
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
