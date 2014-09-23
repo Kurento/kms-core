@@ -132,7 +132,7 @@ is_raw_caps (GstCaps * caps)
 }
 
 static void
-send_force_key_unit_event (GstPad * pad)
+send_force_key_unit_event (GstPad * pad, gboolean all_headers)
 {
   GstEvent *event;
   GstCaps *caps = gst_pad_get_current_caps (pad);
@@ -150,8 +150,8 @@ send_force_key_unit_event (GstPad * pad)
   }
 
   event =
-      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE, FALSE,
-      0);
+      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE,
+      all_headers, 0);
 
   if (GST_PAD_DIRECTION (pad) == GST_PAD_SRC) {
     gst_pad_send_event (pad, event);
@@ -164,15 +164,17 @@ end:
 }
 
 static GstPadProbeReturn
-drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
+    gpointer user_data)
 {
   GstBuffer *buffer;
+  gboolean all_headers = GPOINTER_TO_INT (user_data);
 
   buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
     /* Drop buffer until a keyframe is received */
-    send_force_key_unit_event (pad);
+    send_force_key_unit_event (pad, all_headers);
     GST_TRACE_OBJECT (pad, "Dropping buffer");
     return GST_PAD_PROBE_DROP;
   }
@@ -188,7 +190,7 @@ drop_until_keyframe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 }
 
 void
-kms_utils_start_dropping_until_keyframe (GstPad * pad)
+kms_utils_drop_until_keyframe (GstPad * pad, gboolean all_headers)
 {
   GST_OBJECT_LOCK (pad);
   if (is_dropping (pad)) {
@@ -198,9 +200,9 @@ kms_utils_start_dropping_until_keyframe (GstPad * pad)
     GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
     set_dropping (pad, TRUE);
     GST_OBJECT_UNLOCK (pad);
-    gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, drop_until_keyframe,
-        NULL, NULL);
-    send_force_key_unit_event (pad);
+    gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
+        drop_until_keyframe_probe, GINT_TO_POINTER (all_headers), NULL);
+    send_force_key_unit_event (pad, all_headers);
   }
 }
 
@@ -209,10 +211,11 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
   GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
-  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
+  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)
+      || GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_GAP)) {
     if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
       GST_WARNING_OBJECT (pad, "Discont detected");
-      kms_utils_start_dropping_until_keyframe (pad);
+      kms_utils_drop_until_keyframe (pad, FALSE);
 
       return GST_PAD_PROBE_DROP;
     }
@@ -228,9 +231,7 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
     GST_WARNING_OBJECT (pad, "Gap detected");
-    kms_utils_start_dropping_until_keyframe (pad);
-
-    return GST_PAD_PROBE_DROP;
+    kms_utils_drop_until_keyframe (pad, FALSE);
   }
 
   return GST_PAD_PROBE_OK;

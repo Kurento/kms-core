@@ -147,7 +147,7 @@ tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 
     if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
       // Request key frame to upstream elements
-      kms_utils_start_dropping_until_keyframe (pad);
+      kms_utils_drop_until_keyframe (pad, TRUE);
       return GST_PAD_PROBE_DROP;
     }
   }

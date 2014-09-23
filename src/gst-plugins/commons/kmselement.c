@@ -179,7 +179,7 @@ kms_element_generate_sink_pad (KmsElement * element, const gchar * name,
   if (g_str_has_prefix (name, "video")) {
     GstPad *src = gst_element_get_static_pad (valve, "src");
 
-    kms_utils_start_dropping_until_keyframe (src);
+    kms_utils_drop_until_keyframe (src, TRUE);
     kms_utils_manage_gaps (src);
     g_object_unref (src);
   }
