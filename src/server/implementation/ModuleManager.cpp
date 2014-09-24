@@ -28,11 +28,14 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+typedef const char * (*GetVersionFunc) ();
+typedef const char * (*GetNameFunc) ();
+
 int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
-  void *registrarFactory;
+  void *registrarFactory, *getVersion = NULL, *getName = NULL;
   std::string moduleName;
 
   boost::filesystem::path path (modulePath);
@@ -71,7 +74,19 @@ ModuleManager::loadModule (std::string modulePath)
   loadedFactories.insert (factories.begin(), factories.end() );
   loadedModules.insert (moduleName);
 
-  GST_INFO ("Module %s loaded", module.get_name().c_str() );
+  GST_DEBUG ("Module loaded from %s", module.get_name().c_str() );
+
+  if (!module.get_symbol ("getModuleVersion", getVersion) ) {
+    GST_WARNING ("Cannot get module version");
+    return 0;
+  }
+
+  if (!module.get_symbol ("getModuleName", getName) ) {
+    GST_WARNING ("Cannot get module name");
+    return 0;
+  }
+
+  GST_INFO ("Loaded %s version %s", ( (GetNameFunc) getName) () , ( (GetVersionFunc) getVersion) () );
 
   return 0;
 }

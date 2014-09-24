@@ -424,16 +424,6 @@ function (generate_kurento_libraries)
     HEADER_FILES_OUTPUT SERVER_INTERNAL_GENERATED_HEADERS
   )
 
-  set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
-
-  generate_sources (
-    MODELS ${PARAM_MODELS}
-    GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
-    INTERNAL_TEMPLATES_DIR cpp_module
-    SOURCE_FILES_OUTPUT MODULE_GENERATED_SOURCES
-    HEADER_FILES_OUTPUT MODULE_GENERATED_HEADERS
-  )
-
   set(SERVER_GEN_FILES_DIR ${PARAM_SERVER_STUB_DESTINATION})
 
   # Generate stub files
@@ -504,9 +494,34 @@ function (generate_kurento_libraries)
   ###############################################################
   # Server module
   ###############################################################
+
+  set(MODULE_GEN_FILES_DIR ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp)
+
+  generate_sources (
+    MODELS ${PARAM_MODELS}
+    GEN_FILES_DIR ${MODULE_GEN_FILES_DIR}
+    INTERNAL_TEMPLATES_DIR cpp_module
+    SOURCE_FILES_OUTPUT MODULE_GENERATED_SOURCES
+    HEADER_FILES_OUTPUT MODULE_GENERATED_HEADERS
+  )
+
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/module_version.cpp
+    "
+    extern \"C\" {const char * getModuleVersion ();}
+    const char * getModuleVersion () {return \"${PROJECT_VERSION}\";}"
+  )
+
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/module_name.cpp
+    "
+    extern \"C\" {const char * getModuleName ();}
+    const char * getModuleName () {return \"${VALUE_NAME}\";}"
+  )
+
   add_library (${VALUE_CODE_IMPLEMENTATION_LIB}module MODULE
     ${MODULE_GENERATED_SOURCES}
     ${MODULE_GENERATED_HEADERS}
+    ${CMAKE_CURRENT_BINARY_DIR}/module_version.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/module_name.cpp
   )
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}module
