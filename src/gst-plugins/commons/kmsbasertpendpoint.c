@@ -57,6 +57,8 @@ struct _KmsBaseRtpEndpointPrivate
   guint video_ssrc;
 
   gboolean negotiated;
+
+  gint32 target_bitrate;
 };
 
 /* Signals and args */
@@ -69,9 +71,13 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_TARGET_BITRATE    0
+
 enum
 {
-  PROP_0
+  PROP_0,
+  PROP_TARGET_BITRATE,
+  PROP_LAST
 };
 
 static const gchar *
@@ -519,6 +525,42 @@ kms_base_rtp_endpoint_stop_signal (KmsBaseRtpEndpoint * self, guint session,
 }
 
 static void
+kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (object);
+
+  switch (property_id) {
+    case PROP_TARGET_BITRATE:
+      KMS_ELEMENT_LOCK (self);
+      self->priv->target_bitrate = g_value_get_int (value);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (object);
+
+  switch (property_id) {
+    case PROP_TARGET_BITRATE:
+      KMS_ELEMENT_LOCK (self);
+      g_value_set_int (value, self->priv->target_bitrate);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
 kms_base_rtp_endpoint_dispose (GObject * gobject)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
@@ -560,6 +602,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   object_class = G_OBJECT_CLASS (klass);
   object_class->dispose = kms_base_rtp_endpoint_dispose;
+  object_class->set_property = kms_base_rtp_endpoint_set_property;
+  object_class->get_property = kms_bse_rtp_endpoint_get_property;
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
   gst_element_class_set_details_simple (gstelement_class,
@@ -585,6 +629,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_audio_valve_removed);
   kms_element_class->video_valve_removed =
       GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_video_valve_removed);
+
+  g_object_class_install_property (object_class, PROP_TARGET_BITRATE,
+      g_param_spec_int ("target-bitrate", "Target bitrate",
+          "Target bitrate (bps)", 0, G_MAXINT,
+          DEFAULT_TARGET_BITRATE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
   obj_signals[MEDIA_START] =
