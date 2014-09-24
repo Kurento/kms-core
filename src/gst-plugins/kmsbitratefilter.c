@@ -18,6 +18,7 @@
 #endif
 
 #include "kmsbitratefilter.h"
+#include <commons/kmsutils.h>
 
 #define PLUGIN_NAME "bitratefilter"
 
@@ -35,8 +36,19 @@ G_DEFINE_TYPE (KmsBitrateFilter, kms_bitrate_filter, GST_TYPE_BASE_TRANSFORM);
   )                                           \
 )
 
+#define BITRATE_CALC_INTERVAL GST_SECOND
+
+typedef struct _KmsBitrateCalcData
+{
+  GQueue /*GstClockTime */  * pts_queue;
+  GQueue /*gsize */  * sizes_queue;
+  guint64 total_size;
+  gint bitrate, last_bitrate;   /* bps */
+} KmsBitrateCalcData;
+
 struct _KmsBitrateFilterPrivate
 {
+  KmsBitrateCalcData bitrate_calc_data;
 };
 
 static GstStaticPadTemplate sinktemplate = GST_STATIC_PAD_TEMPLATE ("sink",
@@ -50,15 +62,110 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
     GST_STATIC_CAPS_ANY);
 
 static void
+kms_bitrate_calc_data_clear (KmsBitrateCalcData * data)
+{
+  if (data == NULL) {
+    return;
+  }
+
+  g_queue_free_full (data->pts_queue,
+      (GDestroyNotify) kms_utils_destroy_guint64);
+  g_queue_free (data->sizes_queue);
+}
+
+static void
+kms_bitrate_calc_data_init (KmsBitrateCalcData * data)
+{
+  data->pts_queue = g_queue_new ();
+  data->sizes_queue = g_queue_new ();
+}
+
+static void
+kms_bitrate_calc_data_update (KmsBitrateCalcData * data, GstBuffer * buffer)
+{
+  gsize size;
+  guint64 *current_pts, *last_pts, diff;
+
+  current_pts = g_slice_new0 (guint64);
+  *current_pts = buffer->pts;
+  g_queue_push_head (data->pts_queue, current_pts);
+
+  size = gst_buffer_get_size (buffer);
+  g_queue_push_head (data->sizes_queue, GSIZE_TO_POINTER (size));
+  data->total_size += size;
+
+  /* Remove old buffers */
+  last_pts = (guint64 *) g_queue_peek_tail (data->pts_queue);
+  diff = *current_pts - *last_pts;
+  while (diff > BITRATE_CALC_INTERVAL) {
+    gpointer p;
+
+    p = g_queue_pop_tail (data->pts_queue);
+    kms_utils_destroy_guint64 (p);
+
+    p = g_queue_pop_tail (data->sizes_queue);
+    data->total_size -= GPOINTER_TO_SIZE (p);
+
+    last_pts = (guint64 *) g_queue_peek_tail (data->pts_queue);
+    diff = *current_pts - *last_pts;
+  }
+
+  if (diff == 0) {
+    data->bitrate = 0;
+  } else {
+    data->bitrate = (8 * GST_SECOND * data->total_size) / diff;
+  }
+}
+
+static GstFlowReturn
+kms_bitrate_filter_transform_ip (GstBaseTransform * base, GstBuffer * buf)
+{
+  /* No actual work here. It's all done in the prepare output buffer func */
+  return GST_FLOW_OK;
+}
+
+static GstFlowReturn
+kms_bitrate_filter_prepare_buf (GstBaseTransform * trans, GstBuffer * input,
+    GstBuffer ** buf)
+{
+  KmsBitrateFilter *self = KMS_BITRATE_FILTER (trans);
+  KmsBitrateCalcData *data = &self->priv->bitrate_calc_data;
+
+  /* always return the input as output buffer */
+  *buf = input;
+  kms_bitrate_calc_data_update (data, input);
+
+  GST_TRACE_OBJECT (self, "bitrate: %" G_GINT32_FORMAT " bps", data->bitrate);
+
+  return GST_FLOW_OK;
+}
+
+static void
+kms_bitrate_filter_dispose (GObject * object)
+{
+  KmsBitrateFilter *self = KMS_BITRATE_FILTER (object);
+
+  kms_bitrate_calc_data_clear (&self->priv->bitrate_calc_data);
+
+  /* chain up */
+  G_OBJECT_CLASS (kms_bitrate_filter_parent_class)->dispose (object);
+}
+
+static void
 kms_bitrate_filter_init (KmsBitrateFilter * self)
 {
   self->priv = KMS_BITRATE_FILTER_GET_PRIVATE (self);
+  kms_bitrate_calc_data_init (&self->priv->bitrate_calc_data);
 }
 
 static void
 kms_bitrate_filter_class_init (KmsBitrateFilterClass * klass)
 {
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *gstelement_class = GST_ELEMENT_CLASS (klass);
+  GstBaseTransformClass *trans_class = GST_BASE_TRANSFORM_CLASS (klass);
+
+  gobject_class->dispose = kms_bitrate_filter_dispose;
 
   gst_element_class_set_details_simple (gstelement_class,
       "BitrateFilter",
@@ -71,7 +178,14 @@ kms_bitrate_filter_class_init (KmsBitrateFilterClass * klass)
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&sinktemplate));
 
+  trans_class->transform_ip =
+      GST_DEBUG_FUNCPTR (kms_bitrate_filter_transform_ip);
+  trans_class->prepare_output_buffer =
+      GST_DEBUG_FUNCPTR (kms_bitrate_filter_prepare_buf);
+
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
+
+  g_type_class_add_private (klass, sizeof (KmsBitrateFilterPrivate));
 }
 
 gboolean
