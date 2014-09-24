@@ -37,6 +37,7 @@ G_DEFINE_TYPE (KmsBitrateFilter, kms_bitrate_filter, GST_TYPE_BASE_TRANSFORM);
 )
 
 #define BITRATE_CALC_INTERVAL GST_SECOND
+#define BITRATE_CALC_THRESHOLD 100000   /* bps */
 
 typedef struct _KmsBitrateCalcData
 {
@@ -124,6 +125,35 @@ kms_bitrate_filter_transform_ip (GstBaseTransform * base, GstBuffer * buf)
   return GST_FLOW_OK;
 }
 
+static void
+kms_bitrate_filter_update_src_caps (KmsBitrateFilter * self)
+{
+  GstBaseTransform *trans = GST_BASE_TRANSFORM (self);
+  KmsBitrateCalcData *data = &self->priv->bitrate_calc_data;
+  GstCaps *caps;
+
+  if (ABS (data->bitrate - data->last_bitrate) < BITRATE_CALC_THRESHOLD) {
+    return;
+  }
+
+  caps = gst_pad_get_current_caps (trans->srcpad);
+  if (caps == NULL) {
+    return;
+  }
+
+  data->last_bitrate = data->bitrate;
+
+  GST_DEBUG_OBJECT (trans, "Old caps: %" GST_PTR_FORMAT, caps);
+
+  caps = gst_caps_make_writable (caps);
+  gst_caps_set_simple (caps, "bitrate", G_TYPE_INT, data->bitrate, NULL);
+  gst_pad_set_caps (trans->srcpad, caps);
+
+  GST_DEBUG_OBJECT (trans, "New caps: %" GST_PTR_FORMAT, caps);
+
+  gst_caps_unref (caps);
+}
+
 static GstFlowReturn
 kms_bitrate_filter_prepare_buf (GstBaseTransform * trans, GstBuffer * input,
     GstBuffer ** buf)
@@ -134,6 +164,7 @@ kms_bitrate_filter_prepare_buf (GstBaseTransform * trans, GstBuffer * input,
   /* always return the input as output buffer */
   *buf = input;
   kms_bitrate_calc_data_update (data, input);
+  kms_bitrate_filter_update_src_caps (self);
 
   GST_TRACE_OBJECT (self, "bitrate: %" G_GINT32_FORMAT " bps", data->bitrate);
 
