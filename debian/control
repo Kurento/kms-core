@@ -5,7 +5,7 @@ Maintainer: Kurento Maintenance Team <kurento@googlegroups.com>
 Build-Depends: debhelper (>= 8.0.0),
  cmake,
  pkg-config,
- kms-cmake-utils (>= 1.0.0),
+ kms-cmake-utils (>= 1.0.1~2),
  libgstreamer1.0-dev (>= 1.4.0),
  kms-jsonrpc-dev (>> 0.1.0),
  libsigc++-2.0-dev,
@@ -37,7 +37,7 @@ Description: Kurento core module
 Package: kms-core-dev
 Architecture: any
 Depends: kms-core (= ${binary:Version}),
- kms-cmake-utils (>= 1.0.0),
+ kms-cmake-utils (>= 1.0.1~2),
  libgstreamer1.0-dev (>= 1.4.0),
  kms-jsonrpc-dev (>> 0.1.0),
  libsigc++-2.0-dev,
