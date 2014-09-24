@@ -182,6 +182,35 @@ kms_bitrate_filter_dispose (GObject * object)
   G_OBJECT_CLASS (kms_bitrate_filter_parent_class)->dispose (object);
 }
 
+static GstCaps *
+kms_bitrate_filter_transform_caps (GstBaseTransform * base,
+    GstPadDirection direction, GstCaps * caps, GstCaps * filter)
+{
+  KmsBitrateFilter *self = KMS_BITRATE_FILTER (base);
+  GstCaps *ret;
+  guint caps_size, i;
+
+  ret = gst_caps_make_writable (gst_caps_ref (caps));
+  caps_size = gst_caps_get_size (ret);
+
+  for (i = 0; i < caps_size; i++) {
+    GstStructure *s = gst_caps_get_structure (ret, i);
+
+    if (GST_PAD_SRC == direction) {
+      gst_structure_remove_field (s, "bitrate");
+    } else if (GST_PAD_SINK == direction) {
+      gst_structure_set (s, "bitrate", GST_TYPE_INT_RANGE, 0, G_MAXINT32, NULL);
+    }
+  }
+
+  GST_DEBUG_OBJECT (self, "Input caps: %" GST_PTR_FORMAT, caps);
+  GST_DEBUG_OBJECT (self, "Filter: %" GST_PTR_FORMAT, filter);
+  GST_DEBUG_OBJECT (self, "Old caps: %" GST_PTR_FORMAT, caps);
+  GST_DEBUG_OBJECT (self, "Output caps: %" GST_PTR_FORMAT, ret);
+
+  return ret;
+}
+
 static void
 kms_bitrate_filter_init (KmsBitrateFilter * self)
 {
@@ -213,6 +242,8 @@ kms_bitrate_filter_class_init (KmsBitrateFilterClass * klass)
       GST_DEBUG_FUNCPTR (kms_bitrate_filter_transform_ip);
   trans_class->prepare_output_buffer =
       GST_DEBUG_FUNCPTR (kms_bitrate_filter_prepare_buf);
+  trans_class->transform_caps =
+      GST_DEBUG_FUNCPTR (kms_bitrate_filter_transform_caps);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
