@@ -100,6 +100,17 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
 
 typedef void (*KmsPadIterationAction) (KmsAgnosticBin2 * self, GstPad * pad);
 
+static void
+kms_agnostic_bin2_insert_tee (KmsAgnosticBin2 * self, GstElement * tee)
+{
+  gchar *key;
+
+  key =
+      g_strconcat (GST_OBJECT_NAME (GST_ELEMENT_PARENT (tee)), ":",
+      GST_OBJECT_NAME (tee), NULL);
+  g_hash_table_insert (self->priv->tees, key, g_object_ref (tee));
+}
+
 /*
  * This function sends a dummy event to force blocked probe to be called
  */
@@ -671,8 +682,7 @@ kms_agnostic_bin2_get_or_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * caps)
     }
 
     if (raw_tee != NULL) {
-      g_hash_table_insert (self->priv->tees, GST_OBJECT_NAME (raw_tee),
-          g_object_ref (raw_tee));
+      kms_agnostic_bin2_insert_tee (self, raw_tee);
     }
 
     gst_caps_unref (raw_caps);
@@ -779,8 +789,7 @@ kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
       fakequeue, fakesink, NULL);
   link_queue_to_tee (raw_tee, queue);
 
-  g_hash_table_insert (self->priv->tees, GST_OBJECT_NAME (tee),
-      g_object_ref (tee));
+  kms_agnostic_bin2_insert_tee (self, tee);
 
   return tee;
 }
@@ -1001,8 +1010,7 @@ set_input_caps (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
 
   gst_event_parse_caps (event, &current_caps);
   self->priv->current_caps = gst_caps_copy (current_caps);
-  g_hash_table_insert (self->priv->tees, GST_OBJECT_NAME (tee),
-      g_object_ref (tee));
+  kms_agnostic_bin2_insert_tee (self, GST_ELEMENT (tee));
 
   GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
       current_caps);
@@ -1341,7 +1349,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->loop = kms_loop_new ();
 
   self->priv->tees =
-      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
+      g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 
   self->priv->pads_to_link = g_queue_new ();
   g_mutex_init (&self->priv->thread_mutex);
