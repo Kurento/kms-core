@@ -242,6 +242,7 @@ function (generate_kurento_libraries)
 
   set (ONE_VALUE_PARAMS
     SERVER_STUB_DESTINATION
+    SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES
   )
 
   set (MULTI_VALUE_PARAMS
@@ -391,6 +392,7 @@ function (generate_kurento_libraries)
     string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
   endif()
 
+  set (requires ${requires} ${PARAM_SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES})
   foreach (_FILE ${PROCESSOR_OUTPUT})
     if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
       string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
