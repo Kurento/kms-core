@@ -28,6 +28,26 @@
 namespace kurento
 {
 
+class ModuleData
+{
+public:
+  ModuleData (const std::string &name, const std::string &version) :
+    name (name), version (version) {
+  }
+
+  std::string getName() const {
+    return name;
+  }
+
+  std::string getVersion () const {
+    return version;
+  }
+
+private:
+  std::string name;
+  std::string version;
+};
+
 class ModuleManager
 {
 public:
@@ -39,10 +59,14 @@ public:
   const std::map <std::string, std::shared_ptr <kurento::Factory > > getLoadedFactories ();
   std::shared_ptr<kurento::Factory> getFactory (std::string symbolName);
 
+  const std::map <std::string, std::shared_ptr <ModuleData>> getModules () const {
+    return loadedModules;
+  }
+
 private:
 
   std::map <std::string, std::shared_ptr <kurento::Factory > > loadedFactories;
-  std::set <std::string> loadedModules;
+  std::map <std::string, std::shared_ptr <ModuleData>> loadedModules;
   void loadModules (std::string path);
 
 

@@ -36,14 +36,16 @@ ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
   void *registrarFactory, *getVersion = NULL, *getName = NULL;
+  std::string moduleFileName;
   std::string moduleName;
+  std::string moduleVersion;
 
   boost::filesystem::path path (modulePath);
 
-  moduleName = path.filename().string();
+  moduleFileName = path.filename().string();
 
-  if (loadedModules.find (moduleName) != loadedModules.end() ) {
-    GST_WARNING ("Module named %s already loaded", moduleName.c_str() );
+  if (loadedModules.find (moduleFileName) != loadedModules.end() ) {
+    GST_WARNING ("Module named %s already loaded", moduleFileName.c_str() );
     return -1;
   }
 
@@ -72,21 +74,24 @@ ModuleManager::loadModule (std::string modulePath)
   module.make_resident();
 
   loadedFactories.insert (factories.begin(), factories.end() );
-  loadedModules.insert (moduleName);
 
   GST_DEBUG ("Module loaded from %s", module.get_name().c_str() );
 
   if (!module.get_symbol ("getModuleVersion", getVersion) ) {
     GST_WARNING ("Cannot get module version");
-    return 0;
+  } else {
+    moduleVersion = ( (GetNameFunc) getVersion) ();
   }
 
   if (!module.get_symbol ("getModuleName", getName) ) {
     GST_WARNING ("Cannot get module name");
-    return 0;
+  } else {
+    moduleName = ( (GetVersionFunc) getName) ();
   }
 
-  GST_INFO ("Loaded %s version %s", ( (GetNameFunc) getName) () , ( (GetVersionFunc) getVersion) () );
+  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion) );
+
+  GST_INFO ("Loaded %s version %s", moduleName.c_str() , moduleVersion.c_str() );
 
   return 0;
 }

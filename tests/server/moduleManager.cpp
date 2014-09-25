@@ -20,6 +20,8 @@
 #include <gst/gst.h>
 #include <MediaSet.hpp>
 
+#include <config.h>
+
 using namespace kurento;
 int
 main (int argc, char **argv)
@@ -63,6 +65,18 @@ main (int argc, char **argv)
   }
 
   kurento::MediaSet::getMediaSet()->release (std::dynamic_pointer_cast <MediaObjectImpl> (mediaPipeline) );
+
+  auto data = moduleManager->getModules().at ("libkmscoremodule.so");
+
+  if (data->getName() != "core") {
+    std::cerr << "Module name should be core, but is " << data->getName() << std::endl;
+    return 1;
+  }
+
+  if (data->getVersion() != VERSION) {
+    std::cerr << "Module version should be " << VERSION << ", but is " << data->getVersion() << std::endl;
+    return 1;
+  }
 
   return 0;
 }
