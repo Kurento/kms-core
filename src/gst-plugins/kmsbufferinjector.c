@@ -122,7 +122,16 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     //timeout reached, it is necessary to inject a new buffer
     GST_DEBUG_OBJECT (self->priv->srcpad, "Injecting buffer");
     KMS_BUFFER_INJECTOR_LOCK (self);
-    copy = gst_buffer_ref (self->priv->previous_buffer);
+    copy = gst_buffer_make_writable (self->priv->previous_buffer);
+    if (GST_BUFFER_DTS_IS_VALID (copy)) {
+      copy->dts = copy->dts + self->priv->wait_time;
+    }
+    if (GST_BUFFER_PTS_IS_VALID (copy)) {
+      copy->pts = copy->pts + self->priv->wait_time;
+    }
+
+    GST_BUFFER_FLAG_SET (copy, GST_BUFFER_FLAG_GAP);
+    GST_BUFFER_FLAG_SET (copy, GST_BUFFER_FLAG_DROPPABLE);
     KMS_BUFFER_INJECTOR_UNLOCK (self);
     gst_pad_push (self->priv->srcpad, copy);
   }
