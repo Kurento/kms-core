@@ -70,6 +70,7 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define CUSTOM_BIN_INPUT_QUEUE_NAME "input_queue"
 #define CUSTOM_BIN_OUTPUT_TEE_NAME "output_tee"
 #define INPUT_BIN_NAME_PREFIX "input_bin"
+#define DEC_BIN_NAME_PREFIX "dec_bin"
 
 struct _KmsAgnosticBin2Private
 {
@@ -83,6 +84,8 @@ struct _KmsAgnosticBin2Private
   GstBin *input_bin;
   guint input_bin_n;
   GstCaps *input_bin_src_caps;
+
+  guint dec_bin_n;
 
   GstPad *sink;
   guint pad_count;
@@ -585,6 +588,8 @@ kms_agnostic_bin2_get_raw_caps (GstCaps * caps)
   return raw_caps;
 }
 
+/* DecBin begin */
+
 static GstElement *
 create_decoder_for_caps (GstCaps * caps, GstCaps * raw_caps)
 {
@@ -616,6 +621,53 @@ create_decoder_for_caps (GstCaps * caps, GstCaps * raw_caps)
 
   return decoder;
 }
+
+static GstBin *
+dec_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * raw_caps)
+{
+  GstCaps *caps = agnostic->priv->input_bin_src_caps;
+  GstBin *bin;
+  guint n;
+  gchar *name;
+  GstElement *input_queue, *dec, *output_tee, *queue, *fakesink;
+  GstPad *pad;
+
+  if (caps == NULL || raw_caps == NULL) {
+    return NULL;
+  }
+
+  dec = create_decoder_for_caps (caps, raw_caps);
+  if (dec == NULL) {
+    GST_WARNING ("Invalid decoder");
+    return NULL;
+  }
+  GST_DEBUG ("Decoder found: %" GST_PTR_FORMAT, dec);
+
+  pad = gst_element_get_static_pad (dec, "sink");
+  kms_utils_drop_until_keyframe (pad, TRUE);
+  gst_object_unref (pad);
+
+  n = g_atomic_int_add (&agnostic->priv->dec_bin_n, 1);
+  name = g_strdup_printf ("%s_%" G_GUINT32_FORMAT, DEC_BIN_NAME_PREFIX, n);
+  bin = GST_BIN (gst_bin_new (name));
+  g_free (name);
+
+  input_queue = gst_element_factory_make ("queue", CUSTOM_BIN_INPUT_QUEUE_NAME);
+  output_tee = gst_element_factory_make ("tee", CUSTOM_BIN_OUTPUT_TEE_NAME);
+  queue = gst_element_factory_make ("queue", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (fakesink, "async", FALSE, NULL);
+
+  gst_bin_add_many (bin, input_queue, dec, output_tee, queue, fakesink, NULL);
+  gst_element_link_many (input_queue, dec, output_tee, queue, fakesink, NULL);
+
+  return bin;
+}
+
+/* DecBin end */
 
 static GstElement *
 create_parser_for_caps (GstCaps * caps)
@@ -651,52 +703,28 @@ create_parser_for_caps (GstCaps * caps)
 static GstElement *
 kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
 {
-  GstCaps *current_caps = self->priv->input_bin_src_caps;
-  GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
-  GstElement *output_tee;
-  GstPad *pad;
+  GstBin *dec_bin;
+  GstElement *output_tee, *input_queue;
 
-  if (current_caps == NULL)
-    return NULL;
-
-  decoder = create_decoder_for_caps (current_caps, raw_caps);
-
-  if (decoder == NULL) {
-    GST_DEBUG ("Invalid decoder");
+  dec_bin = dec_bin_new (self, raw_caps);
+  if (dec_bin == NULL) {
     return NULL;
   }
 
-  GST_DEBUG_OBJECT (self, "Decoder found: %" GST_PTR_FORMAT, decoder);
-
-  pad = gst_element_get_static_pad (decoder, "sink");
-  kms_utils_drop_until_keyframe (pad, TRUE);
-  gst_object_unref (pad);
-
-  queue = gst_element_factory_make ("queue", NULL);
-  tee = gst_element_factory_make ("tee", NULL);
-  fakequeue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
-
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
-
-  gst_bin_add_many (GST_BIN (self), queue, decoder, tee, fakequeue, fakesink,
-      NULL);
-  gst_element_sync_state_with_parent (queue);
-  gst_element_sync_state_with_parent (decoder);
-  gst_element_sync_state_with_parent (tee);
-  gst_element_sync_state_with_parent (fakequeue);
-  gst_element_sync_state_with_parent (fakesink);
-  gst_element_link_many (queue, decoder, tee, fakequeue, fakesink, NULL);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (dec_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (dec_bin));
 
   output_tee =
       gst_bin_get_by_name (self->priv->input_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
-  link_queue_to_tee (output_tee, queue);
+  input_queue = gst_bin_get_by_name (dec_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
+  link_queue_to_tee (output_tee, input_queue);
+  g_object_unref (output_tee);
+  g_object_unref (input_queue);
+
+  output_tee = gst_bin_get_by_name (dec_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
   g_object_unref (output_tee);
 
-  return tee;
+  return output_tee;
 }
 
 static GstElement *
