@@ -74,11 +74,11 @@ struct _KmsAgnosticBin2Private
 
   GMutex thread_mutex;
 
-  GstElement *main_tee;
   GstElement *current_tee;
+  GstElement *input_tee;
+  GstCaps *input_caps;
   GstPad *sink;
   GstCaps *current_caps;
-  GstCaps *last_caps;
   guint pad_count;
   gboolean started;
 
@@ -1081,7 +1081,7 @@ kms_agnostic_bin2_configure_input_tee (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_element_sync_state_with_parent (fakesink);
 
   gst_element_link_many (input_queue, parser, tee, queue, fakesink, NULL);
-  gst_element_link (self->priv->main_tee, input_queue);
+  gst_element_link (self->priv->input_tee, input_queue);
 
   self->priv->started = FALSE;
 
@@ -1117,8 +1117,8 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   }
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
-  current_caps = self->priv->last_caps;
-  self->priv->last_caps = gst_caps_copy (new_caps);
+  current_caps = self->priv->input_caps;
+  self->priv->input_caps = gst_caps_copy (new_caps);
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
   GST_TRACE_OBJECT (user_data, "New caps event: %" GST_PTR_FORMAT, event);
@@ -1241,9 +1241,9 @@ kms_agnostic_bin2_dispose (GObject * object)
     self->priv->current_caps = NULL;
   }
 
-  if (self->priv->last_caps) {
-    gst_caps_unref (self->priv->last_caps);
-    self->priv->last_caps = NULL;
+  if (self->priv->input_caps) {
+    gst_caps_unref (self->priv->input_caps);
+    self->priv->input_caps = NULL;
   }
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
@@ -1327,28 +1327,22 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   GstPad *target, *sink;
 
   self->priv = KMS_AGNOSTIC_BIN2_GET_PRIVATE (self);
-  self->priv->pad_count = 0;
-
-  self->priv->current_tee = NULL;
 
   tee = gst_element_factory_make ("tee", NULL);
-  self->priv->main_tee = tee;
+  self->priv->input_tee = tee;
   queue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
+  g_object_set (fakesink, "async", FALSE, NULL);
   g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
 
   gst_bin_add_many (GST_BIN (self), tee, queue, fakesink, NULL);
-  gst_element_link (queue, fakesink);
-  gst_element_link (tee, queue);
+  gst_element_link_many (tee, queue, fakesink, NULL);
 
   target = gst_element_get_static_pad (tee, "sink");
   templ = gst_static_pad_template_get (&sink_factory);
   self->priv->sink = gst_ghost_pad_new_from_template ("sink", target, templ);
   gst_pad_set_query_function (self->priv->sink, kms_agnostic_bin2_sink_query);
-  self->priv->current_caps = NULL;
-  self->priv->last_caps = NULL;
   kms_utils_manage_gaps (self->priv->sink);
   g_object_unref (templ);
   g_object_unref (target);
@@ -1363,12 +1357,9 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 
   self->priv->started = FALSE;
-
   self->priv->loop = kms_loop_new ();
-
   self->priv->tees =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-
   self->priv->pads_to_link = g_queue_new ();
   g_mutex_init (&self->priv->thread_mutex);
 }
