@@ -71,6 +71,7 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define CUSTOM_BIN_OUTPUT_TEE_NAME "output_tee"
 #define INPUT_BIN_NAME_PREFIX "input_bin"
 #define DEC_BIN_NAME_PREFIX "dec_bin"
+#define ENC_BIN_NAME_PREFIX "enc_bin"
 
 struct _KmsAgnosticBin2Private
 {
@@ -86,6 +87,7 @@ struct _KmsAgnosticBin2Private
   GstCaps *input_bin_src_caps;
 
   guint dec_bin_n;
+  guint enc_bin_n;
 
   GstPad *sink;
   guint pad_count;
@@ -801,58 +803,82 @@ create_encoder_for_caps (GstCaps * caps)
   return encoder;
 }
 
+/* EncBin begin */
+
+static GstBin *
+enc_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
+{
+  GstBin *bin;
+  guint n;
+  gchar *name;
+  GstElement *input_queue, *rate, *convert, *mediator, *enc, *output_tee,
+      *queue, *fakesink;
+
+  enc = create_encoder_for_caps (caps);
+  if (enc == NULL) {
+    GST_WARNING ("Invalid encoder");
+    return NULL;
+  }
+
+  n = g_atomic_int_add (&agnostic->priv->enc_bin_n, 1);
+  name = g_strdup_printf ("%s_%" G_GUINT32_FORMAT, ENC_BIN_NAME_PREFIX, n);
+  bin = GST_BIN (gst_bin_new (name));
+  g_free (name);
+
+  input_queue = gst_element_factory_make ("queue", CUSTOM_BIN_INPUT_QUEUE_NAME);
+  rate = create_rate_for_caps (caps);
+  convert = create_convert_for_caps (caps);
+  mediator = create_mediator_element (caps);
+  output_tee = gst_element_factory_make ("tee", CUSTOM_BIN_OUTPUT_TEE_NAME);
+  queue = gst_element_factory_make ("queue", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  g_object_set (fakesink, "async", FALSE, NULL);
+
+  gst_bin_add_many (bin, input_queue, rate, convert, mediator, enc,
+      output_tee, queue, fakesink, NULL);
+  gst_element_link_many (input_queue, rate, convert, mediator, enc, output_tee,
+      queue, fakesink, NULL);
+
+  return bin;
+}
+
+/* EncBin end */
+
 static GstElement *
 kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GstElement *tee;
-  GstElement *raw_tee = kms_agnostic_bin2_get_or_create_raw_tee (self, caps);
-  GstElement *encoder, *queue, *rate, *convert, *mediator, *fakequeue,
-      *fakesink;
+  GstBin *enc_bin;
+  GstElement *raw_tee, *input_queue, *output_tee;
 
+  raw_tee = kms_agnostic_bin2_get_or_create_raw_tee (self, caps);
   if (raw_tee == NULL) {
     return NULL;
   }
 
-  if (is_raw_caps (caps))
+  if (is_raw_caps (caps)) {
     return raw_tee;
+  }
 
-  encoder = create_encoder_for_caps (caps);
-
-  if (encoder == NULL)
+  enc_bin = enc_bin_new (self, caps);
+  if (enc_bin == NULL) {
     return NULL;
+  }
 
-  queue = gst_element_factory_make ("queue", NULL);
-  rate = create_rate_for_caps (caps);
-  convert = create_convert_for_caps (caps);
-  mediator = create_mediator_element (caps);
-  tee = gst_element_factory_make ("tee", NULL);
-  fakequeue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (enc_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  input_queue = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
+  link_queue_to_tee (raw_tee, input_queue);
+  g_object_unref (input_queue);
 
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
+  output_tee = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
+  kms_agnostic_bin2_insert_tee (self, output_tee);
+  g_object_unref (output_tee);
 
-  gst_bin_add_many (GST_BIN (self), queue, rate, convert, mediator, encoder,
-      tee, fakequeue, fakesink, NULL);
-
-  gst_element_sync_state_with_parent (queue);
-  gst_element_sync_state_with_parent (rate);
-  gst_element_sync_state_with_parent (convert);
-  gst_element_sync_state_with_parent (mediator);
-  gst_element_sync_state_with_parent (encoder);
-  gst_element_sync_state_with_parent (tee);
-  gst_element_sync_state_with_parent (fakequeue);
-  gst_element_sync_state_with_parent (fakesink);
-
-  gst_element_link_many (queue, rate, convert, mediator, encoder, tee,
-      fakequeue, fakesink, NULL);
-  link_queue_to_tee (raw_tee, queue);
-
-  kms_agnostic_bin2_insert_tee (self, tee);
-
-  return tee;
+  return output_tee;
 }
 
 /**
