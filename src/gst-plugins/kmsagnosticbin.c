@@ -82,9 +82,9 @@ struct _KmsAgnosticBin2Private
   GstCaps *input_caps;
   GstBin *input_bin;
   guint input_bin_n;
+  GstCaps *input_bin_src_caps;
 
   GstPad *sink;
-  GstCaps *current_caps;
   guint pad_count;
   gboolean started;
 
@@ -651,7 +651,7 @@ create_parser_for_caps (GstCaps * caps)
 static GstElement *
 kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
 {
-  GstCaps *current_caps = self->priv->current_caps;
+  GstCaps *current_caps = self->priv->input_bin_src_caps;
   GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
   GstElement *output_tee;
   GstPad *pad;
@@ -1038,7 +1038,7 @@ add_linked_pads (KmsAgnosticBin2 * self, GstPad * pad)
 }
 
 static GstPadProbeReturn
-set_input_caps (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
+input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
 {
   KmsAgnosticBin2 *self =
       KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (GST_OBJECT_PARENT (tee)));
@@ -1047,17 +1047,19 @@ set_input_caps (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
 
   GST_TRACE_OBJECT (self, "Event in parser pad: %" GST_PTR_FORMAT, event);
 
-  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS)
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
     return GST_PAD_PROBE_OK;
+  }
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   self->priv->started = TRUE;
-  if (self->priv->current_caps != NULL)
-    gst_caps_unref (self->priv->current_caps);
+  if (self->priv->input_bin_src_caps != NULL) {
+    gst_caps_unref (self->priv->input_bin_src_caps);
+  }
 
   gst_event_parse_caps (event, &current_caps);
-  self->priv->current_caps = gst_caps_copy (current_caps);
+  self->priv->input_bin_src_caps = gst_caps_copy (current_caps);
   kms_agnostic_bin2_insert_tee (self, GST_ELEMENT (tee));
 
   GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
@@ -1099,7 +1101,7 @@ input_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
 
   parser_src = gst_element_get_static_pad (parser, "src");
   gst_pad_add_probe (parser_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      set_input_caps, g_object_ref (tee), g_object_unref);
+      input_bin_src_caps_probe, g_object_ref (tee), g_object_unref);
   g_object_unref (parser_src);
 
   gst_bin_add_many (bin, input_queue, parser, tee, queue, fakesink, NULL);
@@ -1284,9 +1286,9 @@ kms_agnostic_bin2_dispose (GObject * object)
   KMS_AGNOSTIC_BIN2_LOCK (self);
   g_clear_object (&self->priv->loop);
 
-  if (self->priv->current_caps) {
-    gst_caps_unref (self->priv->current_caps);
-    self->priv->current_caps = NULL;
+  if (self->priv->input_bin_src_caps) {
+    gst_caps_unref (self->priv->input_bin_src_caps);
+    self->priv->input_bin_src_caps = NULL;
   }
 
   if (self->priv->input_caps) {
