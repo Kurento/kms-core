@@ -67,4 +67,6 @@ generate_code (
       ${SIGCPP_LIBRARIES}
   SERVER_STUB_DESTINATION
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation/objects
+  SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES
+      "gstreamer-1.0 >= ${GST_REQUIRED} gstreamer-sdp-1.0 >= ${GST_REQUIRED} libjsonrpc >= ${JSON_RPC_REQUIRED} sigc++-2.0 >= ${SIGCPP_REQUIRED} glibmm-2.4 >= ${GLIBMM_REQUIRED}"
 )

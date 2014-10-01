@@ -20,6 +20,9 @@ find_package(PkgConfig)
 
 set (GST_REQUIRED 1.4.0)
 set (GLIB_REQUIRED 2.38)
+set (JSON_RPC_REQUIRED 0.1.0)
+set (SIGCPP_REQUIRED 2.0.10)
+set (GLIBMM_REQUIRED 2.37)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 
@@ -31,9 +34,9 @@ pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_SDP REQUIRED gstreamer-sdp-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_PBUTILS REQUIRED gstreamer-pbutils-1.0>=${GST_REQUIRED})
 
-find_package(KmsJsonRpc 0.1.0 REQUIRED)
-pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=2.0.10)
-pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=2.37)
+find_package(KmsJsonRpc ${JSON_RPC_REQUIRED} REQUIRED)
+pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=${SIGCPP_REQUIRED})
+pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=${GLIBMM_REQUIRED})
 
 find_package(LibVpx REQUIRED)
 
