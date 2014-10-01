@@ -6,6 +6,7 @@ add_subdirectory(commons)
 
 set(KMS_CORE_SOURCES
   kmscore.c
+  kmstreebin.c kmstreebin.h
   kmsagnosticbin.c kmsagnosticbin.h
   kmsfilterelement.c kmsfilterelement.h
   kmsaudiomixer.c kmsaudiomixer.h
