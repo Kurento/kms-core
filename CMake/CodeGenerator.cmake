@@ -11,10 +11,10 @@ set (DISABLE_LIBRARIES_GENERATION FALSE CACHE BOOL "Disable C/C++ libraries gene
 set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if codding style of generated code is correct")
 mark_as_advanced(ENABLE_CODE_GENERATION_FORMAT_CHECK)
 
-set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE STRING "Directory where kurento modules descriptors can be found")
+set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE PATH "Directory where kurento modules descriptors can be found")
 mark_as_advanced(KURENTO_MODULES_DIR)
 
-set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE STRING "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
+set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
 set (CMAKE_MODULES_INSTALL_DIR
