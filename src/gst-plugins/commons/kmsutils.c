@@ -16,6 +16,7 @@
 #include "kmsutils.h"
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
+#include "kmsagnosticcaps.h"
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -101,6 +102,40 @@ gst_element_sync_state_with_parent_target_state (GstElement * element)
 
   return TRUE;
 }
+
+/* Caps begin */
+
+static GstStaticCaps static_audio_caps =
+GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
+static GstStaticCaps static_video_caps =
+GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
+
+static gboolean
+caps_can_intersect_with_static (const GstCaps * caps,
+    GstStaticCaps * static_caps)
+{
+  GstCaps *aux = gst_static_caps_get (static_caps);
+  gboolean ret;
+
+  ret = gst_caps_can_intersect (caps, aux);
+  gst_caps_unref (aux);
+
+  return ret;
+}
+
+gboolean
+kms_utils_caps_are_audio (const GstCaps * caps)
+{
+  return caps_can_intersect_with_static (caps, &static_audio_caps);
+}
+
+gboolean
+kms_utils_caps_are_video (const GstCaps * caps)
+{
+  return caps_can_intersect_with_static (caps, &static_video_caps);
+}
+
+/* Caps end */
 
 /* key frame management */
 
