@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_package(KurentoModuleCreator REQUIRED ^3.0.4)
+find_package(KurentoModuleCreator 3.0.5 REQUIRED)
 
 include (GNUInstallDirs)
 
@@ -261,6 +261,8 @@ function (generate_kurento_libraries)
     SERVER_IMPL_LIB_EXTRA_HEADERS
     SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
     SERVER_IMPL_LIB_EXTRA_LIBRARIES
+    MODULE_EXTRA_INCLUDE_DIRS
+    MODULE_EXTRA_LIBRARIES
   )
 
   set (REQUIRED_PARAMS
@@ -539,6 +541,7 @@ function (generate_kurento_libraries)
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}module
     ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     ${VALUE_CODE_IMPLEMENTATION_LIB}interface
+    ${PARAM_MODULE_EXTRA_LIBRARIES}
   )
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}module
@@ -548,6 +551,7 @@ function (generate_kurento_libraries)
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
       ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
+      ${PARAM_MODULE_EXTRA_INCLUDE_DIRS}
   )
 
   install(

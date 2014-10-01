@@ -2,7 +2,7 @@ add_test_program (test_module module.cpp)
 add_dependencies(test_module ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module
   PROPERTY INCLUDE_DIRECTORIES
-    ${JSONRPC_INCLUDE_DIRS}
+    ${KmsJsonRpc_INCLUDE_DIRS}
     ${SIGCPP_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
@@ -22,7 +22,7 @@ add_dependencies(test_module_manager ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module_manager
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_BINARY_DIR}
-    ${JSONRPC_INCLUDE_DIRS}
+    ${KmsJsonRpc_INCLUDE_DIRS}
     ${SIGCPP_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation

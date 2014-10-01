@@ -31,6 +31,10 @@ pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_SDP REQUIRED gstreamer-sdp-1.0>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_PBUTILS REQUIRED gstreamer-pbutils-1.0>=${GST_REQUIRED})
 
+find_package(KmsJsonRpc 0.1.0 REQUIRED)
+pkg_check_modules(SIGCPP REQUIRED sigc++-2.0>=2.0.10)
+pkg_check_modules(GLIBMM REQUIRED glibmm-2.4>=2.37)
+
 find_package(LibVpx REQUIRED)
 
 set (VERSION ${PROJECT_VERSION})
