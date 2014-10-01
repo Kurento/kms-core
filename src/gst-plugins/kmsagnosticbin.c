@@ -75,7 +75,7 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 
 struct _KmsAgnosticBin2Private
 {
-  GHashTable *tees;
+  GHashTable *bins;
   GQueue *pads_to_link;
 
   GMutex thread_mutex;
@@ -112,14 +112,10 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
 typedef void (*KmsPadIterationAction) (KmsAgnosticBin2 * self, GstPad * pad);
 
 static void
-kms_agnostic_bin2_insert_tee (KmsAgnosticBin2 * self, GstElement * tee)
+kms_agnostic_bin2_insert_bin (KmsAgnosticBin2 * self, GstBin * bin)
 {
-  gchar *key;
-
-  key =
-      g_strconcat (GST_OBJECT_NAME (GST_ELEMENT_PARENT (tee)), ":",
-      GST_OBJECT_NAME (tee), NULL);
-  g_hash_table_insert (self->priv->tees, key, g_object_ref (tee));
+  g_hash_table_insert (self->priv->bins, GST_OBJECT_NAME (bin),
+      g_object_ref (bin));
 }
 
 /*
@@ -530,23 +526,21 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   link_queue_to_tee (tee, queue);
 }
 
-static GstElement *
-kms_agnostic_bin2_find_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
+static GstBin *
+kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GList *tees, *l;
-  GstElement *tee = NULL;
+  GList *bins, *l;
+  GstBin *bin = NULL;
 
   if (gst_caps_is_any (caps)) {
-    GstElement *tee = gst_bin_get_by_name (self->priv->input_bin,
-        CUSTOM_BIN_OUTPUT_TEE_NAME);
-
-    g_object_unref (tee);
-    return tee;
+    return self->priv->input_bin;
   }
 
-  tees = g_hash_table_get_values (self->priv->tees);
-  for (l = tees; l != NULL && tee == NULL; l = l->next) {
-    GstPad *tee_sink = gst_element_get_static_pad (l->data, "sink");
+  bins = g_hash_table_get_values (self->priv->bins);
+  for (l = bins; l != NULL && bin == NULL; l = l->next) {
+    GstElement *output_tee = gst_bin_get_by_name (GST_BIN (l->data),
+        CUSTOM_BIN_OUTPUT_TEE_NAME);
+    GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
     GstCaps *current_caps = gst_pad_get_current_caps (tee_sink);
 
     if (current_caps == NULL) {
@@ -560,15 +554,16 @@ kms_agnostic_bin2_find_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
     if (current_caps != NULL) {
       if (gst_caps_can_intersect (caps, current_caps))
-        tee = l->data;
+        bin = l->data;
       gst_caps_unref (current_caps);
     }
 
     g_object_unref (tee_sink);
+    g_object_unref (output_tee);
   }
-  g_list_free (tees);
+  g_list_free (bins);
 
-  return tee;
+  return bin;
 }
 
 static GstCaps *
@@ -702,8 +697,8 @@ create_parser_for_caps (GstCaps * caps)
   return parser;
 }
 
-static GstElement *
-kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
+static GstBin *
+kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * raw_caps)
 {
   GstBin *dec_bin;
   GstElement *output_tee, *input_queue;
@@ -723,34 +718,31 @@ kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
   g_object_unref (output_tee);
   g_object_unref (input_queue);
 
-  output_tee = gst_bin_get_by_name (dec_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
-  g_object_unref (output_tee);
-
-  return output_tee;
+  return dec_bin;
 }
 
-static GstElement *
-kms_agnostic_bin2_get_or_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * caps)
+static GstBin *
+kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstCaps *raw_caps = kms_agnostic_bin2_get_raw_caps (caps);
 
   if (raw_caps != NULL) {
-    GstElement *raw_tee;
+    GstBin *dec_bin;
 
     GST_DEBUG ("Raw caps: %" GST_PTR_FORMAT, raw_caps);
-    raw_tee = kms_agnostic_bin2_find_tee_for_caps (self, raw_caps);
+    dec_bin = kms_agnostic_bin2_find_bin_for_caps (self, raw_caps);
 
-    if (raw_tee == NULL) {
-      raw_tee = kms_agnostic_bin2_create_raw_tee (self, raw_caps);
+    if (dec_bin == NULL) {
+      dec_bin = kms_agnostic_bin2_create_dec_bin (self, raw_caps);
     }
 
-    if (raw_tee != NULL) {
-      kms_agnostic_bin2_insert_tee (self, raw_tee);
+    if (dec_bin != NULL) {
+      kms_agnostic_bin2_insert_bin (self, dec_bin);
     }
 
     gst_caps_unref (raw_caps);
 
-    return raw_tee;
+    return dec_bin;
   } else {
     GST_ELEMENT_WARNING (self, CORE, NEGOTIATION,
         ("Formats are not compatible"), ("Formats are not compatible"));
@@ -847,19 +839,19 @@ enc_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
 
 /* EncBin end */
 
-static GstElement *
-kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
+static GstBin *
+kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GstBin *enc_bin;
-  GstElement *raw_tee, *input_queue, *output_tee;
+  GstBin *dec_bin, *enc_bin;
+  GstElement *input_queue, *output_tee;
 
-  raw_tee = kms_agnostic_bin2_get_or_create_raw_tee (self, caps);
-  if (raw_tee == NULL) {
+  dec_bin = kms_agnostic_bin2_get_or_create_dec_bin (self, caps);
+  if (dec_bin == NULL) {
     return NULL;
   }
 
   if (is_raw_caps (caps)) {
-    return raw_tee;
+    return dec_bin;
   }
 
   enc_bin = enc_bin_new (self, caps);
@@ -870,15 +862,15 @@ kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_bin_add (GST_BIN (self), GST_ELEMENT (enc_bin));
   gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
+  output_tee = gst_bin_get_by_name (dec_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
   input_queue = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
-  link_queue_to_tee (raw_tee, input_queue);
+  link_queue_to_tee (output_tee, input_queue);
+  g_object_unref (output_tee);
   g_object_unref (input_queue);
 
-  output_tee = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
-  kms_agnostic_bin2_insert_tee (self, output_tee);
-  g_object_unref (output_tee);
+  kms_agnostic_bin2_insert_bin (self, enc_bin);
 
-  return output_tee;
+  return enc_bin;
 }
 
 /**
@@ -892,7 +884,7 @@ static void
 kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
 {
   GstCaps *caps;
-  GstElement *tee;
+  GstBin *bin;
 
   GST_INFO_OBJECT (self, "Linking: %" GST_PTR_FORMAT, pad);
 
@@ -902,15 +894,19 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
     goto end;
 
   GST_DEBUG ("Query caps are: %" GST_PTR_FORMAT, caps);
-  tee = kms_agnostic_bin2_find_tee_for_caps (self, caps);
+  bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
-  if (tee == NULL) {
-    tee = kms_agnostic_bin2_create_tee_for_caps (self, caps);
-    GST_DEBUG_OBJECT (self, "Created tee: %" GST_PTR_FORMAT, tee);
+  if (bin == NULL) {
+    bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
+    GST_DEBUG_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
   }
 
-  if (tee != NULL) {
+  if (bin != NULL) {
+    GstElement *tee = gst_bin_get_by_name (bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
+
+    kms_utils_drop_until_keyframe (pad, TRUE);
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
+    g_object_unref (tee);
   }
 
   gst_caps_unref (caps);
@@ -1092,10 +1088,9 @@ add_linked_pads (KmsAgnosticBin2 * self, GstPad * pad)
 }
 
 static GstPadProbeReturn
-input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
+input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
 {
-  KmsAgnosticBin2 *self =
-      KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (GST_OBJECT_PARENT (tee)));
+  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (bin));
   GstEvent *event = gst_pad_probe_info_get_event (info);
   GstCaps *current_caps;
 
@@ -1114,7 +1109,7 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
 
   gst_event_parse_caps (event, &current_caps);
   self->priv->input_bin_src_caps = gst_caps_copy (current_caps);
-  kms_agnostic_bin2_insert_tee (self, GST_ELEMENT (tee));
+  kms_agnostic_bin2_insert_bin (self, GST_BIN (bin));
 
   GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
       current_caps);
@@ -1155,7 +1150,7 @@ input_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
 
   parser_src = gst_element_get_static_pad (parser, "src");
   gst_pad_add_probe (parser_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      input_bin_src_caps_probe, g_object_ref (tee), g_object_unref);
+      input_bin_src_caps_probe, g_object_ref (bin), g_object_unref);
   g_object_unref (parser_src);
 
   gst_bin_add_many (bin, input_queue, parser, tee, queue, fakesink, NULL);
@@ -1188,7 +1183,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_object_unref (input_queue);
 
   self->priv->started = FALSE;
-  g_hash_table_remove_all (self->priv->tees);
+  g_hash_table_remove_all (self->priv->bins);
   while (!g_queue_is_empty (self->priv->pads_to_link)) {
     gst_object_unref (GST_OBJECT (g_queue_pop_head (self->priv->pads_to_link)));
   }
@@ -1364,7 +1359,7 @@ kms_agnostic_bin2_finalize (GObject * object)
   g_mutex_clear (&self->priv->thread_mutex);
 
   g_queue_free_full (self->priv->pads_to_link, g_object_unref);
-  g_hash_table_unref (self->priv->tees);
+  g_hash_table_unref (self->priv->bins);
 
   /* chain up */
   G_OBJECT_CLASS (kms_agnostic_bin2_parent_class)->finalize (object);
@@ -1462,8 +1457,8 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 
   self->priv->started = FALSE;
   self->priv->loop = kms_loop_new ();
-  self->priv->tees =
-      g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  self->priv->bins =
+      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   self->priv->pads_to_link = g_queue_new ();
   g_mutex_init (&self->priv->thread_mutex);
 }
