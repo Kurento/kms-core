@@ -34,15 +34,43 @@ G_DEFINE_TYPE (KmsTreeBin, kms_tree_bin, GST_TYPE_BIN);
   )                                     \
 )
 
+#define INPUT_QUEUE_NAME "input_queue"
+#define OUTPUT_TEE_NAME "output_tee"
+
 struct _KmsTreeBinPrivate
 {
   GstElement *input_queue, *output_tee;
 };
 
+GstElement *
+kms_tree_bin_get_input_queue (KmsTreeBin * self)
+{
+  return self->priv->input_queue;
+}
+
+GstElement *
+kms_tree_bin_get_output_tee (KmsTreeBin * self)
+{
+  return self->priv->output_tee;
+}
+
 static void
 kms_tree_bin_init (KmsTreeBin * self)
 {
+  GstElement *fakequeue, *fakesink;
+
   self->priv = KMS_TREE_BIN_GET_PRIVATE (self);
+
+  self->priv->input_queue =
+      gst_element_factory_make ("queue", INPUT_QUEUE_NAME);
+  self->priv->output_tee = gst_element_factory_make ("tee", OUTPUT_TEE_NAME);
+  fakequeue = gst_element_factory_make ("queue", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (fakesink, "async", FALSE, NULL);
+
+  gst_bin_add_many (GST_BIN (self), self->priv->input_queue,
+      self->priv->output_tee, fakequeue, fakesink, NULL);
+  gst_element_link_many (self->priv->output_tee, fakequeue, fakesink, NULL);
 }
 
 static void
