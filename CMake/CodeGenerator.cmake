@@ -17,6 +17,12 @@ mark_as_advanced(KURENTO_MODULES_DIR)
 set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE STRING "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
+set (CMAKE_MODULES_INSTALL_DIR
+  ${CMAKE_INSTALL_DATAROOTDIR}/cmake-2.8/Modules
+  CACHE STRING
+  "Destination (relative to CMAKE_INSTALL_PREFIX) for cmake modules files"
+)
+
 include (CMakeParseArguments)
 
 set (PROCESSED_PREFIX "Processed file:\t")
@@ -550,6 +556,107 @@ function (generate_kurento_libraries)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
+
+  ###############################################################
+  # Create Findmodule.cmake file
+  ###############################################################
+
+  foreach (HEADER ${INTERFACE_GENERATED_HEADERS})
+    string (REGEX REPLACE ".*/" "" HEADER ${HEADER})
+    set (_INTERFACE_GENERATED_HEADERS "${_INTERFACE_GENERATED_HEADERS} ${HEADER}")
+  endforeach ()
+  if (DEFINED _INTERFACE_GENERATED_HEADERS)
+    string (STRIP ${_INTERFACE_GENERATED_HEADERS} _INTERFACE_GENERATED_HEADERS)
+  endif ()
+
+  foreach (HEADER ${INTERFACE_INTERNAL_GENERATED_HEADERS})
+    string (REGEX REPLACE ".*/" "" HEADER ${HEADER})
+    set (_INTERFACE_INTERNAL_GENERATED_HEADERS "${_INTERFACE_INTERNAL_GENERATED_HEADERS} ${HEADER}")
+  endforeach ()
+  if (DEFINED _INTERFACE_INTERNAL_GENERATED_HEADERS)
+    string (STRIP ${_INTERFACE_INTERNAL_GENERATED_HEADERS} _INTERFACE_INTERNAL_GENERATED_HEADERS)
+  endif ()
+
+  string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _INTERFACE_HEADERS_DIR ${GEN_FILES_DIR})
+
+  foreach (HEADER ${SERVER_INTERNAL_GENERATED_HEADERS})
+    string (REGEX REPLACE ".*/" "" HEADER ${HEADER})
+    set (_SERVER_INTERNAL_GENERATED_HEADERS "${_SERVER_INTERNAL_GENERATED_HEADERS} ${HEADER}")
+  endforeach ()
+  if (DEFINED _SERVER_INTERNAL_GENERATED_HEADERS)
+    string (STRIP ${_SERVER_INTERNAL_GENERATED_HEADERS} _SERVER_INTERNAL_GENERATED_HEADERS)
+  endif ()
+
+  string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _SERVER_INTERNAL_GENERATED_HEADERS_DIR ${SERVER_INTERNAL_GEN_FILES_DIR})
+
+  foreach (HEADER ${SERVER_GENERATED_HEADERS})
+    string (REGEX REPLACE ".*/" "" HEADER ${HEADER})
+    set (_SERVER_GENERATED_HEADERS "${_SERVER_GENERATED_HEADERS} ${HEADER}")
+  endforeach ()
+  if (DEFINED _SERVER_GENERATED_HEADERS)
+    string (STRIP ${_SERVER_GENERATED_HEADERS} _SERVER_GENERATED_HEADERS)
+  endif ()
+
+  string (REPLACE "${CMAKE_BINARY_DIR}/" "" _PARAM_SERVER_STUB_DESTINATION ${PARAM_SERVER_STUB_DESTINATION})
+  string (REPLACE "${CMAKE_SOURCE_DIR}/" "" _PARAM_SERVER_STUB_DESTINATION ${_PARAM_SERVER_STUB_DESTINATION})
+
+  foreach (HEADER ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS})
+    string (REGEX REPLACE ".*/" "" HEADER ${HEADER})
+    set (_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS "${_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS} ${HEADER}")
+  endforeach ()
+  if (DEFINED _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS)
+    string (STRIP ${_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS} _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS)
+  endif ()
+
+  foreach (HEADER ${PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS})
+    string (REGEX REPLACE "/.*$" "" HEADER ${HEADER})
+    set (HEADER "${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}")
+    string (REPLACE "${CMAKE_SOURCE_DIR}/" "" HEADER ${HEADER})
+    unset (CONTAINS)
+    if (DEFINED _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX)
+      list(FIND _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX ${HEADER} CONTAINS)
+    endif ()
+    if (NOT DEFINED CONTAINS)
+      list (APPEND _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX ${HEADER})
+    endif ()
+  endforeach()
+
+  foreach (HEADER ${_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX})
+    set (_NEW_LIST "${_NEW_LIST} ${HEADER}")
+  endforeach()
+  set (_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX ${_NEW_LIST})
+  if (DEFINED _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX)
+    string (STRIP ${_PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX} _PARAM_SERVER_IMPL_LIB_EXTRA_HEADERS_PREFIX)
+  endif ()
+
+  execute_code_generator (OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    EXEC_PARAMS ${KTOOL_PROCESSOR_LINE}
+      -it cpp_find_cmake -c ${CMAKE_CURRENT_BINARY_DIR} -lf
+  )
+
+  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+    message (FATAL_ERROR "No cmake pkg-config files generated")
+  else()
+    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+  endif()
+
+  foreach (_FILE ${PROCESSOR_OUTPUT})
+    if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
+      string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
+      string(REPLACE ".cmake.in" ".cmake" _OUT_FILE ${_FILE})
+      if (${_FILE} MATCHES ".*cmake.in")
+        configure_file(${CMAKE_CURRENT_BINARY_DIR}/${_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${_OUT_FILE} @ONLY)
+        install(FILES
+          ${CMAKE_CURRENT_BINARY_DIR}/${_OUT_FILE}
+          DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
+        )
+        message (STATUS "Generated: ${_FILE}")
+      else()
+        message (WARNING "Unexpected file generated ${_FILE}")
+      endif ()
+    endif()
+  endforeach()
 
   endif (NOT ${DISABLE_LIBRARIES_GENERATION})
   ###############################################################

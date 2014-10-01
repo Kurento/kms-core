@@ -58,12 +58,6 @@ add_subdirectory(tests)
 
 message(STATUS "Compiling : ${PROJECT_NAME}-${PROJECT_VERSION}")
 
-set (CMAKE_MODULES_INSTALL_DIR
-  ${CMAKE_INSTALL_DATAROOTDIR}/cmake-2.8/Modules
-  CACHE STRING
-  "Destination (relative to CMAKE_INSTALL_PREFIX) for cmake modules files"
-)
-
 install(
   FILES "${CMAKE_SOURCE_DIR}/CMake/CodeGenerator.cmake"
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
