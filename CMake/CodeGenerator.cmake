@@ -263,6 +263,7 @@ function (generate_kurento_libraries)
     SERVER_IMPL_LIB_EXTRA_LIBRARIES
     MODULE_EXTRA_INCLUDE_DIRS
     MODULE_EXTRA_LIBRARIES
+    SERVER_IMPL_LIB_FIND_CMAKE_EXTRA_LIBRARIES
   )
 
   set (REQUIRED_PARAMS
@@ -643,6 +644,8 @@ function (generate_kurento_libraries)
   else()
     string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
   endif()
+
+  set (REQUIRED_LIBS ${PARAM_SERVER_IMPL_LIB_FIND_CMAKE_EXTRA_LIBRARIES})
 
   foreach (_FILE ${PROCESSOR_OUTPUT})
     if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
