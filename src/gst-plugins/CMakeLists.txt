@@ -9,6 +9,7 @@ set(KMS_CORE_SOURCES
   kmstreebin.c kmstreebin.h
   kmsparsetreebin.c kmsparsetreebin.h
   kmsdectreebin.c kmsdectreebin.h
+  kmsenctreebin.c kmsenctreebin.h
   kmsagnosticbin.c kmsagnosticbin.h
   kmsfilterelement.c kmsfilterelement.h
   kmsaudiomixer.c kmsaudiomixer.h
