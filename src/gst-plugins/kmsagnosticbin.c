@@ -920,52 +920,6 @@ iterate_src_pads (KmsAgnosticBin2 * self, KmsPadIterationAction action)
 }
 
 static void
-unlink_input_queue_from_tee (GstElement * input_queue)
-{
-  GstPad *queue_sink, *peer, *tee_src;
-
-  if (input_queue == NULL) {
-    return;
-  }
-
-  queue_sink = gst_element_get_static_pad (input_queue, "sink");
-  peer = gst_pad_get_peer (queue_sink);
-
-  if (GST_IS_PROXY_PAD (peer)) {
-    GstProxyPad *ghost;
-
-    ghost = gst_proxy_pad_get_internal (GST_PROXY_PAD (peer));
-    tee_src = gst_pad_get_peer (GST_PAD (ghost));
-
-    g_object_unref (peer);
-    g_object_unref (ghost);
-  } else {
-    tee_src = peer;
-  }
-
-  gst_pad_unlink (tee_src, queue_sink);
-  gst_element_release_request_pad (GST_ELEMENT (GST_OBJECT_PARENT (tee_src)),
-      tee_src);
-
-  g_object_unref (tee_src);
-  g_object_unref (queue_sink);
-}
-
-static void
-input_bin_reset (GstBin * input_bin)
-{
-  GstElement *input_queue;
-
-  if (input_bin == NULL) {
-    return;
-  }
-
-  input_queue = gst_bin_get_by_name (input_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
-  unlink_input_queue_from_tee (input_queue);
-  g_object_unref (input_queue);
-}
-
-static void
 add_linked_pads (KmsAgnosticBin2 * self, GstPad * pad)
 {
   if (!gst_pad_is_linked (pad)) {
@@ -1022,8 +976,9 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
-  input_bin_reset (self->priv->input_bin);
   if (self->priv->input_bin != NULL) {
+    kms_tree_bin_unlink_input_queue_from_tee (KMS_TREE_BIN (self->
+            priv->input_bin));
     gst_element_set_state (GST_ELEMENT (self->priv->input_bin), GST_STATE_NULL);
     gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
   }

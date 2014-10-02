@@ -54,6 +54,34 @@ kms_tree_bin_get_output_tee (KmsTreeBin * self)
   return self->priv->output_tee;
 }
 
+void
+kms_tree_bin_unlink_input_queue_from_tee (KmsTreeBin * self)
+{
+  GstPad *queue_sink, *peer, *tee_src;
+
+  queue_sink = gst_element_get_static_pad (self->priv->input_queue, "sink");
+  peer = gst_pad_get_peer (queue_sink);
+
+  if (GST_IS_PROXY_PAD (peer)) {
+    GstProxyPad *ghost;
+
+    ghost = gst_proxy_pad_get_internal (GST_PROXY_PAD (peer));
+    tee_src = gst_pad_get_peer (GST_PAD (ghost));
+
+    g_object_unref (peer);
+    g_object_unref (ghost);
+  } else {
+    tee_src = peer;
+  }
+
+  gst_pad_unlink (tee_src, queue_sink);
+  gst_element_release_request_pad (GST_ELEMENT (GST_OBJECT_PARENT (tee_src)),
+      tee_src);
+
+  g_object_unref (tee_src);
+  g_object_unref (queue_sink);
+}
+
 static void
 kms_tree_bin_init (KmsTreeBin * self)
 {
