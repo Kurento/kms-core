@@ -32,10 +32,6 @@
 
 #define DEFAULT_QUEUE_SIZE 60
 
-static GstStaticCaps static_audio_caps =
-GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
-static GstStaticCaps static_video_caps =
-GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
 static GstStaticCaps static_raw_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_RAW_AUDIO_CAPS);
 static GstStaticCaps static_raw_video_caps =
@@ -505,20 +501,15 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 }
 
 static GstCaps *
-kms_agnostic_bin2_get_raw_caps (GstCaps * caps)
+kms_agnostic_bin2_get_raw_caps (const GstCaps * caps)
 {
-  GstCaps *audio_caps, *video_caps, *raw_caps = NULL;
+  GstCaps *raw_caps = NULL;
 
-  audio_caps = gst_static_caps_get (&static_audio_caps);
-  video_caps = gst_static_caps_get (&static_video_caps);
-
-  if (gst_caps_can_intersect (caps, audio_caps))
+  if (kms_utils_caps_are_audio (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_audio_caps);
-  else if (gst_caps_can_intersect (caps, video_caps))
+  } else if (kms_utils_caps_are_video (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_video_caps);
-
-  gst_caps_unref (audio_caps);
-  gst_caps_unref (video_caps);
+  }
 
   return raw_caps;
 }
