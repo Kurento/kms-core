@@ -70,8 +70,6 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define OLD_CHAIN_KEY "kms-old-chain-key"
 #define CONFIGURED_KEY "kms-configured-key"
 
-#define CUSTOM_BIN_OUTPUT_TEE_NAME "output_tee"
-
 struct _KmsAgnosticBin2Private
 {
   GHashTable *bins;
@@ -479,8 +477,8 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
   bins = g_hash_table_get_values (self->priv->bins);
   for (l = bins; l != NULL && bin == NULL; l = l->next) {
-    GstElement *output_tee = gst_bin_get_by_name (GST_BIN (l->data),
-        CUSTOM_BIN_OUTPUT_TEE_NAME);
+    GstElement *output_tee =
+        kms_tree_bin_get_output_tee (KMS_TREE_BIN (l->data));
     GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
     GstCaps *current_caps = gst_pad_get_current_caps (tee_sink);
 
@@ -500,7 +498,6 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     }
 
     g_object_unref (tee_sink);
-    g_object_unref (output_tee);
   }
   g_list_free (bins);
 
@@ -547,10 +544,9 @@ kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
   gst_element_sync_state_with_parent (GST_ELEMENT (dec_bin));
 
   output_tee =
-      gst_bin_get_by_name (self->priv->input_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
+      kms_tree_bin_get_output_tee (KMS_TREE_BIN (self->priv->input_bin));
   input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (dec_bin));
   link_queue_to_tee (output_tee, input_queue);
-  g_object_unref (output_tee);
 
   return GST_BIN (dec_bin);
 }
@@ -646,11 +642,10 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   }
 
   if (bin != NULL) {
-    GstElement *tee = gst_bin_get_by_name (bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
+    GstElement *tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (bin));
 
     kms_utils_drop_until_keyframe (pad, TRUE);
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
-    g_object_unref (tee);
   }
 
   gst_caps_unref (caps);
