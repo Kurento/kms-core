@@ -23,6 +23,7 @@
 #include "kmsloop.h"
 #include "kmsparsetreebin.h"
 #include "kmsdectreebin.h"
+#include "kmsenctreebin.h"
 
 #define PLUGIN_NAME "agnosticbin"
 
@@ -69,9 +70,7 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define OLD_CHAIN_KEY "kms-old-chain-key"
 #define CONFIGURED_KEY "kms-configured-key"
 
-#define CUSTOM_BIN_INPUT_QUEUE_NAME "input_queue"
 #define CUSTOM_BIN_OUTPUT_TEE_NAME "output_tee"
-#define ENC_BIN_NAME_PREFIX "enc_bin"
 
 struct _KmsAgnosticBin2Private
 {
@@ -84,8 +83,6 @@ struct _KmsAgnosticBin2Private
   GstCaps *input_caps;
   GstBin *input_bin;
   GstCaps *input_bin_src_caps;
-
-  guint enc_bin_n;
 
   GstPad *sink;
   guint pad_count;
@@ -406,60 +403,6 @@ link_queue_to_tee (GstElement * tee, GstElement * queue)
   }
 }
 
-static GstElement *
-create_convert_for_caps (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *convert;
-
-  if (gst_caps_can_intersect (caps, audio_caps))
-    convert = gst_element_factory_make ("audioconvert", NULL);
-  else
-    convert = gst_element_factory_make ("videoconvert", NULL);
-
-  gst_caps_unref (audio_caps);
-
-  return convert;
-}
-
-static GstElement *
-create_mediator_element (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *element = NULL;
-
-  if (gst_caps_can_intersect (caps, audio_caps)) {
-    element = gst_element_factory_make ("audioresample", NULL);
-  } else {
-    element = gst_element_factory_make ("videoscale", NULL);
-  }
-
-  gst_caps_unref (audio_caps);
-
-  return element;
-}
-
-static GstElement *
-create_rate_for_caps (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *rate;
-
-  if (gst_caps_can_intersect (caps, audio_caps)) {
-    rate = gst_element_factory_make ("audiorate", NULL);
-    g_object_set (G_OBJECT (rate), "tolerance", GST_MSECOND * 100,
-        "skip-to-first", TRUE, NULL);
-  } else {
-    rate = gst_element_factory_make ("videorate", NULL);
-    g_object_set (G_OBJECT (rate), "average-period", GST_MSECOND * 200,
-        "skip-to-first", TRUE, NULL);
-  }
-
-  gst_caps_unref (audio_caps);
-
-  return rate;
-}
-
 static GstPadProbeReturn
 remove_target_pad_block (GstPad * pad, GstPadProbeInfo * info, gpointer gp)
 {
@@ -499,9 +442,9 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   gst_element_sync_state_with_parent (queue);
 
   if (!gst_caps_is_any (caps) && is_raw_caps (caps)) {
-    GstElement *convert = create_convert_for_caps (caps);
-    GstElement *rate = create_rate_for_caps (caps);
-    GstElement *mediator = create_mediator_element (caps);
+    GstElement *convert = kms_utils_create_convert_for_caps (caps);
+    GstElement *rate = kms_utils_create_rate_for_caps (caps);
+    GstElement *mediator = kms_utils_create_mediator_element (caps);
 
     remove_element_on_unlinked (convert, "src", "sink");
     remove_element_on_unlinked (rate, "src", "sink");
@@ -641,99 +584,11 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
   }
 }
 
-static void
-configure_encoder (GstElement * encoder, const gchar * factory_name)
-{
-  GST_DEBUG ("Configure encoder: %s", factory_name);
-  if (g_strcmp0 ("vp8enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
-        "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-        "target-bitrate", 300000, "end-usage", /* cbr */ 1, NULL);
-  } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "tune", 4 /* zerolatency */ , "threads", (guint) 1,
-        NULL);
-  }
-}
-
-static GstElement *
-create_encoder_for_caps (GstCaps * caps)
-{
-  GList *encoder_list, *filtered_list, *l;
-  GstElementFactory *encoder_factory = NULL;
-  GstElement *encoder = NULL;
-
-  encoder_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
-      GST_RANK_NONE);
-  filtered_list =
-      gst_element_factory_list_filter (encoder_list, caps, GST_PAD_SRC, FALSE);
-
-  for (l = filtered_list; l != NULL && encoder_factory == NULL; l = l->next) {
-    encoder_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (encoder_factory) != 2)
-      encoder_factory = NULL;
-  }
-
-  if (encoder_factory != NULL) {
-    encoder = gst_element_factory_create (encoder_factory, NULL);
-    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory));
-  }
-
-  gst_plugin_feature_list_free (filtered_list);
-  gst_plugin_feature_list_free (encoder_list);
-
-  return encoder;
-}
-
-/* EncBin begin */
-
-static GstBin *
-enc_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
-{
-  GstBin *bin;
-  guint n;
-  gchar *name;
-  GstElement *input_queue, *rate, *convert, *mediator, *enc, *output_tee,
-      *queue, *fakesink;
-
-  enc = create_encoder_for_caps (caps);
-  if (enc == NULL) {
-    GST_WARNING ("Invalid encoder");
-    return NULL;
-  }
-
-  n = g_atomic_int_add (&agnostic->priv->enc_bin_n, 1);
-  name = g_strdup_printf ("%s_%" G_GUINT32_FORMAT, ENC_BIN_NAME_PREFIX, n);
-  bin = GST_BIN (gst_bin_new (name));
-  g_free (name);
-
-  input_queue = gst_element_factory_make ("queue", CUSTOM_BIN_INPUT_QUEUE_NAME);
-  rate = create_rate_for_caps (caps);
-  convert = create_convert_for_caps (caps);
-  mediator = create_mediator_element (caps);
-  output_tee = gst_element_factory_make ("tee", CUSTOM_BIN_OUTPUT_TEE_NAME);
-  queue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
-
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakesink, "async", FALSE, NULL);
-
-  gst_bin_add_many (bin, input_queue, rate, convert, mediator, enc,
-      output_tee, queue, fakesink, NULL);
-  gst_element_link_many (input_queue, rate, convert, mediator, enc, output_tee,
-      queue, fakesink, NULL);
-
-  return bin;
-}
-
-/* EncBin end */
-
 static GstBin *
 kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GstBin *dec_bin, *enc_bin;
+  GstBin *dec_bin;
+  KmsEncTreeBin *enc_bin;
   GstElement *input_queue, *output_tee;
 
   dec_bin = kms_agnostic_bin2_get_or_create_dec_bin (self, caps);
@@ -745,7 +600,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return dec_bin;
   }
 
-  enc_bin = enc_bin_new (self, caps);
+  enc_bin = kms_enc_tree_bin_new (caps);
   if (enc_bin == NULL) {
     return NULL;
   }
@@ -754,13 +609,12 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
   output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
-  input_queue = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
+  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (enc_bin));
   link_queue_to_tee (output_tee, input_queue);
-  g_object_unref (input_queue);
 
-  kms_agnostic_bin2_insert_bin (self, enc_bin);
+  kms_agnostic_bin2_insert_bin (self, GST_BIN (enc_bin));
 
-  return enc_bin;
+  return GST_BIN (enc_bin);
 }
 
 /**

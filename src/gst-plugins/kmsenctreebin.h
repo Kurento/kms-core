@@ -47,5 +47,7 @@ struct _KmsEncTreeBinClass
 
 GType kms_enc_tree_bin_get_type (void);
 
+KmsEncTreeBin * kms_enc_tree_bin_new (const GstCaps * caps);
+
 G_END_DECLS
 #endif /* __KMS_ENC_TREE_BIN_H__ */

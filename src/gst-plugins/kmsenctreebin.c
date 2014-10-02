@@ -18,6 +18,7 @@
 #endif
 
 #include "kmsenctreebin.h"
+#include "kmsutils.h"
 
 #define GST_DEFAULT_NAME "enctreebin"
 #define GST_CAT_DEFAULT kms_enc_tree_bin_debug
@@ -25,6 +26,97 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define kms_enc_tree_bin_parent_class parent_class
 G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
+
+static void
+configure_encoder (GstElement * encoder, const gchar * factory_name)
+{
+  GST_DEBUG ("Configure encoder: %s", factory_name);
+  if (g_strcmp0 ("vp8enc", factory_name) == 0) {
+    g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
+        "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
+        "target-bitrate", 300000, "end-usage", /* cbr */ 1, NULL);
+  } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
+    g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
+        "tune", 4 /* zerolatency */ , "threads", (guint) 1,
+        NULL);
+  }
+}
+
+static GstElement *
+create_encoder_for_caps (const GstCaps * caps)
+{
+  GList *encoder_list, *filtered_list, *l;
+  GstElementFactory *encoder_factory = NULL;
+  GstElement *encoder = NULL;
+
+  encoder_list =
+      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
+      GST_RANK_NONE);
+  filtered_list =
+      gst_element_factory_list_filter (encoder_list, caps, GST_PAD_SRC, FALSE);
+
+  for (l = filtered_list; l != NULL && encoder_factory == NULL; l = l->next) {
+    encoder_factory = GST_ELEMENT_FACTORY (l->data);
+    if (gst_element_factory_get_num_pad_templates (encoder_factory) != 2)
+      encoder_factory = NULL;
+  }
+
+  if (encoder_factory != NULL) {
+    encoder = gst_element_factory_create (encoder_factory, NULL);
+    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory));
+  }
+
+  gst_plugin_feature_list_free (filtered_list);
+  gst_plugin_feature_list_free (encoder_list);
+
+  return encoder;
+}
+
+static gboolean
+kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
+{
+  KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
+  GstElement *input_queue, *rate, *convert, *mediator, *enc, *output_tee;
+
+  enc = create_encoder_for_caps (caps);
+  if (enc == NULL) {
+    GST_WARNING_OBJECT (self, "Invalid encoder for caps: %" GST_PTR_FORMAT,
+        caps);
+    return FALSE;
+  }
+  GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, enc);
+
+  rate = kms_utils_create_rate_for_caps (caps);
+  convert = kms_utils_create_convert_for_caps (caps);
+  mediator = kms_utils_create_mediator_element (caps);
+
+  gst_bin_add_many (GST_BIN (self), rate, convert, mediator, enc, NULL);
+  gst_element_sync_state_with_parent (rate);
+  gst_element_sync_state_with_parent (convert);
+  gst_element_sync_state_with_parent (mediator);
+  gst_element_sync_state_with_parent (enc);
+
+  input_queue = kms_tree_bin_get_input_queue (tree_bin);
+  output_tee = kms_tree_bin_get_output_tee (tree_bin);
+  gst_element_link_many (input_queue, rate, convert, mediator, enc, output_tee,
+      NULL);
+
+  return TRUE;
+}
+
+KmsEncTreeBin *
+kms_enc_tree_bin_new (const GstCaps * caps)
+{
+  GObject *enc;
+
+  enc = g_object_new (KMS_TYPE_ENC_TREE_BIN, NULL);
+  if (!kms_enc_tree_bin_configure (KMS_ENC_TREE_BIN (enc), caps)) {
+    g_object_unref (enc);
+    return NULL;
+  }
+
+  return KMS_ENC_TREE_BIN (enc);
+}
 
 static void
 kms_enc_tree_bin_init (KmsEncTreeBin * self)

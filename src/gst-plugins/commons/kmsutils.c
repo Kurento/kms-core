@@ -137,6 +137,44 @@ kms_utils_caps_are_video (const GstCaps * caps)
 
 /* Caps end */
 
+GstElement *
+kms_utils_create_convert_for_caps (const GstCaps * caps)
+{
+  if (kms_utils_caps_are_audio (caps)) {
+    return gst_element_factory_make ("audioconvert", NULL);
+  } else {
+    return gst_element_factory_make ("videoconvert", NULL);
+  }
+}
+
+GstElement *
+kms_utils_create_mediator_element (const GstCaps * caps)
+{
+  if (kms_utils_caps_are_audio (caps)) {
+    return gst_element_factory_make ("audioresample", NULL);
+  } else {
+    return gst_element_factory_make ("videoscale", NULL);
+  }
+}
+
+GstElement *
+kms_utils_create_rate_for_caps (const GstCaps * caps)
+{
+  GstElement *rate;
+
+  if (kms_utils_caps_are_audio (caps)) {
+    rate = gst_element_factory_make ("audiorate", NULL);
+    g_object_set (G_OBJECT (rate), "tolerance", GST_MSECOND * 100,
+        "skip-to-first", TRUE, NULL);
+  } else {
+    rate = gst_element_factory_make ("videorate", NULL);
+    g_object_set (G_OBJECT (rate), "average-period", GST_MSECOND * 200,
+        "skip-to-first", TRUE, NULL);
+  }
+
+  return rate;
+}
+
 /* key frame management */
 
 #define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
