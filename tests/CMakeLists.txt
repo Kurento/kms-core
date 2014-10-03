@@ -1,6 +1,6 @@
 include (TestHelpers)
 
-if (${GSTREAMER_CHECK_FOUND})
+if (${gstreamer-check-1.0_FOUND})
   add_subdirectory(check)
 endif ()
 

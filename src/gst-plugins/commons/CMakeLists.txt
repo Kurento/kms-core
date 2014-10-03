@@ -1,11 +1,11 @@
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
-  ${GSTREAMER_INCLUDE_DIRS}
-  ${GSTREAMER_BASE_SOURCE_DIRS}
-  ${GSTREAMER_SDP_SOURCE_DIRS}
-  ${GSTREAMER_PBUTILS_SOURCE_DIRS}
-  ${GSTREAMER_VIDEO_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-base-1.0_SOURCE_DIRS}
+  ${gstreamer-sdp-1.0_SOURCE_DIRS}
+  ${gstreamer-pbutils-1.0_SOURCE_DIRS}
+  ${gstreamer-video-1.0_INCLUDE_DIRS}
 )
 
 set(KMS_SDP_UTILS_SOURCES
@@ -19,10 +19,10 @@ set(KMS_SDP_UTILS_HEADERS
 add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
 
 target_link_libraries(sdputils
-  ${GSTREAMER_LIBRARIES}
-  ${GSTREAMER_BASE_LIBRARIES}
-  ${GSTREAMER_SDP_LIBRARIES}
-  ${GSTREAMER_PBUTILS_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
 )
 
 set_target_properties(sdputils PROPERTIES PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}")
@@ -46,11 +46,11 @@ set(KMS_UTILS
 add_library(kmsutils ${KMS_UTILS})
 
 target_link_libraries(kmsutils
-  ${GSTREAMER_LIBRARIES}
-  ${GSTREAMER_BASE_LIBRARIES}
-  ${GSTREAMER_SDP_LIBRARIES}
-  ${GSTREAMER_PBUTILS_LIBRARIES}
-  ${GSTREAMER_VIDEO_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
+  ${gstreamer-video-1.0_LIBRARIES}
 )
 
 install(
@@ -98,10 +98,10 @@ add_dependencies(kmsgstcommons kmsutils sdputils)
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
-  ${GSTREAMER_LIBRARIES}
-  ${GSTREAMER_BASE_LIBRARIES}
-  ${GSTREAMER_SDP_LIBRARIES}
-  ${GSTREAMER_PBUTILS_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
 )
 
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")

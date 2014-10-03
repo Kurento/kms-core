@@ -1,6 +1,6 @@
 include_directories(
-  ${GSTREAMER_INCLUDE_DIRS}
-  ${GSTREAMER_VIDEO_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-video-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
