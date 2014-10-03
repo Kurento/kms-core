@@ -31,5 +31,6 @@ void kms_utils_manage_gaps (GstPad *pad);
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
 KMS_UTILS_DESTROY_H (gsize)
+KMS_UTILS_DESTROY_H (GstClockTime)
 
 #endif /* __KMS_UTILS_H__ */
