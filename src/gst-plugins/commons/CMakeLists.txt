@@ -128,3 +128,21 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
+
+foreach (HEADER ${KMS_COMMONS_HEADERS})
+  list (APPEND FIND_HEADERS commons/${HEADER})
+endforeach ()
+
+set (REQUIRED_LIBS
+  "gstreamer-1.0 ${GST_REQUIRED}"
+  "gstreamer-base-1.0 ${GST_REQUIRED}"
+  "gstreamer-sdp-1.0 ${GST_REQUIRED}"
+  "gstreamer-pbutils-1.0 ${GST_REQUIRED}"
+)
+
+configure_file(FindKmsGstCommons.cmake.in ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake @ONLY)
+
+install(FILES
+  ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
+  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
+)

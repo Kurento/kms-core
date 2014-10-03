@@ -1,0 +1,76 @@
+# - Try to find KmsGstCommons library
+
+#=============================================================================
+# Copyright 2014 Kurento
+#
+#=============================================================================
+
+set(PACKAGE_VERSION "@PROJECT_VERSION@")
+set(KmsGstCommons_VERSION ${PACKAGE_VERSION})
+
+find_path(KmsGstCommons_INCLUDE_DIR
+  NAMES
+    @FIND_HEADERS@
+  PATH_SUFFIXES
+    src/gst-plugins
+    @CUSTOM_PREFIX@
+)
+
+set(KmsGstCommons_INCLUDE_DIRS ${KmsGstCommons_INCLUDE_DIR} ${_GSTREAMER_INCLUDE_DIRS}
+  CACHE INTERNAL "Include directories for KmsGstCommons library"
+)
+
+find_library (KmsGstCommons_LIBRARY
+  NAMES
+    kmsgstcommons
+  PATH_SUFFIXES
+    build/src/gst-plugins/commons
+)
+
+set (KmsGstCommons_LIBRARIES ${KmsGstCommons_LIBRARY} ${_GSTREAMER_LIBRARIES}
+  CACHE INTERNAL "Libraries for KmsGstCommons"
+)
+
+include (GenericFind)
+
+set (REQUIRED_LIBS "@REQUIRED_LIBS@")
+foreach (LIB ${REQUIRED_LIBS})
+  string(FIND ${LIB} " " POS)
+
+  if (${POS} GREATER 0)
+    string (SUBSTRING ${LIB} 0 ${POS} LIB_NAME)
+    string (SUBSTRING ${LIB} ${POS} -1 LIB_VERSION)
+    string (STRIP ${LIB_NAME} LIB_NAME)
+    string (STRIP ${LIB_VERSION} LIB_VERSION)
+    generic_find (LIBNAME ${LIB_NAME} REQUIRED VERSION "${LIB_VERSION}")
+  else ()
+    generic_find (LIBNAME ${LIB_NAME} REQUIRED)
+  endif ()
+  list (APPEND REQUIRED_LIBRARIES ${${LIB_NAME}_LIBRARIES})
+  list (APPEND REQUIRED_INCLUDE_DIRS ${${LIB_NAME}_INCLUDE_DIRS})
+
+endforeach()
+
+include (FindPackageHandleStandardArgs)
+
+find_package_handle_standard_args(KmsGstCommons
+  FOUND_VAR
+    KmsGstCommons_FOUND
+  REQUIRED_VARS
+    KmsGstCommons_VERSION
+    KmsGstCommons_INCLUDE_DIR
+    KmsGstCommons_INCLUDE_DIRS
+    KmsGstCommons_LIBRARY
+    KmsGstCommons_LIBRARIES
+  VERSION_VAR
+    KmsGstCommons_VERSION
+)
+
+mark_as_advanced(
+  KmsGstCommons_FOUND
+  KmsGstCommons_VERSION
+  KmsGstCommons_INCLUDE_DIR
+  KmsGstCommons_INCLUDE_DIRS
+  KmsGstCommons_LIBRARY
+  KmsGstCommons_LIBRARIES
+)
