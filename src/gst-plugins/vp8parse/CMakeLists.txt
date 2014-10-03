@@ -1,7 +1,7 @@
 include_directories(
-  ${GSTREAMER_INCLUDE_DIRS}
-  ${GSTREAMER_BASE_INCLUDE_DIRS}
-  ${GSTREAMER_VIDEO_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-base-1.0_INCLUDE_DIRS}
+  ${gstreamer-video-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${VPX_INCLUDE_DIRS}
 )
@@ -14,9 +14,9 @@ set(VP8PARSE_SOURCES
 add_library(vp8parse MODULE ${VP8PARSE_SOURCES})
 
 target_link_libraries(vp8parse
-  ${GSTREAMER_LIBRARIES}
-  ${GSTREAMER_BASE_LIBRARIES}
-  ${GSTREAMER_VIDEO_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-video-1.0_LIBRARIES}
   ${VPX_LIBRARIES}
 )
 
