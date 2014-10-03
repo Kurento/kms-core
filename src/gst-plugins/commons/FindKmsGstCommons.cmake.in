@@ -16,7 +16,16 @@ find_path(KmsGstCommons_INCLUDE_DIR
     @CUSTOM_PREFIX@
 )
 
-set(KmsGstCommons_INCLUDE_DIRS ${KmsGstCommons_INCLUDE_DIR} ${_GSTREAMER_INCLUDE_DIRS}
+find_path(KmsGstCommons_GENERATED_INCLUDE_DIR
+  NAMES
+    commons/kms-core-marshal.h
+    commons/kms-core-enumtypes.h
+  PATH_SUFFIXES
+    build/src/gst-plugins
+    @CUSTOM_PREFIX@
+)
+
+set(KmsGstCommons_INCLUDE_DIRS ${KmsGstCommons_INCLUDE_DIR} ${KmsGstCommons_GENERATED_INCLUDE_DIR}
   CACHE INTERNAL "Include directories for KmsGstCommons library"
 )
 
@@ -27,7 +36,7 @@ find_library (KmsGstCommons_LIBRARY
     build/src/gst-plugins/commons
 )
 
-set (KmsGstCommons_LIBRARIES ${KmsGstCommons_LIBRARY} ${_GSTREAMER_LIBRARIES}
+set (KmsGstCommons_LIBRARIES ${KmsGstCommons_LIBRARY}
   CACHE INTERNAL "Libraries for KmsGstCommons"
 )
 
@@ -59,6 +68,7 @@ find_package_handle_standard_args(KmsGstCommons
   REQUIRED_VARS
     KmsGstCommons_VERSION
     KmsGstCommons_INCLUDE_DIR
+    KmsGstCommons_GENERATED_INCLUDE_DIR
     KmsGstCommons_INCLUDE_DIRS
     KmsGstCommons_LIBRARY
     KmsGstCommons_LIBRARIES
@@ -70,6 +80,7 @@ mark_as_advanced(
   KmsGstCommons_FOUND
   KmsGstCommons_VERSION
   KmsGstCommons_INCLUDE_DIR
+  KmsGstCommons_GENERATED_INCLUDE_DIR
   KmsGstCommons_INCLUDE_DIRS
   KmsGstCommons_LIBRARY
   KmsGstCommons_LIBRARIES
