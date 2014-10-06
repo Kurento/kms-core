@@ -43,22 +43,23 @@ struct _KmsEncTreeBinPrivate
 };
 
 static void
-configure_encoder (GstElement * encoder, const gchar * factory_name)
+configure_encoder (GstElement * encoder, const gchar * factory_name,
+    gint target_bitrate)
 {
   GST_DEBUG ("Configure encoder: %s", factory_name);
   if (g_strcmp0 ("vp8enc", factory_name) == 0) {
     g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
         "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-        "target-bitrate", 300000, "end-usage", /* cbr */ 1, NULL);
+        "target-bitrate", target_bitrate, "end-usage", /* cbr */ 1, NULL);
   } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
     g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "tune", 4 /* zerolatency */ , "threads", (guint) 1,
-        NULL);
+        "tune", 4 /* zerolatency */ , "threads", (guint) 1, "bitrate",
+        target_bitrate / 1000, NULL);
   }
 }
 
 static GstElement *
-create_encoder_for_caps (const GstCaps * caps)
+create_encoder_for_caps (const GstCaps * caps, gint target_bitrate)
 {
   GList *encoder_list, *filtered_list, *l;
   GstElementFactory *encoder_factory = NULL;
@@ -78,7 +79,8 @@ create_encoder_for_caps (const GstCaps * caps)
 
   if (encoder_factory != NULL) {
     encoder = gst_element_factory_create (encoder_factory, NULL);
-    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory));
+    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory),
+        target_bitrate);
   }
 
   gst_plugin_feature_list_free (filtered_list);
@@ -135,12 +137,13 @@ config_enc_bitrate_probe (GstPad * pad, GstPadProbeInfo * info,
 }
 
 static gboolean
-kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
+kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
+    gint target_bitrate)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *enc, *output_tee;
 
-  enc = create_encoder_for_caps (caps);
+  enc = create_encoder_for_caps (caps, target_bitrate);
   if (enc == NULL) {
     GST_WARNING_OBJECT (self, "Invalid encoder for caps: %" GST_PTR_FORMAT,
         caps);
@@ -173,12 +176,13 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
 }
 
 KmsEncTreeBin *
-kms_enc_tree_bin_new (const GstCaps * caps)
+kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate)
 {
   GObject *enc;
 
   enc = g_object_new (KMS_TYPE_ENC_TREE_BIN, NULL);
-  if (!kms_enc_tree_bin_configure (KMS_ENC_TREE_BIN (enc), caps)) {
+  if (!kms_enc_tree_bin_configure (KMS_ENC_TREE_BIN (enc), caps,
+          target_bitrate)) {
     g_object_unref (enc);
     return NULL;
   }
