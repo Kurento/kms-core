@@ -59,6 +59,8 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define OLD_CHAIN_KEY "kms-old-chain-key"
 #define CONFIGURED_KEY "kms-configured-key"
 
+#define TARGET_BITRATE_DEFAULT 300000
+
 struct _KmsAgnosticBin2Private
 {
   GHashTable *bins;
@@ -551,7 +553,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return dec_bin;
   }
 
-  enc_bin = kms_enc_tree_bin_new (caps);
+  enc_bin = kms_enc_tree_bin_new (caps, TARGET_BITRATE_DEFAULT);
   if (enc_bin == NULL) {
     return NULL;
   }
