@@ -4,6 +4,7 @@
 #include "SessionEndpointImpl.hpp"
 #include "SdpEndpoint.hpp"
 #include <EventHandler.hpp>
+#include <gst/sdp/gstsdpmessage.h>
 
 namespace kurento
 {
@@ -39,6 +40,9 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  GstSDPMessage * getSdpPattern ();
+  static std::mutex sdpMutex;
 
   class StaticConstructor
   {

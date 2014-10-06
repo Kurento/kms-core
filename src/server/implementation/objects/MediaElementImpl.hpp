@@ -69,8 +69,6 @@ private:
   std::shared_ptr<MediaSinkImpl> getOrCreateAudioMediaSink();
   std::shared_ptr<MediaSinkImpl> getOrCreateVideoMediaSink();
 
-  boost::property_tree::ptree config;
-
   class StaticConstructor
   {
   public:

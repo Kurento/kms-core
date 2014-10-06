@@ -3,7 +3,6 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
-#include <gst/sdp/gstsdpmessage.h>
 #include <boost/filesystem.hpp>
 #include <fstream>
 
@@ -66,21 +65,22 @@ readEntireFile (const std::string &file_name)
 }
 
 static std::shared_ptr <GstSDPMessage> pattern;
-static std::mutex mutex;
 
-static GstSDPMessage *
-getSdpPattern (const boost::property_tree::ptree &config)
+std::mutex SdpEndpointImpl::sdpMutex;
+
+GstSDPMessage *
+SdpEndpointImpl::getSdpPattern ()
 {
   GstSDPMessage *sdp;
   GstSDPResult result;
   boost::filesystem::path sdp_pattern_file;
-  std::unique_lock<std::mutex> lock (mutex);
+  std::unique_lock<std::mutex> lock (sdpMutex);
 
   if (pattern)
     return pattern.get();
 
   try {
-    sdp_pattern_file = boost::filesystem::path (config.get<std::string> ("modules.kurento.SdpEndpoint.sdpPattern") );
+    sdp_pattern_file = boost::filesystem::path (getConfigValue<std::string, SdpEndpoint> ("sdpPattern") );
   } catch (boost::property_tree::ptree_error &e) {
     throw kurento::KurentoException (SDP_CONFIGURATION_ERROR, "Error reading SDP pattern from configuration, please contact the administrator: " + std::string (e.what() ) );
   }
@@ -122,7 +122,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
 
-  g_object_set (element, "pattern-sdp", getSdpPattern (config), NULL);
+  g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
 }
 
 std::string SdpEndpointImpl::generateOffer ()

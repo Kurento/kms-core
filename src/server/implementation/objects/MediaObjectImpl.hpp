@@ -23,7 +23,7 @@ public:
 
   MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr <MediaObject> parent);
 
-  virtual ~MediaObjectImpl () {};
+  virtual ~MediaObjectImpl () {}
 
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
@@ -45,6 +45,15 @@ public:
                        Json::Value &response);
 
   virtual void Serialize (JsonSerializer &serializer);
+
+protected:
+
+  template <class T, class C>
+  T getConfigValue (const std::string &key) {
+    return config.get<T> ("modules." + dynamic_cast <C *>(this)->getModule() + "." + dynamic_cast <C *>(this)->getType() + "." + key );
+  }
+
+  boost::property_tree::ptree config;
 
 private:
 

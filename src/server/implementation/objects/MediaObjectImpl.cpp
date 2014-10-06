@@ -18,12 +18,14 @@ namespace kurento
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
   id = createId();
+  this->config = config;
 }
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr< MediaObject > parent)
 {
   this->parent = parent;
   id = createId();
+  this->config = config;
 }
 
 std::shared_ptr<MediaPipeline>
