@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_package(KurentoModuleCreator 3.0.5 REQUIRED)
+include (GenericFind)
+
+generic_find(LIBNAME KurentoModuleCreator VERSION ^3.0.6 REQUIRED)
 
 include (GNUInstallDirs)
 

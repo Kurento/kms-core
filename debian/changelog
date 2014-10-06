@@ -1,3 +1,77 @@
+kms-core (5.0.4) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Santiago Carot-Nemesio ]
+  * kmselement: Provide util methods to get information about pads
+
+  [ Miguel París Díaz ]
+  * Move keyframe and gaps management into kmsutils
+  * Use gstreamer utility to create key_unit event
+  * Improve keyframe event management
+  * keyframe management: request only all_headers when new connection
+  * kmsagnosticbin: drop buffers until key frame when src pad is connected
+  * kmsagnosticbin: request key frame when decoder is added
+
+  [ Jose Antonio Santos Cadenas ]
+  * Upgrade kms-cmake-utils version
+  * ModuleManager.cpp: Print name and version of loaded plugins if available
+
+  [ Miguel París Díaz ]
+  * kmsutils: add utilities for type destroying
+  * kmsbitratefilter: add class skeleton
+  * kmsbitratefilter: calc bitrate
+  * kmsbitratefilter: update src caps with bitrate
+  * kmsbitratefilter: implement transform_caps
+  * kmsbasertpendpoint: add target-bitrate property
+
+  [ Jose Antonio Santos Cadenas ]
+  * ModuleManager: Store information about modules
+  * CodeGenerator: Allow passing extra requires to pkgconfig
+  * MediaSet: Do not destroy mediaset by default
+
+  [ David Fernandez ]
+  * bufferinjector: Add skeleton class
+
+  [ Santiago Carot-Nemesio ]
+  * MediaElementImpl: Allow format configuration of the media
+
+  [ Miguel París Díaz ]
+  * kmsagnosticbin: use parent_name:eleement_name as key in tees table
+
+  [ Jose Antonio Santos Cadenas ]
+  * cmake: Use a variable to define cmake installation directory
+  * CodeGenerator: Order variable declaration
+  * CodeGenerator: generate and install Find<MODULE>.cmake
+  * Do not depend on code generator for dependency management
+  * Do not rely on codegenerator for setting dependencies on pkgconfig file
+  * CodeGenerator.cmake: Fix cache variables type
+  * Add required libraries in generated FindKMSCORE.cmake
+  * Use generic_find to locate compilation dependencies
+  * Fix compilations flags for vp8parse
+  * Add FincKmsCommons.cmake to configure library dependencies
+  * FincKmsCommons.cmake.in: Fixes to find generated code
+
+  [ Santiago Carot-Nemesio ]
+  * kmsutils: Add destroy function for GstClockTime
+
+  [ Jose Antonio Santos Cadenas ]
+  * Add .idea to .gitignore
+  * Improve generated Find<Module>.cmake
+  * Add method for getting values from configuration
+  * MediaObjectImpl: Allow getting values from configuration with a default value
+
+  [ Miguel París Díaz ]
+  * Revert "kmsagnosticbin: drop buffers until key frame when src pad is connected"
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 5.0.4
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Tue, 07 Oct 2014 13:18:19 +0200
+
 kms-core (5.0.3) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

@@ -5,13 +5,13 @@ Maintainer: Kurento Maintenance Team <kurento@googlegroups.com>
 Build-Depends: debhelper (>= 8.0.0),
  cmake,
  pkg-config,
- kms-cmake-utils (>= 1.0.1~6),
+ kms-cmake-utils (>= 1.0.1),
  libgstreamer1.0-dev (>= 1.4.0),
  kms-jsonrpc-dev (>> 0.1.0),
  libsigc++-2.0-dev,
  libglibmm-2.4-dev,
  libgstreamer-plugins-base1.0-dev (>= 1.4.0),
- kurento-module-creator (>= 3.0.5~16),
+ kurento-module-creator (>= 3.0.6),
  libvpx-dev,
  libboost-system-dev,
  libboost-filesystem-dev,
@@ -32,14 +32,15 @@ Depends:
  gstreamer1.0-plugins-good (>= 1.4.0),
  gstreamer1.0-plugins-ugly
 Breaks:
- kurento-media-server (<= 5.0.3~2)
+ kurento-media-server (<= 5.0.3~2),
+ kms-elements (<= 5.0.4~25)
 Description: Kurento core module
  Kurento core module and libraries
 
 Package: kms-core-dev
 Architecture: any
 Depends: kms-core (= ${binary:Version}),
- kms-cmake-utils (>= 1.0.1~6),
+ kms-cmake-utils (>= 1.0.1),
  libgstreamer1.0-dev (>= 1.4.0),
  kms-jsonrpc-dev (>> 0.1.0),
  libsigc++-2.0-dev,
@@ -47,7 +48,7 @@ Depends: kms-core (= ${binary:Version}),
  libgstreamer-plugins-base1.0-dev (>= 1.4.0),
  libboost-system-dev,
  libboost-filesystem-dev,
- kurento-module-creator (>= 3.0.5~16)
+ kurento-module-creator (>= 3.0.6)
 Description: Kurento core module
  Kurento core module and libraries development files
 
