@@ -53,6 +53,11 @@ protected:
     return config.get<T> ("modules." + dynamic_cast <C *>(this)->getModule() + "." + dynamic_cast <C *>(this)->getType() + "." + key );
   }
 
+  template <class T, class C>
+  T getConfigValue (const std::string &key, T defaultValue) {
+    return config.get<T> ("modules." + dynamic_cast <C *>(this)->getModule() + "." + dynamic_cast <C *>(this)->getType() + "." + key, defaultValue);
+  }
+
   boost::property_tree::ptree config;
 
 private:
