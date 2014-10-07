@@ -174,7 +174,7 @@ gst_base_rtp_get_depayloader_for_caps (GstCaps * caps)
 {
   GstElementFactory *factory;
   GstElement *depayloader = NULL;
-  GList *payloader_list, *filtered_list;
+  GList *payloader_list, *filtered_list, *l;
 
   payloader_list =
       gst_element_factory_list_get_elements
@@ -186,11 +186,23 @@ gst_base_rtp_get_depayloader_for_caps (GstCaps * caps)
   if (filtered_list == NULL)
     goto end;
 
-  factory = GST_ELEMENT_FACTORY (filtered_list->data);
-  if (factory == NULL)
-    goto end;
+  for (l = filtered_list; l != NULL; l = l->next) {
+    factory = GST_ELEMENT_FACTORY (l->data);
 
-  depayloader = gst_element_factory_create (factory, NULL);
+    if (factory == NULL)
+      continue;
+
+    if (g_strcmp0 (gst_plugin_feature_get_name (factory), "asteriskh263") == 0) {
+      /* Do not use asteriskh263 for H263 */
+      continue;
+    }
+
+    depayloader = gst_element_factory_create (factory, NULL);
+
+    if (depayloader != NULL) {
+      break;
+    }
+  }
 
 end:
   gst_plugin_feature_list_free (filtered_list);
