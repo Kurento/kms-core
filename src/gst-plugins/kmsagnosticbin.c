@@ -150,6 +150,22 @@ is_raw_caps (GstCaps * caps)
   return ret;
 }
 
+static GstPadProbeReturn
+tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_UPSTREAM) {
+    GstEvent *event = gst_pad_probe_info_get_event (info);
+
+    if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
+      // Request key frame to upstream elements
+      kms_utils_drop_until_keyframe (pad, TRUE);
+      return GST_PAD_PROBE_DROP;
+    }
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 static gboolean
 remove_on_unlinked_async (gpointer data)
 {
@@ -310,6 +326,9 @@ link_queue_to_tee_locked (GstElement * tee, GstElement * queue)
   remove_element_on_unlinked (queue, "src", "sink");
   g_signal_connect (tee_src, "unlinked", G_CALLBACK (remove_tee_pad_on_unlink),
       NULL);
+
+  gst_pad_add_probe (tee_src, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM, tee_src_probe,
+      NULL, NULL);
 
   ret = gst_pad_link_full (tee_src, queue_sink, GST_PAD_LINK_CHECK_NOTHING);
 
@@ -823,7 +842,6 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   }
 
   if (tee != NULL) {
-    kms_utils_drop_until_keyframe (pad, TRUE);
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
   }
 
