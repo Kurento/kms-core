@@ -20,6 +20,9 @@
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "kmsutils"
+#define LAST_KEY_FRAME_REQUEST_TIME "kmslastkeyframe"
+
+#define DEFAULT_KEYFRAME_DISPERSION 300000000   /* 300 ms */
 
 void
 kms_utils_set_valve_drop (GstElement * valve, gboolean drop)
@@ -240,10 +243,76 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 void
 kms_utils_manage_gaps (GstPad * pad)
 {
+  // TODO: Think about adding it here automatically or not
+  kms_utils_control_key_frames_request_duplicates (pad);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, discont_detection_probe,
       NULL, NULL);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
       gap_detection_probe, NULL, NULL);
+}
+
+static gboolean
+check_last_request_time (GstPad * pad)
+{
+  GstClockTime *last, now;
+  GstClock *clock;
+  GstElement *element = gst_pad_get_parent_element (pad);
+  gboolean ret = FALSE;
+
+  if (element == NULL) {
+    GST_ERROR_OBJECT (pad, "Cannot get parent object to get clock");
+    return TRUE;
+  }
+
+  clock = gst_element_get_clock (element);
+  now = gst_clock_get_time (clock);
+  g_object_unref (clock);
+  g_object_unref (element);
+
+  GST_OBJECT_LOCK (pad);
+
+  last = g_object_get_data (G_OBJECT (pad), LAST_KEY_FRAME_REQUEST_TIME);
+
+  if (last == NULL) {
+    last = g_slice_new (GstClockTime);
+    g_object_set_data_full (G_OBJECT (pad), LAST_KEY_FRAME_REQUEST_TIME, last,
+        (GDestroyNotify) kms_utils_destroy_GstClockTime);
+
+    *last = now;
+    ret = TRUE;
+  } else if (((*last) + DEFAULT_KEYFRAME_DISPERSION) < now) {
+    ret = TRUE;
+    *last = now;
+  }
+
+  GST_OBJECT_UNLOCK (pad);
+
+  return ret;
+}
+
+static GstPadProbeReturn
+control_duplicates (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+  if (gst_video_event_is_force_key_unit (event)) {
+    if (check_last_request_time (pad)) {
+      GST_TRACE_OBJECT (pad, "Sending keyframe request");
+      return GST_PAD_PROBE_OK;
+    } else {
+      GST_TRACE_OBJECT (pad, "Dropping keyframe request");
+      return GST_PAD_PROBE_DROP;
+    }
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+void
+kms_utils_control_key_frames_request_duplicates (GstPad * pad)
+{
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM, control_duplicates,
+      NULL, NULL);
 }
 
 static void init_debug (void) __attribute__ ((constructor));
