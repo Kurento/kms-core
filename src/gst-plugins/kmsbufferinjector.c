@@ -20,6 +20,7 @@
 #include "kmsbufferinjector.h"
 
 #define PLUGIN_NAME "bufferinjector"
+#define DEFAULT_WAITING_TIME (((GST_SECOND) / 15) / 1000)
 
 static GstStaticPadTemplate sinktemplate = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -53,11 +54,11 @@ G_DEFINE_TYPE_WITH_CODE (KmsBufferInjector, kms_buffer_injector,
 )
 
 #define KMS_BUFFER_INJECTOR_LOCK(obj) (                           \
-  g_mutex_lock (&KMS_BUFFER_INJECTOR (obj)->priv->thread_mutex)   \
+  g_rec_mutex_lock (&KMS_BUFFER_INJECTOR (obj)->priv->thread_mutex)   \
 )
 
 #define KMS_BUFFER_INJECTOR_UNLOCK(obj) (                         \
-  g_mutex_unlock (&KMS_BUFFER_INJECTOR (obj)->priv->thread_mutex) \
+  g_rec_mutex_unlock (&KMS_BUFFER_INJECTOR (obj)->priv->thread_mutex) \
 )
 
 typedef enum
@@ -68,12 +69,52 @@ typedef enum
 
 struct _KmsBufferInjectorPrivate
 {
-  GMutex thread_mutex;
+  GRecMutex thread_mutex;
   GstPad *sinkpad;
   GstPad *srcpad;
   gboolean configured;
+  gboolean still_waiting;
   MediaType type;
+  GstBuffer *previous_buffer;
+  GMutex mutex_generate;
+  GCond cond_generate;
+  gint64 wait_time;
 };
+
+static void
+kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
+{
+  gint64 end_time;
+
+  KMS_BUFFER_INJECTOR_LOCK (self);
+  if ((!self->priv->configured) || (self->priv->previous_buffer == NULL)) {
+    KMS_BUFFER_INJECTOR_UNLOCK (self);
+    return;
+  }
+
+  end_time = g_get_monotonic_time () + (2 * self->priv->wait_time);
+  KMS_BUFFER_INJECTOR_UNLOCK (self);
+
+  g_mutex_lock (&self->priv->mutex_generate);
+
+  if (!self->priv->still_waiting) {
+    g_mutex_unlock (&self->priv->mutex_generate);
+    return;
+  }
+
+  if (!g_cond_wait_until (&self->priv->cond_generate,
+          &self->priv->mutex_generate, end_time)) {
+    GstBuffer *copy;
+
+    //timeout reached, it is necessary to inject a new buffer
+    GST_DEBUG_OBJECT (self->priv->srcpad, "Injecting buffer");
+    KMS_BUFFER_INJECTOR_LOCK (self);
+    copy = gst_buffer_ref (self->priv->previous_buffer);
+    KMS_BUFFER_INJECTOR_UNLOCK (self);
+    gst_pad_push (self->priv->srcpad, copy);
+  }
+  g_mutex_unlock (&self->priv->mutex_generate);
+}
 
 static gboolean
 kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
@@ -103,19 +144,32 @@ kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
 static GstFlowReturn
 kms_buffer_injector_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 {
-  GstFlowReturn ret;
-  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);;
 
-  ret = gst_pad_push (buffer_injector->priv->srcpad, buffer);
+  KMS_BUFFER_INJECTOR_LOCK (buffer_injector);
+  if (!buffer_injector->priv->configured) {
+    gst_buffer_unref (buffer);
+    KMS_BUFFER_INJECTOR_UNLOCK (buffer_injector);
+    return GST_FLOW_OK;
+  }
 
-  return ret;
+  gst_buffer_replace (&buffer_injector->priv->previous_buffer, buffer);
+
+  KMS_BUFFER_INJECTOR_UNLOCK (buffer_injector);
+
+  //wake up pad task
+  g_mutex_lock (&buffer_injector->priv->mutex_generate);
+  g_cond_signal (&buffer_injector->priv->cond_generate);
+  g_mutex_unlock (&buffer_injector->priv->mutex_generate);
+
+  return gst_pad_push (buffer_injector->priv->srcpad, buffer);
 }
 
 static gboolean
 kms_buffer_injector_handle_sink_event (GstPad * pad, GstObject * parent,
     GstEvent * event)
 {
-  KmsBufferInjector *buffer_injector;
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);
 
   buffer_injector = KMS_BUFFER_INJECTOR (parent);
 
@@ -128,6 +182,33 @@ kms_buffer_injector_handle_sink_event (GstPad * pad, GstObject * parent,
   }
 
   return gst_pad_event_default (pad, parent, event);
+}
+
+static gboolean
+kms_buffer_injector_activate_mode (GstPad * pad, GstObject * parent,
+    GstPadMode mode, gboolean active)
+{
+  gboolean res;
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);
+
+  switch (mode) {
+    case GST_PAD_MODE_PUSH:
+      if (active) {
+        res = gst_pad_start_task (pad,
+            (GstTaskFunction) kms_buffer_injector_generate_buffers,
+            buffer_injector, NULL);
+      } else {
+        res = gst_pad_stop_task (pad);
+      }
+      break;
+    case GST_PAD_MODE_PULL:
+      res = TRUE;
+      break;
+    default:
+      res = FALSE;
+      break;
+  }
+  return res;
 }
 
 static void
@@ -146,17 +227,52 @@ kms_buffer_injector_init (KmsBufferInjector * self)
 
   self->priv->srcpad = gst_pad_new_from_static_template (&srctemplate, "src");
   gst_element_add_pad (GST_ELEMENT (self), self->priv->srcpad);
+  GST_PAD_SET_PROXY_CAPS (self->priv->srcpad);
 
-  g_mutex_init (&self->priv->thread_mutex);
+  gst_pad_set_activatemode_function (self->priv->srcpad,
+      kms_buffer_injector_activate_mode);
+
+  g_rec_mutex_init (&self->priv->thread_mutex);
+  g_mutex_init (&self->priv->mutex_generate);
+  g_cond_init (&self->priv->cond_generate);
+
+  self->priv->wait_time = DEFAULT_WAITING_TIME;
+  self->priv->configured = FALSE;
+  self->priv->still_waiting = TRUE;
+}
+
+static GstStateChangeReturn
+kms_buffer_injector_change_state (GstElement * element,
+    GstStateChange transition)
+{
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (element);
+  GstStateChangeReturn ret = GST_STATE_CHANGE_SUCCESS;
+
+  switch (transition) {
+    case GST_STATE_CHANGE_PAUSED_TO_READY:
+      g_mutex_lock (&buffer_injector->priv->mutex_generate);
+      buffer_injector->priv->still_waiting = FALSE;
+      g_cond_signal (&buffer_injector->priv->cond_generate);
+      g_mutex_unlock (&buffer_injector->priv->mutex_generate);
+      gst_pad_pause_task (buffer_injector->priv->srcpad);
+      break;
+    default:
+      break;
+  }
+
+  ret = GST_ELEMENT_CLASS (parent_class)->change_state (element, transition);
+
+  return ret;
 }
 
 static void
 kms_buffer_injector_finalize (GObject * object)
 {
-  KmsBufferInjector *self = KMS_BUFFER_INJECTOR (object);
+  KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (object);
 
-  g_mutex_clear (&self->priv->thread_mutex);
-
+  g_rec_mutex_clear (&buffer_injector->priv->thread_mutex);
+  g_mutex_clear (&buffer_injector->priv->mutex_generate);
+  g_cond_clear (&buffer_injector->priv->cond_generate);
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
@@ -171,6 +287,8 @@ kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
 
+  gstelement_class->change_state = kms_buffer_injector_change_state;
+
   gst_element_class_set_details_simple (gstelement_class,
       "Buffer injector",
       "Generic/Bin/Connector",
@@ -184,6 +302,7 @@ kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
 
   GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_chain);
   GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_handle_sink_event);
+  GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_activate_mode);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
