@@ -38,8 +38,20 @@ G_DEFINE_TYPE (KmsAgnosticBin3, kms_agnostic_bin3, GST_TYPE_BIN);
 
 struct _KmsAgnosticBin3Private
 {
+  GMutex mutex;
+  GSList *agnosticbins;
+
   guint src_pad_count;
+  guint sink_pad_count;
 };
+
+#define KMS_AGNOSTIC_BIN3_LOCK(obj) (                    \
+  g_mutex_lock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex)   \
+)
+
+#define KMS_AGNOSTIC_BIN3_UNLOCK(obj) (                  \
+  g_mutex_unlock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex) \
+)
 
 #define AGNOSTICBIN3_SINK_PAD_PREFIX  "sink_"
 #define AGNOSTICBIN3_SRC_PAD_PREFIX  "src_"
@@ -63,13 +75,62 @@ GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
     );
 
 static GstPad *
+kms_agnostic_bin3_request_sink_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
+{
+  KmsAgnosticBin3 *self = KMS_AGNOSTIC_BIN3 (element);
+  GstElement *agnosticbin;
+  GstPad *target, *pad = NULL;
+  gchar *padname;
+
+  agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
+
+  gst_bin_add (GST_BIN (self), agnosticbin);
+  gst_element_sync_state_with_parent (agnosticbin);
+
+  target = gst_element_get_static_pad (agnosticbin, "sink");
+
+  padname = g_strdup_printf (AGNOSTICBIN3_SINK_PAD,
+      g_atomic_int_add (&self->priv->sink_pad_count, 1));
+
+  pad = gst_ghost_pad_new (padname, target);
+
+  if (GST_STATE (element) >= GST_STATE_PAUSED
+      || GST_STATE_PENDING (element) >= GST_STATE_PAUSED
+      || GST_STATE_TARGET (element) >= GST_STATE_PAUSED) {
+    gst_pad_set_active (pad, TRUE);
+  }
+
+  gst_element_add_pad (element, pad);
+
+  g_free (padname);
+  g_object_unref (target);
+
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
+  self->priv->agnosticbins = g_slist_prepend (self->priv->agnosticbins,
+      agnosticbin);
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
+
+  return pad;
+}
+
+static GstPad *
 kms_agnostic_bin3_request_new_pad (GstElement * element,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
 {
-  /* TODO: */
-  GST_DEBUG_OBJECT (element, "Create pad");
-
-  return NULL;
+  if (templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (element)), AGNOSTICBIN3_SINK_PAD)) {
+    return kms_agnostic_bin3_request_sink_pad (element, templ, name, caps);
+  } else if (templ ==
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (element)), AGNOSTICBIN3_SRC_PAD)) {
+    return NULL;
+  } else {
+    return NULL;
+  }
 }
 
 static void
@@ -80,9 +141,24 @@ kms_agnostic_bin3_release_pad (GstElement * element, GstPad * pad)
 }
 
 static void
+kms_agnostic_bin3_finalize (GObject * object)
+{
+  KmsAgnosticBin3 *self = KMS_AGNOSTIC_BIN3 (object);
+
+  g_slist_free (self->priv->agnosticbins);
+  g_mutex_clear (&self->priv->mutex);
+
+  G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
 kms_agnostic_bin3_class_init (KmsAgnosticBin3Class * klass)
 {
+  GObjectClass *gobject_class;
   GstElementClass *gstelement_class;
+
+  gobject_class = G_OBJECT_CLASS (klass);
+  gobject_class->finalize = kms_agnostic_bin3_finalize;
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
 
@@ -111,6 +187,7 @@ static void
 kms_agnostic_bin3_init (KmsAgnosticBin3 * self)
 {
   self->priv = KMS_AGNOSTIC_BIN3_GET_PRIVATE (self);
+  g_mutex_init (&self->priv->mutex);
 
   g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 }
