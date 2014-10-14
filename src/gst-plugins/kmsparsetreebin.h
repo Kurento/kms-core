@@ -50,5 +50,8 @@ struct _KmsParseTreeBinClass
 
 GType kms_parse_tree_bin_get_type (void);
 
+KmsParseTreeBin * kms_parse_tree_bin_new (const GstCaps * caps);
+GstElement * kms_parse_tree_bin_get_parser (KmsParseTreeBin * self);
+
 G_END_DECLS
 #endif /* __KMS_PARSE_TREE_BIN_H__ */

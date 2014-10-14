@@ -21,6 +21,7 @@
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
 #include "kmsloop.h"
+#include "kmsparsetreebin.h"
 #include "kmsdectreebin.h"
 
 #define PLUGIN_NAME "agnosticbin"
@@ -70,7 +71,6 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 
 #define CUSTOM_BIN_INPUT_QUEUE_NAME "input_queue"
 #define CUSTOM_BIN_OUTPUT_TEE_NAME "output_tee"
-#define INPUT_BIN_NAME_PREFIX "input_bin"
 #define ENC_BIN_NAME_PREFIX "enc_bin"
 
 struct _KmsAgnosticBin2Private
@@ -83,7 +83,6 @@ struct _KmsAgnosticBin2Private
   GstElement *input_tee;
   GstCaps *input_caps;
   GstBin *input_bin;
-  guint input_bin_n;
   GstCaps *input_bin_src_caps;
 
   guint enc_bin_n;
@@ -584,37 +583,6 @@ kms_agnostic_bin2_get_raw_caps (GstCaps * caps)
   return raw_caps;
 }
 
-static GstElement *
-create_parser_for_caps (GstCaps * caps)
-{
-  GList *parser_list, *filtered_list, *l;
-  GstElementFactory *parser_factory = NULL;
-  GstElement *parser = NULL;
-
-  parser_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_PARSER |
-      GST_ELEMENT_FACTORY_TYPE_MEDIA_VIDEO, GST_RANK_NONE + 1);
-  filtered_list =
-      gst_element_factory_list_filter (parser_list, caps, GST_PAD_SINK, FALSE);
-
-  for (l = filtered_list; l != NULL && parser_factory == NULL; l = l->next) {
-    parser_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (parser_factory) != 2)
-      parser_factory = NULL;
-  }
-
-  if (parser_factory != NULL) {
-    parser = gst_element_factory_create (parser_factory, NULL);
-  } else {
-    parser = gst_element_factory_make ("capsfilter", NULL);
-  }
-
-  gst_plugin_feature_list_free (filtered_list);
-  gst_plugin_feature_list_free (parser_list);
-
-  return parser;
-}
-
 static GstBin *
 kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
     const GstCaps * raw_caps)
@@ -785,10 +753,9 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_bin_add (GST_BIN (self), GST_ELEMENT (enc_bin));
   gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
-  output_tee = gst_bin_get_by_name (dec_bin, CUSTOM_BIN_OUTPUT_TEE_NAME);
+  output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
   input_queue = gst_bin_get_by_name (enc_bin, CUSTOM_BIN_INPUT_QUEUE_NAME);
   link_queue_to_tee (output_tee, input_queue);
-  g_object_unref (output_tee);
   g_object_unref (input_queue);
 
   kms_agnostic_bin2_insert_bin (self, enc_bin);
@@ -952,8 +919,6 @@ iterate_src_pads (KmsAgnosticBin2 * self, KmsPadIterationAction action)
   gst_iterator_free (it);
 }
 
-/* InputBin begin */
-
 static void
 unlink_input_queue_from_tee (GstElement * input_queue)
 {
@@ -1047,46 +1012,12 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
   return GST_PAD_PROBE_REMOVE;
 }
 
-static GstBin *
-input_bin_new (KmsAgnosticBin2 * agnostic, GstCaps * caps)
-{
-  GstBin *bin;
-  guint n;
-  gchar *name;
-  GstElement *input_queue, *parser, *tee, *queue, *fakesink;
-  GstPad *parser_src;
-
-  n = g_atomic_int_add (&agnostic->priv->input_bin_n, 1);
-  name = g_strdup_printf ("%s_%" G_GUINT32_FORMAT, INPUT_BIN_NAME_PREFIX, n);
-  bin = GST_BIN (gst_bin_new (name));
-  g_free (name);
-
-  input_queue = gst_element_factory_make ("queue", CUSTOM_BIN_INPUT_QUEUE_NAME);
-  parser = create_parser_for_caps (caps);
-  tee = gst_element_factory_make ("tee", CUSTOM_BIN_OUTPUT_TEE_NAME);
-  queue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
-
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakesink, "async", FALSE, NULL);
-
-  parser_src = gst_element_get_static_pad (parser, "src");
-  gst_pad_add_probe (parser_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      input_bin_src_caps_probe, g_object_ref (bin), g_object_unref);
-  g_object_unref (parser_src);
-
-  gst_bin_add_many (bin, input_queue, parser, tee, queue, fakesink, NULL);
-  gst_element_link_many (input_queue, parser, tee, queue, fakesink, NULL);
-
-  return bin;
-}
-
-/* InputBin end */
-
 static void
-kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, GstCaps * caps)
+kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 {
+  KmsParseTreeBin *parse_bin;
+  GstElement *parser;
+  GstPad *parser_src;
   GstElement *input_queue;
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
@@ -1097,13 +1028,20 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, GstCaps * caps)
     gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
   }
 
-  self->priv->input_bin = input_bin_new (self, caps);
-  gst_bin_add (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
-  gst_element_sync_state_with_parent (GST_ELEMENT (self->priv->input_bin));
-  input_queue = gst_bin_get_by_name (self->priv->input_bin,
-      CUSTOM_BIN_INPUT_QUEUE_NAME);
+  parse_bin = kms_parse_tree_bin_new (caps);
+  self->priv->input_bin = GST_BIN (parse_bin);
+
+  parser = kms_parse_tree_bin_get_parser (KMS_PARSE_TREE_BIN (parse_bin));
+  parser_src = gst_element_get_static_pad (parser, "src");
+  gst_pad_add_probe (parser_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      input_bin_src_caps_probe, g_object_ref (parse_bin), g_object_unref);
+  g_object_unref (parser_src);
+
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (parse_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
+
+  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (parse_bin));
   gst_element_link (self->priv->input_tee, input_queue);
-  gst_object_unref (input_queue);
 
   self->priv->started = FALSE;
   g_hash_table_remove_all (self->priv->bins);
