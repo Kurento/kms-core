@@ -18,6 +18,7 @@
 #endif
 
 #include "kmsagnosticbin3.h"
+#include "kmsagnosticcaps.h"
 
 #define PLUGIN_NAME "agnosticbin3"
 
@@ -40,6 +41,44 @@ struct _KmsAgnosticBin3Private
   guint src_pad_count;
 };
 
+#define AGNOSTICBIN3_SINK_PAD_PREFIX  "sink_"
+#define AGNOSTICBIN3_SRC_PAD_PREFIX  "src_"
+
+#define AGNOSTICBIN3_SINK_PAD AGNOSTICBIN3_SINK_PAD_PREFIX "%u"
+#define AGNOSTICBIN3_SRC_PAD AGNOSTICBIN3_SRC_PAD_PREFIX "%u"
+
+/* the capabilities of the inputs and outputs. */
+static GstStaticPadTemplate sink_factory =
+GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SINK_PAD,
+    GST_PAD_SINK,
+    GST_PAD_REQUEST,
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    );
+
+static GstStaticPadTemplate src_factory =
+GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
+    GST_PAD_SRC,
+    GST_PAD_REQUEST,
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    );
+
+static GstPad *
+kms_agnostic_bin3_request_new_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
+{
+  /* TODO: */
+  GST_DEBUG_OBJECT (element, "Create pad");
+
+  return NULL;
+}
+
+static void
+kms_agnostic_bin3_release_pad (GstElement * element, GstPad * pad)
+{
+  /* TODO: */
+  GST_DEBUG_OBJECT (element, "Release pad");
+}
+
 static void
 kms_agnostic_bin3_class_init (KmsAgnosticBin3Class * klass)
 {
@@ -52,6 +91,16 @@ kms_agnostic_bin3_class_init (KmsAgnosticBin3Class * klass)
       "Generic/Bin/Connector",
       "Automatically encodes/decodes media to match sink and source pads caps",
       "Santiago Carot-Nemesio <sancane_at_gmail_dot_com>");
+
+  gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&src_factory));
+  gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&sink_factory));
+
+  gstelement_class->request_new_pad =
+      GST_DEBUG_FUNCPTR (kms_agnostic_bin3_request_new_pad);
+  gstelement_class->release_pad =
+      GST_DEBUG_FUNCPTR (kms_agnostic_bin3_release_pad);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
