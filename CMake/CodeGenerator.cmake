@@ -792,6 +792,13 @@ function (generate_kurento_libraries)
       message (WARNING "LICENSE file on project root directory is missing")
     endif()
 
+    if (EXISTS ${PARAM_MODELS}/Gruntfile.js)
+      file (READ ${PARAM_MODELS}/Gruntfile.js GRUNTFILE)
+      file (WRITE ${CMAKE_BINARY_DIR}/js/Gruntfile.js ${GRUNTFILE})
+    else()
+      message (WARNING "Gruntfile.js file on ${PARAM_MODELS} is missing")
+    endif()
+
     if (${Npm_FOUND})
       add_custom_target(js
         COMMAND ${Npm_EXECUTABLE} pack
