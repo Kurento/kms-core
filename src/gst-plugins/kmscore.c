@@ -16,6 +16,7 @@
 #include <gst/gst.h>
 
 #include <kmsagnosticbin.h>
+#include <kmsagnosticbin3.h>
 #include <kmshubport.h>
 #include <kmsfilterelement.h>
 #include <kmsaudiomixer.h>
@@ -27,6 +28,9 @@ static gboolean
 kurento_init (GstPlugin * kurento)
 {
   if (!kms_agnostic_bin2_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_agnostic_bin3_plugin_init (kurento))
     return FALSE;
 
   if (!kms_filter_element_plugin_init (kurento))
