@@ -17,6 +17,7 @@
 
 #include <gst/gst.h>
 #include <KurentoException.hpp>
+#include <MediaPipelineImpl.hpp>
 
 /* This is included to avoid problems with slots and lamdas */
 #include <type_traits>
@@ -485,6 +486,64 @@ bool
 MediaSet::empty()
 {
   return objectsMap.empty();
+}
+
+std::list<std::string>
+MediaSet::getSessions ()
+{
+  std::list<std::string> ret;
+
+  for (auto it : sessionMap) {
+    ret.push_back (it.first);
+  }
+
+  return ret;
+}
+
+static void
+store_pipelines (std::list<std::shared_ptr<MediaObjectImpl>> &list, std::map<std::string, std::shared_ptr<MediaObjectImpl>> &map)
+{
+  for (auto it : map) {
+    if (std::dynamic_pointer_cast <MediaPipelineImpl> (it.second)) {
+      list.push_back (it.second);
+    }
+  }
+}
+
+std::list<std::shared_ptr<MediaObjectImpl>>
+MediaSet::getPipelines (const std::string &sessionId)
+{
+  std::list<std::shared_ptr<MediaObjectImpl>> ret;
+
+  try {
+    if (sessionId.empty ()) {
+      for (auto it : sessionMap) {
+        store_pipelines (ret, it.second);
+      }
+    } else {
+      store_pipelines (ret, sessionMap.at (sessionId));
+    }
+  } catch (std::out_of_range) {
+    GST_ERROR ("Cannot get session %s", sessionId.c_str());
+  }
+
+  return ret;
+}
+
+std::list<std::shared_ptr<MediaObjectImpl>>
+MediaSet::getChilds (std::shared_ptr<MediaObjectImpl> obj)
+{
+  std::list<std::shared_ptr<MediaObjectImpl>> ret;
+
+  try {
+    for (auto it : childrenMap.at (obj->getId())) {
+      ret.push_back (it.second);
+    }
+  } catch (std::out_of_range) {
+    GST_ERROR ("Cannot get childrens of object %s", obj->getId().c_str());
+  }
+
+  return ret;
 }
 
 MediaSet::StaticConstructor MediaSet::staticConstructor;

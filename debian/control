@@ -32,8 +32,8 @@ Depends:
  gstreamer1.0-plugins-good (>= 1.4.0),
  gstreamer1.0-plugins-ugly
 Breaks:
- kurento-media-server (<= 5.0.3~2),
- kms-elements (<= 5.0.4~25)
+ kurento-media-server (<= 5.0.5~3),
+ kms-elements (<= 5.0.5~6)
 Description: Kurento core module
  Kurento core module and libraries
 
