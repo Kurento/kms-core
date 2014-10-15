@@ -89,7 +89,7 @@ ModuleManager::loadModule (std::string modulePath)
     moduleName = ( (GetVersionFunc) getName) ();
   }
 
-  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion) );
+  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion, factories) );
 
   GST_INFO ("Loaded %s version %s", moduleName.c_str() , moduleVersion.c_str() );
 
