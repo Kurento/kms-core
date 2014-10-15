@@ -501,46 +501,47 @@ MediaSet::getSessions ()
 }
 
 static void
-store_pipelines (std::list<std::shared_ptr<MediaObjectImpl>> &list, std::map<std::string, std::shared_ptr<MediaObjectImpl>> &map)
+store_pipelines (std::list<std::shared_ptr<MediaObjectImpl>> &list,
+                 std::map<std::string, std::shared_ptr<MediaObjectImpl>> &map)
 {
   for (auto it : map) {
-    if (std::dynamic_pointer_cast <MediaPipelineImpl> (it.second)) {
+    if (std::dynamic_pointer_cast <MediaPipelineImpl> (it.second) ) {
       list.push_back (it.second);
     }
   }
 }
 
 std::list<std::shared_ptr<MediaObjectImpl>>
-MediaSet::getPipelines (const std::string &sessionId)
+    MediaSet::getPipelines (const std::string &sessionId)
 {
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
   try {
-    if (sessionId.empty ()) {
+    if (sessionId.empty () ) {
       for (auto it : sessionMap) {
         store_pipelines (ret, it.second);
       }
     } else {
-      store_pipelines (ret, sessionMap.at (sessionId));
+      store_pipelines (ret, sessionMap.at (sessionId) );
     }
   } catch (std::out_of_range) {
-    GST_ERROR ("Cannot get session %s", sessionId.c_str());
+    GST_ERROR ("Cannot get session %s", sessionId.c_str() );
   }
 
   return ret;
 }
 
 std::list<std::shared_ptr<MediaObjectImpl>>
-MediaSet::getChilds (std::shared_ptr<MediaObjectImpl> obj)
+    MediaSet::getChilds (std::shared_ptr<MediaObjectImpl> obj)
 {
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
   try {
-    for (auto it : childrenMap.at (obj->getId())) {
+    for (auto it : childrenMap.at (obj->getId() ) ) {
       ret.push_back (it.second);
     }
   } catch (std::out_of_range) {
-    GST_ERROR ("Cannot get childrens of object %s", obj->getId().c_str());
+    GST_ERROR ("Cannot get childrens of object %s", obj->getId().c_str() );
   }
 
   return ret;

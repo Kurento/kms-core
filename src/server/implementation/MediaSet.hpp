@@ -66,8 +66,10 @@ public:
     const std::string &sessionId, const std::string &mediaObjectRef);
 
   std::list<std::string> getSessions ();
-  std::list<std::shared_ptr<MediaObjectImpl>> getPipelines (const std::string &sessionId = "");
-  std::list<std::shared_ptr<MediaObjectImpl>> getChilds (std::shared_ptr<MediaObjectImpl> obj);
+  std::list<std::shared_ptr<MediaObjectImpl>> getPipelines (
+        const std::string &sessionId = "");
+  std::list<std::shared_ptr<MediaObjectImpl>> getChilds (
+        std::shared_ptr<MediaObjectImpl> obj);
 
   bool empty();
 
