@@ -15,7 +15,8 @@ class ServerImpl;
 
 namespace kurento
 {
-void Serialize (std::shared_ptr<kurento::ServerImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<kurento::ServerImpl> &object,
+                JsonSerializer &serializer);
 } /* kurento */
 
 namespace kurento
@@ -32,7 +33,8 @@ class ServerImpl : public MediaObjectImpl, public virtual Server
 
 public:
 
-  ServerImpl (const boost::property_tree::ptree &config);
+  ServerImpl (const std::shared_ptr<ServerInfo> info,
+              const boost::property_tree::ptree &config);
 
   virtual ~ServerImpl () {};
 
@@ -43,7 +45,8 @@ public:
   virtual std::vector<std::string> getSessions ();
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, ObjectCreated> signalObjectCreated;
   sigc::signal<void, ObjectDestroyed> signalObjectDestroyed;
@@ -54,6 +57,8 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  std::shared_ptr<ServerInfo> info;
 
   class StaticConstructor
   {

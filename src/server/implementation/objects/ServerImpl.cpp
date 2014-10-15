@@ -6,6 +6,7 @@
 #include "ServerImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
+#include <MediaSet.hpp>
 
 #define GST_CAT_DEFAULT kurento_server_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -14,27 +15,31 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-ServerImpl::ServerImpl (const boost::property_tree::ptree &config) : MediaObjectImpl (config)
+ServerImpl::ServerImpl (const std::shared_ptr<ServerInfo> info,
+                        const boost::property_tree::ptree &config) : MediaObjectImpl (config),
+  info (info)
 {
-  // FIXME: Implement this
 }
 
 std::shared_ptr<ServerInfo> ServerImpl::getInfo ()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "ServerImpl::getinfo: Not implemented");
+  return info;
 }
 
-std::vector<std::shared_ptr<MediaPipeline>> ServerImpl::getPipelines ()
+std::vector<std::shared_ptr<MediaPipeline> > ServerImpl::getPipelines()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "ServerImpl::getpipelines: Not implemented");
+  std::vector<std::shared_ptr<MediaPipeline>> ret;
+
+  for (auto it : MediaSet::getMediaSet ()->getPipelines() ) {
+    ret.push_back (std::dynamic_pointer_cast <MediaPipeline> (it) );
+  }
+
+  return ret;
 }
 
 std::vector<std::string> ServerImpl::getSessions ()
 {
-  // FIXME: Implement this
-  throw KurentoException (NOT_IMPLEMENTED, "ServerImpl::getsessions: Not implemented");
+  return MediaSet::getMediaSet ()->getSessions();
 }
 
 ServerImpl::StaticConstructor ServerImpl::staticConstructor;
