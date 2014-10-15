@@ -528,10 +528,12 @@
       "properties": [
         {
           "name": "codec",
+          "doc": "Audio codec",
           "type" : "AudioCodec"
         },
         {
           "name": "bitrate",
+          "doc": "Bitrate",
           "type" : "int"
         }
       ],
@@ -543,10 +545,12 @@
       "properties": [
         {
           "name": "codec",
+          "doc": "Video codec",
           "type" : "VideoCodec"
         },
         {
           "name": "framerate",
+          "doc": "Framerate",
           "type" : "Fraction"
         }
       ],
