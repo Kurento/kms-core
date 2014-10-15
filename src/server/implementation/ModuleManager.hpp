@@ -44,6 +44,11 @@ public:
     return version;
   }
 
+  const std::map <std::string, std::shared_ptr <kurento::Factory > > &getFactories() {
+    return factories;
+  }
+
+
 private:
   std::string name;
   std::string version;
