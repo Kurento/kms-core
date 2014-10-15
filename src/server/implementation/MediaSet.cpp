@@ -488,10 +488,10 @@ MediaSet::empty()
   return objectsMap.empty();
 }
 
-std::list<std::string>
+std::vector<std::string>
 MediaSet::getSessions ()
 {
-  std::list<std::string> ret;
+  std::vector<std::string> ret (sessionMap.size () );
 
   for (auto it : sessionMap) {
     ret.push_back (it.first);
