@@ -19,6 +19,7 @@
 
 #include "kmsagnosticbin3.h"
 #include "kmsagnosticcaps.h"
+#include "kms-core-marshal.h"
 
 #define PLUGIN_NAME "agnosticbin3"
 
@@ -52,6 +53,15 @@ struct _KmsAgnosticBin3Private
 #define KMS_AGNOSTIC_BIN3_UNLOCK(obj) (                      \
   g_rec_mutex_unlock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex) \
 )
+
+/* Object signals */
+enum
+{
+  SIGNAL_CAPS,
+  LAST_SIGNAL
+};
+
+static guint agnosticbin3_signals[LAST_SIGNAL] = { 0 };
 
 #define AGNOSTICBIN3_SINK_PAD_PREFIX  "sink_"
 #define AGNOSTICBIN3_SRC_PAD_PREFIX  "src_"
@@ -177,6 +187,14 @@ kms_agnostic_bin3_class_init (KmsAgnosticBin3Class * klass)
       GST_DEBUG_FUNCPTR (kms_agnostic_bin3_request_new_pad);
   gstelement_class->release_pad =
       GST_DEBUG_FUNCPTR (kms_agnostic_bin3_release_pad);
+
+  /* set signals */
+  agnosticbin3_signals[SIGNAL_CAPS] =
+      g_signal_new ("caps",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsAgnosticBin3Class, caps_signal), NULL, NULL,
+      __kms_core_marshal_BOOLEAN__BOXED, G_TYPE_BOOLEAN, 1, GST_TYPE_CAPS);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 

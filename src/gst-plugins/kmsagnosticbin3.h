@@ -46,6 +46,9 @@ struct _KmsAgnosticBin3
 struct _KmsAgnosticBin3Class
 {
   GstBinClass parent_class;
+
+  /* signals */
+  gboolean (*caps_signal) (KmsAgnosticBin3 * self, GstCaps *caps);
 };
 
 GType kms_agnostic_bin3_get_type (void);
