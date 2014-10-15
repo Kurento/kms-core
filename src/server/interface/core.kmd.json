@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "5.0.5-dev",
+  "version": "5.1.0-dev",
   "code": {
     "kmd": {
       "java": {
@@ -51,6 +51,36 @@
       ],
       "events": [
         "Error"
+      ]
+    },
+    {
+      "name": "Server",
+      "doc": "This is a standalone object that represents the server",
+      "abstract": true,
+      "extends": "MediaObject",
+      "properties": [
+        {
+          "name": "info",
+          "doc": "Server information, version, modules, factories, etc",
+          "type": "ServerInfo",
+          "readOnly": true
+        },
+        {
+          "name": "pipelines",
+          "doc": "All the pipelines available in the server",
+          "type": "MediaPipeline[]",
+          "readOnly": true
+        },
+        {
+          "name": "sessions",
+          "doc": "All active sessions in the server",
+          "type": "String[]",
+          "readOnly": true
+        }
+      ],
+      "events": [
+        "ObjectCreated",
+        "ObjectDestroyed"
       ]
     },
     {
@@ -379,6 +409,64 @@
   ],
   "complexTypes": [
     {
+      "typeFormat": "REGISTER",
+      "name": "ServerInfo",
+      "doc": "Description of the mediaserver",
+      "properties": [
+        {
+          "name": "version",
+          "doc": "MediaServer version",
+          "type": "String"
+        },
+        {
+          "name": "modules",
+          "doc": "Descriptor of all modules loaded by the server",
+          "type": "ModuleInfo[]"
+        },
+        {
+          "name": "type",
+          "doc": "Describes the type of mediaserver",
+          "type": "ServerType"
+        },
+        {
+          "name": "capabilities",
+          "doc": "Describes the capabilities that this server supports",
+          "type": "String[]"
+        }
+      ]
+    },
+    {
+      "name": "ServerType",
+      "typeFormat": "ENUM",
+      "doc": "Indicates if the server is a real media server or a proxy",
+      "values": [
+        "KMS",
+        "KCS"
+      ]
+    },
+    {
+      "typeFormat": "REGISTER",
+      "name": "ModuleInfo",
+      "doc": "Description of a loaded modules",
+      "properties": [
+        {
+          "name": "version",
+          "doc": "Module version",
+          "type": "String"
+        },
+        {
+          "name": "name",
+          "doc": "Module name",
+          "type": "String"
+        },
+        {
+          "name": "factories",
+          "doc": "Module available factories",
+          "type": "String[]"
+        }
+      ]
+    },
+    {
       "typeFormat": "ENUM",
       "values": [
         "AUDIO",
@@ -520,6 +608,28 @@
       ],
       "name": "Media",
       "doc": "Base for all events raised by elements in the Kurento media server."
+    },
+    {
+      "name": "ObjectCreated",
+      "doc": "Indicates that an object has been created on the mediaserver",
+      "properties": [
+        {
+          "name": "object",
+          "doc": "The object that has been created",
+          "type": "MediaObject"
+        }
+      ]
+    },
+    {
+      "name": "ObjectDestroyed",
+      "doc": "Indicates that an object has been destroyed on the mediaserver",
+      "properties": [
+        {
+          "name": "object",
+          "doc": "The object that has been destroyed",
+          "type": "MediaObject"
+        }
+      ]
     }
   ]
 }
