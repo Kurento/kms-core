@@ -17,6 +17,10 @@
 
 #include "gst/gst.h"
 
+typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer * data);
+void kms_element_for_each_src_pad (GstElement * element,
+  KmsPadIterationAction action, gpointer data);
+
 void kms_utils_set_valve_drop (GstElement * valve, gboolean drop);
 void kms_utils_debug_graph_delay (GstBin * bin, guint interval);
 gboolean kms_is_valid_uri (const gchar * url);

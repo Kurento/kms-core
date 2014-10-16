@@ -388,6 +388,35 @@ kms_utils_control_key_frames_request_duplicates (GstPad * pad)
       NULL, NULL);
 }
 
+void
+kms_element_for_each_src_pad (GstElement * element,
+    KmsPadIterationAction action, gpointer data)
+{
+  GstIterator *it = gst_element_iterate_src_pads (element);
+  gboolean done = FALSE;
+  GstPad *pad;
+  GValue item = G_VALUE_INIT;
+
+  while (!done) {
+    switch (gst_iterator_next (it, &item)) {
+      case GST_ITERATOR_OK:
+        pad = g_value_get_object (&item);
+        action (pad, data);
+        g_value_reset (&item);
+        break;
+      case GST_ITERATOR_RESYNC:
+        gst_iterator_resync (it);
+        break;
+      case GST_ITERATOR_ERROR:
+      case GST_ITERATOR_DONE:
+        done = TRUE;
+        break;
+    }
+  }
+
+  gst_iterator_free (it);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

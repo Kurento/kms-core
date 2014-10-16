@@ -98,8 +98,6 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
     GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
     );
 
-typedef void (*KmsPadIterationAction) (KmsAgnosticBin2 * self, GstPad * pad);
-
 static void
 kms_agnostic_bin2_insert_bin (KmsAgnosticBin2 * self, GstBin * bin)
 {
@@ -732,35 +730,7 @@ kms_agnostic_bin2_add_pad_to_queue (KmsAgnosticBin2 * self, GstPad * pad)
 }
 
 static void
-iterate_src_pads (KmsAgnosticBin2 * self, KmsPadIterationAction action)
-{
-  GstIterator *it = gst_element_iterate_src_pads (GST_ELEMENT (self));
-  gboolean done = FALSE;
-  GstPad *pad;
-  GValue item = G_VALUE_INIT;
-
-  while (!done) {
-    switch (gst_iterator_next (it, &item)) {
-      case GST_ITERATOR_OK:
-        pad = g_value_get_object (&item);
-        action (self, pad);
-        g_value_reset (&item);
-        break;
-      case GST_ITERATOR_RESYNC:
-        gst_iterator_resync (it);
-        break;
-      case GST_ITERATOR_ERROR:
-      case GST_ITERATOR_DONE:
-        done = TRUE;
-        break;
-    }
-  }
-
-  gst_iterator_free (it);
-}
-
-static void
-add_linked_pads (KmsAgnosticBin2 * self, GstPad * pad)
+add_linked_pads (GstPad * pad, KmsAgnosticBin2 * self)
 {
   if (!gst_pad_is_linked (pad)) {
     return;
@@ -796,7 +766,8 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
   GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
       current_caps);
 
-  iterate_src_pads (self, add_linked_pads);
+  kms_element_for_each_src_pad (GST_ELEMENT(self),
+    (KmsPadIterationAction) add_linked_pads, self);
 
   kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_HIGH,
       kms_agnostic_bin2_process_pad_loop, g_object_ref (self), g_object_unref);
