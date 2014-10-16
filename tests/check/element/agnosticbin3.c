@@ -184,6 +184,129 @@ GST_START_TEST (create_src_pad_test_with_caps)
   fail_unless (success, "No signal catched");
 }
 
+GST_END_TEST static gboolean
+connect_source_without_caps (GstElement * agnosticbin)
+{
+  GstElement *src = gst_element_factory_make ("videotestsrc", NULL);
+
+  g_object_set (G_OBJECT (src), "is-live", TRUE, NULL);
+
+  gst_bin_add (GST_BIN (pipeline), src);
+
+  GST_DEBUG ("Connecting %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, src,
+      agnosticbin);
+
+  if (!gst_element_link_pads (src, "src", agnosticbin, "sink_%u")) {
+    fail ("Could not link elements");
+  }
+
+  gst_element_sync_state_with_parent (src);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+handoff_callback (GstElement * object, GstBuffer * buff, GstPad * pad,
+    gboolean * success)
+{
+  *success = TRUE;
+
+  /* We have received a buffer, finish test */
+  g_idle_add (quit_main_loop_idle, NULL);
+}
+
+GST_START_TEST (connect_source_pause_sink_test)
+{
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *conv = gst_element_factory_make ("videoconvert", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  gboolean success = FALSE;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  g_signal_connect (sink, "handoff", G_CALLBACK (handoff_callback), &success);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add_many (GST_BIN (pipeline), conv, sink, agnosticbin, NULL);
+
+  if (!gst_element_link (conv, sink)) {
+    fail ("Could not link converter to videosink");
+  }
+
+  gst_element_sync_state_with_parent (agnosticbin);
+  gst_element_sync_state_with_parent (conv);
+  gst_element_sync_state_with_parent (sink);
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", conv, "sink")) {
+    fail ("Could not link agnosticbin to converter");
+  }
+
+  /* wait for 1 second before connecting the source */
+  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
+      agnosticbin);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_unless (success, "No buffer received");
+}
+
+GST_END_TEST
+GST_START_TEST (connect_source_pause_sink_transcoding_test)
+{
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *dec = gst_element_factory_make ("avdec_msmpeg4", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  gboolean success = FALSE;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+
+  g_signal_connect (sink, "handoff", G_CALLBACK (handoff_callback), &success);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add_many (GST_BIN (pipeline), dec, sink, agnosticbin, NULL);
+
+  if (!gst_element_link_many (dec, sink, NULL)) {
+    fail ("Could not link elements");
+  }
+
+  gst_element_sync_state_with_parent (agnosticbin);
+  gst_element_sync_state_with_parent (dec);
+  gst_element_sync_state_with_parent (sink);
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", dec, "sink")) {
+    fail ("Could not link elements");
+  }
+
+  /* wait for 1 second before connecting the source */
+  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
+      agnosticbin);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_unless (success, "No buffer received");
+}
+
 GST_END_TEST
 /*
  * End of test cases
@@ -199,6 +322,8 @@ agnosticbin3_suite (void)
   tcase_add_test (tc_chain, create_sink_pad_test);
   tcase_add_test (tc_chain, create_src_pad_test_with_caps);
   tcase_add_test (tc_chain, create_src_pad_test);
+  tcase_add_test (tc_chain, connect_source_pause_sink_test);
+  tcase_add_test (tc_chain, connect_source_pause_sink_transcoding_test);
 
   return s;
 }

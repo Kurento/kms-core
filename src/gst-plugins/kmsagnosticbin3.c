@@ -20,6 +20,7 @@
 #include "kmsagnosticbin3.h"
 #include "kmsagnosticcaps.h"
 #include "kms-core-marshal.h"
+#include "kmsutils.h"
 
 #define PLUGIN_NAME "agnosticbin3"
 
@@ -60,7 +61,8 @@ typedef enum
 {
   KMS_SRC_PAD_STATE_UNCONFIGURED,
   KMS_SRC_PAD_STATE_CONFIGURED,
-  KMS_SRC_PAD_STATE_WAITING
+  KMS_SRC_PAD_STATE_WAITING,
+  KMS_SRC_PAD_STATE_LINKED
 } KmsSrcPadState;
 
 typedef struct _KmsSrcPadData
@@ -135,6 +137,130 @@ kms_agnostic_bin3_append_pending_src_pad (KmsAgnosticBin3 * self, GstPad * pad)
   gst_element_add_pad (GST_ELEMENT (self), pad);
 }
 
+static GstElement *
+get_transcoder_connected_to_sinkpad (GstPad * pad)
+{
+  GstElement *transcoder;
+  GstProxyPad *proxypad;
+  GstPad *sinkpad;
+
+  proxypad = gst_proxy_pad_get_internal (GST_PROXY_PAD (pad));
+  sinkpad = gst_pad_get_peer (GST_PAD (proxypad));
+  transcoder = gst_pad_get_parent_element (sinkpad);
+
+  g_object_unref (proxypad);
+  g_object_unref (sinkpad);
+
+  return transcoder;
+}
+
+static void
+link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
+{
+  KmsAgnosticBin3 *self =
+      KMS_AGNOSTIC_BIN3 (gst_pad_get_parent_element (sinkpad));
+  KmsSrcPadData *data;
+
+  if (self == NULL) {
+    GST_ERROR_OBJECT (sinkpad, "No parent object");
+    return;
+  }
+
+  if (!gst_pad_is_linked (srcpad)) {
+    GST_DEBUG_OBJECT (self, "Unlinked pad %" GST_PTR_FORMAT, srcpad);
+    return;
+  }
+
+  data = g_object_get_data (G_OBJECT (srcpad), KMS_AGNOSTICBIN3_SRC_PAD_DATA);
+  if (data == NULL) {
+    GST_ERROR_OBJECT (srcpad, "No configuration data");
+    return;
+  }
+
+  g_mutex_lock (&data->mutex);
+  switch (data->state) {
+    case KMS_SRC_PAD_STATE_UNCONFIGURED:{
+      GstCaps *allowed, *caps;
+      GstElement *transcoder;
+      GstPad *target;
+
+      GST_DEBUG_OBJECT (srcpad, "UNCONFIGURED");
+
+      allowed = gst_pad_get_allowed_caps (sinkpad);
+      caps = gst_pad_peer_query_caps (srcpad, allowed);
+
+      if (gst_caps_is_empty (caps)) {
+        /* TODO: Ask to see if anyone upstream supports this caps */
+        GST_DEBUG_OBJECT (srcpad, "Connection will require transcoding");
+      }
+
+      gst_caps_unref (allowed);
+      gst_caps_unref (caps);
+
+      /* We can connect this pad to te agnosticbin without transcoding */
+
+      transcoder = get_transcoder_connected_to_sinkpad (sinkpad);
+      if (transcoder == NULL) {
+        GST_ERROR_OBJECT (sinkpad, "No transcoder connected");
+        break;
+      }
+
+      target = gst_element_get_request_pad (transcoder, "src_%u");
+      g_object_unref (transcoder);
+
+      GST_DEBUG_OBJECT (srcpad, "Setting target %" GST_PTR_FORMAT, target);
+
+      if (!gst_ghost_pad_set_target (GST_GHOST_PAD (srcpad), target)) {
+        GST_ERROR_OBJECT (srcpad, "Can not set target pad");
+        gst_element_release_request_pad (transcoder, target);
+      } else {
+        data->state = KMS_SRC_PAD_STATE_LINKED;
+      }
+
+      break;
+    }
+    case KMS_SRC_PAD_STATE_CONFIGURED:
+      GST_DEBUG_OBJECT (srcpad, "CONFIGURED");
+      break;
+    case KMS_SRC_PAD_STATE_WAITING:
+      GST_DEBUG_OBJECT (srcpad, "WAITING");
+      break;
+    case KMS_SRC_PAD_STATE_LINKED:
+      GST_DEBUG_OBJECT (srcpad, "LINKED");
+      break;
+  }
+
+  g_mutex_unlock (&data->mutex);
+}
+
+static GstPadProbeReturn
+kms_agnostic_bin3_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
+    gpointer data)
+{
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+  KmsAgnosticBin3 *self;
+  GstCaps *caps;
+
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  GST_DEBUG_OBJECT (pad, "Event received %" GST_PTR_FORMAT, event);
+  gst_event_parse_caps (event, &caps);
+
+  self = KMS_AGNOSTIC_BIN3 (data);
+
+  if (caps == NULL) {
+    GST_ERROR_OBJECT (self, "Unexpected NULL caps");
+    return GST_PAD_PROBE_OK;
+  }
+
+  kms_element_for_each_src_pad (GST_ELEMENT (self),
+      (KmsPadIterationAction) link_pending_src_pads, pad);
+
+  return GST_PAD_PROBE_OK;
+}
+
 static GstPad *
 kms_agnostic_bin3_request_sink_pad (KmsAgnosticBin3 * self,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -172,6 +298,9 @@ kms_agnostic_bin3_request_sink_pad (KmsAgnosticBin3 * self,
       agnosticbin);
 
   KMS_AGNOSTIC_BIN3_UNLOCK (self);
+
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      kms_agnostic_bin3_sink_caps_probe, self, NULL);
 
   return pad;
 }
@@ -270,9 +399,14 @@ static GstPad *
 kms_agnostic_bin3_create_src_pad_without_caps (KmsAgnosticBin3 * self,
     GstPadTemplate * templ, const gchar * name)
 {
+  KmsSrcPadData *paddata;
   GstPad *pad;
 
+  paddata = create_src_pad_data ();
   pad = kms_agnostic_bin3_create_new_src_pad (self, templ);
+  g_object_set_data_full (G_OBJECT (pad), KMS_AGNOSTICBIN3_SRC_PAD_DATA,
+      paddata, (GDestroyNotify) destroy_src_pad_data);
+
   kms_agnostic_bin3_append_pending_src_pad (self, pad);
 
   return pad;
