@@ -125,6 +125,23 @@ destroy_src_pad_data (KmsSrcPadData * data)
   g_slice_free (KmsSrcPadData, data);
 }
 
+static const gchar *
+pad_state2string (KmsSrcPadState state)
+{
+  switch (state) {
+    case KMS_SRC_PAD_STATE_UNCONFIGURED:
+      return "UNCONFIGURED";
+    case KMS_SRC_PAD_STATE_CONFIGURED:
+      return "CONFIGURED";
+    case KMS_SRC_PAD_STATE_WAITING:
+      return "WAITING";
+    case KMS_SRC_PAD_STATE_LINKED:
+      return "LINKED";
+    default:
+      return NULL;
+  }
+}
+
 static void
 kms_agnostic_bin3_append_pending_src_pad (KmsAgnosticBin3 * self, GstPad * pad)
 {
@@ -155,21 +172,13 @@ get_transcoder_connected_to_sinkpad (GstPad * pad)
 }
 
 static void
-link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
+connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
 {
-  KmsAgnosticBin3 *self =
-      KMS_AGNOSTIC_BIN3 (gst_pad_get_parent_element (sinkpad));
+  GstCaps *allowed = NULL;
+  GstElement *transcoder;
   KmsSrcPadData *data;
-
-  if (self == NULL) {
-    GST_ERROR_OBJECT (sinkpad, "No parent object");
-    return;
-  }
-
-  if (!gst_pad_is_linked (srcpad)) {
-    GST_DEBUG_OBJECT (self, "Unlinked pad %" GST_PTR_FORMAT, srcpad);
-    return;
-  }
+  GstPad *target;
+  gboolean transcode;
 
   data = g_object_get_data (G_OBJECT (srcpad), KMS_AGNOSTICBIN3_SRC_PAD_DATA);
   if (data == NULL) {
@@ -178,59 +187,89 @@ link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
   }
 
   g_mutex_lock (&data->mutex);
+
+  GST_DEBUG_OBJECT (srcpad, "state: %s", pad_state2string (data->state));
+
+  if (data->state == KMS_SRC_PAD_STATE_LINKED) {
+    goto end;
+  }
+
+  allowed = gst_pad_get_allowed_caps (sinkpad);
+
   switch (data->state) {
     case KMS_SRC_PAD_STATE_UNCONFIGURED:{
-      GstCaps *allowed, *caps;
-      GstElement *transcoder;
-      GstPad *target;
+      GstCaps *caps;
 
       GST_DEBUG_OBJECT (srcpad, "UNCONFIGURED");
 
       allowed = gst_pad_get_allowed_caps (sinkpad);
       caps = gst_pad_peer_query_caps (srcpad, allowed);
-
-      if (gst_caps_is_empty (caps)) {
-        /* TODO: Ask to see if anyone upstream supports this caps */
-        GST_DEBUG_OBJECT (srcpad, "Connection will require transcoding");
-      }
-
-      gst_caps_unref (allowed);
+      transcode = gst_caps_is_empty (caps);
       gst_caps_unref (caps);
-
-      /* We can connect this pad to te agnosticbin without transcoding */
-
-      transcoder = get_transcoder_connected_to_sinkpad (sinkpad);
-      if (transcoder == NULL) {
-        GST_ERROR_OBJECT (sinkpad, "No transcoder connected");
-        break;
-      }
-
-      target = gst_element_get_request_pad (transcoder, "src_%u");
-      g_object_unref (transcoder);
-
-      GST_DEBUG_OBJECT (srcpad, "Setting target %" GST_PTR_FORMAT, target);
-
-      if (!gst_ghost_pad_set_target (GST_GHOST_PAD (srcpad), target)) {
-        GST_ERROR_OBJECT (srcpad, "Can not set target pad");
-        gst_element_release_request_pad (transcoder, target);
-      } else {
-        data->state = KMS_SRC_PAD_STATE_LINKED;
-      }
-
       break;
     }
     case KMS_SRC_PAD_STATE_CONFIGURED:
-      GST_DEBUG_OBJECT (srcpad, "CONFIGURED");
+      transcode = !gst_caps_can_intersect (data->caps, allowed);
       break;
-    case KMS_SRC_PAD_STATE_WAITING:
-      GST_DEBUG_OBJECT (srcpad, "WAITING");
-      break;
-    case KMS_SRC_PAD_STATE_LINKED:
-      GST_DEBUG_OBJECT (srcpad, "LINKED");
-      break;
+    default:
+      GST_DEBUG_OBJECT (srcpad, "TODO: Operate in %s",
+          pad_state2string (data->state));
+      goto end;
+  }
+
+  if (transcode) {
+    /* TODO: Ask to see if anyone upstream supports this caps */
+    GST_DEBUG_OBJECT (srcpad, "Connection will require transcoding");
+  }
+
+  /* We can connect this pad to te agnosticbin without transcoding */
+
+  transcoder = get_transcoder_connected_to_sinkpad (sinkpad);
+  if (transcoder == NULL) {
+    GST_ERROR_OBJECT (sinkpad, "No transcoder connected");
+    goto end;
+  }
+
+  target = gst_element_get_request_pad (transcoder, "src_%u");
+  g_object_unref (transcoder);
+
+  GST_DEBUG_OBJECT (srcpad, "Setting target %" GST_PTR_FORMAT, target);
+
+  if (!gst_ghost_pad_set_target (GST_GHOST_PAD (srcpad), target)) {
+    GST_ERROR_OBJECT (srcpad, "Can not set target pad");
+    gst_element_release_request_pad (transcoder, target);
+  } else {
+    data->state = KMS_SRC_PAD_STATE_LINKED;
+  }
+
+  g_object_unref (target);
+
+end:
+  if (allowed != NULL) {
+    gst_caps_unref (allowed);
   }
 
   g_mutex_unlock (&data->mutex);
+}
+
+static void
+link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
+{
+  KmsAgnosticBin3 *self =
+      KMS_AGNOSTIC_BIN3 (gst_pad_get_parent_element (sinkpad));
+
+  if (self == NULL) {
+    GST_ERROR_OBJECT (sinkpad, "No parent object");
+    return;
+  }
+
+  if (!gst_pad_is_linked (srcpad)) {
+    GST_DEBUG_OBJECT (self, "Unlinked pad %" GST_PTR_FORMAT, srcpad);
+  } else {
+    connect_srcpad_to_encoder (srcpad, sinkpad);
+  }
+
+  g_object_unref (self);
 }
 
 static GstPadProbeReturn
