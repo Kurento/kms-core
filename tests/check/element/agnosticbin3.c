@@ -307,6 +307,150 @@ GST_START_TEST (connect_source_pause_sink_transcoding_test)
   fail_unless (success, "No buffer received");
 }
 
+GST_END_TEST static gboolean
+caps_request_triggered (GstElement * object, GstCaps * caps,
+    gboolean * triggered)
+{
+  GST_DEBUG ("Signal catched %" GST_PTR_FORMAT, caps);
+  *triggered = TRUE;
+
+  /* No caps supported */
+  return FALSE;
+}
+
+GST_START_TEST (connect_source_configured_pause_sink_test)
+{
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  GstBus *bus;
+  GstCaps *caps = gst_caps_from_string ("video/x-raw");
+  GstPadTemplate *templ;
+  GstPad *srcpad, *sinkpad;
+  gboolean triggered = FALSE, success = FALSE;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+
+  g_signal_connect (sink, "handoff", G_CALLBACK (handoff_callback), &success);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add_many (GST_BIN (pipeline), sink, agnosticbin, NULL);
+  gst_element_sync_state_with_parent (agnosticbin);
+  gst_element_sync_state_with_parent (sink);
+
+  g_signal_connect (agnosticbin, "caps", G_CALLBACK (caps_request_triggered),
+      &triggered);
+
+  templ =
+      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (agnosticbin),
+      "src_%u");
+  srcpad = gst_element_request_pad (agnosticbin, templ, NULL, caps);
+  sinkpad = gst_element_get_static_pad (sink, "sink");
+
+  if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK) {
+    fail ("Could not link elements");
+  }
+
+  g_object_unref (srcpad);
+  g_object_unref (sinkpad);
+  g_object_unref (templ);
+  gst_caps_unref (caps);
+
+  /* wait for 1 second before connecting the source */
+  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
+      agnosticbin);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_unless (triggered, "No caps signal triggered");
+  fail_unless (success, "No buffer received");
+}
+
+GST_END_TEST
+GST_START_TEST (connect_source_configured_pause_sink_transcoding_test)
+{
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *dec = gst_element_factory_make ("avdec_msmpeg4", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  GstBus *bus;
+  GstCaps *caps = gst_caps_from_string ("video/x-msmpeg");
+  GstPadTemplate *templ;
+  GstPad *srcpad, *sinkpad;
+  gboolean triggered = FALSE, success = FALSE;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+
+  g_signal_connect (sink, "handoff", G_CALLBACK (handoff_callback), &success);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_bin_add_many (GST_BIN (pipeline), dec, sink, agnosticbin, NULL);
+  gst_element_sync_state_with_parent (agnosticbin);
+  gst_element_sync_state_with_parent (dec);
+  gst_element_sync_state_with_parent (sink);
+
+  if (!gst_element_link (dec, sink)) {
+    fail ("Could not decoder to sink");
+  }
+
+  g_signal_connect (agnosticbin, "caps", G_CALLBACK (caps_request_triggered),
+      &triggered);
+
+  templ =
+      gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (agnosticbin),
+      "src_%u");
+  srcpad = gst_element_request_pad (agnosticbin, templ, NULL, caps);
+  sinkpad = gst_element_get_static_pad (dec, "sink");
+
+  if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK) {
+    fail ("Could not link agnosticbin to decoder");
+  }
+
+  g_object_unref (srcpad);
+  g_object_unref (sinkpad);
+  g_object_unref (templ);
+  gst_caps_unref (caps);
+
+  /* wait for 1 second before connecting the source */
+  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
+      agnosticbin);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_unless (triggered, "No caps signal triggered");
+  fail_unless (success, "No buffer received");
+}
+
 GST_END_TEST
 /*
  * End of test cases
@@ -324,6 +468,9 @@ agnosticbin3_suite (void)
   tcase_add_test (tc_chain, create_src_pad_test);
   tcase_add_test (tc_chain, connect_source_pause_sink_test);
   tcase_add_test (tc_chain, connect_source_pause_sink_transcoding_test);
+  tcase_add_test (tc_chain, connect_source_configured_pause_sink_test);
+  tcase_add_test (tc_chain,
+      connect_source_configured_pause_sink_transcoding_test);
 
   return s;
 }

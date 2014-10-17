@@ -44,6 +44,7 @@ struct _KmsAgnosticBin3Private
 {
   GRecMutex mutex;
   GSList *agnosticbins;
+  GHashTable *sinkcaps;
 
   guint src_pad_count;
   guint sink_pad_count;
@@ -174,8 +175,9 @@ get_transcoder_connected_to_sinkpad (GstPad * pad)
 static void
 connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
 {
-  GstCaps *allowed = NULL;
+  GstCaps *current_caps = NULL;
   GstElement *transcoder;
+  KmsAgnosticBin3 *self;
   KmsSrcPadData *data;
   GstPad *target;
   gboolean transcode;
@@ -183,6 +185,12 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
   data = g_object_get_data (G_OBJECT (srcpad), KMS_AGNOSTICBIN3_SRC_PAD_DATA);
   if (data == NULL) {
     GST_ERROR_OBJECT (srcpad, "No configuration data");
+    return;
+  }
+
+  self = KMS_AGNOSTIC_BIN3 (gst_pad_get_parent_element (sinkpad));
+  if (self == NULL) {
+    GST_ERROR_OBJECT (sinkpad, "No parent object");
     return;
   }
 
@@ -194,22 +202,20 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
     goto end;
   }
 
-  allowed = gst_pad_get_allowed_caps (sinkpad);
+  current_caps = g_hash_table_lookup (self->priv->sinkcaps, sinkpad);
 
   switch (data->state) {
     case KMS_SRC_PAD_STATE_UNCONFIGURED:{
       GstCaps *caps;
 
-      GST_DEBUG_OBJECT (srcpad, "UNCONFIGURED");
-
-      allowed = gst_pad_get_allowed_caps (sinkpad);
-      caps = gst_pad_peer_query_caps (srcpad, allowed);
+      caps = gst_pad_peer_query_caps (srcpad, current_caps);
       transcode = gst_caps_is_empty (caps);
       gst_caps_unref (caps);
+
       break;
     }
     case KMS_SRC_PAD_STATE_CONFIGURED:
-      transcode = !gst_caps_can_intersect (data->caps, allowed);
+      transcode = !gst_caps_can_intersect (data->caps, current_caps);
       break;
     default:
       GST_DEBUG_OBJECT (srcpad, "TODO: Operate in %s",
@@ -245,11 +251,9 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
   g_object_unref (target);
 
 end:
-  if (allowed != NULL) {
-    gst_caps_unref (allowed);
-  }
 
   g_mutex_unlock (&data->mutex);
+  g_object_unref (self);
 }
 
 static void
@@ -278,7 +282,7 @@ kms_agnostic_bin3_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
 {
   GstEvent *event = gst_pad_probe_info_get_event (info);
   KmsAgnosticBin3 *self;
-  GstCaps *caps;
+  GstCaps *caps, *current_caps;
 
   if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
     return GST_PAD_PROBE_OK;
@@ -294,8 +298,27 @@ kms_agnostic_bin3_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     return GST_PAD_PROBE_OK;
   }
 
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
+  current_caps = g_hash_table_lookup (self->priv->sinkcaps, pad);
+
+  if (current_caps == NULL) {
+    GST_DEBUG_OBJECT (pad, "Current input caps %" GST_PTR_FORMAT, caps);
+    g_hash_table_insert (self->priv->sinkcaps, pad, gst_caps_copy (caps));
+  } else if (gst_caps_is_equal (caps, current_caps)) {
+    GST_DEBUG_OBJECT (pad, "Caps already set %" GST_PTR_FORMAT, caps);
+    goto end;
+  } else {
+    GST_WARNING_OBJECT (pad, "TODO: Input caps changed %" GST_PTR_FORMAT, caps);
+    goto end;
+  }
+
   kms_element_for_each_src_pad (GST_ELEMENT (self),
       (KmsPadIterationAction) link_pending_src_pads, pad);
+
+end:
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
 
   return GST_PAD_PROBE_OK;
 }
@@ -500,7 +523,7 @@ kms_agnostic_bin3_finalize (GObject * object)
   KmsAgnosticBin3 *self = KMS_AGNOSTIC_BIN3 (object);
 
   g_slist_free (self->priv->agnosticbins);
-
+  g_hash_table_unref (self->priv->sinkcaps);
   g_rec_mutex_clear (&self->priv->mutex);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
@@ -551,6 +574,8 @@ kms_agnostic_bin3_init (KmsAgnosticBin3 * self)
 {
   self->priv = KMS_AGNOSTIC_BIN3_GET_PRIVATE (self);
   g_rec_mutex_init (&self->priv->mutex);
+  self->priv->sinkcaps = g_hash_table_new_full (g_direct_hash, g_direct_equal,
+      NULL, (GDestroyNotify) gst_caps_unref);
 
   g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 }
