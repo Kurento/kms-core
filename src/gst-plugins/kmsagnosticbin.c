@@ -195,9 +195,13 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 
   GST_OBJECT_LOCK (pad);
   if (g_object_get_data (G_OBJECT (pad), UNLINKING_DATA)) {
-    GST_DEBUG ("Already unlinking");
     GST_OBJECT_UNLOCK (pad);
-    return GST_PAD_PROBE_DROP;
+    if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
+      /* Queries must be answered */
+      return GST_PAD_PROBE_PASS;
+    } else {
+      return GST_PAD_PROBE_DROP;
+    }
   }
 
   g_object_set_data (G_OBJECT (pad), UNLINKING_DATA, GINT_TO_POINTER (TRUE));
