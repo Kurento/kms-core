@@ -788,13 +788,14 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   GstElement *parser;
   GstPad *parser_src;
   GstElement *input_queue;
+  GstElement *old_bin = NULL;
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   if (self->priv->input_bin != NULL) {
     kms_tree_bin_unlink_input_queue_from_tee (KMS_TREE_BIN (self->
             priv->input_bin));
-    gst_element_set_state (GST_ELEMENT (self->priv->input_bin), GST_STATE_NULL);
+    old_bin = g_object_ref (GST_ELEMENT (self->priv->input_bin));
     gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
   }
 
@@ -820,6 +821,11 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   }
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
+
+  if (old_bin != NULL) {
+    gst_element_set_state (old_bin, GST_STATE_NULL);
+    g_object_unref (old_bin);
+  }
 }
 
 static GstPadProbeReturn
