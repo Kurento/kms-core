@@ -38,19 +38,19 @@ G_DEFINE_TYPE (KmsAgnosticBin3, kms_agnostic_bin3, GST_TYPE_BIN);
 
 struct _KmsAgnosticBin3Private
 {
-  GMutex mutex;
+  GRecMutex mutex;
   GSList *agnosticbins;
 
   guint src_pad_count;
   guint sink_pad_count;
 };
 
-#define KMS_AGNOSTIC_BIN3_LOCK(obj) (                    \
-  g_mutex_lock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex)   \
+#define KMS_AGNOSTIC_BIN3_LOCK(obj) (                        \
+  g_rec_mutex_lock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex)   \
 )
 
-#define KMS_AGNOSTIC_BIN3_UNLOCK(obj) (                  \
-  g_mutex_unlock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex) \
+#define KMS_AGNOSTIC_BIN3_UNLOCK(obj) (                      \
+  g_rec_mutex_unlock (&KMS_AGNOSTIC_BIN3 (obj)->priv->mutex) \
 )
 
 #define AGNOSTICBIN3_SINK_PAD_PREFIX  "sink_"
@@ -146,7 +146,7 @@ kms_agnostic_bin3_finalize (GObject * object)
   KmsAgnosticBin3 *self = KMS_AGNOSTIC_BIN3 (object);
 
   g_slist_free (self->priv->agnosticbins);
-  g_mutex_clear (&self->priv->mutex);
+  g_rec_mutex_clear (&self->priv->mutex);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -187,7 +187,7 @@ static void
 kms_agnostic_bin3_init (KmsAgnosticBin3 * self)
 {
   self->priv = KMS_AGNOSTIC_BIN3_GET_PRIVATE (self);
-  g_mutex_init (&self->priv->mutex);
+  g_rec_mutex_init (&self->priv->mutex);
 
   g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 }
