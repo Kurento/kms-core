@@ -114,9 +114,14 @@ static gboolean
 caps_can_intersect_with_static (const GstCaps * caps,
     GstStaticCaps * static_caps)
 {
-  GstCaps *aux = gst_static_caps_get (static_caps);
+  GstCaps *aux;
   gboolean ret;
 
+  if (caps == NULL) {
+    return FALSE;
+  }
+
+  aux = gst_static_caps_get (static_caps);
   ret = gst_caps_can_intersect (caps, aux);
   gst_caps_unref (aux);
 
