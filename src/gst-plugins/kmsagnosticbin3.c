@@ -61,6 +61,7 @@ struct _KmsAgnosticBin3Private
 typedef enum
 {
   KMS_SRC_PAD_STATE_UNCONFIGURED,
+  KMS_SRC_PAD_STATE_CONFIGURING,
   KMS_SRC_PAD_STATE_CONFIGURED,
   KMS_SRC_PAD_STATE_WAITING,
   KMS_SRC_PAD_STATE_LINKED
@@ -132,6 +133,8 @@ pad_state2string (KmsSrcPadState state)
   switch (state) {
     case KMS_SRC_PAD_STATE_UNCONFIGURED:
       return "UNCONFIGURED";
+    case KMS_SRC_PAD_STATE_CONFIGURING:
+      return "CONFIGURING";
     case KMS_SRC_PAD_STATE_CONFIGURED:
       return "CONFIGURED";
     case KMS_SRC_PAD_STATE_WAITING:
@@ -367,22 +370,34 @@ kms_agnostic_bin3_request_sink_pad (KmsAgnosticBin3 * self,
   return pad;
 }
 
+/* Gets the transcoder that can manage these caps or NULL. [Transfer full] */
+/* Call this function with mutex held */
 static GstElement *
 kms_agnostic_bin3_get_compatible_transcoder_tree (KmsAgnosticBin3 * self,
     const GstCaps * caps)
 {
-  GstElement *agnostic = NULL;
-  GSList *l;
+  GHashTableIter iter;
+  gpointer key, value;
 
-  KMS_AGNOSTIC_BIN3_LOCK (self);
+  /* Check out all agnosticbin's sink capabilities */
 
-  for (l = self->priv->agnosticbins; l != NULL; l = l->next) {
-    /* TODO: Check all agnosticbin caps looking for a compatible caps */
+  g_hash_table_iter_init (&iter, self->priv->sinkcaps);
+
+  while (g_hash_table_iter_next (&iter, &key, &value)) {
+    GstPad *sinkpad = GST_PAD (key);
+    GstCaps *sinkcaps = GST_CAPS (value);
+
+    GST_INFO_OBJECT (sinkpad, "caps %" GST_PTR_FORMAT, sinkcaps);
+    if (gst_caps_can_intersect (caps, sinkcaps)) {
+      return get_transcoder_connected_to_sinkpad (sinkpad);
+    }
   }
 
-  KMS_AGNOSTIC_BIN3_UNLOCK (self);
+  /* TODO: Check all agnostic's src pads looking for compatible  */
+  /* capabilities, iIf we find them it means that this element is */
+  /* already transcoding. */
 
-  return agnostic;
+  return NULL;
 }
 
 static GstPad *
@@ -424,12 +439,18 @@ kms_agnostic_bin3_create_src_pad_with_caps (KmsAgnosticBin3 * self,
   gboolean ret = FALSE;
   GstPad *pad;
 
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
   element = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
 
   if (element != NULL) {
+    KMS_AGNOSTIC_BIN3_UNLOCK (self);
     /* TODO: Create ghost pad connected to the transcoder element */
+    g_object_unref (element);
     return NULL;
   }
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
 
   paddata = create_src_pad_data ();
   paddata->caps = gst_caps_copy (caps);
@@ -474,6 +495,87 @@ kms_agnostic_bin3_create_src_pad_without_caps (KmsAgnosticBin3 * self,
   return pad;
 }
 
+static void
+kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
+    gpointer user_data)
+{
+  KmsAgnosticBin3 *self = KMS_AGNOSTIC_BIN3 (user_data);
+  KmsSrcPadState new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
+  GstElement *element;
+  KmsSrcPadData *data;
+  GstCaps *caps = NULL;
+
+  data = g_object_get_data (G_OBJECT (pad), KMS_AGNOSTICBIN3_SRC_PAD_DATA);
+  if (data == NULL) {
+    GST_ERROR_OBJECT (pad, "No configuration data");
+    return;
+  }
+
+  g_mutex_lock (&data->mutex);
+
+  if (data->state != KMS_SRC_PAD_STATE_UNCONFIGURED) {
+    GST_DEBUG_OBJECT (pad, "Already configured");
+    g_mutex_unlock (&data->mutex);
+    return;
+  }
+
+  data->state = KMS_SRC_PAD_STATE_CONFIGURING;
+
+  g_mutex_unlock (&data->mutex);
+
+  caps = gst_pad_query_caps (peer, NULL);
+
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
+  if (g_slist_length (self->priv->agnosticbins) == 0) {
+    GST_DEBUG_OBJECT (self, "No transcoders available");
+    new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
+    goto change_state;
+  }
+
+  element = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
+
+  if (element != NULL) {
+    GstPad *target;
+
+    GST_LOG_OBJECT (pad, "Connected without transcoding");
+
+    /* Connect src pad to the agnosticbin */
+    target = gst_element_get_request_pad (element, "src_%u");
+
+    if (!gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target)) {
+      GST_ERROR_OBJECT (pad, "Can not set target pad");
+      gst_element_release_request_pad (element, target);
+      new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
+    } else {
+      GST_LOG_OBJECT (pad, "Set target %" GST_PTR_FORMAT, target);
+      new_state = KMS_SRC_PAD_STATE_LINKED;
+    }
+
+    g_object_unref (target);
+    g_object_unref (element);
+    goto change_state;
+  }
+
+  /* TODO: Trigger caps signal because we didn't find a compatible transcoder */
+
+  return;
+
+change_state:
+
+  g_mutex_lock (&data->mutex);
+  data->state = new_state;
+  g_mutex_unlock (&data->mutex);
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
+
+  if (caps != NULL) {
+    gst_caps_unref (caps);
+  }
+
+  GST_DEBUG_OBJECT (self, "Done");
+}
+
 static GstPad *
 kms_agnostic_bin3_request_src_pad (KmsAgnosticBin3 * self,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -485,6 +587,9 @@ kms_agnostic_bin3_request_src_pad (KmsAgnosticBin3 * self,
   } else {
     pad = kms_agnostic_bin3_create_src_pad_without_caps (self, templ, name);
   }
+
+  g_signal_connect (pad, "linked",
+      G_CALLBACK (kms_agnostic_bin3_src_pad_linked), self);
 
   return pad;
 }
