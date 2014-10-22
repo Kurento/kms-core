@@ -26,6 +26,8 @@
 #include <condition_variable>
 #include <atomic>
 
+#include <boost/asio.hpp>
+
 namespace kurento
 {
 
@@ -107,6 +109,11 @@ private:
   eventHandler;
 
   std::map<std::string, std::unordered_set<std::string>> reverseSessionMap;
+
+  boost::shared_ptr< boost::asio::io_service > io_service;
+  std::shared_ptr< boost::asio::io_service::work > work;
+  std::vector<std::thread> threads;
+  int n_threads;
 
   class StaticConstructor
   {
