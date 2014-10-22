@@ -527,6 +527,89 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_test)
   fail_unless (success, "No buffer received");
 }
 
+GST_END_TEST static gboolean
+connect_sink_with_raw_caps (CallbackData * cb_data)
+{
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *conv = gst_element_factory_make ("videoconvert", NULL);
+  GstElement *agnosticbin = cb_data->element;
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+
+  g_signal_connect (sink, "handoff", G_CALLBACK (handoff_callback),
+      cb_data->checkpoint);
+
+  gst_bin_add_many (GST_BIN (pipeline), conv, sink, NULL);
+
+  /* We use a videoconvert to force video-raw format */
+  if (!gst_element_link (conv, sink)) {
+    fail ("Could not link videoconverter to videosink");
+  }
+
+  gst_element_sync_state_with_parent (conv);
+  gst_element_sync_state_with_parent (sink);
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", conv, "sink")) {
+    fail ("Could not link agnosticbin to converter");
+  }
+
+  return G_SOURCE_REMOVE;
+}
+
+GST_START_TEST (connect_sinkpad_pause_srcpad_transcoded_test)
+{
+  GstElement *source = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *enc = gst_element_factory_make ("vp8enc", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  CallbackData cb_data;
+  GstBus *bus;
+  gboolean triggered = FALSE, success = FALSE;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (source), "is-live", TRUE, NULL);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  cb_data.element = agnosticbin;
+  cb_data.checkpoint = &success;
+
+  g_signal_connect (agnosticbin, "caps", G_CALLBACK (caps_request_triggered),
+      &triggered);
+
+  gst_bin_add_many (GST_BIN (pipeline), source, enc, agnosticbin, NULL);
+
+  if (!gst_element_link (source, enc)) {
+    fail ("Could not link videotestsrc to agnosticbin");
+  }
+
+  if (!gst_element_link_pads (enc, "src", agnosticbin, "sink_%u")) {
+    fail ("Could not link encoder to agnosticbin");
+  }
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* wait for 1 second before connecting the source */
+  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_with_raw_caps, &cb_data);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_unless (triggered, "Caps signal triggered");
+  fail_unless (success, "No buffer received");
+}
+
 GST_END_TEST
 /*
  * End of test cases
@@ -548,6 +631,7 @@ agnosticbin3_suite (void)
   tcase_add_test (tc_chain,
       connect_source_configured_pause_sink_transcoding_test);
   tcase_add_test (tc_chain, connect_sinkpad_pause_srcpad_test);
+  tcase_add_test (tc_chain, connect_sinkpad_pause_srcpad_transcoded_test);
 
   return s;
 }

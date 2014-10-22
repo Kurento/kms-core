@@ -48,6 +48,8 @@ struct _KmsAgnosticBin3Private
 
   guint src_pad_count;
   guint sink_pad_count;
+
+  guint last;
 };
 
 #define KMS_AGNOSTIC_BIN3_LOCK(obj) (                        \
@@ -279,6 +281,31 @@ link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
   g_object_unref (self);
 }
 
+/* Gets the transcoder that can manage these caps or NULL. [Transfer full] */
+static GstElement *
+kms_agnosticbin3_get_element_for_transcoding (KmsAgnosticBin3 * self)
+{
+  GstElement *transcoder;
+  guint index, len;
+  GSList *l;
+
+  index = (guint) g_atomic_int_add (&self->priv->last, 1);
+
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
+  len = g_slist_length (self->priv->agnosticbins);
+  index %= len;
+  l = g_slist_nth (self->priv->agnosticbins, index);
+  transcoder = l->data;
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
+
+  if (transcoder != NULL)
+    g_object_ref (transcoder);
+
+  return transcoder;
+}
+
 static GstPadProbeReturn
 kms_agnostic_bin3_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     gpointer data)
@@ -504,6 +531,7 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
   GstElement *element;
   KmsSrcPadData *data;
   GstCaps *caps = NULL;
+  gboolean ret;
 
   data = g_object_get_data (G_OBJECT (pad), KMS_AGNOSTICBIN3_SRC_PAD_DATA);
   if (data == NULL) {
@@ -536,9 +564,30 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
   element = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
 
   if (element != NULL) {
-    GstPad *target;
+    GST_DEBUG_OBJECT (pad, "Connected without transcoding");
+    goto connect_transcoder;
+  }
 
-    GST_LOG_OBJECT (pad, "Connected without transcoding");
+  g_signal_emit (G_OBJECT (self), agnosticbin3_signals[SIGNAL_CAPS], 0, caps,
+      &ret);
+  if (ret) {
+    /* Someone upstream supports these caps, there is not need to transcode */
+    new_state = KMS_SRC_PAD_STATE_WAITING;
+    goto change_state;
+  }
+
+  /* Get any available transcoder. Round robin will be ussed */
+  element = kms_agnosticbin3_get_element_for_transcoding (self);
+  if (element == NULL) {
+    GST_ERROR_OBJECT (pad, "Can not connect to any encoder");
+    goto change_state;
+  }
+
+  GST_DEBUG_OBJECT (pad, "Connected transcoding");
+
+connect_transcoder:
+  {
+    GstPad *target;
 
     /* Connect src pad to the agnosticbin */
     target = gst_element_get_request_pad (element, "src_%u");
@@ -554,26 +603,19 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
 
     g_object_unref (target);
     g_object_unref (element);
-    goto change_state;
   }
-
-  /* TODO: Trigger caps signal because we didn't find a compatible transcoder */
-
-  return;
-
 change_state:
+  {
+    g_mutex_lock (&data->mutex);
+    data->state = new_state;
+    g_mutex_unlock (&data->mutex);
 
-  g_mutex_lock (&data->mutex);
-  data->state = new_state;
-  g_mutex_unlock (&data->mutex);
+    KMS_AGNOSTIC_BIN3_UNLOCK (self);
 
-  KMS_AGNOSTIC_BIN3_UNLOCK (self);
-
-  if (caps != NULL) {
-    gst_caps_unref (caps);
+    if (caps != NULL) {
+      gst_caps_unref (caps);
+    }
   }
-
-  GST_DEBUG_OBJECT (self, "Done");
 }
 
 static GstPad *
