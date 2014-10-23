@@ -106,6 +106,8 @@ GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
     GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
     );
 
+static gboolean set_transcoder_src_target_pad (GstGhostPad *, GstElement *);
+
 static KmsSrcPadData *
 create_src_pad_data ()
 {
@@ -446,13 +448,43 @@ static GstPad *
 kms_agnostic_bin3_create_src_pad_with_transcodification (KmsAgnosticBin3 * self,
     GstPadTemplate * templ, const GstCaps * caps)
 {
+  GstElement *transcoder = NULL;
   GstPad *pad;
 
-  /* TODO: Check out if an agnosticbin with our caps has been created.  */
-  /* If so, create a ghost pad connected to it. If not, create an empty */
-  /* ghost pad that we will connect when we have input stream */
-
   pad = kms_agnostic_bin3_create_new_src_pad (self, templ);
+
+  KMS_AGNOSTIC_BIN3_LOCK (self);
+
+  if (g_slist_length (self->priv->agnosticbins) == 0) {
+    GST_DEBUG_OBJECT (self, "No transcoders available");
+    goto end;
+  }
+
+  transcoder = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
+  if (transcoder != NULL) {
+    GST_DEBUG_OBJECT (pad, "Connect without transcoding");
+    set_transcoder_src_target_pad (GST_GHOST_PAD (pad), transcoder);
+    goto end;
+  }
+
+  GST_DEBUG_OBJECT (pad, "Connect forcing transcode");
+
+  /* No compatible transcoder found. Force transcodification in one of them */
+  /* Get any available transcoder. Round robin will be used */
+  transcoder = kms_agnosticbin3_get_element_for_transcoding (self);
+  if (transcoder != NULL) {
+    set_transcoder_src_target_pad (GST_GHOST_PAD (pad), transcoder);
+  } else {
+    GST_ERROR_OBJECT (pad, "Can not connect to any transcoder");
+  }
+
+end:
+
+  KMS_AGNOSTIC_BIN3_UNLOCK (self);
+
+  if (transcoder != NULL) {
+    g_object_unref (transcoder);
+  }
 
   return pad;
 }
@@ -520,10 +552,19 @@ kms_agnostic_bin3_create_src_pad_with_caps (KmsAgnosticBin3 * self,
     paddata->state = KMS_SRC_PAD_STATE_WAITING;
     pad = kms_agnostic_bin3_create_new_src_pad (self, templ);
   } else {
+    GstPad *target;
+
     /* Transcode will be done in any available agnosticbin */
-    paddata->state = KMS_SRC_PAD_STATE_CONFIGURED;
     pad = kms_agnostic_bin3_create_src_pad_with_transcodification (self, templ,
         caps);
+
+    target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
+    if (target != NULL) {
+      paddata->state = KMS_SRC_PAD_STATE_LINKED;
+      g_object_unref (target);
+    } else {
+      paddata->state = KMS_SRC_PAD_STATE_CONFIGURED;
+    }
   }
 
 end:
