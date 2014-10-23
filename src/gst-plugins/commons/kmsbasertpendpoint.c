@@ -453,8 +453,6 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GstElement * jitterbuffer,
     guint session, guint ssrc, KmsBaseRtpEndpoint * rtp_endpoint)
 {
-  g_object_set (jitterbuffer, "do-lost", TRUE, NULL);
-
   if (ssrc == rtp_endpoint->priv->video_ssrc) {
     g_object_set (jitterbuffer, "do-retransmission", TRUE,
         "rtx-min-delay", 200, NULL);
