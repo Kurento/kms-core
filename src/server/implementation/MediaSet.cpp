@@ -39,7 +39,7 @@ struct functor_trait<Functor, false> {
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaSet"
 
-const int MEDIASET_THREADS_DEFAULT = 10;
+const int MEDIASET_THREADS_DEFAULT = 1;
 
 namespace kurento
 {
