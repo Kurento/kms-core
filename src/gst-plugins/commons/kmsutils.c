@@ -416,11 +416,11 @@ init_debug (void)
 }
 
 /* Type destroying */
-#define KMS_UTILS_DESTROY(type) \
+#define KMS_UTILS_DESTROY(type)                 \
   void kms_utils_destroy_##type (type * data) { \
     g_slice_free (type, data);                  \
-  }                                             \
+  }
 
-KMS_UTILS_DESTROY (guint64)
-KMS_UTILS_DESTROY (gsize)
-KMS_UTILS_DESTROY (GstClockTime)
+KMS_UTILS_DESTROY (guint64);
+KMS_UTILS_DESTROY (gsize);
+KMS_UTILS_DESTROY (GstClockTime);
