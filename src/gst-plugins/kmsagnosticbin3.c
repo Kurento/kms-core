@@ -457,6 +457,26 @@ kms_agnostic_bin3_create_src_pad_with_transcodification (KmsAgnosticBin3 * self,
   return pad;
 }
 
+static gboolean
+set_transcoder_src_target_pad (GstGhostPad * pad, GstElement * transcoder)
+{
+  GstPad *target;
+  gboolean ret;
+
+  target = gst_element_get_request_pad (transcoder, "src_%u");
+
+  if (!(ret = gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target))) {
+    GST_ERROR_OBJECT (pad, "Can not set target pad");
+    gst_element_release_request_pad (transcoder, target);
+  } else {
+    GST_LOG_OBJECT (pad, "Set target %" GST_PTR_FORMAT, target);
+  }
+
+  g_object_unref (target);
+
+  return ret;
+}
+
 static GstPad *
 kms_agnostic_bin3_create_src_pad_with_caps (KmsAgnosticBin3 * self,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -466,21 +486,30 @@ kms_agnostic_bin3_create_src_pad_with_caps (KmsAgnosticBin3 * self,
   gboolean ret = FALSE;
   GstPad *pad;
 
+  paddata = create_src_pad_data ();
+  paddata->caps = gst_caps_copy (caps);
+
   KMS_AGNOSTIC_BIN3_LOCK (self);
 
   element = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
 
   if (element != NULL) {
     KMS_AGNOSTIC_BIN3_UNLOCK (self);
-    /* TODO: Create ghost pad connected to the transcoder element */
+
+    /* Create ghost pad connected to the transcoder element */
+    pad = kms_agnostic_bin3_create_new_src_pad (self, templ);
+    if (set_transcoder_src_target_pad (GST_GHOST_PAD (pad), element)) {
+      paddata->state = KMS_SRC_PAD_STATE_LINKED;
+    } else {
+      /* We got caps but we could not link with this agnostic */
+      paddata->state = KMS_SRC_PAD_STATE_CONFIGURED;
+    }
+
     g_object_unref (element);
-    return NULL;
+    goto end;
   }
 
   KMS_AGNOSTIC_BIN3_UNLOCK (self);
-
-  paddata = create_src_pad_data ();
-  paddata->caps = gst_caps_copy (caps);
 
   /* Trigger caps signal */
   g_signal_emit (G_OBJECT (self), agnosticbin3_signals[SIGNAL_CAPS], 0, caps,
@@ -497,6 +526,7 @@ kms_agnostic_bin3_create_src_pad_with_caps (KmsAgnosticBin3 * self,
         caps);
   }
 
+end:
   g_object_set_data_full (G_OBJECT (pad), KMS_AGNOSTICBIN3_SRC_PAD_DATA,
       paddata, (GDestroyNotify) destroy_src_pad_data);
 
@@ -587,21 +617,12 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
 
 connect_transcoder:
   {
-    GstPad *target;
-
-    /* Connect src pad to the agnosticbin */
-    target = gst_element_get_request_pad (element, "src_%u");
-
-    if (!gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target)) {
-      GST_ERROR_OBJECT (pad, "Can not set target pad");
-      gst_element_release_request_pad (element, target);
-      new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
-    } else {
-      GST_LOG_OBJECT (pad, "Set target %" GST_PTR_FORMAT, target);
+    if (set_transcoder_src_target_pad (GST_GHOST_PAD (pad), element)) {
       new_state = KMS_SRC_PAD_STATE_LINKED;
+    } else {
+      new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
     }
 
-    g_object_unref (target);
     g_object_unref (element);
   }
 change_state:
@@ -630,8 +651,10 @@ kms_agnostic_bin3_request_src_pad (KmsAgnosticBin3 * self,
     pad = kms_agnostic_bin3_create_src_pad_without_caps (self, templ, name);
   }
 
-  g_signal_connect (pad, "linked",
-      G_CALLBACK (kms_agnostic_bin3_src_pad_linked), self);
+  if (pad != NULL) {
+    g_signal_connect (pad, "linked",
+        G_CALLBACK (kms_agnostic_bin3_src_pad_linked), self);
+  }
 
   return pad;
 }
