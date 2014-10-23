@@ -292,8 +292,7 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
   GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
-  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)
-      || GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_GAP)) {
+  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
     if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
       GST_WARNING_OBJECT (pad, "Discont detected");
       kms_utils_drop_until_keyframe (pad, FALSE);
