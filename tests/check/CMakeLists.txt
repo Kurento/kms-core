@@ -5,9 +5,11 @@ include_directories(
 )
 
 set (SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
+set (KURENTO_DOT_DIR "${CMAKE_BINARY_DIR}/debug/dots" CACHE PATH "Sets the directory where dot files will be dumped")
 
 set (TEST_PROPERTIES
   GST_PLUGIN_PATH=${CMAKE_BINARY_DIR}
+  GST_DEBUG_DUMP_DOT_DIR=${KURENTO_DOT_DIR}
   CK_DEFAULT_TIMEOUT=50
   )
 

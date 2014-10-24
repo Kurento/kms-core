@@ -28,3 +28,10 @@ foreach(test ${ALL_TESTS})
   )
 
 endforeach(test)
+
+add_custom_target(clear_directory
+  COMMAND ${CMAKE_COMMAND} -E remove_directory ${KURENTO_DOT_DIR}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${KURENTO_DOT_DIR}
+)
+
+add_dependencies(check clear_directory)
