@@ -93,40 +93,11 @@ void MediaSet::doGarbageCollection ()
   }
 }
 
-static void
-workerThreadLoop ( boost::shared_ptr< boost::asio::io_service > io_service )
-{
-  bool running = true;
-
-  while (running) {
-    try {
-      GST_DEBUG ("Working thread starting");
-      io_service->run();
-      running = false;
-    } catch (std::exception &e) {
-      GST_ERROR ("Unexpected error while running the server: %s", e.what() );
-    } catch (...) {
-      GST_ERROR ("Unexpected error while running the server");
-    }
-  }
-
-  GST_DEBUG ("Working thread finished");
-}
-
 MediaSet::MediaSet()
 {
   terminated = false;
 
-  /* Prepare pool of threads */
-  io_service = boost::shared_ptr< boost::asio::io_service >
-               ( new boost::asio::io_service () );
-  work = std::shared_ptr< boost::asio::io_service::work >
-         ( new boost::asio::io_service::work (*io_service) );
-  n_threads = MEDIASET_THREADS_DEFAULT;
-
-  for (int i = 0; i < n_threads; i++) {
-    threads.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
-  }
+  workers = std::shared_ptr<WorkerPool> (new WorkerPool (MEDIASET_THREADS_DEFAULT) );
 
   thread = std::thread ( [&] () {
     std::unique_lock <std::recursive_mutex> lock (recMutex);
@@ -185,12 +156,6 @@ MediaSet::~MediaSet ()
 
   if (std::this_thread::get_id() != thread.get_id() ) {
     thread.join();
-  }
-
-  io_service->stop();
-
-  for (int i = 0; i < n_threads; i++) {
-    threads[i].join();
   }
 }
 
@@ -435,7 +400,7 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 
   lock.unlock();
 
-  io_service->post ( boost::bind ( async_delete, mediaObject, id ) );
+  workers->post ( std::bind ( async_delete, mediaObject, id ) );
 
   lock.lock ();
 

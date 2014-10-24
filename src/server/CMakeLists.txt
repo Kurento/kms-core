@@ -15,6 +15,7 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/Factory.cpp
   implementation/MediaSet.cpp
   implementation/ModuleManager.cpp
+  implementation/WorkerPool.cpp
 )
 set (KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
@@ -22,6 +23,7 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/MediaSet.hpp
   implementation/FactoryRegistrar.hpp
   implementation/ModuleManager.hpp
+  implementation/WorkerPool.hpp
 )
 
 set (KMS_CORE_INTERFACE_HEADERS
