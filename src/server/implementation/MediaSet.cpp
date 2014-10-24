@@ -238,7 +238,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
   }
 
   if (this->server) {
-    lock.release ();
+    lock.unlock ();
     server->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast <MediaObject> (mediaObject) ) );
   }
 
