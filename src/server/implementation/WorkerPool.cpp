@@ -107,7 +107,13 @@ WorkerPool::checkWorkers ()
       return;
     }
 
-    /* TODO: Create working thread */
+    GST_WARNING ("Worker threads locked. Spawning a new one.");
+
+    mutex.lock();
+
+    workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
+
+    mutex.unlock();
   });
 }
 

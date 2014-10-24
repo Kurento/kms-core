@@ -16,6 +16,7 @@
 #ifndef __WORKERPOOL_HPP__
 #define __WORKERPOOL_HPP__
 
+#include <mutex>
 #include <thread>
 #include <boost/asio.hpp>
 
@@ -46,6 +47,8 @@ private:
   boost::shared_ptr< boost::asio::io_service > watcher_service;
   std::shared_ptr< boost::asio::io_service::work > watcher_work;
   std::thread watcher;
+
+  std::mutex mutex;
 
   class StaticConstructor
   {
