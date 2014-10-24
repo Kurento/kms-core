@@ -31,13 +31,21 @@ public:
   template <typename CompletionHandler>
   BOOST_ASIO_INITFN_RESULT_TYPE(CompletionHandler, void ())
   post(BOOST_ASIO_MOVE_ARG(CompletionHandler) handler) {
+    setWatcher();
     return io_service->post (handler);
   }
 
 private:
+  void setWatcher();
+  void checkWorkers();
+
   boost::shared_ptr< boost::asio::io_service > io_service;
   std::shared_ptr< boost::asio::io_service::work > work;
   std::vector<std::thread> workers;
+
+  boost::shared_ptr< boost::asio::io_service > watcher_service;
+  std::shared_ptr< boost::asio::io_service::work > watcher_work;
+  std::thread watcher;
 
   class StaticConstructor
   {

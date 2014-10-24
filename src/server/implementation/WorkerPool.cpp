@@ -21,6 +21,8 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoWorkerPool"
 
+const int WORKER_THREADS_TIMEOUT = 3; /* seconds */
+
 namespace kurento
 {
 
@@ -46,6 +48,13 @@ workerThreadLoop ( boost::shared_ptr< boost::asio::io_service > io_service )
 
 WorkerPool::WorkerPool (int threads)
 {
+  /* Prepare watcher */
+  watcher_service = boost::shared_ptr< boost::asio::io_service >
+                    ( new boost::asio::io_service () );
+  watcher_work = std::shared_ptr< boost::asio::io_service::work >
+                 ( new boost::asio::io_service::work (*watcher_service) );
+  watcher = std::thread (std::bind (&workerThreadLoop, watcher_service) );
+
   /* Prepare pool of threads */
   io_service = boost::shared_ptr< boost::asio::io_service >
                ( new boost::asio::io_service () );
@@ -59,11 +68,53 @@ WorkerPool::WorkerPool (int threads)
 
 WorkerPool::~WorkerPool()
 {
+  watcher_service->stop();
   io_service->stop();
+
+  watcher.join();
 
   for (uint i = 0; i < workers.size (); i++) {
     workers[i].join();
   }
+}
+
+static void
+async_worker_test (std::shared_ptr<std::atomic<bool>> alive)
+{
+  *alive = true;
+}
+
+void
+WorkerPool::checkWorkers ()
+{
+  std::shared_ptr<std::atomic<bool>> alive;
+
+  alive = std::shared_ptr<std::atomic<bool>> ( new std::atomic<bool> (false) );
+
+  io_service->post (std::bind (&async_worker_test, alive) );
+
+  boost::shared_ptr< boost::asio::deadline_timer > timer (
+    new boost::asio::deadline_timer ( *watcher_service ) );
+
+  timer->expires_from_now ( boost::posix_time::seconds ( WORKER_THREADS_TIMEOUT) );
+  timer->async_wait ( [timer, alive, this] (const boost::system::error_code & error) {
+    if (error) {
+      GST_ERROR ("ERROR: %s", error.message().c_str() );
+      return;
+    }
+
+    if (*alive) {
+      return;
+    }
+
+    /* TODO: Create working thread */
+  });
+}
+
+void
+WorkerPool::setWatcher ()
+{
+  watcher_service->post (std::bind (&WorkerPool::checkWorkers, this) );
 }
 
 WorkerPool::StaticConstructor WorkerPool::staticConstructor;
