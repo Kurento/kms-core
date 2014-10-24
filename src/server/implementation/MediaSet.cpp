@@ -18,6 +18,7 @@
 #include <gst/gst.h>
 #include <KurentoException.hpp>
 #include <MediaPipelineImpl.hpp>
+#include <ServerImpl.hpp>
 
 /* This is included to avoid problems with slots and lamdas */
 #include <type_traits>
@@ -193,6 +194,18 @@ MediaSet::~MediaSet ()
   }
 }
 
+void
+MediaSet::setServer (std::shared_ptr <ServerImpl> server)
+{
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+
+  if (this->server) {
+    GST_WARNING ("Server can only set once, ignoring");
+  } else {
+    this->server = server;
+  }
+}
+
 std::shared_ptr<MediaObjectImpl>
 MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 {
@@ -222,6 +235,11 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 
     ref (parent.get() );
     childrenMap[parent->getId()][mediaObject->getId()] = mediaObject;
+  }
+
+  if (this->server) {
+    lock.release ();
+    server->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast <MediaObject> (mediaObject) ) );
   }
 
   return mediaObject;
@@ -418,6 +436,13 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
   lock.unlock();
 
   io_service->post ( boost::bind ( async_delete, mediaObject, id ) );
+
+  lock.lock ();
+
+  if (this->server) {
+    lock.unlock ();
+    server->signalObjectDestroyed (ObjectDestroyed (id) );
+  }
 
   checkEmpty();
 }

@@ -629,9 +629,9 @@
       "doc": "Indicates that an object has been destroyed on the mediaserver",
       "properties": [
         {
-          "name": "object",
-          "doc": "The object that has been destroyed",
-          "type": "MediaObject"
+          "name": "objectId",
+          "doc": "The id of the object that has been destroyed",
+          "type": "String"
         }
       ]
     }
