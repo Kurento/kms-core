@@ -325,10 +325,6 @@ MediaSet::unref (const std::string &sessionId,
     }
 
     it->second.erase (it2);
-
-    if (it->second.size() == 0) {
-      unrefSession (sessionId);
-    }
   }
 
   auto it3 = reverseSessionMap.find (mediaObject->getId() );
