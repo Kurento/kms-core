@@ -107,6 +107,8 @@ GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
     );
 
 static gboolean set_transcoder_src_target_pad (GstGhostPad *, GstElement *);
+static GstElement *kms_agnosticbin3_get_element_for_transcoding (KmsAgnosticBin3
+    *);
 
 static KmsSrcPadData *
 create_src_pad_data ()
@@ -231,15 +233,24 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
   }
 
   if (transcode) {
+    if (g_hash_table_size (self->priv->sinkcaps) !=
+        g_slist_length (self->priv->agnosticbins)) {
+      /* Other transcoder which is not yet configured could */
+      /* manage these capabilities */
+      goto end;
+    }
+    /* This is the last transcoder expected to be in this element so far */
     /* TODO: Ask to see if anyone upstream supports this caps */
-    GST_DEBUG_OBJECT (srcpad, "Connection will require transcoding");
+    /* If no one upstream supports these capabilities we need to transcode */
+    transcoder = kms_agnosticbin3_get_element_for_transcoding (self);
+    GST_DEBUG_OBJECT (srcpad, "Connection requires transcoding");
+  } else {
+    transcoder = get_transcoder_connected_to_sinkpad (sinkpad);
+    GST_DEBUG_OBJECT (srcpad, "Connection does not require transcoding");
   }
 
-  /* We can connect this pad to te agnosticbin without transcoding */
-
-  transcoder = get_transcoder_connected_to_sinkpad (sinkpad);
   if (transcoder == NULL) {
-    GST_ERROR_OBJECT (sinkpad, "No transcoder connected");
+    GST_ERROR_OBJECT (sinkpad, "No transcoder available");
     goto end;
   }
 
@@ -283,27 +294,71 @@ link_pending_src_pads (GstPad * srcpad, GstPad * sinkpad)
   g_object_unref (self);
 }
 
+static void
+append_transcoder_to_list (GstPad * sink, GSList ** elements)
+{
+  GstElement *e;
+
+  e = get_transcoder_connected_to_sinkpad (sink);
+  *elements = g_slist_prepend (*elements, e);
+}
+
+static GSList *
+kms_agnosticbin3_get_configured_transcoders (KmsAgnosticBin3 * self)
+{
+  GSList *transcoders = NULL;
+  GList *pads;
+
+  pads = g_hash_table_get_keys (self->priv->sinkcaps);
+
+  if (g_list_length (pads) <= 0) {
+    goto end;
+  }
+
+  g_list_foreach (pads, (GFunc) append_transcoder_to_list, &transcoders);
+
+end:
+
+  if (pads != NULL) {
+    g_list_free (pads);
+  }
+
+  return transcoders;
+}
+
 /* Gets the transcoder that can manage these caps or NULL. [Transfer full] */
 static GstElement *
 kms_agnosticbin3_get_element_for_transcoding (KmsAgnosticBin3 * self)
 {
-  GstElement *transcoder;
+  GstElement *transcoder = NULL;
   guint index, len;
-  GSList *l;
+  GSList *l, *transcoders;
 
   index = (guint) g_atomic_int_add (&self->priv->last, 1);
 
   KMS_AGNOSTIC_BIN3_LOCK (self);
 
-  len = g_slist_length (self->priv->agnosticbins);
+  transcoders = kms_agnosticbin3_get_configured_transcoders (self);
+  len = g_slist_length (transcoders);
+
+  if (len <= 0) {
+    goto end;
+  }
+
   index %= len;
-  l = g_slist_nth (self->priv->agnosticbins, index);
+  l = g_slist_nth (transcoders, index);
   transcoder = l->data;
+
+end:
 
   KMS_AGNOSTIC_BIN3_UNLOCK (self);
 
   if (transcoder != NULL)
     g_object_ref (transcoder);
+
+  if (transcoders != NULL) {
+    g_slist_free_full (transcoders, (GDestroyNotify) g_object_unref);
+  }
 
   return transcoder;
 }
@@ -409,6 +464,10 @@ kms_agnostic_bin3_get_compatible_transcoder_tree (KmsAgnosticBin3 * self,
   gpointer key, value;
 
   /* Check out all agnosticbin's sink capabilities */
+  if (g_hash_table_size (self->priv->sinkcaps) <= 0) {
+    GST_DEBUG_OBJECT (self, "No transcoder initialized yet");
+    return NULL;
+  }
 
   g_hash_table_iter_init (&iter, self->priv->sinkcaps);
 
@@ -475,7 +534,8 @@ kms_agnostic_bin3_create_src_pad_with_transcodification (KmsAgnosticBin3 * self,
   if (transcoder != NULL) {
     set_transcoder_src_target_pad (GST_GHOST_PAD (pad), transcoder);
   } else {
-    GST_ERROR_OBJECT (pad, "Can not connect to any transcoder");
+    /* There is not any configured transcoder yet */
+    GST_DEBUG_OBJECT (pad, "Can not connect to any transcoder");
   }
 
 end:
@@ -650,7 +710,7 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
   /* Get any available transcoder. Round robin will be ussed */
   element = kms_agnosticbin3_get_element_for_transcoding (self);
   if (element == NULL) {
-    GST_ERROR_OBJECT (pad, "Can not connect to any encoder");
+    GST_DEBUG_OBJECT (pad, "Can not connect to any encoder yet");
     goto change_state;
   }
 
