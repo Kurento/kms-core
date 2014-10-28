@@ -7,6 +7,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <chrono>
 
 #define GST_CAT_DEFAULT kurento_media_object_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -14,6 +15,39 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
+
+class RandomGeneratorBase
+{
+protected:
+  RandomGeneratorBase () {
+    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<time_t> time = std::chrono::duration_cast<std::chrono::duration<time_t>> (now.time_since_epoch () );
+
+    ran.seed (time.count() );
+  }
+
+  boost::mt19937 ran;
+};
+
+class RandomGenerator : RandomGeneratorBase
+{
+  boost::mt19937 ran;
+  boost::uuids::basic_random_generator<boost::mt19937> gen;
+
+public:
+  RandomGenerator () : RandomGeneratorBase(), gen (&ran) {
+  }
+
+  std::string getUUID () {
+    std::stringstream ss;
+    boost::uuids::uuid uuid = gen ();
+
+    ss << uuid;
+    return ss.str();
+  }
+};
+
+static RandomGenerator gen;
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
@@ -41,19 +75,16 @@ MediaObjectImpl::getMediaPipeline ()
 std::string
 MediaObjectImpl::createId()
 {
-  std::stringstream ss;
-  boost::uuids::uuid uuid = boost::uuids::random_generator() ();
-
-  ss << uuid;
+  std::string uuid = gen.getUUID ();
 
   if (parent) {
     std::shared_ptr<MediaPipelineImpl> pipeline;
 
     pipeline = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
     return pipeline->getId() + "/" +
-           ss.str();
+           uuid;
   } else {
-    return ss.str();
+    return uuid;
   }
 }
 
