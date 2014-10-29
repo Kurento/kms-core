@@ -457,7 +457,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
   if (ssrc == rtp_endpoint->priv->video_ssrc) {
     g_object_set (jitterbuffer, "do-retransmission", TRUE,
-        "rtx-min-delay", 200, NULL);
+        "rtx-delay-reorder", 0, "rtx-min-delay", 200, NULL);
   }
 }
 
