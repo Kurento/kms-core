@@ -23,7 +23,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "kmsutils"
 #define LAST_KEY_FRAME_REQUEST_TIME "kmslastkeyframe"
 
-#define DEFAULT_KEYFRAME_DISPERSION 300000000   /* 300 ms */
+#define DEFAULT_KEYFRAME_DISPERSION GST_SECOND  /* 1s */
 
 void
 kms_utils_set_valve_drop (GstElement * valve, gboolean drop)
