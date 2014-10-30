@@ -22,9 +22,9 @@ set (JSON_RPC_REQUIRED ^0.1.0)
 set (SIGCPP_REQUIRED ^2.0.10)
 set (GLIBMM_REQUIRED ^2.37)
 
-find_package(Boost REQUIRED COMPONENTS filesystem system)
-
 include (GenericFind)
+
+generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system)
 
 #gst-plugins dependencies
 generic_find (LIBNAME gstreamer-1.0 VERSION ${GST_REQUIRED} REQUIRED)

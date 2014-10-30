@@ -63,8 +63,6 @@ generate_code (
   SERVER_IMPL_LIB_EXTRA_LIBRARIES
       ${gstreamer-sdp-1.0_LIBRARIES}
       ${Boost_LIBRARIES}
-      ${Boost_FILESYSTEM_LIBRARIES}
-      ${Boost_SYSTEM_LIBRARIES}
       ${gstreamer-1.0_LIBRARIES}
       ${KmsJsonRpc_LIBRARIES}
   MODULE_EXTRA_INCLUDE_DIRS
@@ -85,4 +83,5 @@ generate_code (
       "KmsJsonRpc ${JSON_RPC_REQUIRED}"
       "sigc++-2.0 ${sigc++-2.0_REQUIRED}"
       "glibmm-2.4 ${glibmm-2.4_REQUIRED}"
+      "LIBNAME Boost COMPONENTS filesystem system"
 )
