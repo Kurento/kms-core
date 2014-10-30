@@ -267,8 +267,8 @@ link_source (gpointer data)
 
   g_object_set (G_OBJECT (videosrc), "is-live", TRUE, NULL);
   gst_bin_add_many (GST_BIN (pipeline), videosrc, NULL);
-  gst_element_sync_state_with_parent (videosrc);
   gst_element_link (videosrc, agnosticbin);
+  gst_element_sync_state_with_parent (videosrc);
 
   g_object_unref (agnosticbin);
 
