@@ -49,3 +49,7 @@ kms-marshal.h
 COPYING
 tests/examples/webrtc_http_server
 build
+.excludes
+CMakeLists.txt.user
+kms-core.json
+manifest.json
