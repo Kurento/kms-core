@@ -21,6 +21,9 @@
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
 #include "kmsloop.h"
+#include "kmsparsetreebin.h"
+#include "kmsdectreebin.h"
+#include "kmsenctreebin.h"
 
 #define PLUGIN_NAME "agnosticbin"
 
@@ -29,10 +32,6 @@
 
 #define DEFAULT_QUEUE_SIZE 60
 
-static GstStaticCaps static_audio_caps =
-GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
-static GstStaticCaps static_video_caps =
-GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
 static GstStaticCaps static_raw_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_RAW_AUDIO_CAPS);
 static GstStaticCaps static_raw_video_caps =
@@ -69,16 +68,17 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 
 struct _KmsAgnosticBin2Private
 {
-  GHashTable *tees;
+  GHashTable *bins;
   GQueue *pads_to_link;
 
   GMutex thread_mutex;
 
-  GstElement *current_tee;
   GstElement *input_tee;
   GstCaps *input_caps;
+  GstBin *input_bin;
+  GstCaps *input_bin_src_caps;
+
   GstPad *sink;
-  GstCaps *current_caps;
   guint pad_count;
   gboolean started;
 
@@ -99,14 +99,10 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
     );
 
 static void
-kms_agnostic_bin2_insert_tee (KmsAgnosticBin2 * self, GstElement * tee)
+kms_agnostic_bin2_insert_bin (KmsAgnosticBin2 * self, GstBin * bin)
 {
-  gchar *key;
-
-  key =
-      g_strconcat (GST_OBJECT_NAME (GST_ELEMENT_PARENT (tee)), ":",
-      GST_OBJECT_NAME (tee), NULL);
-  g_hash_table_insert (self->priv->tees, key, g_object_ref (tee));
+  g_hash_table_insert (self->priv->bins, GST_OBJECT_NAME (bin),
+      g_object_ref (bin));
 }
 
 /*
@@ -199,9 +195,13 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 
   GST_OBJECT_LOCK (pad);
   if (g_object_get_data (G_OBJECT (pad), UNLINKING_DATA)) {
-    GST_DEBUG ("Already unlinking");
     GST_OBJECT_UNLOCK (pad);
-    return GST_PAD_PROBE_DROP;
+    if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
+      /* Queries must be answered */
+      return GST_PAD_PROBE_PASS;
+    } else {
+      return GST_PAD_PROBE_DROP;
+    }
   }
 
   g_object_set_data (G_OBJECT (pad), UNLINKING_DATA, GINT_TO_POINTER (TRUE));
@@ -399,60 +399,6 @@ link_queue_to_tee (GstElement * tee, GstElement * queue)
   }
 }
 
-static GstElement *
-create_convert_for_caps (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *convert;
-
-  if (gst_caps_can_intersect (caps, audio_caps))
-    convert = gst_element_factory_make ("audioconvert", NULL);
-  else
-    convert = gst_element_factory_make ("videoconvert", NULL);
-
-  gst_caps_unref (audio_caps);
-
-  return convert;
-}
-
-static GstElement *
-create_mediator_element (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *element = NULL;
-
-  if (gst_caps_can_intersect (caps, audio_caps)) {
-    element = gst_element_factory_make ("audioresample", NULL);
-  } else {
-    element = gst_element_factory_make ("videoscale", NULL);
-  }
-
-  gst_caps_unref (audio_caps);
-
-  return element;
-}
-
-static GstElement *
-create_rate_for_caps (GstCaps * caps)
-{
-  GstCaps *audio_caps = gst_static_caps_get (&static_audio_caps);
-  GstElement *rate;
-
-  if (gst_caps_can_intersect (caps, audio_caps)) {
-    rate = gst_element_factory_make ("audiorate", NULL);
-    g_object_set (G_OBJECT (rate), "tolerance", GST_MSECOND * 100,
-        "skip-to-first", TRUE, NULL);
-  } else {
-    rate = gst_element_factory_make ("videorate", NULL);
-    g_object_set (G_OBJECT (rate), "average-period", GST_MSECOND * 200,
-        "skip-to-first", TRUE, NULL);
-  }
-
-  gst_caps_unref (audio_caps);
-
-  return rate;
-}
-
 static GstPadProbeReturn
 remove_target_pad_block (GstPad * pad, GstPadProbeInfo * info, gpointer gp)
 {
@@ -492,9 +438,9 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   gst_element_sync_state_with_parent (queue);
 
   if (!gst_caps_is_any (caps) && is_raw_caps (caps)) {
-    GstElement *convert = create_convert_for_caps (caps);
-    GstElement *rate = create_rate_for_caps (caps);
-    GstElement *mediator = create_mediator_element (caps);
+    GstElement *convert = kms_utils_create_convert_for_caps (caps);
+    GstElement *rate = kms_utils_create_rate_for_caps (caps);
+    GstElement *mediator = kms_utils_create_mediator_element (caps);
 
     remove_element_on_unlinked (convert, "src", "sink");
     remove_element_on_unlinked (rate, "src", "sink");
@@ -517,19 +463,21 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   link_queue_to_tee (tee, queue);
 }
 
-static GstElement *
-kms_agnostic_bin2_find_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
+static GstBin *
+kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GList *tees, *l;
-  GstElement *tee = NULL;
+  GList *bins, *l;
+  GstBin *bin = NULL;
 
   if (gst_caps_is_any (caps)) {
-    return self->priv->current_tee;
+    return self->priv->input_bin;
   }
 
-  tees = g_hash_table_get_values (self->priv->tees);
-  for (l = tees; l != NULL && tee == NULL; l = l->next) {
-    GstPad *tee_sink = gst_element_get_static_pad (l->data, "sink");
+  bins = g_hash_table_get_values (self->priv->bins);
+  for (l = bins; l != NULL && bin == NULL; l = l->next) {
+    GstElement *output_tee =
+        kms_tree_bin_get_output_tee (KMS_TREE_BIN (l->data));
+    GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
     GstCaps *current_caps = gst_pad_get_current_caps (tee_sink);
 
     if (current_caps == NULL) {
@@ -543,168 +491,81 @@ kms_agnostic_bin2_find_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
     if (current_caps != NULL) {
       if (gst_caps_can_intersect (caps, current_caps))
-        tee = l->data;
+        bin = l->data;
       gst_caps_unref (current_caps);
     }
 
     g_object_unref (tee_sink);
   }
-  g_list_free (tees);
+  g_list_free (bins);
 
-  return tee;
+  return bin;
 }
 
 static GstCaps *
-kms_agnostic_bin2_get_raw_caps (GstCaps * caps)
+kms_agnostic_bin2_get_raw_caps (const GstCaps * caps)
 {
-  GstCaps *audio_caps, *video_caps, *raw_caps = NULL;
+  GstCaps *raw_caps = NULL;
 
-  audio_caps = gst_static_caps_get (&static_audio_caps);
-  video_caps = gst_static_caps_get (&static_video_caps);
-
-  if (gst_caps_can_intersect (caps, audio_caps))
+  if (kms_utils_caps_are_audio (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_audio_caps);
-  else if (gst_caps_can_intersect (caps, video_caps))
+  } else if (kms_utils_caps_are_video (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_video_caps);
-
-  gst_caps_unref (audio_caps);
-  gst_caps_unref (video_caps);
+  }
 
   return raw_caps;
 }
 
-static GstElement *
-create_decoder_for_caps (GstCaps * caps, GstCaps * raw_caps)
+static GstBin *
+kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
+    const GstCaps * raw_caps)
 {
-  GList *decoder_list, *filtered_list, *aux_list, *l;
-  GstElementFactory *decoder_factory = NULL;
-  GstElement *decoder = NULL;
+  KmsDecTreeBin *dec_bin;
+  GstElement *output_tee, *input_queue;
+  GstCaps *caps = self->priv->input_bin_src_caps;
 
-  decoder_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_DECODER,
-      GST_RANK_NONE);
-  aux_list =
-      gst_element_factory_list_filter (decoder_list, caps, GST_PAD_SINK, FALSE);
-  filtered_list =
-      gst_element_factory_list_filter (aux_list, raw_caps, GST_PAD_SRC, FALSE);
-
-  for (l = filtered_list; l != NULL && decoder_factory == NULL; l = l->next) {
-    decoder_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (decoder_factory) != 2)
-      decoder_factory = NULL;
-  }
-
-  if (decoder_factory != NULL) {
-    decoder = gst_element_factory_create (decoder_factory, NULL);
-  }
-
-  gst_plugin_feature_list_free (filtered_list);
-  gst_plugin_feature_list_free (decoder_list);
-  gst_plugin_feature_list_free (aux_list);
-
-  return decoder;
-}
-
-static GstElement *
-create_parser_for_caps (GstCaps * caps)
-{
-  GList *parser_list, *filtered_list, *l;
-  GstElementFactory *parser_factory = NULL;
-  GstElement *parser = NULL;
-
-  parser_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_PARSER |
-      GST_ELEMENT_FACTORY_TYPE_MEDIA_VIDEO, GST_RANK_NONE + 1);
-  filtered_list =
-      gst_element_factory_list_filter (parser_list, caps, GST_PAD_SINK, FALSE);
-
-  for (l = filtered_list; l != NULL && parser_factory == NULL; l = l->next) {
-    parser_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (parser_factory) != 2)
-      parser_factory = NULL;
-  }
-
-  if (parser_factory != NULL) {
-    parser = gst_element_factory_create (parser_factory, NULL);
-  } else {
-    parser = gst_element_factory_make ("capsfilter", NULL);
-  }
-
-  gst_plugin_feature_list_free (filtered_list);
-  gst_plugin_feature_list_free (parser_list);
-
-  return parser;
-}
-
-static GstElement *
-kms_agnostic_bin2_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * raw_caps)
-{
-  GstCaps *current_caps = self->priv->current_caps;
-  GstElement *decoder, *queue, *tee, *fakequeue, *fakesink;
-  GstPad *pad;
-
-  if (current_caps == NULL)
-    return NULL;
-
-  decoder = create_decoder_for_caps (current_caps, raw_caps);
-
-  if (decoder == NULL) {
-    GST_DEBUG ("Invalid decoder");
+  if (caps == NULL || raw_caps == NULL) {
     return NULL;
   }
 
-  GST_DEBUG_OBJECT (self, "Decoder found: %" GST_PTR_FORMAT, decoder);
+  dec_bin = kms_dec_tree_bin_new (caps, raw_caps);
+  if (dec_bin == NULL) {
+    return NULL;
+  }
 
-  pad = gst_element_get_static_pad (decoder, "sink");
-  kms_utils_drop_until_keyframe (pad, TRUE);
-  gst_object_unref (pad);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (dec_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (dec_bin));
 
-  queue = gst_element_factory_make ("queue", NULL);
-  tee = gst_element_factory_make ("tee", NULL);
-  fakequeue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
+  output_tee =
+      kms_tree_bin_get_output_tee (KMS_TREE_BIN (self->priv->input_bin));
+  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (dec_bin));
+  link_queue_to_tee (output_tee, input_queue);
 
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
-
-  gst_bin_add_many (GST_BIN (self), queue, decoder, tee, fakequeue, fakesink,
-      NULL);
-  gst_element_sync_state_with_parent (queue);
-  gst_element_sync_state_with_parent (decoder);
-  gst_element_sync_state_with_parent (tee);
-  gst_element_sync_state_with_parent (fakequeue);
-  gst_element_sync_state_with_parent (fakesink);
-  gst_element_link_many (queue, decoder, tee, fakequeue, fakesink, NULL);
-
-  link_queue_to_tee (self->priv->current_tee, queue);
-
-  return tee;
+  return GST_BIN (dec_bin);
 }
 
-static GstElement *
-kms_agnostic_bin2_get_or_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * caps)
+static GstBin *
+kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstCaps *raw_caps = kms_agnostic_bin2_get_raw_caps (caps);
 
   if (raw_caps != NULL) {
-    GstElement *raw_tee;
+    GstBin *dec_bin;
 
     GST_DEBUG ("Raw caps: %" GST_PTR_FORMAT, raw_caps);
-    raw_tee = kms_agnostic_bin2_find_tee_for_caps (self, raw_caps);
+    dec_bin = kms_agnostic_bin2_find_bin_for_caps (self, raw_caps);
 
-    if (raw_tee == NULL) {
-      raw_tee = kms_agnostic_bin2_create_raw_tee (self, raw_caps);
+    if (dec_bin == NULL) {
+      dec_bin = kms_agnostic_bin2_create_dec_bin (self, raw_caps);
     }
 
-    if (raw_tee != NULL) {
-      kms_agnostic_bin2_insert_tee (self, raw_tee);
+    if (dec_bin != NULL) {
+      kms_agnostic_bin2_insert_bin (self, dec_bin);
     }
 
     gst_caps_unref (raw_caps);
 
-    return raw_tee;
+    return dec_bin;
   } else {
     GST_ELEMENT_WARNING (self, CORE, NEGOTIATION,
         ("Formats are not compatible"), ("Formats are not compatible"));
@@ -712,103 +573,37 @@ kms_agnostic_bin2_get_or_create_raw_tee (KmsAgnosticBin2 * self, GstCaps * caps)
   }
 }
 
-static void
-configure_encoder (GstElement * encoder, const gchar * factory_name)
+static GstBin *
+kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GST_DEBUG ("Configure encoder: %s", factory_name);
-  if (g_strcmp0 ("vp8enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
-        "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-        "target-bitrate", 300000, "end-usage", /* cbr */ 1, NULL);
-  } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "tune", 4 /* zerolatency */ , "threads", (guint) 1,
-        NULL);
-  }
-}
+  GstBin *dec_bin;
+  KmsEncTreeBin *enc_bin;
+  GstElement *input_queue, *output_tee;
 
-static GstElement *
-create_encoder_for_caps (GstCaps * caps)
-{
-  GList *encoder_list, *filtered_list, *l;
-  GstElementFactory *encoder_factory = NULL;
-  GstElement *encoder = NULL;
-
-  encoder_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
-      GST_RANK_NONE);
-  filtered_list =
-      gst_element_factory_list_filter (encoder_list, caps, GST_PAD_SRC, FALSE);
-
-  for (l = filtered_list; l != NULL && encoder_factory == NULL; l = l->next) {
-    encoder_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (encoder_factory) != 2)
-      encoder_factory = NULL;
-  }
-
-  if (encoder_factory != NULL) {
-    encoder = gst_element_factory_create (encoder_factory, NULL);
-    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory));
-  }
-
-  gst_plugin_feature_list_free (filtered_list);
-  gst_plugin_feature_list_free (encoder_list);
-
-  return encoder;
-}
-
-static GstElement *
-kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
-{
-  GstElement *tee;
-  GstElement *raw_tee = kms_agnostic_bin2_get_or_create_raw_tee (self, caps);
-  GstElement *encoder, *queue, *rate, *convert, *mediator, *fakequeue,
-      *fakesink;
-
-  if (raw_tee == NULL) {
+  dec_bin = kms_agnostic_bin2_get_or_create_dec_bin (self, caps);
+  if (dec_bin == NULL) {
     return NULL;
   }
 
-  if (is_raw_caps (caps))
-    return raw_tee;
+  if (is_raw_caps (caps)) {
+    return dec_bin;
+  }
 
-  encoder = create_encoder_for_caps (caps);
-
-  if (encoder == NULL)
+  enc_bin = kms_enc_tree_bin_new (caps);
+  if (enc_bin == NULL) {
     return NULL;
+  }
 
-  queue = gst_element_factory_make ("queue", NULL);
-  rate = create_rate_for_caps (caps);
-  convert = create_convert_for_caps (caps);
-  mediator = create_mediator_element (caps);
-  tee = gst_element_factory_make ("tee", NULL);
-  fakequeue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (enc_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (fakequeue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
+  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (enc_bin));
+  link_queue_to_tee (output_tee, input_queue);
 
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
+  kms_agnostic_bin2_insert_bin (self, GST_BIN (enc_bin));
 
-  gst_bin_add_many (GST_BIN (self), queue, rate, convert, mediator, encoder,
-      tee, fakequeue, fakesink, NULL);
-
-  gst_element_sync_state_with_parent (queue);
-  gst_element_sync_state_with_parent (rate);
-  gst_element_sync_state_with_parent (convert);
-  gst_element_sync_state_with_parent (mediator);
-  gst_element_sync_state_with_parent (encoder);
-  gst_element_sync_state_with_parent (tee);
-  gst_element_sync_state_with_parent (fakequeue);
-  gst_element_sync_state_with_parent (fakesink);
-
-  gst_element_link_many (queue, rate, convert, mediator, encoder, tee,
-      fakequeue, fakesink, NULL);
-  link_queue_to_tee (raw_tee, queue);
-
-  kms_agnostic_bin2_insert_tee (self, tee);
-
-  return tee;
+  return GST_BIN (enc_bin);
 }
 
 /**
@@ -822,7 +617,7 @@ static void
 kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
 {
   GstCaps *caps;
-  GstElement *tee;
+  GstBin *bin;
 
   GST_INFO_OBJECT (self, "Linking: %" GST_PTR_FORMAT, pad);
 
@@ -832,14 +627,17 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
     goto end;
 
   GST_DEBUG ("Query caps are: %" GST_PTR_FORMAT, caps);
-  tee = kms_agnostic_bin2_find_tee_for_caps (self, caps);
+  bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
-  if (tee == NULL) {
-    tee = kms_agnostic_bin2_create_tee_for_caps (self, caps);
-    GST_DEBUG_OBJECT (self, "Created tee: %" GST_PTR_FORMAT, tee);
+  if (bin == NULL) {
+    bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
+    GST_DEBUG_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
   }
 
-  if (tee != NULL) {
+  if (bin != NULL) {
+    GstElement *tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (bin));
+
+    kms_utils_drop_until_keyframe (pad, TRUE);
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
   }
 
@@ -936,43 +734,8 @@ kms_agnostic_bin2_add_pad_to_queue (KmsAgnosticBin2 * self, GstPad * pad)
 }
 
 static void
-kms_agnostic_bin2_disconnect_previous_input_tee (KmsAgnosticBin2 * self)
+add_linked_pads (GstPad * pad, KmsAgnosticBin2 * self)
 {
-  GstElement *queue = NULL, *parser = NULL;
-  GstPad *tee_sink = NULL, *parser_src = NULL, *parser_sink = NULL,
-      *queue_src = NULL, *queue_sink = NULL, *tee_src = NULL;
-
-  if (self->priv->current_tee == NULL)
-    return;
-
-  tee_sink = gst_element_get_static_pad (self->priv->current_tee, "sink");
-  parser_src = gst_pad_get_peer (tee_sink);
-  parser = gst_pad_get_parent_element (parser_src);
-  parser_sink = gst_element_get_static_pad (parser, "sink");
-  queue_src = gst_pad_get_peer (parser_sink);
-  queue = gst_pad_get_parent_element (queue_src);
-  queue_sink = gst_element_get_static_pad (queue, "sink");
-  tee_src = gst_pad_get_peer (queue_sink);
-
-  gst_pad_unlink (tee_src, queue_sink);
-  gst_element_release_request_pad (GST_ELEMENT (GST_OBJECT_PARENT (tee_src)),
-      tee_src);
-
-  g_object_unref (tee_src);
-  g_object_unref (queue_sink);
-  g_object_unref (queue_src);
-  g_object_unref (queue);
-  g_object_unref (parser_sink);
-  g_object_unref (parser_src);
-  g_object_unref (parser);
-  g_object_unref (tee_sink);
-}
-
-static void
-add_linked_pads (GstPad * pad, gpointer data)
-{
-  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (data);
-
   if (!gst_pad_is_linked (pad)) {
     return;
   }
@@ -981,31 +744,34 @@ add_linked_pads (GstPad * pad, gpointer data)
 }
 
 static GstPadProbeReturn
-set_input_caps (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
+input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
 {
-  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (tee));
+  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (bin));
   GstEvent *event = gst_pad_probe_info_get_event (info);
   GstCaps *current_caps;
 
   GST_TRACE_OBJECT (self, "Event in parser pad: %" GST_PTR_FORMAT, event);
 
-  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS)
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
     return GST_PAD_PROBE_OK;
+  }
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   self->priv->started = TRUE;
-  if (self->priv->current_caps != NULL)
-    gst_caps_unref (self->priv->current_caps);
+  if (self->priv->input_bin_src_caps != NULL) {
+    gst_caps_unref (self->priv->input_bin_src_caps);
+  }
 
   gst_event_parse_caps (event, &current_caps);
-  self->priv->current_caps = gst_caps_copy (current_caps);
-  kms_agnostic_bin2_insert_tee (self, GST_ELEMENT (tee));
+  self->priv->input_bin_src_caps = gst_caps_copy (current_caps);
+  kms_agnostic_bin2_insert_bin (self, GST_BIN (bin));
 
   GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
       current_caps);
 
-  kms_element_for_each_src_pad (GST_ELEMENT (self), add_linked_pads, self);
+  kms_element_for_each_src_pad (GST_ELEMENT (self),
+      (KmsPadIterationAction) add_linked_pads, self);
 
   kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_HIGH,
       kms_agnostic_bin2_process_pad_loop, g_object_ref (self), g_object_unref);
@@ -1016,52 +782,50 @@ set_input_caps (GstPad * pad, GstPadProbeInfo * info, gpointer tee)
 }
 
 static void
-kms_agnostic_bin2_configure_input_tee (KmsAgnosticBin2 * self, GstCaps * caps)
+kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 {
-  GstElement *input_queue, *parser, *tee, *queue, *fakesink;
+  KmsParseTreeBin *parse_bin;
+  GstElement *parser;
   GstPad *parser_src;
+  GstElement *input_queue;
+  GstElement *old_bin = NULL;
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
-  kms_agnostic_bin2_disconnect_previous_input_tee (self);
 
-  input_queue = gst_element_factory_make ("queue", NULL);
-  parser = create_parser_for_caps (caps);
-  tee = gst_element_factory_make ("tee", NULL);
-  self->priv->current_tee = tee;
-  queue = gst_element_factory_make ("queue", NULL);
-  fakesink = gst_element_factory_make ("fakesink", NULL);
+  if (self->priv->input_bin != NULL) {
+    kms_tree_bin_unlink_input_queue_from_tee (KMS_TREE_BIN (self->
+            priv->input_bin));
+    old_bin = g_object_ref (GST_ELEMENT (self->priv->input_bin));
+    gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
+  }
 
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
-  g_object_set (input_queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
+  parse_bin = kms_parse_tree_bin_new (caps);
+  self->priv->input_bin = GST_BIN (parse_bin);
 
-  g_object_set (G_OBJECT (fakesink), "async", FALSE, NULL);
-
-  gst_bin_add_many (GST_BIN (self), input_queue, parser, tee, queue, fakesink,
-      NULL);
-
-  g_hash_table_remove_all (self->priv->tees);
-
+  parser = kms_parse_tree_bin_get_parser (KMS_PARSE_TREE_BIN (parse_bin));
   parser_src = gst_element_get_static_pad (parser, "src");
   gst_pad_add_probe (parser_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-      set_input_caps, g_object_ref (tee), g_object_unref);
+      input_bin_src_caps_probe, g_object_ref (parse_bin), g_object_unref);
   g_object_unref (parser_src);
 
-  gst_element_sync_state_with_parent (input_queue);
-  gst_element_sync_state_with_parent (parser);
-  gst_element_sync_state_with_parent (tee);
-  gst_element_sync_state_with_parent (queue);
-  gst_element_sync_state_with_parent (fakesink);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (parse_bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
 
-  gst_element_link_many (input_queue, parser, tee, queue, fakesink, NULL);
+  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (parse_bin));
   gst_element_link (self->priv->input_tee, input_queue);
 
   self->priv->started = FALSE;
-
+  g_hash_table_remove_all (self->priv->bins);
   while (!g_queue_is_empty (self->priv->pads_to_link)) {
     gst_object_unref (GST_OBJECT (g_queue_pop_head (self->priv->pads_to_link)));
   }
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
+
+  if (old_bin != NULL) {
+    gst_element_set_state (old_bin, GST_STATE_NULL);
+    g_object_unref (old_bin);
+  }
 }
 
 static GstPadProbeReturn
@@ -1103,13 +867,13 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
         !is_raw_caps (current_caps) && !is_raw_caps (new_caps)) {
       GST_DEBUG_OBJECT (user_data, "Caps differ caps: %" GST_PTR_FORMAT,
           new_caps);
-      kms_agnostic_bin2_configure_input_tee (self, new_caps);
+      kms_agnostic_bin2_configure_input (self, new_caps);
     }
 
     gst_caps_unref (current_caps);
   } else {
     GST_DEBUG_OBJECT (user_data, "No previous caps, starting");
-    kms_agnostic_bin2_configure_input_tee (self, new_caps);
+    kms_agnostic_bin2_configure_input (self, new_caps);
   }
 
   return GST_PAD_PROBE_OK;
@@ -1208,9 +972,9 @@ kms_agnostic_bin2_dispose (GObject * object)
   KMS_AGNOSTIC_BIN2_LOCK (self);
   g_clear_object (&self->priv->loop);
 
-  if (self->priv->current_caps) {
-    gst_caps_unref (self->priv->current_caps);
-    self->priv->current_caps = NULL;
+  if (self->priv->input_bin_src_caps) {
+    gst_caps_unref (self->priv->input_bin_src_caps);
+    self->priv->input_bin_src_caps = NULL;
   }
 
   if (self->priv->input_caps) {
@@ -1232,7 +996,7 @@ kms_agnostic_bin2_finalize (GObject * object)
   g_mutex_clear (&self->priv->thread_mutex);
 
   g_queue_free_full (self->priv->pads_to_link, g_object_unref);
-  g_hash_table_unref (self->priv->tees);
+  g_hash_table_unref (self->priv->bins);
 
   /* chain up */
   G_OBJECT_CLASS (kms_agnostic_bin2_parent_class)->finalize (object);
@@ -1330,8 +1094,8 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 
   self->priv->started = FALSE;
   self->priv->loop = kms_loop_new ();
-  self->priv->tees =
-      g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  self->priv->bins =
+      g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   self->priv->pads_to_link = g_queue_new ();
   g_mutex_init (&self->priv->thread_mutex);
 }

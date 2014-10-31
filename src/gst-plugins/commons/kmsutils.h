@@ -17,7 +17,7 @@
 
 #include "gst/gst.h"
 
-typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer * data);
+typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer data);
 void kms_element_for_each_src_pad (GstElement * element,
   KmsPadIterationAction action, gpointer data);
 
