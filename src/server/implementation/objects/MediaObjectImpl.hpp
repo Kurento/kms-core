@@ -31,6 +31,8 @@ public:
     return parent;
   }
 
+  virtual std::vector<std::shared_ptr<MediaObject>> getChilds ();
+
   virtual std::string getId () {
     return id;
   }

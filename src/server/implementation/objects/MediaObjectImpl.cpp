@@ -5,6 +5,7 @@
 #include <KurentoException.hpp>
 #include <gst/gst.h>
 #include <UUIDGenerator.hpp>
+#include <MediaSet.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_object_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -50,6 +51,17 @@ MediaObjectImpl::createId()
   } else {
     return uuid;
   }
+}
+
+std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
+{
+  std::vector<std::shared_ptr<MediaObject>> childs;
+
+  for (auto it : MediaSet::getMediaSet ()->getChilds (std::dynamic_pointer_cast <MediaObjectImpl> (shared_from_this() ) ) ) {
+    childs.push_back (it);
+  }
+
+  return childs;
 }
 
 MediaObjectImpl::StaticConstructor MediaObjectImpl::staticConstructor;
