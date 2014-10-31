@@ -530,11 +530,35 @@ function (generate_kurento_libraries)
     const char * getModuleName () {return \"${VALUE_NAME}\";}"
   )
 
+  execute_code_generator (
+    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/
+  )
+
+  file (READ ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json KMD_DATA)
+
+  string (REGEX REPLACE "\n *" "" KMD_DATA ${KMD_DATA})
+  string (REPLACE "\"" "\\\"" KMD_DATA ${KMD_DATA})
+  string (REPLACE "\\n" "\\\\n" KMD_DATA ${KMD_DATA})
+  set (KMD_DATA "\"${KMD_DATA}\"")
+
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json ${KMD_DATA})
+
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/module_descriptor.cpp
+    "
+    #include <string>
+    extern \"C\" {std::string& getModuleDescriptor ();}
+    std::string descriptor =
+    #include \"${VALUE_NAME}.kmd.json\"
+;
+    std::string &getModuleDescriptor () {return descriptor;}"
+  )
+
   add_library (${VALUE_CODE_IMPLEMENTATION_LIB}module MODULE
     ${MODULE_GENERATED_SOURCES}
     ${MODULE_GENERATED_HEADERS}
     ${CMAKE_CURRENT_BINARY_DIR}/module_version.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/module_name.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/module_descriptor.cpp
   )
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}module
@@ -555,6 +579,7 @@ function (generate_kurento_libraries)
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
       ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
       ${PARAM_MODULE_EXTRA_INCLUDE_DIRS}
+      ${CMAKE_CURRENT_BINARY_DIR}
   )
 
   install(

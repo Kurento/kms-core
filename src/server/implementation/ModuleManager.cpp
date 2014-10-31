@@ -30,15 +30,17 @@ namespace kurento
 
 typedef const char * (*GetVersionFunc) ();
 typedef const char * (*GetNameFunc) ();
+typedef std::string & (*GetDescFunc) ();
 
 int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
-  void *registrarFactory, *getVersion = NULL, *getName = NULL;
+  void *registrarFactory, *getVersion = NULL, *getName = NULL, *getDescriptor = NULL;
   std::string moduleFileName;
   std::string moduleName;
   std::string moduleVersion;
+  std::string moduleDescriptor;
 
   boost::filesystem::path path (modulePath);
 
@@ -89,7 +91,13 @@ ModuleManager::loadModule (std::string modulePath)
     moduleName = ( (GetVersionFunc) getName) ();
   }
 
-  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion, factories) );
+  if (!module.get_symbol ("getModuleDescriptor", getDescriptor) ) {
+    GST_WARNING ("Cannot get module descriptor");
+  } else {
+    moduleDescriptor = ( (GetDescFunc) getDescriptor) ();
+  }
+
+  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion, moduleDescriptor, factories) );
 
   GST_INFO ("Loaded %s version %s", moduleName.c_str() , moduleVersion.c_str() );
 

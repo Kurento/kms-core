@@ -31,9 +31,9 @@ namespace kurento
 class ModuleData
 {
 public:
-  ModuleData (const std::string &name, const std::string &version,
+  ModuleData (const std::string &name, const std::string &version, std::string &descriptor,
               const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories) :
-    name (name), version (version), factories (factories) {
+    name (name), version (version), descriptor (descriptor), factories (factories) {
   }
 
   std::string getName() const {
@@ -44,6 +44,10 @@ public:
     return version;
   }
 
+  std::string &getDescriptor () const {
+    return descriptor;
+  }
+
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &getFactories() {
     return factories;
   }
@@ -52,6 +56,7 @@ public:
 private:
   std::string name;
   std::string version;
+  std::string &descriptor;
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories;
 };
 
