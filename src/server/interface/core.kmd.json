@@ -53,6 +53,11 @@
           "doc": "Childs of current object, all returned objects have parent set to current object",
           "type": "MediaObject[]",
           "readOnly": true
+        },
+        {
+          "name": "name",
+          "doc": "Object name. This is just a comodity to simplify developers life debugging, it is not used internally for indexing nor idenfiying the objects. By default is the object type followed by the object id.",
+          "type": "String"
         }
       ],
       "events": [

@@ -5,6 +5,7 @@
 #include "MediaObject.hpp"
 #include <EventHandler.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <mutex>
 
 namespace kurento
 {
@@ -37,6 +38,9 @@ public:
     return id;
   }
 
+  virtual std::string getName ();
+  virtual void setName (const std::string &name);
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
 
@@ -65,6 +69,8 @@ protected:
 private:
 
   std::string id;
+  std::string name;
+  std::mutex mutex;
   std::shared_ptr<MediaObject> parent;
 
   std::string createId();

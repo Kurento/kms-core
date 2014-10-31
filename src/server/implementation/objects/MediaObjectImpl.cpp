@@ -53,6 +53,26 @@ MediaObjectImpl::createId()
   }
 }
 
+std::string
+MediaObjectImpl::getName()
+{
+  std::unique_lock<std::mutex> lck (mutex);
+
+  if (name.empty () ) {
+    name = this->getType () + "_" + id;
+  }
+
+  return name;
+}
+
+void
+MediaObjectImpl::setName (const std::string &name)
+{
+  std::unique_lock<std::mutex> lck (mutex);
+
+  this->name = name;
+}
+
 std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
 {
   std::vector<std::shared_ptr<MediaObject>> childs;
