@@ -13,6 +13,11 @@ set (TEST_PROPERTIES
   CK_DEFAULT_TIMEOUT=50
   )
 
+set (VALGRING_TEST_PROPERTIES
+  ${TEST_PROPERTIES}
+  CK_DEFAULT_TIMEOUT=500
+  )
+
 add_subdirectory(element)
 add_subdirectory(general)
 

@@ -1,31 +1,11 @@
 # G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --leak-check=yes --log-file=valgrind.log --xml-file=valgrind.xml --xml=yes --suppressions=../valgrind.supp sever/kurento <command line options for kurento>
+
 {
-   Glib type register static
-   Memcheck:Leak
-   ...
-   fun:g_type_register_static
-   ...
-}
-{
-   Glib type interface static registration
-   Memcheck:Leak
-   ...
-   fun:g_type_add_interface_static
-   ...
-}
-{
-   Glib type register fundamental
-   Memcheck:Leak
-   ...
-   fun:g_type_register_fundamental
-   ...
-}
-{
-   Glib type class ref
-   Memcheck:Leak
-   ...
-   fun:g_type_class_ref
-   ...
+  Glib g_signal_new
+  Memcheck:Leak
+  ...
+  fun:g_signal_new
+  ...
 }
 {
    Glib init ctor
@@ -35,53 +15,68 @@
    ...
 }
 {
-   Quark from static string
-   Memcheck:Leak
-   ...
-   fun:g_quark_from_static_string
-   ...
+  Register static
+  Memcheck:Leak
+  ...
+  fun:g_type_register_static
+  ...
 }
 {
-   Static pad Template
-   Memcheck:Leak
-   ...
-   fun:gst_static_pad_template_get
-   ...
+  GstCheck init
+  Memcheck:Leak
+  ...
+  fun:gst_init_check
+  fun:gst_init
+  fun:gst_check_init
+  fun:main
 }
 {
-   Gstreamer load plugin
-   Memcheck:Leak
-   ...
-   fun:gst_plugin_feature_load
-   ...
+  Thread pool push
+  Memcheck:Leak
+  fun:calloc
+  fun:_dl_allocate_tls
+  fun:pthread_create@@GLIBC_2.2.5
+  fun:g_system_thread_new
+  fun:g_thread_new_internal
+  fun:g_thread_pool_start_thread.part.1
+  fun:g_thread_pool_push
+  ...
 }
 {
-   Gstreamer load plugin file
-   Memcheck:Leak
-   ...
-   fun:gst_plugin_load_file
-   ...
+  Videotestsrc
+  Memcheck:Leak
+  fun:malloc
+  fun:orc_program_new
+  ...
 }
 {
-   Gstreamer statuc_caps_get
-   Memcheck:Leak
-   ...
-   fun:gst_static_caps_get
-   ...
+  VideoTestSrc
+  Memcheck:Leak
+  fun:malloc
+  fun:strdup
+  fun:orc_program_add_source_full
+  fun:orc_bytecode_parse_function
+  fun:orc_program_new_from_static_bytecode
+  ...
 }
 {
-   Glib dns lookup
-   Memcheck:Param
-   sendmsg(mmsg[0].msg_hdr)
-   fun:sendmmsg
-   fun:__libc_res_nsend
-   fun:__libc_res_nquery
-   ...
+  VideoTestSrc
+  Memcheck:Leak
+  fun:malloc
+  fun:strdup
+  fun:orc_program_add_destination_full
+  fun:orc_bytecode_parse_function
+  fun:orc_program_new_from_static_bytecode
+  ...
 }
 {
-   Lib orc program_new_from_static
-   Memcheck:Leak
-   ...
-   fun:orc_program_new_from_static_bytecode
-   ...
+  Module loading
+  Memcheck:Leak
+  ...
+  fun:gst_plugin_load_file
+  fun:gst_plugin_load_by_name
+  fun:gst_plugin_feature_load
+  fun:gst_element_factory_create
+  fun:gst_element_factory_make
+  ...
 }
