@@ -33,12 +33,11 @@
 {
   Thread pool push
   Memcheck:Leak
-  fun:calloc
+  ...
   fun:_dl_allocate_tls
-  fun:pthread_create@@GLIBC_2.2.5
+  fun:pthread_create@@GLIBC_2.*
   fun:g_system_thread_new
-  fun:g_thread_new_internal
-  fun:g_thread_pool_start_thread.part.1
+  ...
   fun:g_thread_pool_push
   ...
 }

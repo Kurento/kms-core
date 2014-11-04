@@ -199,6 +199,7 @@ GST_START_TEST (create_src_pad_test_with_caps)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -395,6 +396,7 @@ GST_START_TEST (connect_source_configured_pause_sink_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -465,6 +467,7 @@ GST_START_TEST (connect_source_configured_pause_sink_transcoding_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -536,6 +539,7 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -620,6 +624,7 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_transcoded_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -708,6 +713,7 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_with_caps_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -796,6 +802,7 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_with_caps_transcoding_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -906,6 +913,7 @@ GST_START_TEST (two_sinks_one_src_test)
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
@@ -1082,6 +1090,7 @@ GST_START_TEST (two_sinks_two_srcs_test)
   fail_if (transcode_done_on (sink2), "Sink2 should not transcode");
 
   gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   g_object_unref (pipeline);
   g_main_loop_unref (loop);
