@@ -303,6 +303,7 @@ change_input (gpointer pipeline)
 
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
+  g_object_unref (fakesink);
 
   gst_bin_add (pipe, enc);
   gst_element_sync_state_with_parent (enc);
@@ -978,6 +979,7 @@ GST_START_TEST (create_test)
   GST_DEBUG_OBJECT (pad, "Pad created");
 
   gst_element_release_request_pad (agnosticbin, pad);
+  gst_object_unref (pad);
 
   g_object_unref (agnosticbin);
 }
@@ -1004,6 +1006,8 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
   tcase_add_test (tc_chain, encoded_input_n_encoded_ouput);
+
+  tcase_add_test (tc_chain, input_reconfiguration);
 
   return s;
 }
