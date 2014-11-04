@@ -30,7 +30,7 @@ namespace kurento
 
 typedef const char * (*GetVersionFunc) ();
 typedef const char * (*GetNameFunc) ();
-typedef std::string & (*GetDescFunc) ();
+typedef const char * (*GetDescFunc) ();
 
 int
 ModuleManager::loadModule (std::string modulePath)
@@ -40,7 +40,7 @@ ModuleManager::loadModule (std::string modulePath)
   std::string moduleFileName;
   std::string moduleName;
   std::string moduleVersion;
-  std::string moduleDescriptor;
+  const char *moduleDescriptor = NULL;
 
   boost::filesystem::path path (modulePath);
 

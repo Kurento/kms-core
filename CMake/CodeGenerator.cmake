@@ -546,11 +546,12 @@ function (generate_kurento_libraries)
   file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/module_descriptor.cpp
     "
     #include <string>
-    extern \"C\" {std::string& getModuleDescriptor ();}
-    std::string descriptor =
+    extern \"C\" {const char * getModuleDescriptor ();}
+
+    const char * getModuleDescriptor () {
+    return
     #include \"${VALUE_NAME}.kmd.json\"
-;
-    std::string &getModuleDescriptor () {return descriptor;}"
+;}"
   )
 
   add_library (${VALUE_CODE_IMPLEMENTATION_LIB}module MODULE
