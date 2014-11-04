@@ -1,0 +1,14 @@
+{
+   GstInit
+   Memcheck:Leak
+   ...
+   fun:gst_init
+   ...
+}
+{
+   Glib init ctor
+   Memcheck:Leak
+   ...
+   fun:gobject_init_ctor
+   ...
+}

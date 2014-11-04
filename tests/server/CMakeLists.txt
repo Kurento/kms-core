@@ -1,3 +1,8 @@
+set (SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
+set (VALGRING_TEST_PROPERTIES
+  DEBUG_MEDIASET=1
+)
+
 add_test_program (test_module module.cpp)
 add_dependencies(test_module ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module

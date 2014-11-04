@@ -74,5 +74,7 @@ main (int argc, char **argv)
     return 1;
   }
 
+  kurento::MediaSet::getMediaSet()->release (mediaPipeline->getId() );
+
   return 0;
 }
