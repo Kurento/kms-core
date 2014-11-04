@@ -1001,7 +1001,11 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, encoded_input_to_valve);
   tcase_add_test (tc_chain, static_link);
   tcase_add_test (tc_chain, reconnect_test);
-  tcase_add_test (tc_chain, valve_test);
+  if (FALSE) {
+    // FIXME: Disabled until fixed, there is a race condition in tests
+    // more accusated when running with valgrind
+    tcase_add_test (tc_chain, valve_test);
+  }
   tcase_add_test (tc_chain, delay_stream);
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
