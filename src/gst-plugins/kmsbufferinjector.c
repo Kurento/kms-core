@@ -33,6 +33,7 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
 
 GST_DEBUG_CATEGORY_STATIC (kms_buffer_injector_debug);
 #define GST_CAT_DEFAULT kms_buffer_injector_debug
+#define kms_buffer_injector_parent_class parent_class
 
 G_DEFINE_TYPE_WITH_CODE (KmsBufferInjector, kms_buffer_injector,
     GST_TYPE_ELEMENT,
@@ -108,9 +109,23 @@ kms_buffer_injector_init (KmsBufferInjector * self)
 }
 
 static void
+kms_buffer_injector_finalize (GObject * object)
+{
+  KmsBufferInjector *self = KMS_BUFFER_INJECTOR (object);
+
+  g_mutex_clear (&self->priv->thread_mutex);
+
+  G_OBJECT_CLASS (parent_class)->finalize (object);
+}
+
+static void
 kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
 {
   GstElementClass *gstelement_class;
+  GObjectClass *gobject_class;
+
+  gobject_class = G_OBJECT_CLASS (klass);
+  gobject_class->finalize = kms_buffer_injector_finalize;
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
 
