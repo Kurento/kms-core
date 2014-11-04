@@ -460,7 +460,6 @@ function (generate_kurento_libraries)
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}impl
     ${VALUE_CODE_IMPLEMENTATION_LIB}interface
-    ${VALUE_CODE_IMPLEMENTATION_LIB}gstreamer
   )
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}impl
