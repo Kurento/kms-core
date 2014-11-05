@@ -42,6 +42,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
 
+#define KMS_ELEMENT_SYNC_LOCK(obj) (                      \
+  g_mutex_lock (&(((KmsElement *)obj)->priv->sync_lock))  \
+)
+
+#define KMS_ELEMENT_SYNC_UNLOCK(obj) (                      \
+  g_mutex_unlock (&(((KmsElement *)obj)->priv->sync_lock))  \
+)
+
 struct _KmsElementPrivate
 {
   guint audio_pad_count;
@@ -58,6 +66,11 @@ struct _KmsElementPrivate
   /* Audio and video capabilities */
   GstCaps *audio_caps;
   GstCaps *video_caps;
+
+  /* Synchronization */
+  GMutex sync_lock;
+  GstClockTime base_time;
+  GstClockTime base_clock;
 };
 
 /* Signals and args */
@@ -106,9 +119,68 @@ GST_STATIC_PAD_TEMPLATE ("video_src_%u",
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS)
     );
 
+static GstPadProbeReturn
+synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  KmsElement *self = data;
+  GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+  buffer = gst_buffer_make_writable (buffer);
+  info->data = buffer;
+
+  KMS_ELEMENT_SYNC_LOCK (self);
+  if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
+      && GST_BUFFER_PTS_IS_VALID (buffer)) {
+    self->priv->base_time = buffer->pts;
+  }
+
+  if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
+    GstObject *parent = GST_OBJECT (self);
+    GstClock *clock;
+
+    while (parent && parent->parent) {
+      parent = parent->parent;
+    }
+
+    if (parent) {
+      clock = gst_element_get_clock (GST_ELEMENT (parent));
+
+      if (clock) {
+        self->priv->base_clock =
+            gst_clock_get_time (clock) -
+            gst_element_get_base_time (GST_ELEMENT (parent));
+        g_object_unref (clock);
+      }
+    }
+  }
+
+  if (GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
+      && GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
+    if (GST_BUFFER_PTS_IS_VALID (buffer)) {
+      if (self->priv->base_time > buffer->pts) {
+        GST_WARNING_OBJECT (self,
+            "Received a buffer with a pts lower than base");
+        buffer->pts = self->priv->base_clock;
+      } else {
+        buffer->pts =
+            (buffer->pts - self->priv->base_time) + self->priv->base_clock;
+      }
+    }
+  } else {
+    buffer->pts = GST_CLOCK_TIME_NONE;
+  }
+  KMS_ELEMENT_SYNC_UNLOCK (self);
+
+  buffer->dts = buffer->pts;
+
+  return GST_PAD_PROBE_OK;
+}
+
 GstElement *
 kms_element_get_audio_agnosticbin (KmsElement * self)
 {
+  GstPad *sink;
+
   GST_DEBUG ("Audio agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->audio_agnosticbin != NULL) {
@@ -118,6 +190,12 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
 
   self->priv->audio_agnosticbin =
       gst_element_factory_make ("agnosticbin", AUDIO_AGNOSTICBIN);
+
+  sink = gst_element_get_static_pad (self->priv->audio_agnosticbin, "sink");
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
+      NULL);
+  g_object_unref (sink);
+
   gst_bin_add (GST_BIN (self), self->priv->audio_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
@@ -130,6 +208,8 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
 GstElement *
 kms_element_get_video_agnosticbin (KmsElement * self)
 {
+  GstPad *sink;
+
   GST_DEBUG ("Video agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->video_agnosticbin != NULL) {
@@ -139,6 +219,12 @@ kms_element_get_video_agnosticbin (KmsElement * self)
 
   self->priv->video_agnosticbin =
       gst_element_factory_make ("agnosticbin", VIDEO_AGNOSTICBIN);
+
+  sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
+      NULL);
+  g_object_unref (sink);
+
   gst_bin_add (GST_BIN (self), self->priv->video_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
@@ -498,6 +584,8 @@ kms_element_finalize (GObject * object)
   /* free resources allocated by this object */
   g_rec_mutex_clear (&element->mutex);
 
+  g_mutex_clear (&element->priv->sync_lock);
+
   /* chain up */
   G_OBJECT_CLASS (kms_element_parent_class)->finalize (object);
 }
@@ -617,6 +705,10 @@ kms_element_init (KmsElement * element)
 
   element->priv->audio_valve = NULL;
   element->priv->video_valve = NULL;
+
+  element->priv->base_time = GST_CLOCK_TIME_NONE;
+  element->priv->base_clock = GST_CLOCK_TIME_NONE;
+  g_mutex_init (&element->priv->sync_lock);
 }
 
 KmsElementPadType
