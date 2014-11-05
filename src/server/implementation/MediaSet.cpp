@@ -441,9 +441,19 @@ void MediaSet::release (const std::string &mediaObjectRef)
   }
 }
 
+static const std::string NEW_REF = "newref:";
+
 std::shared_ptr< MediaObjectImpl >
 MediaSet::getMediaObject (const std::string &mediaObjectRef)
 {
+  if (mediaObjectRef.size() > NEW_REF.size()
+      && mediaObjectRef.substr (0, NEW_REF.size() ) == NEW_REF) {
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT,
+                            "Object '" + mediaObjectRef +
+                            "'' not found. Possibly using a transactional " +
+                            "object without committing the transaction.");
+  }
+
   std::shared_ptr <MediaObjectImpl> objectLocked;
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
