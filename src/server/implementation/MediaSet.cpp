@@ -450,17 +450,17 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
   auto it = objectsMap.find (mediaObjectRef);
 
   if (it == objectsMap.end() ) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
   }
 
   try {
     objectLocked = it->second.lock();
   } catch (...) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
   }
 
   if (!objectLocked) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
   }
 
   return objectLocked;
