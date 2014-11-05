@@ -18,7 +18,7 @@ install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
 set (GST_REQUIRED ~1.4)
 set (GLIB_REQUIRED ^2.38)
-set (JSON_RPC_REQUIRED ^0.1.0)
+set (JSON_RPC_REQUIRED ^0.2.0)
 set (SIGCPP_REQUIRED ^2.0.10)
 set (GLIBMM_REQUIRED ^2.37)
 

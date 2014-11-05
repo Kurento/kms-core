@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 8.0.0),
  pkg-config,
  kms-cmake-utils (>= 1.0.1),
  libgstreamer1.0-dev (>= 1.4.0),
- kms-jsonrpc-dev (>> 0.1.0),
+ kms-jsonrpc-dev (>= 0.2.0~6),
  libsigc++-2.0-dev,
  libglibmm-2.4-dev,
  libgstreamer-plugins-base1.0-dev (>= 1.4.0),
@@ -30,7 +30,8 @@ Depends:
  gstreamer1.0-libav,
  gstreamer1.0-plugins-bad (>= 1.4.0),
  gstreamer1.0-plugins-good (>= 1.4.0),
- gstreamer1.0-plugins-ugly
+ gstreamer1.0-plugins-ugly,
+ kms-jsonrpc (>= 0.2.0~6)
 Breaks:
  kurento-media-server (<= 5.0.5~3),
  kms-elements (<= 5.0.5~6)
