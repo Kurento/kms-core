@@ -124,19 +124,39 @@ GST_STATIC_PAD_TEMPLATE ("video_src_%u",
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS)
     );
 
-static GstPadProbeReturn
-synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+static GstClockTime
+kms_element_adjust_pts (KmsElement * self, GstClockTime in)
 {
-  KmsElement *self = data;
-  GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+  GstClockTime pts = in;
 
-  buffer = gst_buffer_make_writable (buffer);
-  info->data = buffer;
+  if (GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
+      && GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
+    if (GST_CLOCK_TIME_IS_VALID (in)) {
+      if (self->priv->base_time > in) {
+        GST_WARNING_OBJECT (self,
+            "Received a buffer with a pts lower than base");
+        pts = self->priv->base_clock;
+      } else {
+        pts = (in - self->priv->base_time) + self->priv->base_clock;
+      }
+    }
+  } else {
+    pts = GST_CLOCK_TIME_NONE;
+  }
+
+  return pts;
+}
+
+static GstClockTime
+kms_element_synchronize_pts (KmsElement * self, GstClockTime in)
+{
+  GstClockTime pts;
 
   KMS_ELEMENT_SYNC_LOCK (self);
+
   if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
-      && GST_BUFFER_PTS_IS_VALID (buffer)) {
-    self->priv->base_time = buffer->pts;
+      && GST_CLOCK_TIME_IS_VALID (in)) {
+    self->priv->base_time = in;
   }
 
   if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
@@ -159,24 +179,83 @@ synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
     }
   }
 
-  if (GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
-      && GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
-    if (GST_BUFFER_PTS_IS_VALID (buffer)) {
-      if (self->priv->base_time > buffer->pts) {
-        GST_WARNING_OBJECT (self,
-            "Received a buffer with a pts lower than base");
-        buffer->pts = self->priv->base_clock;
-      } else {
-        buffer->pts =
-            (buffer->pts - self->priv->base_time) + self->priv->base_clock;
-      }
-    }
-  } else {
-    buffer->pts = GST_CLOCK_TIME_NONE;
-  }
+  pts = kms_element_adjust_pts (self, in);
+
   KMS_ELEMENT_SYNC_UNLOCK (self);
 
-  buffer->dts = buffer->pts;
+  return pts;
+}
+
+static void
+kms_element_synchronize_buffer (KmsElement * self, GstBuffer * buffer)
+{
+  GST_BUFFER_PTS (buffer) = kms_element_synchronize_pts (self,
+      GST_BUFFER_PTS (buffer));
+  GST_BUFFER_DTS (buffer) = GST_BUFFER_PTS (buffer);
+}
+
+static gboolean
+synchronize_bufferlist (GstBuffer ** buf, guint idx, KmsElement * self)
+{
+  *buf = gst_buffer_make_writable (*buf);
+
+  kms_element_synchronize_buffer (self, *buf);
+
+  return TRUE;
+}
+
+static GstPadProbeReturn
+synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  KmsElement *self = KMS_ELEMENT (data);
+
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+    buffer = gst_buffer_make_writable (buffer);
+    kms_element_synchronize_buffer (self, buffer);
+
+    GST_PAD_PROBE_INFO_DATA (info) = buffer;
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
+    bufflist = gst_buffer_list_make_writable (bufflist);
+    gst_buffer_list_foreach (bufflist,
+        (GstBufferListFunc) synchronize_bufferlist, self);
+    GST_PAD_PROBE_INFO_DATA (info) = bufflist;
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) &
+      GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
+    GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+    event = gst_event_make_writable (event);
+    GST_EVENT_TIMESTAMP (event) = kms_element_synchronize_pts (self,
+        GST_EVENT_TIMESTAMP (event));
+
+    /* Check dowstream events */
+    switch (GST_EVENT_TYPE (event)) {
+//      case GST_EVENT_STREAM_START:
+      case GST_EVENT_CAPS:
+        /* TODO: VP8 tend to pack a streamheader field */
+        /* in caps containing a buffer */
+      case GST_EVENT_SEGMENT:
+        /* TODO: Check start, stop, base.. fields of the segment */
+//      case GST_EVENT_TAG:
+//      case GST_EVENT_BUFFERSIZE:
+//      case GST_EVENT_SINK_MESSAGE:
+//      case GST_EVENT_EOS:
+//      case GST_EVENT_TOC:
+//      case GST_EVENT_SEGMENT_DONE:
+      case GST_EVENT_GAP:
+        /* TODO: GAP contains the start time (pts) os the gap */
+        break;
+      default:
+        break;
+    }
+
+    GST_PAD_PROBE_INFO_DATA (info) = event;
+  } else {
+    GST_ERROR_OBJECT (self, "Unsupported data received in probe");
+  }
 
   return GST_PAD_PROBE_OK;
 }
