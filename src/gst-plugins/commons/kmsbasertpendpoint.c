@@ -745,7 +745,8 @@ kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes (GstElement * rtpbin, guint session,
 
   g_signal_emit_by_name (rtpbin, "get-internal-session", session, &rtpsession);
   if (rtpsession != NULL) {
-    g_object_set (rtpsession, "rtcp-min-interval", 500 * GST_MSECOND, NULL);
+    g_object_set (rtpsession, "rtcp-min-interval",
+        RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
     g_object_unref (rtpsession);
   }
 }

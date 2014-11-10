@@ -19,6 +19,8 @@
 #include "kmsbasesdpendpoint.h"
 #include "kmsmediatype.h"
 
+#define RTCP_MIN_INTERVAL 500 /* ms */
+
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_BASE_RTP_ENDPOINT \
