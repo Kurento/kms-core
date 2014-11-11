@@ -453,11 +453,13 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GstElement * jitterbuffer,
     guint session, guint ssrc, KmsBaseRtpEndpoint * rtp_endpoint)
 {
-  g_object_set (jitterbuffer, "mode", 4 /* synced */ , NULL);
+  g_object_set (jitterbuffer, "mode", 4 /* synced */ , "latency", 1500, NULL);
 
   if (ssrc == rtp_endpoint->priv->video_ssrc) {
-    g_object_set (jitterbuffer, "do-retransmission", TRUE,
-        "rtx-delay-reorder", 0, "rtx-min-delay", 200, NULL);
+    g_object_set (jitterbuffer, "do-lost", TRUE,
+        "do-retransmission", TRUE,
+        "rtx-next-seqnum", FALSE,
+        "rtx-max-retries", 0, "rtp-max-dropout", -1, NULL);
   }
 }
 
