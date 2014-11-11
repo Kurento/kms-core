@@ -19,3 +19,10 @@
   fun:gst_init_check
   ...
 }
+{
+  Plugin loader
+  Memcheck:Leak
+  ...
+  fun:_gst_plugin_loader_client_run
+  ...
+}
