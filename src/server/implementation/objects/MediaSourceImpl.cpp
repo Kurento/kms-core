@@ -14,21 +14,58 @@ namespace kurento
 {
 
 struct tmp_data {
-  GMutex mutex;
+  GRecMutex mutex;
   std::weak_ptr<MediaSourceImpl> src;
   std::weak_ptr<MediaSinkImpl> sink;
   gulong handler;
+  int ref;
 };
 
 static void
-destroy_tmp_data (gpointer data, GClosure *closure)
+destroy_tmp_data (gpointer data)
 {
   struct tmp_data *tmp = (struct tmp_data *) data;
 
   tmp->src.reset();
   tmp->sink.reset();
-  g_mutex_clear (&tmp->mutex);
+  g_rec_mutex_clear (&tmp->mutex);
   g_slice_free (struct tmp_data, tmp);
+}
+
+static void
+tmp_data_unref (struct tmp_data *data)
+{
+  gboolean dispose;
+
+  g_rec_mutex_lock (&data->mutex);
+
+  if (G_UNLIKELY (data->ref <= 0) ) {
+    GST_WARNING ("Refcount <= 0");
+  }
+
+  data->ref --;
+  dispose = data->ref == 0;
+  g_rec_mutex_unlock (&data->mutex);
+
+  if (dispose) {
+    destroy_tmp_data (data);
+  }
+}
+
+static void
+tmp_data_unref_closure (gpointer data, GClosure *closure)
+{
+  tmp_data_unref ( (struct tmp_data *) data);
+}
+
+static struct tmp_data *
+tmp_data_ref (struct tmp_data *data)
+{
+  g_rec_mutex_lock (&data->mutex);
+  data->ref ++;
+  g_rec_mutex_unlock (&data->mutex);
+
+  return data;
 }
 
 static struct tmp_data *
@@ -39,24 +76,30 @@ create_tmp_data (std::shared_ptr<MediaSourceImpl> src,
 
   tmp = g_slice_new0 (struct tmp_data);
 
-  g_mutex_init (&tmp->mutex);
+  g_rec_mutex_init (&tmp->mutex);
 
   tmp->src = std::weak_ptr<MediaSourceImpl> (src);
   tmp->sink = std::weak_ptr<MediaSinkImpl> (sink);
   tmp->handler = 0L;
+  tmp->ref = 1;
 
   return tmp;
 }
 
 static void
-pad_unlinked (GstPad *pad, GstPad *peer, GstElement *parent)
+pad_unlinked (GstPad *pad, GstPad *peer, gpointer data)
 {
-  gst_element_release_request_pad (parent, pad);
+  GstElement *parent = gst_pad_get_parent_element (pad);
+
+  if (parent != NULL) {
+    gst_element_release_request_pad (parent, pad);
+    g_object_unref (parent);
+  }
 }
 
 gboolean
-link_media_elements (std::shared_ptr<MediaSourceImpl> src,
-                     std::shared_ptr<MediaSinkImpl> sink)
+link_media_pads (std::shared_ptr<MediaSourceImpl> src,
+                 std::shared_ptr<MediaSinkImpl> sink)
 {
   std::unique_lock<std::recursive_mutex> lock (src->mutex);
   bool ret = FALSE;
@@ -91,28 +134,30 @@ link_media_elements (std::shared_ptr<MediaSourceImpl> src,
 static void
 disconnect_handler (GstElement *element, struct tmp_data *data)
 {
-  g_mutex_lock (&data->mutex);
-
   if (data->handler != 0) {
     g_signal_handler_disconnect (element, data->handler);
     data->handler = 0;
   }
-
-  g_mutex_unlock (&data->mutex);
 }
 
 static void
-agnosticbin_added_cb (GstElement *element, gpointer data)
+link_media_elements (GstElement *element, gpointer data)
 {
   struct tmp_data *tmp = (struct tmp_data *) data;
   std::shared_ptr<MediaSourceImpl> src;
   std::shared_ptr<MediaSinkImpl> sink;
 
+  g_rec_mutex_lock (&tmp->mutex);
+
+  if (tmp->handler == 0) {
+    goto end;
+  }
+
   try {
     src = tmp->src.lock();
     sink = tmp->sink.lock();
 
-    if (src && sink && link_media_elements (src, sink) ) {
+    if (src && sink && link_media_pads (src, sink) ) {
       disconnect_handler (element, tmp);
     }
   } catch (const std::bad_weak_ptr &e) {
@@ -120,6 +165,9 @@ agnosticbin_added_cb (GstElement *element, gpointer data)
 
     disconnect_handler (element, tmp);
   }
+
+end:
+  g_rec_mutex_unlock (&tmp->mutex);
 }
 
 MediaSourceImpl::MediaSourceImpl (const boost::property_tree::ptree &config,
@@ -166,47 +214,22 @@ void MediaSourceImpl::connect (std::shared_ptr<MediaSink> sink)
   std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaSinkImpl> mediaSinkImpl =
     std::dynamic_pointer_cast<MediaSinkImpl> (sink);
-  GstPad *pad;
-  bool ret;
+  struct tmp_data *tmp;
 
   GST_INFO ("connect %s to %s", this->getId().c_str(),
             mediaSinkImpl->getId().c_str() );
 
-  pad = gst_element_get_request_pad (getGstreamerElement(), getPadName() );
+  tmp = create_tmp_data (std::dynamic_pointer_cast<MediaSourceImpl>
+                         (shared_from_this() ), mediaSinkImpl);
+  tmp_data_ref (tmp);
+  tmp->handler = g_signal_connect_data (getGstreamerElement(),
+                                        "agnosticbin-added",
+                                        G_CALLBACK (link_media_elements),
+                                        tmp, tmp_data_unref_closure,
+                                        (GConnectFlags) 0);
 
-  if (pad == NULL) {
-    struct tmp_data *tmp;
-
-    GST_DEBUG ("Put connection off until agnostic bin is created for pad %s",
-               getPadName() );
-    tmp = create_tmp_data (std::dynamic_pointer_cast<MediaSourceImpl>
-                           (shared_from_this() ), mediaSinkImpl);
-    tmp->handler = g_signal_connect_data (getGstreamerElement(),
-                                          "agnosticbin-added",
-                                          G_CALLBACK (agnosticbin_added_cb),
-                                          tmp, destroy_tmp_data,
-                                          (GConnectFlags) 0);
-    return;
-  }
-
-  g_signal_connect_data (G_OBJECT (pad), "unlinked", G_CALLBACK (pad_unlinked),
-                         g_object_ref (getGstreamerElement() ),
-                         (GClosureNotify) g_object_unref, (GConnectFlags) 0);
-
-  ret = mediaSinkImpl->linkPad (
-          std::dynamic_pointer_cast <MediaSourceImpl> (shared_from_this() ), pad);
-
-  if (ret) {
-    connectedSinks.push_back (std::weak_ptr<MediaSinkImpl> (mediaSinkImpl) );
-  } else {
-    gst_element_release_request_pad (getGstreamerElement(), pad);
-  }
-
-  g_object_unref (pad);
-
-  if (!ret) {
-    throw KurentoException (CONNECT_ERROR, "Cannot link pads");
-  }
+  link_media_elements (getGstreamerElement(), tmp);
+  tmp_data_unref (tmp);
 }
 
 void
