@@ -304,6 +304,20 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   return GST_PAD_PROBE_OK;
 }
 
+static GstPadProbeReturn
+gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
+    GST_WARNING_OBJECT (pad, "Gap detected");
+    send_force_key_unit_event (pad, FALSE);
+    return GST_PAD_PROBE_DROP;
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 void
 kms_utils_manage_gaps (GstPad * pad)
 {
@@ -311,6 +325,8 @@ kms_utils_manage_gaps (GstPad * pad)
   kms_utils_control_key_frames_request_duplicates (pad);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, discont_detection_probe,
       NULL, NULL);
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      gap_detection_probe, NULL, NULL);
 }
 
 static gboolean
