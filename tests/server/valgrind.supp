@@ -12,3 +12,10 @@
    fun:gobject_init_ctor
    ...
 }
+{
+  GstInitCheck
+  Memcheck:Leak
+  ...
+  fun:gst_init_check
+  ...
+}
