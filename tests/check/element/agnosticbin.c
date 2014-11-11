@@ -352,8 +352,7 @@ block_agnostic_sink (GstPad * pad, GstPadProbeInfo * info, gpointer data)
     }
   }
 
-  if (!g_atomic_int_get (&configuring)) {
-    g_atomic_int_set (&configuring, TRUE);
+  if (g_atomic_int_compare_and_exchange (&configuring, FALSE, TRUE)) {
     change_input (data);
     g_atomic_int_set (&configuring, FALSE);
     return GST_PAD_PROBE_REMOVE;
