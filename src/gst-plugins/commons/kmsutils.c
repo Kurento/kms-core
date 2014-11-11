@@ -321,8 +321,6 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 void
 kms_utils_manage_gaps (GstPad * pad)
 {
-  // TODO: Think about adding it here automatically or not
-  kms_utils_control_key_frames_request_duplicates (pad);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, discont_detection_probe,
       NULL, NULL);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
