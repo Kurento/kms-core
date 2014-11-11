@@ -136,6 +136,10 @@ MediaSinkImpl::linkPad (std::shared_ptr<MediaSourceImpl> mediaSrc, GstPad *src)
                getPadName().c_str() ) ) == NULL) {
     sink = gst_element_get_request_pad (getGstreamerElement(),
                                         getPadName().c_str() );
+
+    if (sink == NULL) {
+      return false;
+    }
   }
 
   if (gst_pad_is_linked (sink) ) {
