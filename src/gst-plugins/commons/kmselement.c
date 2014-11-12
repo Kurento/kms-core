@@ -24,6 +24,7 @@
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
+#define DEFAULT_DO_SYNCHRONIZATION FALSE
 
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
 #define GST_CAT_DEFAULT kms_element_debug_category
@@ -71,6 +72,8 @@ struct _KmsElementPrivate
   GMutex sync_lock;
   GstClockTime base_time;
   GstClockTime base_clock;
+
+  gboolean do_synchronization;
 };
 
 /* Signals and args */
@@ -87,7 +90,9 @@ enum
   PROP_0,
   PROP_ACCEPT_EOS,
   PROP_AUDIO_CAPS,
-  PROP_VIDEO_CAPS
+  PROP_VIDEO_CAPS,
+  PROP_DO_SYNCHRONIZATION,
+  PROP_LAST
 };
 
 /* the capabilities of the inputs and outputs. */
@@ -179,8 +184,6 @@ synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 GstElement *
 kms_element_get_audio_agnosticbin (KmsElement * self)
 {
-  GstPad *sink;
-
   GST_DEBUG ("Audio agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->audio_agnosticbin != NULL) {
@@ -191,10 +194,14 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   self->priv->audio_agnosticbin =
       gst_element_factory_make ("agnosticbin", AUDIO_AGNOSTICBIN);
 
-  sink = gst_element_get_static_pad (self->priv->audio_agnosticbin, "sink");
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
-      NULL);
-  g_object_unref (sink);
+  if (self->priv->do_synchronization) {
+    GstPad *sink;
+
+    sink = gst_element_get_static_pad (self->priv->audio_agnosticbin, "sink");
+    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
+        NULL);
+    g_object_unref (sink);
+  }
 
   gst_bin_add (GST_BIN (self), self->priv->audio_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
@@ -544,6 +551,9 @@ kms_element_set_property (GObject * object, guint property_id,
       kms_element_endpoint_set_caps (self, gst_value_get_caps (value),
           &self->priv->video_caps);
       break;
+    case PROP_DO_SYNCHRONIZATION:
+      self->priv->do_synchronization = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -569,6 +579,9 @@ kms_element_get_property (GObject * object, guint property_id,
     case PROP_VIDEO_CAPS:
       g_value_take_boxed (value, kms_element_endpoint_get_caps (self,
               self->priv->video_caps));
+      break;
+    case PROP_DO_SYNCHRONIZATION:
+      g_value_set_boolean (value, self->priv->do_synchronization);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -657,6 +670,12 @@ kms_element_class_init (KmsElementClass * klass)
           "Indicates if the element should accept EOS events.",
           DEFAULT_ACCEPT_EOS, G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class, PROP_DO_SYNCHRONIZATION,
+      g_param_spec_boolean ("do-synchronization",
+          "Do synchronization",
+          "Synchronize buffers, events and queries using global pipeline clock",
+          DEFAULT_DO_SYNCHRONIZATION, G_PARAM_READWRITE));
+
   g_object_class_install_property (gobject_class, PROP_AUDIO_CAPS,
       g_param_spec_boxed ("audio-caps", "Audio capabilities",
           "The allowed caps for audio", GST_TYPE_CAPS,
@@ -709,6 +728,8 @@ kms_element_init (KmsElement * element)
   element->priv->base_time = GST_CLOCK_TIME_NONE;
   element->priv->base_clock = GST_CLOCK_TIME_NONE;
   g_mutex_init (&element->priv->sync_lock);
+
+  element->priv->do_synchronization = DEFAULT_DO_SYNCHRONIZATION;
 }
 
 KmsElementPadType
