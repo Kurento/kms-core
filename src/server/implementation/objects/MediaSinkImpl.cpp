@@ -32,7 +32,7 @@ MediaSinkImpl::~MediaSinkImpl()
   }
 
   if (connectedSrcLocked != NULL) {
-    disconnect (connectedSrcLocked);
+    unlink (connectedSrcLocked, NULL);
   }
 }
 
@@ -241,13 +241,17 @@ pad_blocked_adaptor (GstPad *pad, GstPadProbeInfo *info, gpointer data)
     reinterpret_cast < std::function < void (GstPad * pad,
         GstPadProbeInfo * info) > * > (data);
 
+  if (!GST_PAD_STREAM_TRYLOCK (pad) ) {
+    return GST_PAD_PROBE_DROP;
+  }
+
   GST_OBJECT_LOCK (pad);
 
   processed = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pad), "processed") );
 
   if (processed) {
     GST_OBJECT_UNLOCK (pad);
-    return GST_PAD_PROBE_REMOVE;
+    goto end;
   }
 
   g_object_set_data (G_OBJECT (pad), "processed", GINT_TO_POINTER (TRUE) );
@@ -255,8 +259,12 @@ pad_blocked_adaptor (GstPad *pad, GstPadProbeInfo *info, gpointer data)
 
   (*handler) (pad, info);
 
+end:
+
+  GST_PAD_STREAM_UNLOCK (pad);
+
   /* Drop everithing so as to avoid broken pipe errors on an unlinked pad */
-  return GST_PAD_PROBE_REMOVE;
+  return GST_PAD_PROBE_DROP;
 }
 
 void
@@ -289,21 +297,29 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
     blockedLambda = [&] (GstPad * pad, GstPadProbeInfo * info) {
       std::unique_lock<std::mutex> lock (cmutex);
 
-      GST_DEBUG ("Peer pad blocked %" GST_PTR_FORMAT, pad);
+      GST_DEBUG_OBJECT (pad, "Peer pad blocked unlinking now");
 
       if (blocked) {
         return;
       }
 
       gst_pad_unlink (pad, sinkPad);
-      blocked = TRUE;
+      blocked = true;
 
       cond.notify_all();
     };
 
     probe_id = gst_pad_add_probe (peer,
-                                  (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCKING),
+                                  (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCK),
                                   pad_blocked_adaptor, &blockedLambda, NULL);
+
+    {
+      GstEvent *ev = gst_event_new_custom (
+                       (GstEventType) (GST_EVENT_TYPE_SERIALIZED | GST_EVENT_TYPE_UPSTREAM),
+                       gst_structure_new_empty ("Dummy") );
+
+      gst_pad_send_event (peer, ev);
+    }
 
     {
       std::unique_lock<std::mutex> lock (cmutex);
@@ -314,10 +330,11 @@ MediaSinkImpl::unlinkUnchecked (GstPad *sink)
       }) ) {
           GST_ERROR_OBJECT (peer, "Timeout waiting for pad to block. "
                             "It will be removed without being blocked");
-          gst_pad_remove_probe (peer, probe_id);
         };
       }
     }
+
+    gst_pad_remove_probe (peer, probe_id);
 
     g_object_unref (peer);
   }
