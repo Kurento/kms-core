@@ -26,3 +26,10 @@
   fun:_gst_plugin_loader_client_run
   ...
 }
+{
+  Plugin loader
+  Memcheck:Leak
+  ...
+  fun:gst_plugin_register_func
+  ...
+}
