@@ -30,6 +30,57 @@ typedef struct _CallbackData
   CheckOnData checkFunc;
 } CallbackData;
 
+struct callback_counter
+{
+  guint count;
+  gpointer data;
+  GSourceFunc func;
+  GMutex mutex;
+};
+
+struct callback_counter *
+create_callback_counter (gpointer data, GSourceFunc func)
+{
+  struct callback_counter *counter;
+
+  counter = g_slice_new (struct callback_counter);
+
+  g_mutex_init (&counter->mutex);
+  counter->func = func;
+  counter->data = data;
+  counter->count = 1;
+
+  return counter;
+}
+
+static void
+callback_count_inc (struct callback_counter *counter)
+{
+  g_mutex_lock (&counter->mutex);
+  counter->count++;
+  g_mutex_unlock (&counter->mutex);
+}
+
+static void
+callback_count_dec (struct callback_counter *counter)
+{
+  g_mutex_lock (&counter->mutex);
+  counter->count--;
+  if (counter->count > 0) {
+    g_mutex_unlock (&counter->mutex);
+    return;
+  }
+
+  g_mutex_unlock (&counter->mutex);
+  g_mutex_clear (&counter->mutex);
+
+  if (counter->func) {
+    g_idle_add (counter->func, counter->data);
+  }
+
+  g_slice_free (struct callback_counter, counter);
+}
+
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
@@ -94,6 +145,58 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
     default:
       break;
   }
+}
+
+static GstPadProbeReturn
+event_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  GST_DEBUG_OBJECT (pad, "Removing probe %lu", GST_PAD_PROBE_INFO_ID (info));
+  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+call_on_negotiated (GstElement * agnosticbin, GSourceFunc func, gpointer data)
+{
+  struct callback_counter *counter;
+  GValue val = G_VALUE_INIT;
+  GstIterator *it;
+  gboolean done = FALSE;
+
+  counter = create_callback_counter (data, func);
+
+  it = gst_element_iterate_sink_pads (GST_ELEMENT (agnosticbin));
+  do {
+    switch (gst_iterator_next (it, &val)) {
+      case GST_ITERATOR_OK:
+      {
+        GstPad *sinkpad;
+
+        sinkpad = g_value_get_object (&val);
+        /* install new probe for event CAPS */
+        callback_count_inc (counter);
+        GST_INFO ("Setting callback %" GST_PTR_FORMAT, sinkpad);
+        gst_pad_add_probe (sinkpad, GST_PAD_PROBE_TYPE_BUFFER,
+            event_probe_cb, counter, (GDestroyNotify) callback_count_dec);
+
+        g_value_reset (&val);
+        break;
+      }
+      case GST_ITERATOR_RESYNC:
+        gst_iterator_resync (it);
+        break;
+      case GST_ITERATOR_ERROR:
+        GST_ERROR_OBJECT (agnosticbin, "Error iterating over sink pads");
+      case GST_ITERATOR_DONE:
+        g_value_unset (&val);
+        done = TRUE;
+        break;
+    }
+  } while (!done);
+
+  callback_count_dec (counter);
+  gst_iterator_free (it);
 }
 
 GST_START_TEST (create_sink_pad_test)
@@ -268,9 +371,7 @@ GST_START_TEST (connect_source_pause_sink_test)
     fail ("Could not link agnosticbin to converter");
   }
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
-      agnosticbin);
+  g_idle_add ((GSourceFunc) connect_source_without_caps, agnosticbin);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -315,9 +416,7 @@ GST_START_TEST (connect_source_pause_sink_transcoding_test)
     fail ("Could not link elements");
   }
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
-      agnosticbin);
+  g_idle_add ((GSourceFunc) connect_source_without_caps, agnosticbin);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -387,9 +486,7 @@ GST_START_TEST (connect_source_configured_pause_sink_test)
   g_object_unref (templ);
   gst_caps_unref (caps);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
-      agnosticbin);
+  g_idle_add ((GSourceFunc) connect_source_without_caps, agnosticbin);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -458,9 +555,7 @@ GST_START_TEST (connect_source_configured_pause_sink_transcoding_test)
   g_object_unref (templ);
   gst_caps_unref (caps);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_source_without_caps,
-      agnosticbin);
+  g_idle_add ((GSourceFunc) connect_source_without_caps, agnosticbin);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -529,10 +624,11 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_test)
     fail ("Could not link videotestsrc to agnosticbin");
   }
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  /* Connect sink element once caps are negotiated */
+  call_on_negotiated (agnosticbin, (GSourceFunc) connect_sink_without_caps,
+      &cb_data);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_without_caps, &cb_data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -614,10 +710,11 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_transcoded_test)
     fail ("Could not link encoder to agnosticbin");
   }
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  /* Connect sink element once caps are negotiated */
+  call_on_negotiated (agnosticbin, (GSourceFunc) connect_sink_with_raw_caps,
+      &cb_data);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_with_raw_caps, &cb_data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -702,11 +799,11 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_with_caps_test)
     fail ("Could not link videotestsrc to agnosticbin");
   }
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  /* Connect sink element once caps are negotiated */
+  call_on_negotiated (agnosticbin,
+      (GSourceFunc) connect_sink_with_raw_caps_templ, &cb_data);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_with_raw_caps_templ,
-      &cb_data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -791,11 +888,11 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_with_caps_transcoding_test)
     fail ("Could not link videotestsrc to agnosticbin");
   }
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  /* Connect sink element once caps are negotiated */
+  call_on_negotiated (agnosticbin,
+      (GSourceFunc) connect_sink_with_mpeg_caps_templ, &cb_data);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_with_mpeg_caps_templ,
-      &cb_data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -902,11 +999,11 @@ GST_START_TEST (two_sinks_one_src_test)
     fail ("Could not link encoder2 to agnosticbin");
   }
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  /* Connect sink element once caps are negotiated */
+  call_on_negotiated (agnosticbin,
+      (GSourceFunc) connect_sink_with_mpeg_caps_templ, &cb_data);
 
-  /* wait for 1 second before connecting the source */
-  g_timeout_add_seconds (1, (GSourceFunc) connect_sink_with_mpeg_caps_templ,
-      &cb_data);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
