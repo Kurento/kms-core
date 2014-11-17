@@ -21,17 +21,45 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+/* Manual test: Compile with -DMANUAL_CHECK=true
+ * gst-launch-1.0 filesrc location=[path_to_wav_file] ! wavparse ! autoaudiosink
+ */
 #ifdef MANUAL_CHECK
 G_LOCK_DEFINE (mutex);
 static guint id = 0;
 #endif
 
+static GMainLoop *loop;
+
+G_LOCK_DEFINE (hash_mutex);
 GHashTable *hash;
+GHashTable *padhash;
+static gint counter;
+GSourceFunc recv_callback;
+gpointer cb_data;
+
+static gboolean
+print_timedout_pipeline (GstElement * pipeline)
+{
+  gchar *name;
+  gchar *pipeline_name;
+
+  pipeline_name = gst_element_get_name (pipeline);
+  name = g_strdup_printf ("%s_timedout", pipeline_name);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, name);
+
+  g_free (name);
+  g_free (pipeline_name);
+
+  return FALSE;
+}
 
 static gboolean
 quit_main_loop (gpointer data)
 {
-  g_main_loop_quit (data);
+  g_main_loop_quit (loop);
 
   return G_SOURCE_REMOVE;
 }
@@ -69,6 +97,33 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
   }
 }
 
+static GstPadProbeReturn
+buffer_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  gboolean call;
+
+  GST_DEBUG_OBJECT (pad, "Removing probe %lu", GST_PAD_PROBE_INFO_ID (info));
+
+  G_LOCK (hash_mutex);
+  if (!g_hash_table_contains (padhash, pad)) {
+    GST_DEBUG ("Inserting %" GST_PTR_FORMAT, pad);
+    g_hash_table_insert (padhash, GST_OBJECT_NAME (pad), NULL);
+    G_UNLOCK (hash_mutex);
+    call = g_atomic_int_dec_and_test (&counter);
+  } else {
+    G_UNLOCK (hash_mutex);
+    call = FALSE;
+  }
+
+  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
+
+  if (call) {
+    g_idle_add (recv_callback, cb_data);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 static void
 pad_added_cb (GstElement * element, GstPad * pad, gpointer data)
 {
@@ -102,6 +157,8 @@ pad_added_cb (GstElement * element, GstPad * pad, gpointer data)
   }
 #endif
 
+  g_object_set (G_OBJECT (sink), "sync", FALSE, NULL);
+
   gst_bin_add_many (GST_BIN (pipeline), wavenc, sink, NULL);
   sinkpad = gst_element_get_static_pad (wavenc, "sink");
 
@@ -118,10 +175,17 @@ pad_added_cb (GstElement * element, GstPad * pad, gpointer data)
     goto failed;
   }
 
+  sinkpad = gst_element_get_static_pad (sink, "sink");
+  gst_pad_add_probe (sinkpad, GST_PAD_PROBE_TYPE_BUFFER, buffer_probe_cb, NULL,
+      NULL);
+  gst_object_unref (sinkpad);
+
   gst_element_sync_state_with_parent (wavenc);
   gst_element_sync_state_with_parent (sink);
 
+  G_LOCK (hash_mutex);
   g_hash_table_insert (hash, GST_OBJECT_NAME (pad), wavenc);
+  G_UNLOCK (hash_mutex);
 
   return;
 
@@ -134,6 +198,8 @@ failed:
   GST_ERROR ("Error %s", msg);
   fail (msg);
   g_free (msg);
+
+  g_idle_add ((GSourceFunc) quit_main_loop, NULL);
 }
 
 static void
@@ -156,6 +222,34 @@ pad_removed_cb (GstElement * element, GstPad * pad, gpointer data)
   sinkpad = gst_element_get_static_pad (wavenc, "sink");
   gst_pad_send_event (sinkpad, gst_event_new_eos ());
   gst_object_unref (sinkpad);
+
+#ifdef MANUAL_CHECK
+  {
+    /* Let test last for a few seconds to have a decent output file to debug */
+    g_timeout_add_seconds (2, quit_main_loop, NULL);
+  }
+#else
+  {
+    g_idle_add (quit_main_loop, NULL);
+  }
+#endif
+}
+
+static gboolean
+recv_data_test1 (gpointer data)
+{
+#ifdef MANUAL_CHECK
+  {
+    /* Let test last for a few seconds to have a decent output file to debug */
+    g_timeout_add_seconds (2, quit_main_loop, NULL);
+  }
+#else
+  {
+    g_idle_add (quit_main_loop, NULL);
+  }
+#endif
+
+  return G_SOURCE_REMOVE;
 }
 
 GST_START_TEST (check_audio_connection)
@@ -166,9 +260,12 @@ GST_START_TEST (check_audio_connection)
   GstBus *bus;
   gulong s1;
 
-  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
+  g_atomic_int_set (&counter, 3);
 
+  loop = g_main_loop_new (NULL, FALSE);
+  recv_callback = recv_data_test1;
   hash = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, NULL);
+  padhash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
 
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("audimixer0-test");
@@ -177,9 +274,9 @@ GST_START_TEST (check_audio_connection)
   audiotestsrc3 = gst_element_factory_make ("audiotestsrc", NULL);
   audiomixer = gst_element_factory_make ("kmsaudiomixer", NULL);
 
-  g_object_set (G_OBJECT (audiotestsrc1), "wave", 0, NULL);
-  g_object_set (G_OBJECT (audiotestsrc2), "wave", 8, NULL);
-  g_object_set (G_OBJECT (audiotestsrc3), "wave", 11, NULL);
+  g_object_set (G_OBJECT (audiotestsrc1), "is-live", TRUE, "wave", 0, NULL);
+  g_object_set (G_OBJECT (audiotestsrc2), "is-live", TRUE, "wave", 8, NULL);
+  g_object_set (G_OBJECT (audiotestsrc3), "is-live", TRUE, "wave", 11, NULL);
 
   s1 = g_signal_connect (audiomixer, "pad-added", G_CALLBACK (pad_added_cb),
       pipeline);
@@ -196,10 +293,7 @@ GST_START_TEST (check_audio_connection)
   gst_element_link (audiotestsrc2, audiomixer);
   gst_element_link (audiotestsrc3, audiomixer);
 
-  g_timeout_add (3000, quit_main_loop, loop);
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
+  g_timeout_add_seconds (4, (GSourceFunc) print_timedout_pipeline, pipeline);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -208,9 +302,6 @@ GST_START_TEST (check_audio_connection)
   g_main_loop_run (loop);
 
   GST_DEBUG ("Stop executed");
-
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
-      GST_DEBUG_GRAPH_SHOW_ALL, "after_main_loop");
 
   g_signal_handler_disconnect (audiomixer, s1);
 
@@ -222,7 +313,9 @@ GST_START_TEST (check_audio_connection)
   g_main_loop_unref (loop);
 
   g_hash_table_unref (hash);
+  g_hash_table_unref (padhash);
   hash = NULL;
+  padhash = NULL;
 }
 
 GST_END_TEST static gboolean
@@ -266,7 +359,7 @@ unlink_audiotestsrc (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 
   g_idle_add ((GSourceFunc) remove_audiotestsrc, audiotestsrc);
 
-  return GST_PAD_PROBE_OK;
+  return GST_PAD_PROBE_DROP;
 }
 
 static gboolean
@@ -284,6 +377,23 @@ block_audiotestsrc (GstElement * audiotestsrc)
   return G_SOURCE_REMOVE;
 }
 
+static gboolean
+recv_data_test2 (gpointer data)
+{
+#ifdef MANUAL_CHECK
+  {
+    /* Let test last for a few seconds to have a decent output file to debug */
+    g_timeout_add_seconds (2, (GSourceFunc) block_audiotestsrc, data);
+  }
+#else
+  {
+    g_idle_add ((GSourceFunc) block_audiotestsrc, data);
+  }
+#endif
+
+  return G_SOURCE_REMOVE;
+}
+
 GST_START_TEST (check_audio_disconnection)
 {
   GstElement *pipeline, *audiotestsrc1, *audiotestsrc2, *audiotestsrc3,
@@ -292,9 +402,11 @@ GST_START_TEST (check_audio_disconnection)
   GstBus *bus;
   gulong s1, s2;
 
-  GMainLoop *loop = g_main_loop_new (NULL, FALSE);
-
+  g_atomic_int_set (&counter, 3);
+  loop = g_main_loop_new (NULL, FALSE);
+  recv_callback = recv_data_test2;
   hash = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, NULL);
+  padhash = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, NULL);
 
   /* Create gstreamer elements */
   pipeline = gst_pipeline_new ("audimixer0-test");
@@ -303,9 +415,11 @@ GST_START_TEST (check_audio_disconnection)
   audiotestsrc3 = gst_element_factory_make ("audiotestsrc", NULL);
   audiomixer = gst_element_factory_make ("kmsaudiomixer", NULL);
 
-  g_object_set (G_OBJECT (audiotestsrc1), "wave", 0, NULL);
-  g_object_set (G_OBJECT (audiotestsrc2), "wave", 8, NULL);
-  g_object_set (G_OBJECT (audiotestsrc3), "wave", 11, NULL);
+  cb_data = audiotestsrc1;
+
+  g_object_set (G_OBJECT (audiotestsrc1), "is-live", TRUE, "wave", 0, NULL);
+  g_object_set (G_OBJECT (audiotestsrc2), "is-live", TRUE, "wave", 8, NULL);
+  g_object_set (G_OBJECT (audiotestsrc3), "is-live", TRUE, "wave", 11, NULL);
 
   s1 = g_signal_connect (audiomixer, "pad-added", G_CALLBACK (pad_added_cb),
       pipeline);
@@ -324,8 +438,7 @@ GST_START_TEST (check_audio_disconnection)
   gst_element_link (audiotestsrc2, audiomixer);
   gst_element_link (audiotestsrc3, audiomixer);
 
-  g_timeout_add (2000, (GSourceFunc) block_audiotestsrc, audiotestsrc1);
-  g_timeout_add (4000, quit_main_loop, loop);
+  g_timeout_add_seconds (4, (GSourceFunc) print_timedout_pipeline, pipeline);
 
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
       GST_DEBUG_GRAPH_SHOW_ALL, "entering_main_loop");
@@ -353,9 +466,10 @@ GST_START_TEST (check_audio_disconnection)
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
 
-  g_hash_table_remove_all (hash);
   g_hash_table_unref (hash);
+  g_hash_table_unref (padhash);
   hash = NULL;
+  padhash = NULL;
 }
 
 GST_END_TEST
@@ -369,8 +483,10 @@ audiomixer_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+
   tcase_add_test (tc_chain, check_audio_connection);
   tcase_add_test (tc_chain, check_audio_disconnection);
+
   return s;
 }
 
