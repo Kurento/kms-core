@@ -17,9 +17,10 @@
 
 #include "gst/gst.h"
 
-typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer data);
+typedef void (*KmsPadCallback) (GstPad * pad, gpointer data);
+
 void kms_element_for_each_src_pad (GstElement * element,
-  KmsPadIterationAction action, gpointer data);
+  KmsPadCallback action, gpointer data);
 
 void kms_utils_set_valve_drop (GstElement * valve, gboolean drop);
 void kms_utils_debug_graph_delay (GstBin * bin, guint interval);
@@ -39,6 +40,9 @@ GstElement * kms_utils_create_rate_for_caps (const GstCaps * caps);
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);
 void kms_utils_manage_gaps (GstPad *pad);
 void kms_utils_control_key_frames_request_duplicates (GstPad *pad);
+
+/* Pad blocked action */
+void kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop, KmsPadCallback func, gpointer userData);
 
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);

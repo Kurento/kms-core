@@ -401,7 +401,7 @@ kms_agnostic_bin3_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   }
 
   kms_element_for_each_src_pad (GST_ELEMENT (self),
-      (KmsPadIterationAction) link_pending_src_pads, pad);
+      (KmsPadCallback) link_pending_src_pads, pad);
 
 end:
 
