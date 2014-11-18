@@ -813,6 +813,10 @@ kms_audio_mixer_request_new_pad (GstElement * element,
     GST_ERROR_OBJECT (self, "Could not create sink pad");
   } else if (!kms_audio_mixer_add_src_pad (self, padname)) {
     GST_ERROR_OBJECT (self, "Could not create source pad");
+    if (gst_pad_is_active (pad)) {
+      gst_pad_set_active (pad, FALSE);
+    }
+    gst_element_remove_pad (element, pad);
   } else {
     g_object_set_data_full (G_OBJECT (typefind), KEY_SINK_PAD_NAME, padname,
         g_free);
