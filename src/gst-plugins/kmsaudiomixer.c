@@ -228,8 +228,14 @@ end_phase_1:
 static gboolean
 remove_adder (GstElement * adder)
 {
-  KmsAudioMixer *self = KMS_AUDIO_MIXER (gst_element_get_parent (adder));
+  KmsAudioMixer *self;
   WaitCond *wait;
+
+  self = (KmsAudioMixer *) gst_element_get_parent (adder);
+  if (self == NULL) {
+    GST_WARNING_OBJECT (adder, "No parent element");
+    return FALSE;
+  }
 
   GST_DEBUG ("Removing element %" GST_PTR_FORMAT, adder);
   wait = g_object_get_data (G_OBJECT (adder), KEY_CONDITION);
@@ -252,33 +258,76 @@ remove_adder (GstElement * adder)
 static void
 remove_agnostic_bin (GstElement * agnosticbin)
 {
-  KmsAudioMixer *self = KMS_AUDIO_MIXER (gst_element_get_parent (agnosticbin));
-  GstElement *audiorate, *typefind;
+  KmsAudioMixer *self;
+  GstElement *audiorate = NULL, *typefind = NULL;
   GstPad *sinkpad, *peerpad;
   WaitCond *wait;
+
+  self = (KmsAudioMixer *) gst_element_get_parent (agnosticbin);
+
+  if (self == NULL) {
+    GST_WARNING_OBJECT (agnosticbin, "No parent element");
+    return;
+  }
 
   wait = g_object_get_data (G_OBJECT (agnosticbin), KEY_CONDITION);
 
   sinkpad = gst_element_get_static_pad (agnosticbin, "sink");
   peerpad = gst_pad_get_peer (sinkpad);
+  if (peerpad == NULL) {
+    GST_WARNING_OBJECT (sinkpad, "Not linked");
+    gst_object_unref (sinkpad);
+    goto end;
+  }
+
   audiorate = gst_pad_get_parent_element (peerpad);
   gst_object_unref (sinkpad);
   gst_object_unref (peerpad);
 
+  if (audiorate == NULL) {
+    GST_WARNING_OBJECT (self, "No audiorate");
+    goto end;
+  }
+
   sinkpad = gst_element_get_static_pad (audiorate, "sink");
   peerpad = gst_pad_get_peer (sinkpad);
+  if (peerpad == NULL) {
+    GST_WARNING_OBJECT (sinkpad, "Not linked");
+    gst_object_unref (sinkpad);
+    goto end;
+  }
+
   typefind = gst_pad_get_parent_element (peerpad);
   gst_object_unref (sinkpad);
   gst_object_unref (peerpad);
+
+  if (typefind == NULL) {
+    GST_WARNING_OBJECT (self, "No typefind");
+    goto end;
+  }
 
   gst_element_unlink_many (typefind, audiorate, agnosticbin, NULL);
   gst_element_set_state (typefind, GST_STATE_NULL);
   gst_element_set_state (audiorate, GST_STATE_NULL);
   gst_element_set_state (agnosticbin, GST_STATE_NULL);
+
+  gst_object_ref (agnosticbin);
+
   gst_bin_remove_many (GST_BIN (self), typefind, audiorate, agnosticbin, NULL);
 
-  gst_object_unref (audiorate);
-  gst_object_unref (typefind);
+end:
+  if (audiorate != NULL) {
+    gst_object_unref (audiorate);
+  }
+
+  if (typefind != NULL) {
+    gst_object_unref (typefind);
+  }
+
+  if (agnosticbin != NULL) {
+    gst_object_unref (agnosticbin);
+  }
+
   gst_object_unref (self);
 
   if (wait != NULL)
@@ -463,7 +512,19 @@ unlink_agnosticbin (GstElement * agnosticbin)
 
         srcpad = g_value_get_object (&val);
         sinkpad = gst_pad_get_peer (srcpad);
+        if (sinkpad == NULL) {
+          GST_WARNING_OBJECT (srcpad, "Not linked");
+          g_value_reset (&val);
+          break;
+        }
+
         adder = gst_pad_get_parent_element (sinkpad);
+        if (adder == NULL) {
+          GST_ERROR_OBJECT (sinkpad, "No parent element");
+          gst_object_unref (sinkpad);
+          g_value_reset (&val);
+          break;
+        }
 
         GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
             agnosticbin, adder);
@@ -588,7 +649,19 @@ unlink_adder_sources (GstElement * adder)
 
         sinkpad = g_value_get_object (&val);
         srcpad = gst_pad_get_peer (sinkpad);
+        if (srcpad == NULL) {
+          GST_WARNING_OBJECT (sinkpad, "Not linked");
+          g_value_reset (&val);
+          break;
+        }
+
         agnosticbin = gst_pad_get_parent_element (srcpad);
+        if (agnosticbin == NULL) {
+          GST_ERROR_OBJECT (srcpad, "No parent element");
+          gst_object_unref (srcpad);
+          g_value_reset (&val);
+          break;
+        }
 
         GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
             agnosticbin, adder);
