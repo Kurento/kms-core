@@ -345,7 +345,16 @@ unlink_audiotestsrc (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   GST_DEBUG ("Blocked %" GST_PTR_FORMAT, pad);
 
   sinkpad = gst_pad_get_peer (pad);
+  if (sinkpad == NULL) {
+    GST_DEBUG_OBJECT (pad, "No peer pad");
+    return GST_PAD_PROBE_DROP;
+  }
+
   audiomixer = gst_pad_get_parent_element (sinkpad);
+  if (audiomixer == NULL) {
+    GST_DEBUG_OBJECT (pad, "No audiomixer");
+    return GST_PAD_PROBE_DROP;
+  }
 
   if (!gst_pad_unlink (pad, sinkpad)) {
     GST_ERROR ("Can not unilnk pads");
