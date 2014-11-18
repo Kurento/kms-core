@@ -370,11 +370,10 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
       g_strdup (padname), g_free);
 
   gst_bin_add_many (GST_BIN (self), audiorate, agnosticbin, NULL);
+  gst_element_link_many (typefind, audiorate, agnosticbin, NULL);
 
   gst_element_sync_state_with_parent (audiorate);
   gst_element_sync_state_with_parent (agnosticbin);
-
-  gst_element_link_many (typefind, audiorate, agnosticbin, NULL);
 
   KMS_AUDIO_MIXER_LOCK (self);
 
