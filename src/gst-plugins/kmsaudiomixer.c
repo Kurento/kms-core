@@ -243,6 +243,7 @@ remove_adder (GstElement * adder)
   kms_audio_mixer_remove_sometimes_src_pad (self, adder);
 
   gst_object_ref (adder);
+  gst_element_set_locked_state (adder, TRUE);
   gst_element_set_state (adder, GST_STATE_NULL);
   gst_bin_remove (GST_BIN (self), adder);
   gst_object_unref (adder);
@@ -307,6 +308,11 @@ remove_agnostic_bin (GstElement * agnosticbin)
   }
 
   gst_element_unlink_many (typefind, audiorate, agnosticbin, NULL);
+
+  gst_element_set_locked_state (typefind, TRUE);
+  gst_element_set_locked_state (audiorate, TRUE);
+  gst_element_set_locked_state (agnosticbin, TRUE);
+
   gst_element_set_state (typefind, GST_STATE_NULL);
   gst_element_set_state (audiorate, GST_STATE_NULL);
   gst_element_set_state (agnosticbin, GST_STATE_NULL);
