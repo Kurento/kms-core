@@ -424,123 +424,62 @@ typedef struct _PadBlockedData
 {
   KmsPadCallback callback;
   gpointer userData;
+  GDestroyNotify destroy;
   gboolean drop;
-  gchar *eventId;
+  GThread *process_thread;
 } PadBlockedData;
 
-static gchar *
-create_random_string (gsize size)
-{
-  const gchar charset[] =
-      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const guint charset_size = sizeof (charset) - 1;
-
-  gchar *s = g_malloc (size + 1);
-
-  if (!s) {
-    return NULL;
-  }
-
-  if (size) {
-    gsize n;
-
-    for (n = 0; n < size; n++) {
-      s[n] = charset[g_random_int_range (0, charset_size)];
-    }
-  }
-
-  s[size] = '\0';
-
-  return s;
-}
-
-/*
- * This function sends a dummy event to force blocked probe to be called
- */
-static void
-send_dummy_event (GstPad * pad, const gchar * name)
-{
-  GstElement *parent = gst_pad_get_parent_element (pad);
-
-  if (parent == NULL) {
-    return;
-  }
-
-  if (GST_PAD_IS_SINK (pad)) {
-    gst_pad_send_event (pad,
-        gst_event_new_custom (GST_EVENT_TYPE_DOWNSTREAM |
-            GST_EVENT_TYPE_SERIALIZED, gst_structure_new_empty (name)));
-  } else {
-    gst_pad_send_event (pad,
-        gst_event_new_custom (GST_EVENT_TYPE_UPSTREAM |
-            GST_EVENT_TYPE_SERIALIZED, gst_structure_new_empty (name)));
-  }
-
-  g_object_unref (parent);
-}
-
 static GstPadProbeReturn
-pad_blocked_callback (GstPad * pad, GstPadProbeInfo * info, gpointer d)
+pad_idle_callback (GstPad * pad, GstPadProbeInfo * info, gpointer d)
 {
   PadBlockedData *data = d;
-  GstEvent *event;
-  const GstStructure *st;
 
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
-    /* Queries must be answered */
-    return GST_PAD_PROBE_PASS;
+  GST_OBJECT_LOCK (pad);
+  if (data->process_thread) {
+    GST_OBJECT_UNLOCK (pad);
+    if (data->process_thread != g_thread_self ()) {
+      return GST_PAD_PROBE_OK;
+    } else {
+      return data->drop ? GST_PAD_PROBE_DROP : GST_PAD_PROBE_PASS;
+    }
+  }
+  data->process_thread = g_thread_self ();
+  GST_OBJECT_UNLOCK (pad);
+
+  if (data->callback) {
+    data->callback (pad, data->userData);
   }
 
-  if (!(GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_BOTH)) {
-    goto end;
+  return GST_PAD_PROBE_REMOVE;
+}
+
+void
+destroy_pad_blocked_data (gpointer d)
+{
+  PadBlockedData *data = d;
+
+  if (data->destroy && data->userData) {
+    data->destroy (data->userData);
   }
 
-  if (~GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BLOCK) {
-    return data->drop ? GST_PAD_PROBE_DROP : GST_PAD_PROBE_OK;
-  }
-
-  event = GST_PAD_PROBE_INFO_EVENT (info);
-
-  if (!(GST_EVENT_TYPE (event) & GST_EVENT_CUSTOM_BOTH)) {
-    goto end;
-  }
-
-  st = gst_event_get_structure (event);
-
-  if (g_strcmp0 (data->eventId, gst_structure_get_name (st)) != 0) {
-    goto end;
-  }
-
-  data->callback (pad, data->userData);
-
-  return GST_PAD_PROBE_DROP;
-
-end:
-  return data->drop ? GST_PAD_PROBE_DROP : GST_PAD_PROBE_PASS;
+  g_slice_free (PadBlockedData, data);
 }
 
 void
 kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop,
-    KmsPadCallback func, gpointer userData)
+    KmsPadCallback func, gpointer userData, GDestroyNotify destroy)
 {
-  gulong probe_id;
   PadBlockedData *data = g_slice_new (PadBlockedData);
 
   data->callback = func;
   data->userData = userData;
+  data->destroy = destroy;
   data->drop = drop;
-  data->eventId = create_random_string (10);
+  data->process_thread = NULL;
 
-  probe_id = gst_pad_add_probe (pad,
-      (GstPadProbeType) (GST_PAD_PROBE_TYPE_BLOCK),
-      pad_blocked_callback, data, NULL);
-
-  send_dummy_event (pad, data->eventId);
-
-  gst_pad_remove_probe (pad, probe_id);
-
-  g_free (data->eventId);
-  g_slice_free (PadBlockedData, data);
+  gst_pad_add_probe (pad,
+      (GstPadProbeType) (GST_PAD_PROBE_TYPE_IDLE),
+      pad_idle_callback, data, destroy_pad_blocked_data);
 }
 
 static void init_debug (void) __attribute__ ((constructor));

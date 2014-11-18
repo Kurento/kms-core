@@ -42,7 +42,7 @@ void kms_utils_manage_gaps (GstPad *pad);
 void kms_utils_control_key_frames_request_duplicates (GstPad *pad);
 
 /* Pad blocked action */
-void kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop, KmsPadCallback func, gpointer userData);
+void kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop, KmsPadCallback func, gpointer userData, GDestroyNotify destroy);
 
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);

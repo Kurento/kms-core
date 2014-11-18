@@ -204,7 +204,7 @@ remove_on_unlinked_cb (GstPad * pad, GstPad * peer, gpointer user_data)
 
       if (peer != NULL) {
         kms_utils_execute_with_pad_blocked (peer, TRUE,
-            remove_on_unlinked_blocked, elem);
+            remove_on_unlinked_blocked, g_object_ref (elem), g_object_unref);
         gst_object_unref (peer);
         goto end;
       }
@@ -316,7 +316,8 @@ link_queue_to_tee (GstElement * tee, GstElement * queue)
   GstPad *sink = gst_element_get_static_pad (tee, "sink");
 
   if (sink != NULL) {
-    kms_utils_execute_with_pad_blocked (sink, FALSE, tee_sink_blocked, queue);
+    kms_utils_execute_with_pad_blocked (sink, FALSE, tee_sink_blocked,
+        g_object_ref (queue), g_object_unref);
     g_object_unref (sink);
   }
 }
