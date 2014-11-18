@@ -450,7 +450,7 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
       && mediaObjectRef.substr (0, NEW_REF.size() ) == NEW_REF) {
     throw KurentoException (MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT,
                             "Object '" + mediaObjectRef +
-                            "'' not found. Possibly using a transactional " +
+                            "' not found. Possibly using a transactional " +
                             "object without committing the transaction.");
   }
 
@@ -460,17 +460,17 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
   auto it = objectsMap.find (mediaObjectRef);
 
   if (it == objectsMap.end() ) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
   }
 
   try {
     objectLocked = it->second.lock();
   } catch (...) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
   }
 
   if (!objectLocked) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "'' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
   }
 
   return objectLocked;
