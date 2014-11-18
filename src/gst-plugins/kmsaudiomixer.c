@@ -24,7 +24,6 @@
 
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
-#define KEY_CONDITION "kms-key-condition"
 
 #define KMS_AUDIO_MIXER_LOCK(mixer) \
   (g_rec_mutex_lock (&(mixer)->priv->mutex))
@@ -69,28 +68,6 @@ GST_STATIC_PAD_TEMPLATE (AUDIO_SRC_PAD,
     GST_STATIC_CAPS (RAW_AUDIO_CAPS)
     );
 
-typedef struct _WaitCond WaitCond;
-struct _WaitCond
-{
-  GCond cond;
-  GMutex mutex;
-  guint steps;
-};
-
-#define ONE_STEP_DONE(wait) do {                   \
-  g_mutex_lock (&(wait)->mutex);                   \
-  (wait)->steps--;                                 \
-  g_cond_signal (&(wait)->cond);                   \
-  g_mutex_unlock (&(wait)->mutex);                 \
-} while (0)
-
-#define WAIT_UNTIL_DONE(wait) do {                 \
-  g_mutex_lock (&(wait)->mutex);                   \
-  while ((wait)->steps > 0)                        \
-      g_cond_wait (&(wait)->cond, &(wait)->mutex); \
-  g_mutex_unlock (&(wait)->mutex);                 \
-} while (0)
-
 static void unlink_agnosticbin (GstElement * agnosticbin);
 static void unlink_adder_sources (GstElement * adder);
 
@@ -100,27 +77,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsAudioMixer, kms_audio_mixer,
     GST_TYPE_BIN,
     GST_DEBUG_CATEGORY_INIT (kms_audio_mixer_debug_category,
         PLUGIN_NAME, 0, "debug category for " PLUGIN_NAME " element"));
-
-static void
-destroy_wait_condition (WaitCond * cond)
-{
-  g_mutex_clear (&cond->mutex);
-  g_cond_clear (&cond->cond);
-  g_slice_free (WaitCond, cond);
-}
-
-static WaitCond *
-create_wait_condition (guint steps)
-{
-  WaitCond *cond;
-
-  cond = g_slice_new (WaitCond);
-  cond->steps = steps;
-  g_mutex_init (&cond->mutex);
-  g_cond_init (&cond->cond);
-
-  return cond;
-}
 
 static void
 link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
@@ -229,7 +185,6 @@ static gboolean
 remove_adder (GstElement * adder)
 {
   KmsAudioMixer *self;
-  WaitCond *wait;
 
   self = (KmsAudioMixer *) gst_element_get_parent (adder);
   if (self == NULL) {
@@ -238,7 +193,6 @@ remove_adder (GstElement * adder)
   }
 
   GST_DEBUG ("Removing element %" GST_PTR_FORMAT, adder);
-  wait = g_object_get_data (G_OBJECT (adder), KEY_CONDITION);
 
   kms_audio_mixer_remove_sometimes_src_pad (self, adder);
 
@@ -250,9 +204,6 @@ remove_adder (GstElement * adder)
 
   gst_object_unref (self);
 
-  if (wait != NULL)
-    ONE_STEP_DONE (wait);
-
   return G_SOURCE_REMOVE;
 }
 
@@ -262,7 +213,6 @@ remove_agnostic_bin (GstElement * agnosticbin)
   KmsAudioMixer *self;
   GstElement *audiorate = NULL, *typefind = NULL;
   GstPad *sinkpad, *peerpad;
-  WaitCond *wait;
 
   self = (KmsAudioMixer *) gst_element_get_parent (agnosticbin);
 
@@ -270,8 +220,6 @@ remove_agnostic_bin (GstElement * agnosticbin)
     GST_WARNING_OBJECT (agnosticbin, "No parent element");
     return;
   }
-
-  wait = g_object_get_data (G_OBJECT (agnosticbin), KEY_CONDITION);
 
   sinkpad = gst_element_get_static_pad (agnosticbin, "sink");
   peerpad = gst_pad_get_peer (sinkpad);
@@ -335,9 +283,6 @@ end:
   }
 
   gst_object_unref (self);
-
-  if (wait != NULL)
-    ONE_STEP_DONE (wait);
 }
 
 static gboolean
@@ -705,19 +650,7 @@ static void
 unlink_pad_in_playing (GstPad * pad, GstElement * agnosticbin,
     GstElement * adder)
 {
-  WaitCond *wait = NULL;
-  guint steps = 0;
-
-  if (agnosticbin != NULL)
-    steps++;
-
-  if (adder != NULL)
-    steps++;
-
-  wait = create_wait_condition (steps);
-
   if (agnosticbin != NULL) {
-    g_object_set_data (G_OBJECT (agnosticbin), KEY_CONDITION, wait);
     agnosticbin_set_EOS_cb (agnosticbin);
 
     /* push EOS into the element, the probe will be fired when the */
@@ -726,15 +659,9 @@ unlink_pad_in_playing (GstPad * pad, GstElement * agnosticbin,
   }
 
   if (adder != NULL) {
-    g_object_set_data (G_OBJECT (adder), KEY_CONDITION, wait);
-
     unlink_adder_sources (adder);
     remove_adder (adder);
   }
-
-  WAIT_UNTIL_DONE (wait);
-
-  destroy_wait_condition (wait);
 }
 
 static void
