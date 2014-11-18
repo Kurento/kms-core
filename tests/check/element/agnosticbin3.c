@@ -223,7 +223,7 @@ GST_END_TEST
 GST_START_TEST (create_src_pad_test)
 {
   GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
-  GstElement *sink = gst_element_factory_make ("autoaudiosink", NULL);
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
 
   pipeline = gst_pipeline_new (__FUNCTION__);
 
