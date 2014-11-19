@@ -19,11 +19,16 @@
 
 #include <gst/gst.h>
 
+#include "kmsgenericstructure.h"
 #include "kmsaudiomixer.h"
 #include "kmsloop.h"
 
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
+
+#define KMS_LABEL_AUDIOMIXER "audiomixer"
+#define KMS_LABEL_AGNOSTICBIN "agnosticbin"
+#define KMS_LABEL_ADDER "adder"
 
 #define KMS_AUDIO_MIXER_LOCK(mixer) \
   (g_rec_mutex_lock (&(mixer)->priv->mutex))
@@ -509,43 +514,81 @@ unlink_agnosticbin (GstElement * agnosticbin)
   gst_iterator_free (it);
 }
 
-static gboolean
-remove_agnosticbin (GstElement * agnosticbin)
+static void
+kms_audio_mixer_remove_elements (KmsAudioMixer * self,
+    GstElement * agnosticbin, GstElement * adder)
 {
-  unlink_agnosticbin (agnosticbin);
-  remove_agnostic_bin (agnosticbin);
+  /* Unlink elements holding the mutex to avoid race */
+  /* condition under massive disconnections */
+  KMS_AUDIO_MIXER_LOCK (self);
+
+  if (agnosticbin != NULL) {
+    unlink_agnosticbin (agnosticbin);
+  }
+
+  if (adder != NULL) {
+    unlink_adder_sources (adder);
+  }
+
+  KMS_AUDIO_MIXER_UNLOCK (self);
+
+  if (agnosticbin != NULL) {
+    remove_agnostic_bin (agnosticbin);
+  }
+  if (adder != NULL) {
+    remove_adder (adder);
+  }
+}
+
+static gboolean
+remove_elements_cb (KmsGenericStructure * sync)
+{
+  GstElement *agnosticbin, *adder;
+  KmsAudioMixer *self;
+
+  self = KMS_AUDIO_MIXER (kms_generic_structure_get (sync,
+          KMS_LABEL_AUDIOMIXER));
+  agnosticbin = GST_ELEMENT (kms_generic_structure_get (sync,
+          KMS_LABEL_AGNOSTICBIN));
+  adder = GST_ELEMENT (kms_generic_structure_get (sync, KMS_LABEL_ADDER));
+
+  kms_audio_mixer_remove_elements (self, agnosticbin, adder);
 
   return G_SOURCE_REMOVE;
 }
 
 static void
-agnosticbin_counter_done (GstElement * agnosticbin)
+agnosticbin_counter_done (KmsGenericStructure * sync)
 {
-  KmsAudioMixer *self = KMS_AUDIO_MIXER (gst_element_get_parent (agnosticbin));
+  KmsAudioMixer *self;
 
   /* All EOS on agnosticbin are been received */
-  if (self == NULL)
-    return;
+
+  self = KMS_AUDIO_MIXER (kms_generic_structure_get (sync,
+          KMS_LABEL_AUDIOMIXER));
 
   /* We can not access to some GstPad functions because of mutex deadlocks */
   /* So we are going to manage all the stuff in a separate thread */
   kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_DEFAULT,
-      (GSourceFunc) remove_agnosticbin, gst_object_ref (agnosticbin),
-      gst_object_unref);
+      (GSourceFunc) remove_elements_cb, kms_generic_structure_ref (sync),
+      (GDestroyNotify) kms_generic_structure_unref);
 
-  gst_object_unref (self);
+  kms_generic_structure_unref (sync);
 }
 
 static void
-agnosticbin_set_EOS_cb (GstElement * agnostic)
+agnosticbin_set_EOS_cb (KmsGenericStructure * sync)
 {
   struct callback_counter *counter;
   GValue val = G_VALUE_INIT;
   GstIterator *it;
   gboolean done = FALSE;
+  GstElement *agnostic;
 
+  agnostic = GST_ELEMENT (kms_generic_structure_get (sync,
+          KMS_LABEL_AGNOSTICBIN));
   counter =
-      create_callback_counter (agnostic,
+      create_callback_counter (kms_generic_structure_ref (sync),
       (GDestroyNotify) agnosticbin_counter_done);
 
   it = gst_element_iterate_src_pads (agnostic);
@@ -647,21 +690,24 @@ unlink_adder_sources (GstElement * adder)
 }
 
 static void
-unlink_pad_in_playing (GstPad * pad, GstElement * agnosticbin,
-    GstElement * adder)
+kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
+    GstElement * agnosticbin, GstElement * adder)
 {
-  if (agnosticbin != NULL) {
-    agnosticbin_set_EOS_cb (agnosticbin);
+  KmsGenericStructure *sync;
 
-    /* push EOS into the element, the probe will be fired when the */
-    /* EOS leaves the effect and it has thus drained all of its data */
-    gst_pad_send_event (pad, gst_event_new_eos ());
-  }
+  sync = kms_generic_structure_new ();
+  kms_generic_structure_set_full (sync, KMS_LABEL_AUDIOMIXER,
+      g_object_ref (self), (GDestroyNotify) g_object_unref);
+  kms_generic_structure_set_full (sync, KMS_LABEL_AGNOSTICBIN,
+      g_object_ref (agnosticbin), (GDestroyNotify) g_object_unref);
+  kms_generic_structure_set_full (sync, KMS_LABEL_ADDER,
+      g_object_ref (adder), (GDestroyNotify) g_object_unref);
 
-  if (adder != NULL) {
-    unlink_adder_sources (adder);
-    remove_adder (adder);
-  }
+  agnosticbin_set_EOS_cb (sync);
+
+  /* push EOS into the element, the probe will be fired when the */
+  /* EOS leaves the effect and it has thus drained all of its data */
+  gst_pad_send_event (pad, gst_event_new_eos ());
 }
 
 static void
@@ -703,16 +749,9 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
   if (GST_STATE (parent) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (parent) >= GST_STATE_PAUSED
       || GST_STATE_TARGET (parent) >= GST_STATE_PAUSED) {
-    unlink_pad_in_playing (pad, agnostic, adder);
+    kms_audio_mixer_unlink_pad_in_playing (self, pad, agnostic, adder);
   } else {
-    if (agnostic != NULL) {
-      unlink_agnosticbin (agnostic);
-      remove_agnostic_bin (agnostic);
-    }
-    if (adder != NULL) {
-      unlink_adder_sources (adder);
-      remove_adder (adder);
-    }
+    kms_audio_mixer_remove_elements (self, agnostic, adder);
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
