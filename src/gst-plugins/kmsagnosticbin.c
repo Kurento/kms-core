@@ -109,6 +109,33 @@ kms_agnostic_bin2_insert_tee (KmsAgnosticBin2 * self, GstElement * tee)
   g_hash_table_insert (self->priv->tees, key, g_object_ref (tee));
 }
 
+/*
+ * This function sends a dummy event to force blocked probe to be called
+ */
+static void
+send_dummy_event (GstPad * pad)
+{
+  GstElement *parent = gst_pad_get_parent_element (pad);
+
+  if (parent == NULL) {
+    return;
+  }
+
+  if (GST_PAD_IS_SINK (pad)) {
+    gst_pad_send_event (pad,
+        gst_event_new_custom (GST_EVENT_TYPE_DOWNSTREAM |
+            GST_EVENT_TYPE_SERIALIZED,
+            gst_structure_new_from_string ("dummy")));
+  } else {
+    gst_pad_send_event (pad,
+        gst_event_new_custom (GST_EVENT_TYPE_UPSTREAM |
+            GST_EVENT_TYPE_SERIALIZED,
+            gst_structure_new_from_string ("dummy")));
+  }
+
+  g_object_unref (parent);
+}
+
 static gboolean
 is_raw_caps (GstCaps * caps)
 {
@@ -158,17 +185,33 @@ remove_on_unlinked_async (gpointer data)
   return G_SOURCE_REMOVE;
 }
 
-static void
-remove_on_unlinked_blocked (GstPad * pad, gpointer elem)
+static GstPadProbeReturn
+remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 {
   KmsAgnosticBin2 *self;
   GstPad *sink;
 
   if (elem == NULL) {
-    return;
+    return GST_PAD_PROBE_REMOVE;
   }
 
   GST_DEBUG_OBJECT (pad, "Unlinking pad");
+
+  GST_OBJECT_LOCK (pad);
+  if (g_object_get_data (G_OBJECT (pad), UNLINKING_DATA)) {
+    GST_DEBUG ("Already unlinking");
+    GST_OBJECT_UNLOCK (pad);
+    if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
+      /* Queries must be answered */
+      return GST_PAD_PROBE_PASS;
+    } else {
+      return GST_PAD_PROBE_DROP;
+    }
+  }
+
+  g_object_set_data (G_OBJECT (pad), UNLINKING_DATA, GINT_TO_POINTER (TRUE));
+
+  GST_OBJECT_UNLOCK (pad);
 
   sink = gst_pad_get_peer (pad);
   if (sink != NULL) {
@@ -180,6 +223,8 @@ remove_on_unlinked_blocked (GstPad * pad, gpointer elem)
 
   kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_DEFAULT,
       remove_on_unlinked_async, g_object_ref (elem), g_object_unref);
+
+  return GST_PAD_PROBE_PASS;
 }
 
 static void
@@ -203,8 +248,9 @@ remove_on_unlinked_cb (GstPad * pad, GstPad * peer, gpointer user_data)
       g_object_unref (sink);
 
       if (peer != NULL) {
-        kms_utils_execute_with_pad_blocked (peer, TRUE,
-            remove_on_unlinked_blocked, elem);
+        gst_pad_add_probe (peer, GST_PAD_PROBE_TYPE_BLOCK,
+            remove_on_unlinked_blocked, g_object_ref (elem), g_object_unref);
+        send_dummy_event (peer);
         gst_object_unref (peer);
         goto end;
       }
@@ -297,17 +343,52 @@ link_queue_to_tee_locked (GstElement * tee, GstElement * queue)
   g_object_unref (tee_src);
 }
 
-static void
-tee_sink_blocked (GstPad * tee_sink, gpointer queue)
+static GstPadProbeReturn
+tee_sink_blocked (GstPad * tee_sink, GstPadProbeInfo * info, gpointer queue)
 {
   GstElement *tee = gst_pad_get_parent_element (tee_sink);
 
   if (tee == NULL) {
-    return;
+    return GST_PAD_PROBE_REMOVE;
   }
+
+  /* HACK: Ignore caps event and stream start event that causes negotiation
+   * failures.This is a workaround that should be removed
+   */
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
+    GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+
+    if (GST_EVENT_TYPE (event) == GST_EVENT_STREAM_START
+        || GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
+      return GST_PAD_PROBE_PASS;
+    }
+  }
+
+  /* HACK: Ignore query accept caps that causes negotiation errors.
+   * This is a workaround that should be removed
+   */
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM) {
+    GstQuery *query = GST_PAD_PROBE_INFO_QUERY (info);
+
+    if (GST_QUERY_TYPE (query) == GST_QUERY_ACCEPT_CAPS) {
+      return GST_PAD_PROBE_PASS;
+    }
+  }
+
+  GST_OBJECT_LOCK (tee_sink);
+  if (g_object_get_data (queue, LINKING_DATA)) {
+    GST_OBJECT_UNLOCK (tee_sink);
+    g_object_unref (tee);
+    return GST_PAD_PROBE_PASS;
+  }
+
+  g_object_set_data (queue, LINKING_DATA, GINT_TO_POINTER (TRUE));
+  GST_OBJECT_UNLOCK (tee_sink);
 
   link_queue_to_tee_locked (tee, GST_ELEMENT (queue));
   g_object_unref (tee);
+
+  return GST_PAD_PROBE_REMOVE;
 }
 
 static void
@@ -316,7 +397,9 @@ link_queue_to_tee (GstElement * tee, GstElement * queue)
   GstPad *sink = gst_element_get_static_pad (tee, "sink");
 
   if (sink != NULL) {
-    kms_utils_execute_with_pad_blocked (sink, FALSE, tee_sink_blocked, queue);
+    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BLOCK, tee_sink_blocked,
+        g_object_ref (queue), g_object_unref);
+    send_dummy_event (sink);
     g_object_unref (sink);
   }
 }
