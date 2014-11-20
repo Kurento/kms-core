@@ -87,3 +87,10 @@
   fun:gst_element_factory_make
   ...
 }
+{
+  kms generic structure init
+  Memecheck:Leak
+  ...
+  fun:_priv_kms_generic_structure_initialize
+  ...
+}
