@@ -36,7 +36,8 @@ int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
-  void *registrarFactory, *getVersion = NULL, *getName = NULL, *getDescriptor = NULL;
+  void *registrarFactory, *getVersion = NULL, *getName = NULL,
+                           *getDescriptor = NULL;
   std::string moduleFileName;
   std::string moduleName;
   std::string moduleVersion;
@@ -54,7 +55,8 @@ ModuleManager::loadModule (std::string modulePath)
   Glib::Module module (modulePath);
 
   if (!module) {
-    GST_WARNING ("Module %s cannot be loaded: %s", modulePath.c_str(), Glib::Module::get_last_error().c_str() );
+    GST_WARNING ("Module %s cannot be loaded: %s", modulePath.c_str(),
+                 Glib::Module::get_last_error().c_str() );
     return -1;
   }
 
@@ -64,11 +66,13 @@ ModuleManager::loadModule (std::string modulePath)
   }
 
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
-  const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
+  const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories =
+    registrar->getFactories();
 
   for (auto it : factories) {
     if (loadedFactories.find (it.first) != loadedFactories.end() ) {
-      GST_WARNING ("Factory %s is already registered, skiping module %s", it.first.c_str(), module.get_name().c_str() );
+      GST_WARNING ("Factory %s is already registered, skiping module %s",
+                   it.first.c_str(), module.get_name().c_str() );
       return -1;
     }
   }
@@ -97,7 +101,8 @@ ModuleManager::loadModule (std::string modulePath)
     moduleDescriptor = ( (GetDescFunc) getDescriptor) ();
   }
 
-  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (moduleName, moduleVersion, moduleDescriptor, factories) );
+  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (
+                                    moduleName, moduleVersion, moduleDescriptor, factories) );
 
   GST_INFO ("Loaded %s version %s", moduleName.c_str() , moduleVersion.c_str() );
 

@@ -238,8 +238,8 @@ pad_blocked_adaptor (GstPad *pad, GstPadProbeInfo *info, gpointer data)
   gboolean processed = FALSE;
 
   auto handler =
-    reinterpret_cast < std::function < void (GstPad * pad,
-        GstPadProbeInfo * info) > * > (data);
+    reinterpret_cast < std::function < void (GstPad *pad,
+        GstPadProbeInfo *info) > * > (data);
 
   if (!GST_PAD_STREAM_TRYLOCK (pad) ) {
     return GST_PAD_PROBE_DROP;

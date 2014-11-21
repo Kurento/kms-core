@@ -10,7 +10,8 @@ namespace kurento
 
 class EndpointImpl;
 
-void Serialize (std::shared_ptr<EndpointImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<EndpointImpl> &object,
+                JsonSerializer &serializer);
 
 class EndpointImpl : public MediaElementImpl, public virtual Endpoint
 {
@@ -24,7 +25,8 @@ public:
   virtual ~EndpointImpl () {};
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

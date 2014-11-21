@@ -97,7 +97,8 @@ MediaSet::MediaSet()
 {
   terminated = false;
 
-  workers = std::shared_ptr<WorkerPool> (new WorkerPool (MEDIASET_THREADS_DEFAULT) );
+  workers = std::shared_ptr<WorkerPool> (new WorkerPool (
+      MEDIASET_THREADS_DEFAULT) );
 
   thread = std::thread ( [&] () {
     std::unique_lock <std::recursive_mutex> lock (recMutex);
@@ -204,7 +205,8 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 
   if (this->server) {
     lock.unlock ();
-    server->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast <MediaObject> (mediaObject) ) );
+    server->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast
+                                 <MediaObject> (mediaObject) ) );
   }
 
   return mediaObject;
@@ -460,17 +462,20 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
   auto it = objectsMap.find (mediaObjectRef);
 
   if (it == objectsMap.end() ) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
+                            "Object '" + mediaObjectRef + "' not found");
   }
 
   try {
     objectLocked = it->second.lock();
   } catch (...) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
+                            "Object '" + mediaObjectRef + "' not found");
   }
 
   if (!objectLocked) {
-    throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Object '" + mediaObjectRef + "' not found");
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
+                            "Object '" + mediaObjectRef + "' not found");
   }
 
   return objectLocked;

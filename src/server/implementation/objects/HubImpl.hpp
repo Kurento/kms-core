@@ -18,17 +18,20 @@ class HubImpl : public MediaObjectImpl, public virtual Hub
 
 public:
 
-  HubImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent,
+  HubImpl (const boost::property_tree::ptree &config,
+           std::shared_ptr<MediaObjectImpl> parent,
            const std::string &factoryName);
 
   virtual ~HubImpl ();
 
-  GstElement *getGstreamerElement() {
+  GstElement *getGstreamerElement()
+  {
     return element;
   };
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

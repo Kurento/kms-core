@@ -12,7 +12,8 @@ namespace kurento
 
 class MediaPipelineImpl;
 
-void Serialize (std::shared_ptr<MediaPipelineImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<MediaPipelineImpl> &object,
+                JsonSerializer &serializer);
 
 class MediaPipelineImpl : public MediaObjectImpl, public virtual MediaPipeline
 {
@@ -23,12 +24,14 @@ public:
 
   virtual ~MediaPipelineImpl ();
 
-  GstElement *getPipeline() {
+  GstElement *getPipeline()
+  {
     return pipeline;
   }
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

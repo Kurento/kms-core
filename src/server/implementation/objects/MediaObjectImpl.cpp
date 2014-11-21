@@ -20,7 +20,8 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
   this->config = config;
 }
 
-MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr< MediaObject > parent)
+MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
+                                  std::shared_ptr< MediaObject > parent)
 {
   this->parent = parent;
   id = createId();
@@ -77,7 +78,8 @@ std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
 {
   std::vector<std::shared_ptr<MediaObject>> childs;
 
-  for (auto it : MediaSet::getMediaSet ()->getChilds (std::dynamic_pointer_cast <MediaObjectImpl> (shared_from_this() ) ) ) {
+  for (auto it : MediaSet::getMediaSet ()->getChilds (std::dynamic_pointer_cast
+       <MediaObjectImpl> (shared_from_this() ) ) ) {
     childs.push_back (it);
   }
 

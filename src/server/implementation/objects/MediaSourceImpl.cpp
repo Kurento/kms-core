@@ -189,7 +189,8 @@ MediaSourceImpl::~MediaSourceImpl()
       connectedSinkLocked = it->lock();
 
       if (connectedSinkLocked != NULL) {
-        GST_INFO ("unlinking connectedSink: %s", connectedSinkLocked->getName().c_str() );
+        GST_INFO ("unlinking connectedSink: %s",
+                  connectedSinkLocked->getName().c_str() );
         connectedSinkLocked->unlinkUnchecked (NULL);
       }
     } catch (const std::bad_weak_ptr &e) {

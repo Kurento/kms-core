@@ -25,9 +25,13 @@ namespace kurento
 class RandomGeneratorBase
 {
 protected:
-  RandomGeneratorBase () {
-    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<time_t> time = std::chrono::duration_cast<std::chrono::duration<time_t>> (now.time_since_epoch () );
+  RandomGeneratorBase ()
+  {
+    std::chrono::high_resolution_clock::time_point now =
+      std::chrono::high_resolution_clock::now();
+    std::chrono::duration<time_t> time =
+      std::chrono::duration_cast<std::chrono::duration<time_t>>
+      (now.time_since_epoch () );
 
     ran.seed (time.count() );
   }
@@ -41,10 +45,12 @@ class RandomGenerator : RandomGeneratorBase
   boost::uuids::basic_random_generator<boost::mt19937> gen;
 
 public:
-  RandomGenerator () : RandomGeneratorBase(), gen (&ran) {
+  RandomGenerator () : RandomGeneratorBase(), gen (&ran)
+  {
   }
 
-  std::string getUUID () {
+  std::string getUUID ()
+  {
     std::stringstream ss;
     boost::uuids::uuid uuid = gen ();
 

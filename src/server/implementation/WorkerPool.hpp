@@ -26,12 +26,13 @@ namespace kurento
 class WorkerPool
 {
 public:
-  WorkerPool(int threads);
+  WorkerPool (int threads);
   ~WorkerPool();
 
   template <typename CompletionHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(CompletionHandler, void ())
-  post(BOOST_ASIO_MOVE_ARG(CompletionHandler) handler) {
+  BOOST_ASIO_INITFN_RESULT_TYPE (CompletionHandler, void () )
+  post (BOOST_ASIO_MOVE_ARG (CompletionHandler) handler)
+  {
     setWatcher();
     return io_service->post (handler);
   }

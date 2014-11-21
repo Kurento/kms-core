@@ -13,7 +13,8 @@ namespace kurento
 class MediaPipelineImpl;
 class MediaObjectImpl;
 
-void Serialize (std::shared_ptr<MediaObjectImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<MediaObjectImpl> &object,
+                JsonSerializer &serializer);
 
 class MediaObjectImpl : public virtual MediaObject
 {
@@ -22,19 +23,22 @@ public:
 
   MediaObjectImpl (const boost::property_tree::ptree &config);
 
-  MediaObjectImpl (const boost::property_tree::ptree &config, std::shared_ptr <MediaObject> parent);
+  MediaObjectImpl (const boost::property_tree::ptree &config,
+                   std::shared_ptr <MediaObject> parent);
 
   virtual ~MediaObjectImpl () {}
 
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
-  virtual std::shared_ptr<MediaObject> getParent () {
+  virtual std::shared_ptr<MediaObject> getParent ()
+  {
     return parent;
   }
 
   virtual std::vector<std::shared_ptr<MediaObject>> getChilds ();
 
-  virtual std::string getId () {
+  virtual std::string getId ()
+  {
     return id;
   }
 
@@ -42,7 +46,8 @@ public:
   virtual void setName (const std::string &name);
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, Error> signalError;
 
@@ -55,13 +60,17 @@ public:
 protected:
 
   template <class T, class C>
-  T getConfigValue (const std::string &key) {
-    return config.get<T> ("modules." + dynamic_cast <C *>(this)->getModule() + "." + dynamic_cast <C *>(this)->getType() + "." + key );
+  T getConfigValue (const std::string &key)
+  {
+    return config.get<T> ("modules." + dynamic_cast <C *> (this)->getModule() + "."
+                          + dynamic_cast <C *> (this)->getType() + "." + key );
   }
 
   template <class T, class C>
-  T getConfigValue (const std::string &key, T defaultValue) {
-    return config.get<T> ("modules." + dynamic_cast <C *>(this)->getModule() + "." + dynamic_cast <C *>(this)->getType() + "." + key, defaultValue);
+  T getConfigValue (const std::string &key, T defaultValue)
+  {
+    return config.get<T> ("modules." + dynamic_cast <C *> (this)->getModule() + "."
+                          + dynamic_cast <C *> (this)->getType() + "." + key, defaultValue);
   }
 
   boost::property_tree::ptree config;

@@ -57,7 +57,8 @@ MediaPipelineImpl::busMessage (GstMessage *message)
   }
 }
 
-MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config) : MediaObjectImpl (config)
+MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
+  : MediaObjectImpl (config)
 {
   GstBus *bus;
 
@@ -92,7 +93,8 @@ MediaPipelineImpl::~MediaPipelineImpl ()
 }
 
 MediaObjectImpl *
-MediaPipelineImplFactory::createObject (const boost::property_tree::ptree &pt) const
+MediaPipelineImplFactory::createObject (const boost::property_tree::ptree &pt)
+const
 {
   return new MediaPipelineImpl (pt);
 }

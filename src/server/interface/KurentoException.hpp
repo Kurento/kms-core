@@ -74,19 +74,23 @@ public:
     code (code) {};
   virtual ~KurentoException() {};
 
-  virtual const char *what() const noexcept {
+  virtual const char *what() const noexcept
+  {
     return message.c_str();
   };
 
-  const std::string &getMessage() const {
+  const std::string &getMessage() const
+  {
     return message;
   };
 
-  int getCode() const {
+  int getCode() const
+  {
     return code;
   }
 
-  std::string getType() {
+  std::string getType()
+  {
     switch (code) {
     /* Error codes */
     /* GENERIC MEDIA ERRORS */
@@ -95,56 +99,74 @@ public:
 //      return "MEDIA_ERROR";
     case MARSHALL_ERROR:
       return "MARSHALL_ERROR";
+
 //    case UNMARSHALL_ERROR:
 //      return "UNMARSHALL_ERROR";
 //    case UNEXPECTED_ERROR:
 //      return "UNEXPECTED_ERROR";
     case CONNECT_ERROR:
       return "CONNECT_ERROR";
+
     case UNSUPPORTED_MEDIA_TYPE:
       return "UNSUPPORTED_MEDIA_TYPE";
+
     case NOT_IMPLEMENTED:
       return "NOT_IMPLEMENTED";
+
     case INVALID_SESSION:
       return "INVALID_SESSION";
+
     case MALFORMED_TRANSACTION:
       return "MALFORMED_TRANSACTION";
 
     /* MediaObject ERRORS */
     case MEDIA_OBJECT_TYPE_NOT_FOUND:
       return "MEDIA_OBJECT_TYPE_NOT_FOUND";
+
     case MEDIA_OBJECT_NOT_FOUND:
       return "MEDIA_OBJECT_NOT_FOUND";
+
 //    case MEDIA_OBJECT_CAST_ERROR:
 //      return "MEDIA_OBJECT_CAST_ERROR";
 //    case MEDIA_OBJECT_HAS_NOT_PARENT:
 //      return "MEDIA_OBJECT_HAS_NOT_PARENT";
     case MEDIA_OBJECT_CONSTRUCTOR_NOT_FOUND:
       return "MEDIA_OBJECT_CONSTRUCTOR_NOT_FOUND";
+
     case MEDIA_OBJECT_METHOD_NOT_FOUND:
       return "MEDIA_OBJECT_METHOD_NOT_FOUND";
+
     case MEDIA_OBJECT_EVENT_NOT_SUPPORTED:
       return "MEDIA_OBJECT_EVENT_NOT_SUPPORTED";
+
     case MEDIA_OBJECT_ILLEGAL_PARAM_ERROR:
       return "MEDIA_OBJECT_ILLEGAL_PARAM_ERROR";
+
     case MEDIA_OBJECT_NOT_AVAILABLE:
       return "MEDIA_OBJECT_NOT_AVAILABLE";
+
     case MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT:
       return "MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT";
 
     /* SDP ERRORS */
     case SDP_CREATE_ERROR:
       return "SDP_CREATE_ERROR";
+
     case SDP_PARSE_ERROR:
       return "SDP_PARSE_ERROR";
+
     case SDP_END_POINT_NO_LOCAL_SDP_ERROR:
       return "SDP_END_POINT_NO_LOCAL_SDP_ERROR";
+
     case SDP_END_POINT_NO_REMOTE_SDP_ERROR:
       return "SDP_END_POINT_NO_REMOTE_SDP_ERROR";
+
     case SDP_END_POINT_GENERATE_OFFER_ERROR:
       return "SDP_END_POINT_GENERATE_OFFER_ERROR";
+
     case SDP_END_POINT_PROCESS_OFFER_ERROR:
       return "SDP_END_POINT_PROCESS_OFFER_ERROR";
+
 //    case SDP_END_POINT_PROCESS_ANSWER_ERROR:
 //      return "SDP_END_POINT_PROCESS_ANSWER_ERROR";
     case SDP_CONFIGURATION_ERROR:
@@ -153,6 +175,7 @@ public:
     /* HTTP ERRORS */
     case HTTP_END_POINT_REGISTRATION_ERROR:
       return "HTTP_END_POINT_REGISTRATION_ERROR";
+
     default:
       return "UNDEFINED";
     }

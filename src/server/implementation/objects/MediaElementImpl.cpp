@@ -22,7 +22,8 @@ namespace kurento
 {
 
 void
-_media_element_impl_bus_message (GstBus *bus, GstMessage *message, gpointer data)
+_media_element_impl_bus_message (GstBus *bus, GstMessage *message,
+                                 gpointer data)
 {
   if (message->type == GST_MESSAGE_ERROR) {
     GError *err = NULL;
@@ -58,7 +59,9 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message, gpointer data
   }
 }
 
-MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName) : MediaObjectImpl (config, parent)
+MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
+                                    std::shared_ptr<MediaObjectImpl> parent,
+                                    const std::string &factoryName) : MediaObjectImpl (config, parent)
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
 
@@ -73,7 +76,8 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config, s
 
 
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
-  handlerId = g_signal_connect (bus, "message", G_CALLBACK (_media_element_impl_bus_message), this);
+  handlerId = g_signal_connect (bus, "message",
+                                G_CALLBACK (_media_element_impl_bus_message), this);
 
   g_object_ref (element);
   gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
@@ -105,7 +109,8 @@ std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs ()
   return srcs;
 }
 
-std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (std::shared_ptr<MediaType> mediaType)
+std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (
+    std::shared_ptr<MediaType> mediaType)
 {
   std::vector<std::shared_ptr<MediaSource>> srcs;
 
@@ -118,7 +123,8 @@ std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (std::s
   return srcs;
 }
 
-std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (std::shared_ptr<MediaType> mediaType, const std::string &description)
+std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (
+    std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
   if (description == "")  {
     return getMediaSrcs (mediaType);
@@ -139,7 +145,8 @@ std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks ()
   return sinks;
 }
 
-std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (std::shared_ptr<MediaType> mediaType)
+std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (
+                                       std::shared_ptr<MediaType> mediaType)
 {
   std::vector<std::shared_ptr<MediaSink>> sinks;
 
@@ -152,7 +159,8 @@ std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (std::sh
   return sinks;
 }
 
-std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (std::shared_ptr<MediaType> mediaType, const std::string &description)
+std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (
+                                       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
   if (description == "")  {
     return getMediaSinks (mediaType);
@@ -188,7 +196,8 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
   }
 }
 
-void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType)
+void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
+                                std::shared_ptr<MediaType> mediaType)
 {
   std::shared_ptr<MediaElementImpl> sinkImpl =
     std::dynamic_pointer_cast<MediaElementImpl> (sink);
@@ -206,7 +215,8 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink, std::shared_
   }
 }
 
-void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription)
+void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
+                                std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription)
 {
   if (mediaDescription == "") {
     connect (sink, mediaType);

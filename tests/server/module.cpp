@@ -36,7 +36,8 @@ main (int argc, char **argv)
   Glib::Module module (moduleName);
 
   if (!module) {
-    std::cerr << "module cannot be loaded: " << Glib::Module::get_last_error() << std::endl;
+    std::cerr << "module cannot be loaded: " << Glib::Module::get_last_error() <<
+              std::endl;
     return 1;
   }
 
@@ -46,9 +47,11 @@ main (int argc, char **argv)
   }
 
   registrar = ( (RegistrarFactoryFunc) registrarFactory) ();
-  const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories = registrar->getFactories();
+  const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories =
+    registrar->getFactories();
 
-  mediaPipeline = factories.at ("MediaPipeline")->createObject (boost::property_tree::ptree(), "", Json::Value() );
+  mediaPipeline = factories.at ("MediaPipeline")->createObject (
+                    boost::property_tree::ptree(), "", Json::Value() );
 
   try {
     kurento::JsonSerializer writer (true);

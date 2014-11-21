@@ -10,19 +10,22 @@ namespace kurento
 
 class FilterImpl;
 
-void Serialize (std::shared_ptr<FilterImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<FilterImpl> &object,
+                JsonSerializer &serializer);
 
 class FilterImpl : public MediaElementImpl, public virtual Filter
 {
 
 public:
 
-  FilterImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent);
+  FilterImpl (const boost::property_tree::ptree &config,
+              std::shared_ptr<MediaObjectImpl> parent);
 
   virtual ~FilterImpl () {};
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

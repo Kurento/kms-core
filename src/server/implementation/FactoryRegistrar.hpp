@@ -20,16 +20,18 @@
 #include <memory>
 #include <Factory.hpp>
 
-namespace kurento {
+namespace kurento
+{
 
 class FactoryRegistrar
 {
 public:
-  FactoryRegistrar(std::map<std::string, std::shared_ptr<Factory>> &factories) :
-                   factories (factories) {};
+  FactoryRegistrar (std::map<std::string, std::shared_ptr<Factory>> &factories) :
+    factories (factories) {};
   ~FactoryRegistrar() {};
 
-  const std::map<std::string, std::shared_ptr<Factory>> &getFactories () const {
+  const std::map<std::string, std::shared_ptr<Factory>> &getFactories () const
+  {
     return factories;
   }
 
@@ -39,6 +41,6 @@ private:
 
 } /* kurento */
 
-typedef const kurento::FactoryRegistrar* (*RegistrarFactoryFunc) ();
+typedef const kurento::FactoryRegistrar * (*RegistrarFactoryFunc) ();
 
 #endif /*  __FACTORY_REGISTRAR_HPP__ */

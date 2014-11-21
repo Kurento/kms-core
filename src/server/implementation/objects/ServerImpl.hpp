@@ -44,7 +44,8 @@ public:
 
   virtual std::vector<std::string> getSessions ();
 
-  virtual std::string getId() override {
+  virtual std::string getId() override
+  {
     return "server";
   }
 

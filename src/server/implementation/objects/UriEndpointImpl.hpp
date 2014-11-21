@@ -10,7 +10,8 @@ namespace kurento
 
 class UriEndpointImpl;
 
-void Serialize (std::shared_ptr<UriEndpointImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<UriEndpointImpl> &object,
+                JsonSerializer &serializer);
 
 class UriEndpointImpl : public EndpointImpl, public virtual UriEndpoint
 {
@@ -29,7 +30,8 @@ public:
   virtual std::string getUri ();
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

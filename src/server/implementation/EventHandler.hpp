@@ -35,7 +35,8 @@ public:
 
   virtual void sendEvent (Json::Value &value) = 0;
 
-  void setConnection (sigc::connection conn) {
+  void setConnection (sigc::connection conn)
+  {
     this->conn = conn;
   }
 

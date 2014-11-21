@@ -13,7 +13,8 @@ class MediaElementImpl;
 class MediaType;
 class MediaPadImpl;
 
-void Serialize (std::shared_ptr<MediaPadImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<MediaPadImpl> &object,
+                JsonSerializer &serializer);
 
 class MediaPadImpl : public MediaObjectImpl, public virtual MediaPad
 {
@@ -27,22 +28,26 @@ public:
 
   virtual ~MediaPadImpl () {};
 
-  virtual std::shared_ptr<MediaElement> getMediaElement () {
+  virtual std::shared_ptr<MediaElement> getMediaElement ()
+  {
     return mediaElement;
   }
 
-  virtual std::shared_ptr<MediaType> getMediaType () {
+  virtual std::shared_ptr<MediaType> getMediaType ()
+  {
     return mediaType;
   }
 
-  virtual std::string getMediaDescription () {
+  virtual std::string getMediaDescription ()
+  {
     return mediaDescription;
   }
 
   GstElement *getGstreamerElement ();
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

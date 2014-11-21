@@ -58,7 +58,8 @@ readEntireFile (const std::string &file_name)
 
   if (ret.empty() ) {
     GST_ERROR ("Cannot read sdp pattern from: %s", file_name.c_str() );
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR, "Error reading SDP pattern from configuration, please contact the administrator");
+    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
+                                     "Error reading SDP pattern from configuration, please contact the administrator");
   }
 
   return ret;
@@ -76,18 +77,23 @@ SdpEndpointImpl::getSdpPattern ()
   boost::filesystem::path sdp_pattern_file;
   std::unique_lock<std::mutex> lock (sdpMutex);
 
-  if (pattern)
+  if (pattern) {
     return pattern.get();
+  }
 
   try {
-    sdp_pattern_file = boost::filesystem::path (getConfigValue<std::string, SdpEndpoint> ("sdpPattern") );
+    sdp_pattern_file = boost::filesystem::path (
+                         getConfigValue<std::string, SdpEndpoint> ("sdpPattern") );
   } catch (boost::property_tree::ptree_error &e) {
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR, "Error reading SDP pattern from configuration, please contact the administrator: " + std::string (e.what() ) );
+    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
+                                     "Error reading SDP pattern from configuration, please contact the administrator: "
+                                     + std::string (e.what() ) );
   }
 
   if (!sdp_pattern_file.is_absolute() ) {
     try {
-      sdp_pattern_file = boost::filesystem::path (config.get<std::string> ("configPath") ) / sdp_pattern_file;
+      sdp_pattern_file = boost::filesystem::path (
+                           config.get<std::string> ("configPath") ) / sdp_pattern_file;
     } catch (boost::property_tree::ptree_error &e) {
 
     }
@@ -97,17 +103,20 @@ SdpEndpointImpl::getSdpPattern ()
 
   if (result != GST_SDP_OK) {
     GST_ERROR ("Error creating sdp message");
-    throw kurento::KurentoException (SDP_CREATE_ERROR, "Error creating SDP pattern");
+    throw kurento::KurentoException (SDP_CREATE_ERROR,
+                                     "Error creating SDP pattern");
   }
 
   pattern = std::shared_ptr<GstSDPMessage> (sdp, gst_sdp_message_free);
 
-  result = gst_sdp_message_parse_buffer ( (const guint8 *) readEntireFile (sdp_pattern_file.string() ).c_str(), -1, sdp);
+  result = gst_sdp_message_parse_buffer ( (const guint8 *) readEntireFile (
+      sdp_pattern_file.string() ).c_str(), -1, sdp);
 
   if (result != GST_SDP_OK) {
     GST_ERROR ("Error parsing SDP config pattern");
     pattern.reset();
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR, "Error reading SDP pattern from configuration, please contact the administrator");
+    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
+                                     "Error reading SDP pattern from configuration, please contact the administrator");
   }
 
   return pattern.get();

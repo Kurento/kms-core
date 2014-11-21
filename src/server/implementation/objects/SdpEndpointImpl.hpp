@@ -11,7 +11,8 @@ namespace kurento
 
 class SdpEndpointImpl;
 
-void Serialize (std::shared_ptr<SdpEndpointImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<SdpEndpointImpl> &object,
+                JsonSerializer &serializer);
 
 class SdpEndpointImpl : public SessionEndpointImpl, public virtual SdpEndpoint
 {
@@ -31,7 +32,8 @@ public:
   std::string getRemoteSessionDescriptor ();
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -41,7 +43,7 @@ public:
 
 private:
 
-  GstSDPMessage * getSdpPattern ();
+  GstSDPMessage *getSdpPattern ();
   static std::mutex sdpMutex;
 
   class StaticConstructor

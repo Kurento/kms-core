@@ -31,14 +31,16 @@ public:
   Factory() {};
   virtual ~Factory() {};
 
-  std::shared_ptr<MediaObjectImpl> createObject (const boost::property_tree::ptree &conf, const std::string &session, const Json::Value &params) const;
+  std::shared_ptr<MediaObjectImpl> createObject (const boost::property_tree::ptree
+      &conf, const std::string &session, const Json::Value &params) const;
 
   static std::shared_ptr<MediaObjectImpl> getObject (const std::string &id);
 
   virtual std::string getName() const = 0;
 
 protected:
-  virtual MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree &conf, const Json::Value &params) const = 0;
+  virtual MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree
+      &conf, const Json::Value &params) const = 0;
 };
 
 } /* kurento */

@@ -38,7 +38,8 @@ main (int argc, char **argv)
 
   mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
 
-  mediaPipeline = mediaPipelineFactory->createObject (boost::property_tree::ptree(), "", Json::Value() );
+  mediaPipeline = mediaPipelineFactory->createObject (
+                    boost::property_tree::ptree(), "", Json::Value() );
 
   try {
     kurento::JsonSerializer writer (true);
@@ -64,17 +65,20 @@ main (int argc, char **argv)
     return 1;
   }
 
-  kurento::MediaSet::getMediaSet()->release (std::dynamic_pointer_cast <MediaObjectImpl> (mediaPipeline) );
+  kurento::MediaSet::getMediaSet()->release (std::dynamic_pointer_cast
+      <MediaObjectImpl> (mediaPipeline) );
 
   auto data = moduleManager->getModules().at ("libkmscoremodule.so");
 
   if (data->getName() != "core") {
-    std::cerr << "Module name should be core, but is " << data->getName() << std::endl;
+    std::cerr << "Module name should be core, but is " << data->getName() <<
+              std::endl;
     return 1;
   }
 
   if (data->getVersion() != VERSION) {
-    std::cerr << "Module version should be " << VERSION << ", but is " << data->getVersion() << std::endl;
+    std::cerr << "Module version should be " << VERSION << ", but is " <<
+              data->getVersion() << std::endl;
     return 1;
   }
 

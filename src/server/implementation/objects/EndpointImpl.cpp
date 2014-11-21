@@ -11,7 +11,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-EndpointImpl::EndpointImpl (const boost::property_tree::ptree &config, std::shared_ptr< MediaObjectImpl > parent,
+EndpointImpl::EndpointImpl (const boost::property_tree::ptree &config,
+                            std::shared_ptr< MediaObjectImpl > parent,
                             const std::string &factoryName) :
   MediaElementImpl (config, parent, factoryName)
 {

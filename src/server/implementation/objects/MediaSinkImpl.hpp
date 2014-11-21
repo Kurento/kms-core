@@ -12,7 +12,8 @@ namespace kurento
 class MediaSourceImpl;
 class MediaSinkImpl;
 
-void Serialize (std::shared_ptr<MediaSinkImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<MediaSinkImpl> &object,
+                JsonSerializer &serializer);
 
 class MediaSinkImpl : public MediaPadImpl, public virtual MediaSink
 {
@@ -30,7 +31,8 @@ public:
   std::shared_ptr<MediaSource> getConnectedSrc ();
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

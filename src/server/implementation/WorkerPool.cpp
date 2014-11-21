@@ -96,8 +96,10 @@ WorkerPool::checkWorkers ()
   boost::shared_ptr< boost::asio::deadline_timer > timer (
     new boost::asio::deadline_timer ( *watcher_service ) );
 
-  timer->expires_from_now ( boost::posix_time::seconds ( WORKER_THREADS_TIMEOUT) );
-  timer->async_wait ( [timer, alive, this] (const boost::system::error_code & error) {
+  timer->expires_from_now ( boost::posix_time::seconds (
+                              WORKER_THREADS_TIMEOUT) );
+  timer->async_wait ( [timer, alive,
+  this] (const boost::system::error_code & error) {
     if (error) {
       GST_ERROR ("ERROR: %s", error.message().c_str() );
       return;

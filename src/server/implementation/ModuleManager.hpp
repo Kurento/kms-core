@@ -31,20 +31,25 @@ namespace kurento
 class ModuleData
 {
 public:
-  ModuleData (const std::string &name, const std::string &version, const char *descriptor,
+  ModuleData (const std::string &name, const std::string &version,
+              const char *descriptor,
               const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories) :
-    name (name), version (version), descriptor (descriptor), factories (factories) {
+    name (name), version (version), descriptor (descriptor), factories (factories)
+  {
   }
 
-  std::string getName() const {
+  std::string getName() const
+  {
     return name;
   }
 
-  std::string getVersion () const {
+  std::string getVersion () const
+  {
     return version;
   }
 
-  std::string getDescriptor () const {
+  std::string getDescriptor () const
+  {
     if (descriptor == NULL) {
       return "";
     } else {
@@ -52,7 +57,9 @@ public:
     }
   }
 
-  const std::map <std::string, std::shared_ptr <kurento::Factory > > &getFactories() {
+  const std::map <std::string, std::shared_ptr <kurento::Factory > >
+  &getFactories()
+  {
     return factories;
   }
 
@@ -60,7 +67,7 @@ public:
 private:
   std::string name;
   std::string version;
-  const char * descriptor;
+  const char *descriptor;
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories;
 };
 
@@ -72,10 +79,12 @@ public:
 
   int loadModule (std::string modulePath);
   void loadModulesFromDirectories (std::string dirPath);
-  const std::map <std::string, std::shared_ptr <kurento::Factory > > getLoadedFactories ();
+  const std::map <std::string, std::shared_ptr <kurento::Factory > >
+  getLoadedFactories ();
   std::shared_ptr<kurento::Factory> getFactory (std::string symbolName);
 
-  const std::map <std::string, std::shared_ptr <ModuleData>> getModules () const {
+  const std::map <std::string, std::shared_ptr <ModuleData>> getModules () const
+  {
     return loadedModules;
   }
 

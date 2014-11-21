@@ -17,35 +17,45 @@ class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
 
-void Serialize (std::shared_ptr<MediaElementImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<MediaElementImpl> &object,
+                JsonSerializer &serializer);
 
 class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 {
 
 public:
 
-  MediaElementImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
+  MediaElementImpl (const boost::property_tree::ptree &config,
+                    std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
 
   virtual ~MediaElementImpl ();
 
-  GstElement *getGstreamerElement() {
+  GstElement *getGstreamerElement()
+  {
     return element;
   };
 
   std::vector<std::shared_ptr<MediaSource>> getMediaSrcs ();
-  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (std::shared_ptr<MediaType> mediaType);
-  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (std::shared_ptr<MediaType> mediaType, const std::string &description);
+  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (
+      std::shared_ptr<MediaType> mediaType);
+  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (
+      std::shared_ptr<MediaType> mediaType, const std::string &description);
   std::vector<std::shared_ptr<MediaSink>> getMediaSinks ();
-  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (std::shared_ptr<MediaType> mediaType);
-  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (std::shared_ptr<MediaType> mediaType, const std::string &description);
+  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (
+                                         std::shared_ptr<MediaType> mediaType);
+  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (
+                                         std::shared_ptr<MediaType> mediaType, const std::string &description);
   void connect (std::shared_ptr<MediaElement> sink);
-  void connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType);
-  void connect (std::shared_ptr<MediaElement> sink, std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription);
+  void connect (std::shared_ptr<MediaElement> sink,
+                std::shared_ptr<MediaType> mediaType);
+  void connect (std::shared_ptr<MediaElement> sink,
+                std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription);
   void setAudioFormat (std::shared_ptr<AudioCaps> caps);
   void setVideoFormat (std::shared_ptr<VideoCaps> caps);
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -79,7 +89,8 @@ private:
 
   static StaticConstructor staticConstructor;
 
-  friend void _media_element_impl_bus_message (GstBus *bus, GstMessage *message, gpointer data);
+  friend void _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
+      gpointer data);
 };
 
 } /* kurento */

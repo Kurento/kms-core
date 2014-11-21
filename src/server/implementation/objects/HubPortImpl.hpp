@@ -11,23 +11,27 @@ namespace kurento
 class HubImpl;
 class HubPortImpl;
 
-void Serialize (std::shared_ptr<HubPortImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<HubPortImpl> &object,
+                JsonSerializer &serializer);
 
 class HubPortImpl : public MediaElementImpl, public virtual HubPort
 {
 
 public:
 
-  HubPortImpl (const boost::property_tree::ptree &config, std::shared_ptr<HubImpl> hub);
+  HubPortImpl (const boost::property_tree::ptree &config,
+               std::shared_ptr<HubImpl> hub);
 
   virtual ~HubPortImpl ();
 
-  int getHandlerId () {
+  int getHandlerId ()
+  {
     return handlerId;
   }
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,

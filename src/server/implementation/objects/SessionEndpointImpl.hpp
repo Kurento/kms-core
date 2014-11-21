@@ -10,7 +10,8 @@ namespace kurento
 
 class SessionEndpointImpl;
 
-void Serialize (std::shared_ptr<SessionEndpointImpl> &object, JsonSerializer &serializer);
+void Serialize (std::shared_ptr<SessionEndpointImpl> &object,
+                JsonSerializer &serializer);
 
 class SessionEndpointImpl : public EndpointImpl, public virtual SessionEndpoint
 {
@@ -24,7 +25,8 @@ public:
   virtual ~SessionEndpointImpl () {};
 
   /* Next methods are automatically implemented by code generator */
-  virtual bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
+  virtual bool connect (const std::string &eventType,
+                        std::shared_ptr<EventHandler> handler);
 
   sigc::signal<void, MediaSessionTerminated> signalMediaSessionTerminated;
   sigc::signal<void, MediaSessionStarted> signalMediaSessionStarted;
