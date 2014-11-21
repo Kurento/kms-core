@@ -2,8 +2,8 @@ set (SUPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/../valgrind.supp")
 
 # all test programs
 set(ALL_TESTS
-  hubport
-  filterelement
+#  hubport
+#  filterelement
   agnosticbin
   agnosticbin3
   audiomixerbin

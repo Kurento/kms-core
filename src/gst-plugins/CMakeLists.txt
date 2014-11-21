@@ -8,7 +8,7 @@ set(KMS_CORE_SOURCES
   kmscore.c
   kmsagnosticbin.c kmsagnosticbin.h
   kmsagnosticbin3.c kmsagnosticbin3.h
-  kmsfilterelement.c kmsfilterelement.h
+#  kmsfilterelement.c kmsfilterelement.h
   kmsaudiomixer.c kmsaudiomixer.h
   kmsaudiomixerbin.c kmsaudiomixerbin.h
   kmsbitratefilter.c kmsbitratefilter.h

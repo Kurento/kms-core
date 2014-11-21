@@ -39,7 +39,7 @@ G_BEGIN_DECLS
 )
 
 typedef enum {
-  KMS_ELEMENT_PAD_TYPE_UNKNOWN,
+  KMS_ELEMENT_PAD_TYPE_DATA,
   KMS_ELEMENT_PAD_TYPE_AUDIO,
   KMS_ELEMENT_PAD_TYPE_VIDEO
 } KmsElementPadType;
@@ -71,12 +71,6 @@ struct _KmsElementClass
   void (*agnosticbin_added) (KmsElementClass * self);
 
   /* private */
-  /* actions */
-  void (*audio_valve_added) (KmsElement *self, GstElement * valve);
-  void (*audio_valve_removed) (KmsElement *self, GstElement * valve);
-
-  void (*video_valve_added) (KmsElement *self, GstElement * valve);
-  void (*video_valve_removed) (KmsElement *self, GstElement * valve);
 
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
 };
@@ -87,8 +81,11 @@ GType kms_element_get_type (void);
 GstElement * kms_element_get_audio_agnosticbin (KmsElement * self);
 GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 
-GstElement * kms_element_get_audio_valve (KmsElement * self);
-GstElement * kms_element_get_video_valve (KmsElement * self);
+#define kms_element_connect_sink_target(self, target, type)   \
+  kms_element_connect_sink_target_full (self, target, type, NULL)
+
+GstPad *kms_element_connect_sink_target_full (KmsElement *self, GstPad * target,
+    KmsElementPadType type, const gchar *description);
 
 KmsElementPadType kms_element_get_pad_type (KmsElement * self, GstPad * pad);
 

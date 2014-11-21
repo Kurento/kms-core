@@ -37,8 +37,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define AUDIO_AGNOSTICBIN "audio_agnosticbin"
 #define VIDEO_AGNOSTICBIN "video_agnosticbin"
 
-#define AUDIO_SINK_PAD "audio_sink"
-#define VIDEO_SINK_PAD "video_sink"
+#define SINK_PAD "sink_%s"
 
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
@@ -57,9 +56,6 @@ struct _KmsElementPrivate
   guint video_pad_count;
 
   gboolean accept_eos;
-
-  GstElement *audio_valve;
-  GstElement *video_valve;
 
   GstElement *audio_agnosticbin;
   GstElement *video_agnosticbin;
@@ -96,18 +92,10 @@ enum
 };
 
 /* the capabilities of the inputs and outputs. */
-static GstStaticPadTemplate audio_sink_factory =
-GST_STATIC_PAD_TEMPLATE (AUDIO_SINK_PAD,
+static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE (SINK_PAD,
     GST_PAD_SINK,
-    GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS)
-    );
-
-static GstStaticPadTemplate video_sink_factory =
-GST_STATIC_PAD_TEMPLATE (VIDEO_SINK_PAD,
-    GST_PAD_SINK,
-    GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS)
+    GST_PAD_SOMETIMES,
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
     );
 
 static GstStaticPadTemplate audio_src_factory =
@@ -320,55 +308,6 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   return self->priv->video_agnosticbin;
 }
 
-GstElement *
-kms_element_get_audio_valve (KmsElement * self)
-{
-  return self->priv->audio_valve;
-}
-
-GstElement *
-kms_element_get_video_valve (KmsElement * self)
-{
-  return self->priv->video_valve;
-}
-
-static GstPad *
-kms_element_generate_sink_pad (KmsElement * element, const gchar * name,
-    GstElement ** target, GstPadTemplate * templ)
-{
-  GstElement *valve = *target;
-  GstPad *sink, *ret_pad;
-
-  if (valve != NULL)
-    return NULL;
-
-  valve = gst_element_factory_make ("valve", name);
-  *target = valve;
-  g_object_set (valve, "drop", TRUE, NULL);
-  gst_bin_add (GST_BIN (element), valve);
-  gst_element_sync_state_with_parent (valve);
-
-  if (g_str_has_prefix (name, "video")) {
-    GstPad *src = gst_element_get_static_pad (valve, "src");
-
-    kms_utils_drop_until_keyframe (src, TRUE);
-    kms_utils_manage_gaps (src);
-    g_object_unref (src);
-  }
-
-  if (target == &element->priv->audio_valve) {
-    KMS_ELEMENT_GET_CLASS (element)->audio_valve_added (element, valve);
-  } else {
-    KMS_ELEMENT_GET_CLASS (element)->video_valve_added (element, valve);
-  }
-
-  sink = gst_element_get_static_pad (valve, "sink");
-  ret_pad = gst_ghost_pad_new_from_template (name, sink, templ);
-  g_object_unref (sink);
-
-  return ret_pad;
-}
-
 static GstPad *
 kms_element_generate_src_pad (KmsElement * element, const gchar * name,
     GstElement * agnosticbin, GstPadTemplate * templ)
@@ -438,6 +377,60 @@ kms_element_pad_query (GstPad * pad, GstObject * parent, GstQuery * query)
   return klass->sink_query (element, pad, query);
 }
 
+GstPad *
+kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
+    KmsElementPadType type, const gchar * description)
+{
+  GstPad *pad;
+  gchar *pad_name, *type_str;
+  GstPadTemplate *templ;
+
+  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    type_str = "video";
+  } else if (type == KMS_ELEMENT_PAD_TYPE_AUDIO) {
+    type_str = "audio";
+  } else {
+    type_str = "data";
+  }
+
+  templ = gst_static_pad_template_get (&sink_factory);
+
+  if (description == NULL) {
+    pad_name = g_strdup_printf (SINK_PAD, type_str);
+  } else {
+    pad_name = g_strdup_printf (SINK_PAD "_%s", type_str, description);
+  }
+
+  pad = gst_ghost_pad_new_from_template (pad_name, target, templ);
+  g_free (pad_name);
+  g_object_unref (templ);
+
+  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    kms_utils_drop_until_keyframe (pad, TRUE);
+    kms_utils_manage_gaps (pad);
+  }
+
+  gst_pad_set_query_function (pad, kms_element_pad_query);
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      accept_eos_probe, self, NULL);
+  g_signal_connect (G_OBJECT (pad), "unlinked",
+      G_CALLBACK (send_flush_on_unlink), NULL);
+
+  if (GST_STATE (self) >= GST_STATE_PAUSED
+      || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
+      || GST_STATE_TARGET (self) >= GST_STATE_PAUSED) {
+    gst_pad_set_active (pad, TRUE);
+  }
+
+  if (gst_element_add_pad (GST_ELEMENT (self), pad)) {
+    return pad;
+  }
+
+  g_object_unref (pad);
+
+  return NULL;
+}
+
 static GstPad *
 kms_element_request_new_pad (GstElement * element,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -479,41 +472,10 @@ kms_element_request_new_pad (GstElement * element,
     KMS_ELEMENT_UNLOCK (element);
 
     g_free (pad_name);
-
-  } else if (templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (element)), AUDIO_SINK_PAD)) {
-    KMS_ELEMENT_LOCK (element);
-    ret_pad =
-        kms_element_generate_sink_pad (KMS_ELEMENT (element), AUDIO_SINK_PAD,
-        &KMS_ELEMENT (element)->priv->audio_valve, templ);
-
-    gst_pad_set_query_function (ret_pad, kms_element_pad_query);
-    gst_pad_add_probe (ret_pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-        accept_eos_probe, element, NULL);
-    KMS_ELEMENT_UNLOCK (element);
-
-    g_signal_connect (G_OBJECT (ret_pad), "unlinked",
-        G_CALLBACK (send_flush_on_unlink), NULL);
-  } else if (templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (element)), VIDEO_SINK_PAD)) {
-    KMS_ELEMENT_LOCK (element);
-    ret_pad =
-        kms_element_generate_sink_pad (KMS_ELEMENT (element), VIDEO_SINK_PAD,
-        &KMS_ELEMENT (element)->priv->video_valve, templ);
-
-    gst_pad_set_query_function (ret_pad, kms_element_pad_query);
-    gst_pad_add_probe (ret_pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-        accept_eos_probe, element, NULL);
-    KMS_ELEMENT_UNLOCK (element);
-
-    g_signal_connect (G_OBJECT (ret_pad), "unlinked",
-        G_CALLBACK (send_flush_on_unlink), NULL);
   }
 
   if (ret_pad == NULL) {
-    GST_WARNING ("No pad created");
+    GST_INFO ("No pad created, agnostic should not be ready yet");
     return NULL;
   }
 
@@ -683,38 +645,6 @@ kms_element_finalize (GObject * object)
 }
 
 static void
-kms_element_audio_valve_added_default (KmsElement * self, GstElement * valve)
-{
-  GST_WARNING
-      ("Element class %" GST_PTR_FORMAT
-      " does not implement method \"audio_valve_added\"", self);
-}
-
-static void
-kms_element_video_valve_added_default (KmsElement * self, GstElement * valve)
-{
-  GST_WARNING
-      ("Element class %" GST_PTR_FORMAT
-      " does not implement method \"video_valve_added\"", self);
-}
-
-static void
-kms_element_audio_valve_removed_default (KmsElement * self, GstElement * valve)
-{
-  GST_WARNING
-      ("Element class %" GST_PTR_FORMAT
-      " does not implement method \"audio_valve_removed\"", self);
-}
-
-static void
-kms_element_video_valve_removed_default (KmsElement * self, GstElement * valve)
-{
-  GST_WARNING
-      ("Element class %" GST_PTR_FORMAT
-      " does not implement method \"video_valve_removed\"", self);
-}
-
-static void
 kms_element_class_init (KmsElementClass * klass)
 {
   GstElementClass *gstelement_class;
@@ -739,9 +669,7 @@ kms_element_class_init (KmsElementClass * klass)
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&video_src_factory));
   gst_element_class_add_pad_template (gstelement_class,
-      gst_static_pad_template_get (&audio_sink_factory));
-  gst_element_class_add_pad_template (gstelement_class,
-      gst_static_pad_template_get (&video_sink_factory));
+      gst_static_pad_template_get (&sink_factory));
 
   g_object_class_install_property (gobject_class, PROP_ACCEPT_EOS,
       g_param_spec_boolean ("accept-eos",
@@ -765,14 +693,6 @@ kms_element_class_init (KmsElementClass * klass)
           "The allowed caps for video", GST_TYPE_CAPS,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  klass->audio_valve_added =
-      GST_DEBUG_FUNCPTR (kms_element_audio_valve_added_default);
-  klass->video_valve_added =
-      GST_DEBUG_FUNCPTR (kms_element_video_valve_added_default);
-  klass->audio_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_element_audio_valve_removed_default);
-  klass->video_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_element_video_valve_removed_default);
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
 
   /* set signals */
@@ -801,9 +721,6 @@ kms_element_init (KmsElement * element)
   element->priv->audio_agnosticbin = NULL;
   element->priv->video_agnosticbin = NULL;
 
-  element->priv->audio_valve = NULL;
-  element->priv->video_valve = NULL;
-
   element->priv->base_time = GST_CLOCK_TIME_NONE;
   element->priv->base_clock = GST_CLOCK_TIME_NONE;
   g_mutex_init (&element->priv->sync_lock);
@@ -817,26 +734,22 @@ kms_element_get_pad_type (KmsElement * self, GstPad * pad)
   KmsElementPadType type;
   GstPadTemplate *templ;
 
-  g_return_val_if_fail (self != NULL, KMS_ELEMENT_PAD_TYPE_UNKNOWN);
+  g_return_val_if_fail (self != NULL, KMS_ELEMENT_PAD_TYPE_DATA);
 
   templ = gst_pad_get_pad_template (pad);
 
   if (templ ==
       gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
               (self)), "audio_src_%u") ||
-      templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (self)), AUDIO_SINK_PAD)) {
+      g_strstr_len (GST_OBJECT_NAME (pad), -1, "audio")) {
     type = KMS_ELEMENT_PAD_TYPE_AUDIO;
   } else if (templ ==
       gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
               (self)), "video_src_%u") ||
-      templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (self)), VIDEO_SINK_PAD)) {
+      g_strstr_len (GST_OBJECT_NAME (pad), -1, "video")) {
     type = KMS_ELEMENT_PAD_TYPE_VIDEO;
   } else {
-    type = KMS_ELEMENT_PAD_TYPE_UNKNOWN;
+    type = KMS_ELEMENT_PAD_TYPE_DATA;
   }
 
   gst_object_unref (templ);
