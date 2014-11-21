@@ -55,6 +55,8 @@ public:
 
 protected:
   GstElement *element;
+  GstBus *bus;
+  gulong handlerId;
 
 private:
   std::recursive_mutex mutex;
@@ -77,6 +79,7 @@ private:
 
   static StaticConstructor staticConstructor;
 
+  friend void _media_element_impl_bus_message (GstBus *bus, GstMessage *message, gpointer data);
 };
 
 } /* kurento */

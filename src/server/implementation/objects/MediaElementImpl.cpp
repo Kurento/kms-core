@@ -21,6 +21,43 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+void
+_media_element_impl_bus_message (GstBus *bus, GstMessage *message, gpointer data)
+{
+  if (message->type == GST_MESSAGE_ERROR) {
+    GError *err = NULL;
+    gchar *debug = NULL;
+    MediaElementImpl *elem = reinterpret_cast <MediaElementImpl *> (data);
+
+    if (elem == NULL) {
+      return;
+    }
+
+    if (message->src != GST_OBJECT (elem->element) ) {
+      return;
+    }
+
+    GST_ERROR ("MediaElement error: %" GST_PTR_FORMAT, message);
+    gst_message_parse_error (message, &err, &debug);
+    std::string errorMessage (err->message);
+
+    if (debug != NULL) {
+      errorMessage += " -> " + std::string (debug);
+    }
+
+    try {
+      Error error (elem->shared_from_this(), errorMessage , 0,
+                   "UNEXPECTED_ELEMENT_ERROR");
+
+      elem->signalError (error);
+    } catch (std::bad_weak_ptr &e) {
+    }
+
+    g_error_free (err);
+    g_free (debug);
+  }
+}
+
 MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config, std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName) : MediaObjectImpl (config, parent)
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
@@ -33,6 +70,10 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config, s
     throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
                             "Cannot create gstreamer element: " + factoryName);
   }
+
+
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
+  handlerId = g_signal_connect (bus, "message", G_CALLBACK (_media_element_impl_bus_message), this);
 
   g_object_ref (element);
   gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
@@ -49,6 +90,9 @@ MediaElementImpl::~MediaElementImpl ()
   gst_element_set_state (element, GST_STATE_NULL);
   gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
   g_object_unref (element);
+
+  g_signal_handler_disconnect (bus, handlerId);
+  g_object_unref (bus);
 }
 
 std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs ()
