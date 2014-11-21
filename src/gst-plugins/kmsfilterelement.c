@@ -74,20 +74,28 @@ G_DEFINE_TYPE_WITH_CODE (KmsFilterElement, kms_filter_element,
         0, "debug category for filterelement element"));
 
 static void
-kms_filter_element_connect_filter (KmsFilterElement * self, GstElement * filter,
-    GstElement * valve, GstElement * agnosticbin)
+kms_filter_element_connect_filter (KmsFilterElement * self,
+    KmsElementPadType type, GstElement * filter, GstPad * target,
+    GstElement * agnosticbin)
 {
   gst_bin_add (GST_BIN (self), filter);
-  gst_element_sync_state_with_parent (filter);
 
   self->priv->filter = filter;
 
   gst_element_link (filter, agnosticbin);
+  gst_element_sync_state_with_parent (filter);
 
-  if (valve != NULL) {
-    if (gst_element_link (valve, filter))
-      kms_utils_set_valve_drop (valve, FALSE);
-  }
+  kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
+}
+
+static void
+kms_filter_element_connect_passthrough (KmsFilterElement * self,
+    KmsElementPadType type, GstElement * agnosticbin)
+{
+  GstPad *target = gst_element_get_static_pad (agnosticbin, "sink");
+
+  kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
+  g_object_unref (target);
 }
 
 static void
@@ -149,13 +157,20 @@ kms_filter_element_set_filter (KmsFilterElement * self)
   }
 
   if (self->priv->filter_type == KMS_FILTER_TYPE_VIDEO) {
-    kms_filter_element_connect_filter (self, filter,
-        kms_element_get_video_valve (KMS_ELEMENT (self)),
-        kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
-
+    kms_filter_element_connect_filter (self, KMS_FILTER_TYPE_VIDEO, filter,
+        sink, kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
+    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_AUDIO,
+        kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   } else if (self->priv->filter_type == KMS_FILTER_TYPE_AUDIO) {
-    kms_filter_element_connect_filter (self, filter,
-        kms_element_get_audio_valve (KMS_ELEMENT (self)),
+    kms_filter_element_connect_filter (self, KMS_FILTER_TYPE_AUDIO, filter,
+        sink, kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
+    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_VIDEO,
+        kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
+  } else {
+    GST_WARNING_OBJECT (self, "No filter configured, working in passthrogh");
+    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_VIDEO,
+        kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
+    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_AUDIO,
         kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   }
 
@@ -179,50 +194,6 @@ end:
 
   if (src != NULL)
     g_object_unref (src);
-}
-
-static void
-kms_filter_element_audio_valve_added (KmsElement * element, GstElement * valve)
-{
-  KmsFilterElement *filter = KMS_FILTER_ELEMENT (element);
-
-  if (filter->priv->filter != NULL &&
-      filter->priv->filter_type == KMS_FILTER_TYPE_AUDIO) {
-    if (gst_element_link (valve, filter->priv->filter))
-      kms_utils_set_valve_drop (valve, FALSE);
-  } else {
-    gst_element_link (valve, kms_element_get_audio_agnosticbin (element));
-    kms_utils_set_valve_drop (valve, FALSE);
-  }
-}
-
-static void
-kms_filter_element_audio_valve_removed (KmsElement * element,
-    GstElement * valve)
-{
-  // Nothing to do
-}
-
-static void
-kms_filter_element_video_valve_added (KmsElement * element, GstElement * valve)
-{
-  KmsFilterElement *filter = KMS_FILTER_ELEMENT (element);
-
-  if (filter->priv->filter != NULL &&
-      filter->priv->filter_type == KMS_FILTER_TYPE_VIDEO) {
-    if (gst_element_link (valve, filter->priv->filter))
-      kms_utils_set_valve_drop (valve, FALSE);
-  } else {
-    gst_element_link (valve, kms_element_get_video_agnosticbin (element));
-    kms_utils_set_valve_drop (valve, FALSE);
-  }
-}
-
-static void
-kms_filter_element_video_valve_removed (KmsElement * element,
-    GstElement * valve)
-{
-  // Nothing to do
 }
 
 static void
@@ -320,7 +291,6 @@ static void
 kms_filter_element_class_init (KmsFilterElementClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  KmsElementClass *kms_element_class;
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "FilterElement", "Generic/Filter", "Kurento filter_element",
@@ -331,17 +301,6 @@ kms_filter_element_class_init (KmsFilterElementClass * klass)
 
   gobject_class->set_property = kms_filter_element_set_property;
   gobject_class->get_property = kms_filter_element_get_property;
-
-  kms_element_class = KMS_ELEMENT_CLASS (klass);
-
-  kms_element_class->audio_valve_added =
-      GST_DEBUG_FUNCPTR (kms_filter_element_audio_valve_added);
-  kms_element_class->video_valve_added =
-      GST_DEBUG_FUNCPTR (kms_filter_element_video_valve_added);
-  kms_element_class->audio_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_filter_element_audio_valve_removed);
-  kms_element_class->video_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_filter_element_video_valve_removed);
 
   /* define properties */
   g_object_class_install_property (gobject_class, PROP_FILTER_FACTORY,

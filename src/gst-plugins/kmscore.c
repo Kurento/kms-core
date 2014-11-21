@@ -18,7 +18,7 @@
 #include <kmsagnosticbin.h>
 #include <kmsagnosticbin3.h>
 //#include <kmshubport.h>
-//#include <kmsfilterelement.h>
+#include <kmsfilterelement.h>
 #include <kmsaudiomixer.h>
 #include <kmsaudiomixerbin.h>
 #include <kmsbitratefilter.h>
@@ -33,8 +33,8 @@ kurento_init (GstPlugin * kurento)
   if (!kms_agnostic_bin3_plugin_init (kurento))
     return FALSE;
 
-//  if (!kms_filter_element_plugin_init (kurento))
-//    return FALSE;
+  if (!kms_filter_element_plugin_init (kurento))
+    return FALSE;
 
 //  if (!kms_hub_port_plugin_init (kurento))
 //    return FALSE;

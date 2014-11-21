@@ -15,6 +15,8 @@
 #ifndef _KMS_FILTER_ELEMENT_H_
 #define _KMS_FILTER_ELEMENT_H_
 
+#include "kmselement.h"
+
 G_BEGIN_DECLS
 #define KMS_TYPE_FILTER_ELEMENT (kms_filter_element_get_type())
 #define KMS_FILTER_ELEMENT(obj) (               \
