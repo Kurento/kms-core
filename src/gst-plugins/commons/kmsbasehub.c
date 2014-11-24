@@ -629,6 +629,7 @@ kms_base_hub_unhandle_port (KmsBaseHub * hub, gint id)
 
   GST_DEBUG ("Removing element: %" GST_PTR_FORMAT, port_data->port);
 
+  kms_hub_port_unhandled (KMS_HUB_PORT (port_data->port));
   kms_base_hub_remove_port_pads (hub, id);
 
   g_hash_table_remove (hub->priv->ports, &id);

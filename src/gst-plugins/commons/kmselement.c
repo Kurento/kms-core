@@ -431,6 +431,17 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   return NULL;
 }
 
+void
+kms_element_remove_sink (KmsElement * self, GstPad * pad)
+{
+  g_return_if_fail (self);
+  g_return_if_fail (pad);
+
+  // TODO: Unlink correctly pad before removing it
+  gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
+  gst_element_remove_pad (GST_ELEMENT (self), pad);
+}
+
 static GstPad *
 kms_element_request_new_pad (GstElement * element,
     GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
@@ -531,8 +542,9 @@ kms_element_release_pad (GstElement * element, GstPad * pad)
   }
 
   if (GST_STATE (element) >= GST_STATE_PAUSED
-      || GST_STATE_PENDING (element) >= GST_STATE_PAUSED)
+      || GST_STATE_PENDING (element) >= GST_STATE_PAUSED) {
     gst_pad_set_active (pad, FALSE);
+  }
 
   gst_element_remove_pad (element, pad);
 }

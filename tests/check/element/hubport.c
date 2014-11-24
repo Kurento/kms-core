@@ -19,38 +19,6 @@
 #define HUB_AUDIO_SINK "hub_audio_sink"
 #define HUB_VIDEO_SINK "hub_video_sink"
 
-static void
-connect_sinks_pad_added (GstElement * element, GstPad * pad, gpointer user_data)
-{
-  GstElement *fakesink;
-  GstBin *pipe = GST_BIN (user_data);
-
-  if (GST_PAD_DIRECTION (pad) != GST_PAD_SRC)
-    return;
-
-  if (!g_str_has_prefix (GST_OBJECT_NAME (pad), "hub"))
-    return;
-
-  fakesink = gst_element_factory_make ("fakesink", GST_OBJECT_NAME (pad));
-
-  gst_bin_add (pipe, fakesink);
-
-  gst_element_link_pads (element, GST_OBJECT_NAME (pad), fakesink, "sink");
-  GST_DEBUG_OBJECT (element, "Pad added: %" GST_PTR_FORMAT, pad);
-}
-
-static void
-unlink_src_pad (GstElement * element, const gchar * pad_name)
-{
-  GstPad *pad = gst_element_get_static_pad (element, pad_name);
-  GstPad *peer = gst_pad_get_peer (pad);
-
-  gst_pad_unlink (pad, peer);
-
-  g_object_unref (pad);
-  g_object_unref (peer);
-}
-
 GST_START_TEST (connect_srcs)
 {
   GstElement *hubport = gst_element_factory_make ("hubport", NULL);
@@ -86,51 +54,27 @@ GST_START_TEST (connect_sinks)
   GstElement *hubport = gst_element_factory_make ("hubport", NULL);
   GstElement *videosrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *audiosrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *valve0, *valve1;
-  gboolean drop;
+  GstElement *fakesink1 = gst_element_factory_make ("fakesink", NULL);
+  GstElement *fakesink2 = gst_element_factory_make ("fakesink", NULL);
 
-  gst_bin_add_many (pipe, hubport, videosrc, audiosrc, NULL);
+  gst_bin_add_many (pipe, hubport, videosrc, audiosrc, fakesink1, fakesink2,
+      NULL);
 
-  g_signal_connect (hubport, "pad-added",
-      G_CALLBACK (connect_sinks_pad_added), pipe);
+  /* By default sink pads does not exists until hub port is internally connected */
 
-  gst_element_link_pads (videosrc, "src", hubport, "video_sink");
-  gst_element_link_pads (audiosrc, "src", hubport, "audio_sink");
+  fail_if (gst_element_get_static_pad (hubport, "sink_video"));
+  fail_if (gst_element_get_static_pad (hubport, "sink_audio"));
 
-  /* Check if valves have been opened because of fakesink link */
+  /* Check if pads have been created now that internal pads have been linked */
 
-  valve0 = gst_bin_get_by_name (GST_BIN (hubport), "video_sink");
-  fail_unless (valve0 != NULL);
-  GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve0);
-  drop = TRUE;
-  g_object_get (G_OBJECT (valve0), "drop", &drop, NULL);
-  fail_unless (drop == FALSE);
-  GST_DEBUG ("Drop value: %d", drop);
+  fail_unless (gst_element_link_pads (hubport, "hub_video_src", fakesink1,
+          "sink"));
+  fail_unless (gst_element_link_pads (hubport, "hub_audio_src", fakesink2,
+          "sink"));
 
-  valve1 = gst_bin_get_by_name (GST_BIN (hubport), "audio_sink");
-  fail_unless (valve1 != NULL);
-  GST_DEBUG ("Got valve: %" GST_PTR_FORMAT, valve1);
-  drop = TRUE;
-  g_object_get (G_OBJECT (valve1), "drop", &drop, NULL);
-  fail_unless (drop == FALSE);
-  GST_DEBUG ("Drop value: %d", drop);
+  fail_unless (gst_element_link_pads (videosrc, "src", hubport, "sink_video"));
+  fail_unless (gst_element_link_pads (audiosrc, "src", hubport, "sink_audio"));
 
-  /* Now check that valves are closed when mixer_src pads are unlinked */
-  unlink_src_pad (hubport, "hub_video_src");
-  unlink_src_pad (hubport, "hub_audio_src");
-
-  drop = FALSE;
-  g_object_get (G_OBJECT (valve0), "drop", &drop, NULL);
-  fail_unless (drop == TRUE);
-  GST_DEBUG_OBJECT (valve0, "Drop value: %d", drop);
-
-  drop = FALSE;
-  g_object_get (G_OBJECT (valve1), "drop", &drop, NULL);
-  fail_unless (drop == TRUE);
-  GST_DEBUG_OBJECT (valve0, "Drop value: %d", drop);
-
-  g_object_unref (valve0);
-  g_object_unref (valve1);
   g_object_unref (pipe);
 }
 

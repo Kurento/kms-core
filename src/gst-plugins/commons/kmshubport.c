@@ -22,7 +22,9 @@
 
 #define PLUGIN_NAME "hubport"
 
-#define KEY_VALVE_DATA "kms-hub-valve-data"
+#define KEY_ELEM_DATA "kms-hub-elem-data"
+#define KEY_TYPE_DATA "kms-hub-type-data"
+#define KEY_PAD_DATA "kms-hub-pad-data"
 
 GST_DEBUG_CATEGORY_STATIC (kms_hub_port_debug_category);
 #define GST_CAT_DEFAULT kms_hub_port_debug_category
@@ -142,36 +144,82 @@ kms_hub_port_request_new_pad (GstElement * element,
 }
 
 static void
+kms_hub_port_internal_src_unhandled (KmsHubPort * self, GstPad * pad)
+{
+  GstPad *sink = g_object_get_data (G_OBJECT (pad), KEY_PAD_DATA);
+
+  g_return_if_fail (sink);
+
+  kms_element_remove_sink (KMS_ELEMENT (self), sink);
+
+  g_object_set_data (G_OBJECT (pad), KEY_PAD_DATA, NULL);
+}
+
+void
+kms_hub_port_unhandled (KmsHubPort * self)
+{
+  GstPad *video_src, *audio_src;
+
+  g_return_if_fail (!self);
+
+  video_src =
+      gst_element_get_static_pad (GST_ELEMENT (self), HUB_VIDEO_SRC_PAD);
+  kms_hub_port_internal_src_unhandled (self, video_src);
+  g_object_unref (video_src);
+
+  audio_src =
+      gst_element_get_static_pad (GST_ELEMENT (self), HUB_AUDIO_SRC_PAD);
+  kms_hub_port_internal_src_unhandled (self, audio_src);
+  g_object_unref (audio_src);
+}
+
+static void
 kms_hub_port_internal_src_pad_linked (GstPad * pad, GstPad * peer,
     gpointer data)
 {
-  GstElement *valve = g_object_get_data (G_OBJECT (pad), KEY_VALVE_DATA);
+  GstPad *target, *new_pad;
+  GstElement *capsfilter;
+  KmsElement *self;
+  KmsElementPadType type;
 
-  kms_utils_set_valve_drop (valve, FALSE);
+  capsfilter = g_object_get_data (G_OBJECT (pad), KEY_ELEM_DATA);
+  g_return_if_fail (capsfilter);
+  self = KMS_ELEMENT (gst_object_get_parent (GST_OBJECT (capsfilter)));
+  g_return_if_fail (self);
+
+  target = gst_element_get_static_pad (capsfilter, "sink");
+  if (!target) {
+    goto end;
+  }
+
+  type = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pad), KEY_TYPE_DATA));
+  new_pad = kms_element_connect_sink_target (self, target, type);
+  g_object_unref (target);
+  g_object_set_data_full (G_OBJECT (pad), KEY_PAD_DATA, g_object_ref (new_pad),
+      g_object_unref);
+
+end:
+  g_object_unref (self);
 }
 
 static void
-kms_hub_port_internal_src_pad_unlinked (GstPad * pad, GstObject * parent)
-{
-  GstElement *valve = g_object_get_data (G_OBJECT (pad), KEY_VALVE_DATA);
-
-  kms_utils_set_valve_drop (valve, TRUE);
-}
-
-static void
-kms_hub_port_valve_added (KmsElement * self, GstElement * valve,
+kms_hub_port_start_media_type (KmsElement * self, KmsElementPadType type,
     GstPadTemplate * templ, const gchar * pad_name)
 {
-  GstPad *src = gst_element_get_static_pad (valve, "src");
+  GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
+  GstPad *src = gst_element_get_static_pad (capsfilter, "src");
   GstPad *internal_src = gst_ghost_pad_new_from_template (pad_name, src, templ);
 
-  g_object_set_data_full (G_OBJECT (internal_src), KEY_VALVE_DATA,
-      g_object_ref (valve), g_object_unref);
+  gst_bin_add (GST_BIN (self), capsfilter);
+  gst_element_sync_state_with_parent (capsfilter);
+
+  g_object_set_data_full (G_OBJECT (internal_src), KEY_ELEM_DATA,
+      g_object_ref (capsfilter), g_object_unref);
+  g_object_set_data (G_OBJECT (internal_src), KEY_TYPE_DATA,
+      GINT_TO_POINTER (type));
 
   g_signal_connect (internal_src, "linked",
       G_CALLBACK (kms_hub_port_internal_src_pad_linked), NULL);
-  internal_src->unlinkfunc =
-      GST_DEBUG_FUNCPTR (kms_hub_port_internal_src_pad_unlinked);
 
   if (GST_STATE (self) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
@@ -181,51 +229,6 @@ kms_hub_port_valve_added (KmsElement * self, GstElement * valve,
 
   gst_element_add_pad (GST_ELEMENT (self), internal_src);
   g_object_unref (src);
-}
-
-static void
-kms_hub_port_audio_valve_added (KmsElement * self, GstElement * valve)
-{
-  GstPadTemplate *templ = gst_static_pad_template_get (&hub_audio_src_factory);
-
-  kms_hub_port_valve_added (self, valve, templ, HUB_AUDIO_SRC_PAD);
-  g_object_unref (templ);
-}
-
-static void
-kms_hub_port_video_valve_added (KmsElement * self, GstElement * valve)
-{
-  GstPadTemplate *templ = gst_static_pad_template_get (&hub_video_src_factory);
-
-  kms_hub_port_valve_added (self, valve, templ, HUB_VIDEO_SRC_PAD);
-  g_object_unref (templ);
-}
-
-static void
-kms_hub_port_valve_removed (KmsElement * self, GstElement * valve,
-    const gchar * pad_name)
-{
-  GstPad *src = gst_element_get_static_pad (GST_ELEMENT (self), pad_name);
-  GstPad *peer = gst_pad_get_peer (src);
-
-  if (peer != NULL) {
-    gst_pad_unlink (src, peer);
-    g_object_unref (peer);
-  }
-
-  gst_element_remove_pad (GST_ELEMENT (self), src);
-}
-
-static void
-kms_hub_port_audio_valve_removed (KmsElement * self, GstElement * valve)
-{
-  kms_hub_port_valve_removed (self, valve, HUB_AUDIO_SRC_PAD);
-}
-
-static void
-kms_hub_port_video_valve_removed (KmsElement * self, GstElement * valve)
-{
-  kms_hub_port_valve_removed (self, valve, HUB_VIDEO_SRC_PAD);
 }
 
 static void
@@ -245,7 +248,6 @@ kms_hub_port_class_init (KmsHubPortClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *gstelement_class = GST_ELEMENT_CLASS (klass);
-  KmsElementClass *kms_element_class;
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "HubPort", "Generic", "Kurento plugin for mixer connection",
@@ -253,17 +255,6 @@ kms_hub_port_class_init (KmsHubPortClass * klass)
 
   gobject_class->dispose = kms_hub_port_dispose;
   gobject_class->finalize = kms_hub_port_finalize;
-
-  kms_element_class = KMS_ELEMENT_CLASS (klass);
-
-  kms_element_class->audio_valve_added =
-      GST_DEBUG_FUNCPTR (kms_hub_port_audio_valve_added);
-  kms_element_class->video_valve_added =
-      GST_DEBUG_FUNCPTR (kms_hub_port_video_valve_added);
-  kms_element_class->audio_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_hub_port_audio_valve_removed);
-  kms_element_class->video_valve_removed =
-      GST_DEBUG_FUNCPTR (kms_hub_port_video_valve_removed);
 
   gstelement_class->request_new_pad =
       GST_DEBUG_FUNCPTR (kms_hub_port_request_new_pad);
@@ -284,7 +275,22 @@ kms_hub_port_class_init (KmsHubPortClass * klass)
 static void
 kms_hub_port_init (KmsHubPort * self)
 {
+  KmsElement *kmselement;
+  GstPadTemplate *templ;
+
   self->priv = KMS_HUB_PORT_GET_PRIVATE (self);
+
+  kmselement = KMS_ELEMENT (self);
+
+  templ = gst_static_pad_template_get (&hub_video_src_factory);
+  kms_hub_port_start_media_type (kmselement, KMS_ELEMENT_PAD_TYPE_VIDEO, templ,
+      HUB_VIDEO_SRC_PAD);
+  g_object_unref (templ);
+
+  templ = gst_static_pad_template_get (&hub_audio_src_factory);
+  kms_hub_port_start_media_type (kmselement, KMS_ELEMENT_PAD_TYPE_AUDIO, templ,
+      HUB_AUDIO_SRC_PAD);
+  g_object_unref (templ);
 }
 
 gboolean

@@ -69,5 +69,7 @@ GType kms_hub_port_get_type (void);
 
 gboolean kms_hub_port_plugin_init (GstPlugin * plugin);
 
+void kms_hub_port_unhandled (KmsHubPort * self);
+
 G_END_DECLS
 #endif /* _KMS_HUB_PORT_H_ */

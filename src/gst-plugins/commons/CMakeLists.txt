@@ -65,8 +65,8 @@ set(KMS_COMMONS_SOURCES
                         kmselement.c
                         kmsloop.c
                         kmsrecordingprofile.c
-#                        kmshubport.c
-#                        kmsbasehub.c
+                        kmshubport.c
+                        kmsbasehub.c
                         kmsuriendpoint.c
                         kmsgenericstructure.c
 )
@@ -77,8 +77,8 @@ set(KMS_COMMONS_HEADERS
                         kmselement.h
                         kmsloop.h
                         kmsrecordingprofile.h
-#                        kmshubport.h
-#                        kmsbasehub.h
+                        kmshubport.h
+                        kmsbasehub.h
                         kmsagnosticcaps.h
                         kmsutils.h
                         kmsuriendpointstate.h

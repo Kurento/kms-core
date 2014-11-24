@@ -86,6 +86,7 @@ GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 
 GstPad *kms_element_connect_sink_target_full (KmsElement *self, GstPad * target,
     KmsElementPadType type, const gchar *description);
+void kms_element_remove_sink (KmsElement *self, GstPad * pad);
 
 KmsElementPadType kms_element_get_pad_type (KmsElement * self, GstPad * pad);
 
