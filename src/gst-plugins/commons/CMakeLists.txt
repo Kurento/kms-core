@@ -60,7 +60,7 @@ install(
 )
 
 set(KMS_COMMONS_SOURCES
-#                        kmsbasertpendpoint.c
+                        kmsbasertpendpoint.c
                         kmsbasesdpendpoint.c
                         kmselement.c
                         kmsloop.c
@@ -72,7 +72,7 @@ set(KMS_COMMONS_SOURCES
 )
 
 set(KMS_COMMONS_HEADERS
-#                        kmsbasertpendpoint.h
+                        kmsbasertpendpoint.h
                         kmsbasesdpendpoint.h
                         kmselement.h
                         kmsloop.h
