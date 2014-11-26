@@ -6,12 +6,46 @@ kms-core
 ==========
 Core elements for kurento media server
 
-The kms-core project contains core elements needed for
-the Kurento Media Server.
+The kms-core project contains core elements needed for the Kurento Media Server.
 
+How to generate the clients
+---------------------------
+
+The clients code needs to be generated from the destination folder:
+
+```bash
+mkdir -p build
+cd build
+```
+
+After that, by just invoking ```cmake``` from this folder will generate the
+client both for Java and Javascript
+
+```bash
+cmake .. -DGENERATE_JS_CLIENT_PROJECT=TRUE -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DDISABLE_LIBRARIES_GENERATION=TRUE
+```
+
+If you want to generate just one of the clients, you need to set it on the
+command line. For Javascript it is:
+
+```bash
+rm -rf js
+cmake .. -DGENERATE_JS_CLIENT_PROJECT=TRUE -DDISABLE_LIBRARIES_GENERATION=TRUE
+```
+
+and for Java it is:
+
+```bash
+rm -rf java
+cmake .. -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DDISABLE_LIBRARIES_GENERATION=TRUE
+```
+
+Kurento
+=======
 
 What is Kurento
------
+---------------
+
 Kurento provides an open platform for video processing and streaming
 based on standards.
 
