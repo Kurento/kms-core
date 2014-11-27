@@ -16,7 +16,7 @@ namespace kurento
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
-  id = createId();
+  initialId = createId();
   this->config = config;
 }
 
@@ -24,7 +24,7 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
                                   std::shared_ptr< MediaObject > parent)
 {
   this->parent = parent;
-  id = createId();
+  initialId = createId();
   this->config = config;
 }
 
@@ -60,10 +60,24 @@ MediaObjectImpl::getName()
   std::unique_lock<std::mutex> lck (mutex);
 
   if (name.empty () ) {
-    name = this->getType () + "_" + id;
+    name = getId ();
   }
 
   return name;
+}
+
+std::string
+MediaObjectImpl::getId()
+{
+  std::unique_lock<std::mutex> lck (mutex);
+
+  if (id.empty () ) {
+    id = this->getType () + "_" + this->initialId;
+  }
+
+  lck.unlock ();
+
+  return id;
 }
 
 void

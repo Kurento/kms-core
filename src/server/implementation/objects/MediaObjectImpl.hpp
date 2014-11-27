@@ -37,10 +37,7 @@ public:
 
   virtual std::vector<std::shared_ptr<MediaObject>> getChilds ();
 
-  virtual std::string getId ()
-  {
-    return id;
-  }
+  virtual std::string getId ();
 
   virtual std::string getName ();
   virtual void setName (const std::string &name);
@@ -77,6 +74,7 @@ protected:
 
 private:
 
+  std::string initialId;
   std::string id;
   std::string name;
   std::mutex mutex;
