@@ -175,6 +175,7 @@ MediaSet::setServerManager (std::shared_ptr <ServerManagerImpl> serverManager)
 std::shared_ptr<MediaObjectImpl>
 MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 {
+  bool created = false;
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   std::shared_ptr<MediaObjectImpl> mediaObject;
@@ -187,6 +188,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     mediaObject = std::dynamic_pointer_cast<MediaObjectImpl>
                   (mediaObjectPtr->shared_from_this() );
   } catch (std::bad_weak_ptr e) {
+    created = true;
     mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
     MediaObjectImpl * obj) {
       this->releasePointer (obj);
@@ -203,7 +205,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     childrenMap[parent->getId()][mediaObject->getId()] = mediaObject;
   }
 
-  if (this->serverManager) {
+  if (this->serverManager && created) {
     lock.unlock ();
     serverManager->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast
                                         <MediaObject> (mediaObject) ) );
