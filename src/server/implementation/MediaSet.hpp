@@ -33,7 +33,7 @@ namespace kurento
 
 typedef struct _KeepAliveData KeepAliveData;
 
-class ServerImpl;
+class ServerManagerImpl;
 
 class MediaSet
 {
@@ -75,7 +75,7 @@ public:
   std::list<std::shared_ptr<MediaObjectImpl>> getChilds (
         std::shared_ptr<MediaObjectImpl> obj);
 
-  void setServer (std::shared_ptr <ServerImpl> server);
+  void setServerManager (std::shared_ptr <ServerManagerImpl> serverManager);
 
   bool empty();
 
@@ -100,7 +100,7 @@ private:
   std::condition_variable_any waitCond;
   std::atomic<bool> terminated;
 
-  std::shared_ptr <ServerImpl> server;
+  std::shared_ptr <ServerManagerImpl> serverManager;
 
   std::map<std::string, std::weak_ptr <MediaObjectImpl>> objectsMap;
 

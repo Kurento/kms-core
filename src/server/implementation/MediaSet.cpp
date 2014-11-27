@@ -18,7 +18,7 @@
 #include <gst/gst.h>
 #include <KurentoException.hpp>
 #include <MediaPipelineImpl.hpp>
-#include <ServerImpl.hpp>
+#include <ServerManagerImpl.hpp>
 
 /* This is included to avoid problems with slots and lamdas */
 #include <type_traits>
@@ -161,14 +161,14 @@ MediaSet::~MediaSet ()
 }
 
 void
-MediaSet::setServer (std::shared_ptr <ServerImpl> server)
+MediaSet::setServerManager (std::shared_ptr <ServerManagerImpl> serverManager)
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  if (this->server) {
-    GST_WARNING ("Server can only set once, ignoring");
+  if (this->serverManager) {
+    GST_WARNING ("ServerMaanger can only set once, ignoring");
   } else {
-    this->server = server;
+    this->serverManager = serverManager;
   }
 }
 
@@ -203,10 +203,10 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     childrenMap[parent->getId()][mediaObject->getId()] = mediaObject;
   }
 
-  if (this->server) {
+  if (this->serverManager) {
     lock.unlock ();
-    server->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast
-                                 <MediaObject> (mediaObject) ) );
+    serverManager->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast
+                                        <MediaObject> (mediaObject) ) );
   }
 
   return mediaObject;
@@ -402,9 +402,9 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 
   lock.lock ();
 
-  if (this->server) {
+  if (this->serverManager) {
     lock.unlock ();
-    server->signalObjectDestroyed (ObjectDestroyed (id) );
+    serverManager->signalObjectDestroyed (ObjectDestroyed (id) );
   }
 
   checkEmpty();

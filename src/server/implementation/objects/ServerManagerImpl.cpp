@@ -3,30 +3,30 @@
 #include <gst/gst.h>
 #include "ServerInfo.hpp"
 #include "MediaPipelineImpl.hpp"
-#include "ServerImpl.hpp"
+#include "ServerManagerImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <MediaSet.hpp>
 
-#define GST_CAT_DEFAULT kurento_server_impl
+#define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
-#define GST_DEFAULT_NAME "KurentoServerImpl"
+#define GST_DEFAULT_NAME "KurentoServerManagerImpl"
 
 namespace kurento
 {
 
-ServerImpl::ServerImpl (const std::shared_ptr<ServerInfo> info,
-                        const boost::property_tree::ptree &config) : MediaObjectImpl (config),
+ServerManagerImpl::ServerManagerImpl (const std::shared_ptr<ServerInfo> info,
+                                      const boost::property_tree::ptree &config) : MediaObjectImpl (config),
   info (info)
 {
 }
 
-std::shared_ptr<ServerInfo> ServerImpl::getInfo ()
+std::shared_ptr<ServerInfo> ServerManagerImpl::getInfo ()
 {
   return info;
 }
 
-std::vector<std::shared_ptr<MediaPipeline> > ServerImpl::getPipelines()
+std::vector<std::shared_ptr<MediaPipeline>> ServerManagerImpl::getPipelines ()
 {
   std::vector<std::shared_ptr<MediaPipeline>> ret;
 
@@ -37,14 +37,14 @@ std::vector<std::shared_ptr<MediaPipeline> > ServerImpl::getPipelines()
   return ret;
 }
 
-std::vector<std::string> ServerImpl::getSessions ()
+std::vector<std::string> ServerManagerImpl::getSessions ()
 {
   return MediaSet::getMediaSet ()->getSessions();
 }
 
-ServerImpl::StaticConstructor ServerImpl::staticConstructor;
+ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;
 
-ServerImpl::StaticConstructor::StaticConstructor()
+ServerManagerImpl::StaticConstructor::StaticConstructor()
 {
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
                            GST_DEFAULT_NAME);

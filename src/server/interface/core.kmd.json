@@ -65,8 +65,8 @@
       ]
     },
     {
-      "name": "Server",
-      "doc": "This is a standalone object that represents the server",
+      "name": "ServerManager",
+      "doc": "This is a standalone object for managing the MediaServer",
       "abstract": true,
       "extends": "MediaObject",
       "properties": [
