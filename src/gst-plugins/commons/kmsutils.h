@@ -55,6 +55,9 @@ void kms_utils_remb_event_manager_destroy (RembEventManager * manager);
 void kms_utils_remb_event_manager_pointer_destroy (gpointer manager);
 guint kms_utils_remb_event_manager_get_min (RembEventManager * manager);
 
+/* time */
+GstClockTime kms_utils_get_time_nsecs ();
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
