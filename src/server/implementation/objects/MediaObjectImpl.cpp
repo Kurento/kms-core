@@ -57,7 +57,7 @@ MediaObjectImpl::createId()
 std::string
 MediaObjectImpl::getName()
 {
-  std::unique_lock<std::mutex> lck (mutex);
+  std::unique_lock<std::recursive_mutex> lck (mutex);
 
   if (name.empty () ) {
     name = getId ();
@@ -69,13 +69,11 @@ MediaObjectImpl::getName()
 std::string
 MediaObjectImpl::getId()
 {
-  std::unique_lock<std::mutex> lck (mutex);
+  std::unique_lock<std::recursive_mutex> lck (mutex);
 
   if (id.empty () ) {
     id = this->getType () + "_" + this->initialId;
   }
-
-  lck.unlock ();
 
   return id;
 }
@@ -83,7 +81,7 @@ MediaObjectImpl::getId()
 void
 MediaObjectImpl::setName (const std::string &name)
 {
-  std::unique_lock<std::mutex> lck (mutex);
+  std::unique_lock<std::recursive_mutex> lck (mutex);
 
   this->name = name;
 }

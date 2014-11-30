@@ -77,7 +77,7 @@ private:
   std::string initialId;
   std::string id;
   std::string name;
-  std::mutex mutex;
+  std::recursive_mutex mutex;
   std::shared_ptr<MediaObject> parent;
 
   std::string createId();
