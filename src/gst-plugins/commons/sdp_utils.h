@@ -41,4 +41,6 @@ const gchar *sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media,
 gchar *gst_sdp_media_format_get_encoding_name (const GstSDPMedia * media,
     const gchar * format);
 
+void sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw);
+
 #endif /* __SDP_H__ */

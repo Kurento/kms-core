@@ -558,6 +558,23 @@ end:
   return result;
 }
 
+void
+sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw)
+{
+  guint i, medias_len;
+
+  medias_len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < medias_len; i++) {
+    GstSDPMedia *media;
+
+    media = (GstSDPMedia *) gst_sdp_message_get_media (msg, i);
+    if (max_video_recv_bw > 0 &&
+        (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0)) {
+      gst_sdp_media_add_bandwidth (media, "AS", max_video_recv_bw);
+    }
+  }
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

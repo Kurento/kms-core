@@ -245,6 +245,8 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * base_sdp_endpoint)
 
   kms_base_sdp_endpoint_set_local_offer_sdp (base_sdp_endpoint, offer);
 
+  sdp_utils_set_max_video_recv_bw (offer, base_sdp_endpoint->max_video_recv_bw);
+
   return offer;
 }
 
@@ -287,6 +289,9 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * base_sdp_endpoint,
 
   kms_base_sdp_endpoint_start_media (base_sdp_endpoint, offer,
       intersect_answer, FALSE);
+
+  sdp_utils_set_max_video_recv_bw (intersect_answer,
+      base_sdp_endpoint->max_video_recv_bw);
 
   return intersect_answer;
 }
