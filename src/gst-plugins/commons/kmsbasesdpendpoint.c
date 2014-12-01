@@ -350,6 +350,8 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
 {
   KmsBaseSdpEndpoint *base_sdp_endpoint = KMS_BASE_SDP_ENDPOINT (object);
 
+  KMS_ELEMENT_LOCK (base_sdp_endpoint);
+
   switch (prop_id) {
     case PROP_USE_IPV6:
       g_value_set_boolean (value, base_sdp_endpoint->use_ipv6);
@@ -376,6 +378,8 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
   }
+
+  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
 }
 
 static void
