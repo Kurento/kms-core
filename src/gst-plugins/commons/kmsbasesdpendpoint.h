@@ -54,6 +54,8 @@ struct _KmsBaseSdpEndpoint
   GstSDPMessage *remote_answer_sdp;
 
   gboolean use_ipv6;
+
+  guint max_video_recv_bw;
 };
 
 struct _KmsBaseSdpEndpointClass

@@ -134,6 +134,21 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
 }
 
+
+int SdpEndpointImpl::getMaxVideoRecvBandwidth ()
+{
+  int maxVideoRecvBandwidth;
+
+  g_object_get (element, "max-video-bandwidth", &maxVideoRecvBandwidth, NULL);
+
+  return maxVideoRecvBandwidth;
+}
+
+void SdpEndpointImpl::setMaxVideoRecvBandwidth (int maxVideoRecvBandwidth)
+{
+  g_object_set (element, "max-video-bandwidth", maxVideoRecvBandwidth, NULL);
+}
+
 std::string SdpEndpointImpl::generateOffer ()
 {
   GstSDPMessage *offer = NULL;

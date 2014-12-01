@@ -25,6 +25,8 @@ public:
 
   virtual ~SdpEndpointImpl () {};
 
+  int getMaxVideoRecvBandwidth ();
+  void setMaxVideoRecvBandwidth (int maxVideoRecvBandwidth);
   std::string generateOffer ();
   std::string processOffer (const std::string &offer);
   std::string processAnswer (const std::string &answer);

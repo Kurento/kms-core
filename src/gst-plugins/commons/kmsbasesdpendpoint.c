@@ -32,6 +32,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_sdp_endpoint_debug);
 G_DEFINE_TYPE (KmsBaseSdpEndpoint, kms_base_sdp_endpoint, KMS_TYPE_ELEMENT);
 
 #define USE_IPV6_DEFAULT FALSE
+#define MAX_VIDEO_RECV_BW_DEFAULT 500
 
 /* Signals and args */
 enum
@@ -50,7 +51,8 @@ enum
   PROP_LOCAL_OFFER_SDP,
   PROP_LOCAL_ANSWER_SDP,
   PROP_REMOTE_OFFER_SDP,
-  PROP_REMOTE_ANSWER_SDP
+  PROP_REMOTE_ANSWER_SDP,
+  PROP_MAX_VIDEO_RECV_BW
 };
 
 static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
@@ -326,6 +328,11 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
       base_sdp_endpoint->use_ipv6 = g_value_get_boolean (value);
       KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
       break;
+    case PROP_MAX_VIDEO_RECV_BW:
+      KMS_ELEMENT_LOCK (base_sdp_endpoint);
+      base_sdp_endpoint->max_video_recv_bw = g_value_get_uint (value);
+      KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -356,6 +363,9 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
       break;
     case PROP_REMOTE_ANSWER_SDP:
       g_value_set_boxed (value, base_sdp_endpoint->remote_answer_sdp);
+      break;
+    case PROP_MAX_VIDEO_RECV_BW:
+      g_value_set_uint (value, base_sdp_endpoint->max_video_recv_bw);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -462,6 +472,13 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       g_param_spec_boxed ("remote-answer-sdp", "Remote answer sdp",
           "The remote answer, negotiated with \"local-offer-sdp\"",
           GST_TYPE_SDP_MESSAGE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_MAX_VIDEO_RECV_BW,
+      g_param_spec_uint ("max-video-recv-bandwidth",
+          "Maximum video bandwidth for receiving",
+          "Maximum video bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
+          0, G_MAXUINT32, MAX_VIDEO_RECV_BW_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -473,4 +490,5 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * base_sdp_endpoint)
   base_sdp_endpoint->local_answer_sdp = NULL;
   base_sdp_endpoint->remote_offer_sdp = NULL;
   base_sdp_endpoint->remote_answer_sdp = NULL;
+  base_sdp_endpoint->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }
