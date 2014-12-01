@@ -72,7 +72,7 @@ MediaObjectImpl::getId()
   std::unique_lock<std::recursive_mutex> lck (mutex);
 
   if (id.empty () ) {
-    id = this->getType () + "_" + this->initialId;
+    id = this->initialId + "_" + this->getType ();
   }
 
   return id;
