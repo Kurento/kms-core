@@ -764,6 +764,53 @@ create_encoder_for_caps (GstCaps * caps)
   return encoder;
 }
 
+static void
+enc_set_target_bitrate (GstElement * enc, gint target_bitrate)
+{
+  gchar *name;
+
+  g_object_get (enc, "name", &name, NULL);
+
+  if (g_str_has_prefix (name, "vp8enc")) {
+    gint last_br;
+
+    g_object_get (enc, "target-bitrate", &last_br, NULL);
+    if (last_br / 1000 != target_bitrate / 1000) {
+      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
+      g_object_set (enc, "target-bitrate", target_bitrate, NULL);
+    }
+  } else if (g_str_has_prefix (name, "x264enc")) {
+    gint last_br, new_br = target_bitrate / 1000;
+
+    g_object_get (enc, "bitrate", &last_br, NULL);
+    if (last_br != new_br) {
+      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
+      g_object_set (enc, "target-bitrate", new_br, NULL);
+    }
+  }
+
+  g_free (name);
+}
+
+static GstPadProbeReturn
+config_enc_bitrate_probe (GstPad * pad, GstPadProbeInfo * info,
+    gpointer user_data)
+{
+  RembEventManager *remb_manager = user_data;
+  GstElement *enc;
+  guint br = kms_utils_remb_event_manager_get_min (remb_manager);
+
+  if (br == 0) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  enc = gst_pad_get_parent_element (pad);
+  enc_set_target_bitrate (enc, br);
+  g_object_unref (enc);
+
+  return GST_PAD_PROBE_OK;
+}
+
 static GstElement *
 kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
@@ -771,6 +818,8 @@ kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   GstElement *raw_tee = kms_agnostic_bin2_get_or_create_raw_tee (self, caps);
   GstElement *encoder, *queue, *rate, *convert, *mediator, *fakequeue,
       *fakesink;
+  RembEventManager *remb_manager;
+  GstPad *sink;
 
   if (raw_tee == NULL) {
     return NULL;
@@ -783,6 +832,13 @@ kms_agnostic_bin2_create_tee_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
   if (encoder == NULL)
     return NULL;
+
+  sink = gst_element_get_static_pad (encoder, "sink");
+  remb_manager = kms_utils_remb_event_manager_create (sink);
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER,
+      config_enc_bitrate_probe, remb_manager,
+      kms_utils_remb_event_manager_pointer_destroy);
+  gst_object_unref (sink);
 
   queue = gst_element_factory_make ("queue", NULL);
   rate = create_rate_for_caps (caps);
