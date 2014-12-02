@@ -44,6 +44,8 @@ typedef enum {
   KMS_ELEMENT_PAD_TYPE_VIDEO
 } KmsElementPadType;
 
+const gchar *kms_element_pad_type_str (KmsElementPadType type);
+
 typedef struct _KmsElement KmsElement;
 typedef struct _KmsElementClass KmsElementClass;
 typedef struct _KmsElementPrivate KmsElementPrivate;
@@ -87,6 +89,12 @@ GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 GstPad *kms_element_connect_sink_target_full (KmsElement *self, GstPad * target,
     KmsElementPadType type, const gchar *description);
 void kms_element_remove_sink (KmsElement *self, GstPad * pad);
+
+#define kms_element_remove_sink_by_type(self, type) \
+  kms_element_remove_sink_by_type_full (self, type, NULL)
+
+void kms_element_remove_sink_by_type_full (KmsElement *self,
+    KmsElementPadType type, const gchar *description);
 
 KmsElementPadType kms_element_get_pad_type (KmsElement * self, GstPad * pad);
 

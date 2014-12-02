@@ -377,29 +377,43 @@ kms_element_pad_query (GstPad * pad, GstObject * parent, GstQuery * query)
   return klass->sink_query (element, pad, query);
 }
 
+const gchar *
+kms_element_pad_type_str (KmsElementPadType type)
+{
+  switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      return "video";
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      return "audio";
+    case KMS_ELEMENT_PAD_TYPE_DATA:
+      return "data";
+    default:
+      return "";
+  }
+}
+
+static gchar *
+get_pad_name (KmsElementPadType type, const gchar * description)
+{
+  if (description == NULL) {
+    return g_strdup_printf (SINK_PAD, kms_element_pad_type_str (type));
+  } else {
+    return g_strdup_printf (SINK_PAD "_%s", kms_element_pad_type_str (type),
+        description);
+  }
+}
+
 GstPad *
 kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
     KmsElementPadType type, const gchar * description)
 {
   GstPad *pad;
-  gchar *pad_name, *type_str;
+  gchar *pad_name;
   GstPadTemplate *templ;
-
-  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    type_str = "video";
-  } else if (type == KMS_ELEMENT_PAD_TYPE_AUDIO) {
-    type_str = "audio";
-  } else {
-    type_str = "data";
-  }
 
   templ = gst_static_pad_template_get (&sink_factory);
 
-  if (description == NULL) {
-    pad_name = g_strdup_printf (SINK_PAD, type_str);
-  } else {
-    pad_name = g_strdup_printf (SINK_PAD "_%s", type_str, description);
-  }
+  pad_name = get_pad_name (type, description);
 
   pad = gst_ghost_pad_new_from_template (pad_name, target, templ);
   g_free (pad_name);
@@ -440,6 +454,25 @@ kms_element_remove_sink (KmsElement * self, GstPad * pad)
   // TODO: Unlink correctly pad before removing it
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
   gst_element_remove_pad (GST_ELEMENT (self), pad);
+}
+
+void
+kms_element_remove_sink_by_type_full (KmsElement * self,
+    KmsElementPadType type, const gchar * description)
+{
+  gchar *pad_name = get_pad_name (type, description);
+  GstPad *pad = gst_element_get_static_pad (GST_ELEMENT (self), pad_name);
+
+  if (pad == NULL) {
+    GST_WARNING_OBJECT (self, "Cannot get pad %s", pad_name);
+    goto end;
+  }
+
+  kms_element_remove_sink (self, pad);
+  g_object_unref (pad);
+
+end:
+  g_free (pad_name);
 }
 
 static GstPad *
