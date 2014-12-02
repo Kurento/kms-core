@@ -321,27 +321,25 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
 {
   KmsBaseSdpEndpoint *base_sdp_endpoint = KMS_BASE_SDP_ENDPOINT (object);
 
+  KMS_ELEMENT_LOCK (base_sdp_endpoint);
+
   switch (prop_id) {
     case PROP_PATTERN_SDP:
-      KMS_ELEMENT_LOCK (base_sdp_endpoint);
       kms_base_sdp_endpoint_release_pattern_sdp (base_sdp_endpoint);
       base_sdp_endpoint->pattern_sdp = g_value_dup_boxed (value);
-      KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
       break;
     case PROP_USE_IPV6:
-      KMS_ELEMENT_LOCK (base_sdp_endpoint);
       base_sdp_endpoint->use_ipv6 = g_value_get_boolean (value);
-      KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
       break;
     case PROP_MAX_VIDEO_RECV_BW:
-      KMS_ELEMENT_LOCK (base_sdp_endpoint);
       base_sdp_endpoint->max_video_recv_bw = g_value_get_uint (value);
-      KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
   }
+
+  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
 }
 
 static void
