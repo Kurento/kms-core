@@ -67,6 +67,8 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define OLD_CHAIN_KEY "kms-old-chain-key"
 #define CONFIGURED_KEY "kms-configured-key"
 
+#define ENC_BITRATE_DEFAULT 300000      /* bps */
+
 struct _KmsAgnosticBin2Private
 {
   GHashTable *tees;
@@ -724,11 +726,11 @@ configure_encoder (GstElement * encoder, const gchar * factory_name)
   if (g_strcmp0 ("vp8enc", factory_name) == 0) {
     g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
         "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-        "target-bitrate", 300000, "end-usage", /* cbr */ 1, NULL);
+        "target-bitrate", ENC_BITRATE_DEFAULT, "end-usage", /* cbr */ 1, NULL);
   } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
     g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "tune", 4 /* zerolatency */ , "threads", (guint) 1,
-        NULL);
+        "tune", 4 /* zerolatency */ , "threads", (guint) 1, "bitrate",
+        ENC_BITRATE_DEFAULT / 1000, NULL);
   }
 }
 
