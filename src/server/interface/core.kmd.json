@@ -261,12 +261,12 @@
       "extends": "SessionEndpoint",
       "doc": "Implements an SDP negotiation endpoint able to generate and process offers/responses and that configures resources according to negotiated Session Description",
       "properties": [
-          {
-            "name": "maxVideoRecvBandwidth",
-            "doc": "Maximum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
-            "type": "int"
-          }
-        ],
+        {
+          "name": "maxVideoRecvBandwidth",
+          "doc": "Maximum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
+          "type": "int"
+        }
+      ],
       "methods": [
         {
           "name": "generateOffer",
