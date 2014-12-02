@@ -139,14 +139,15 @@ int SdpEndpointImpl::getMaxVideoRecvBandwidth ()
 {
   int maxVideoRecvBandwidth;
 
-  g_object_get (element, "max-video-bandwidth", &maxVideoRecvBandwidth, NULL);
+  g_object_get (element, "max-video-recv-bandwidth", &maxVideoRecvBandwidth,
+                NULL);
 
   return maxVideoRecvBandwidth;
 }
 
 void SdpEndpointImpl::setMaxVideoRecvBandwidth (int maxVideoRecvBandwidth)
 {
-  g_object_set (element, "max-video-bandwidth", maxVideoRecvBandwidth, NULL);
+  g_object_set (element, "max-video-recv-bandwidth", maxVideoRecvBandwidth, NULL);
 }
 
 std::string SdpEndpointImpl::generateOffer ()
