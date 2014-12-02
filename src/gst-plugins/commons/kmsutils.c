@@ -543,6 +543,148 @@ kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop,
   g_slice_free (PadBlockedData, data);
 }
 
+/* REMB event begin */
+
+#define KMS_REMB_EVENT_NAME "REMB"
+
+GstEvent *
+kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc)
+{
+  GstEvent *event;
+
+  event = gst_event_new_custom (GST_EVENT_CUSTOM_UPSTREAM,
+      gst_structure_new (KMS_REMB_EVENT_NAME,
+          "bitrate", G_TYPE_UINT, bitrate, "ssrc", G_TYPE_UINT, ssrc, NULL));
+
+  return event;
+}
+
+static gboolean
+is_remb_event (GstEvent * event)
+{
+  const GstStructure *s;
+
+  g_return_val_if_fail (event != NULL, FALSE);
+
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CUSTOM_UPSTREAM) {
+    return FALSE;
+  }
+
+  s = gst_event_get_structure (event);
+  g_return_val_if_fail (s != NULL, FALSE);
+
+  return gst_structure_has_name (s, KMS_REMB_EVENT_NAME);
+}
+
+gboolean
+kms_utils_remb_event_upstream_parse (GstEvent * event, guint * bitrate,
+    guint * ssrc)
+{
+  const GstStructure *s;
+
+  if (!is_remb_event (event)) {
+    return FALSE;
+  }
+
+  s = gst_event_get_structure (event);
+  g_return_val_if_fail (s != NULL, FALSE);
+
+  if (!gst_structure_get_uint (s, "bitrate", bitrate)) {
+    return FALSE;
+  }
+  if (!gst_structure_get_uint (s, "ssrc", ssrc)) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+struct _RembEventManager
+{
+  guint remb_min;
+  GHashTable *remb_hash;
+  GstPad *pad;
+  gulong probe_id;
+};
+
+static GstPadProbeReturn
+remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  RembEventManager *manager = user_data;
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+  guint last_remb_min, last_bitrate, bitrate, ssrc;
+
+  if (!kms_utils_remb_event_upstream_parse (event, &bitrate, &ssrc)) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  GST_TRACE_OBJECT (pad, "<%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT ">", ssrc,
+      bitrate);
+
+  last_bitrate =
+      GPOINTER_TO_UINT (g_hash_table_lookup (manager->remb_hash,
+          GUINT_TO_POINTER (ssrc)));
+  if (bitrate == last_bitrate) {
+    return GST_PAD_PROBE_DROP;
+  }
+
+  g_hash_table_insert (manager->remb_hash,
+      GUINT_TO_POINTER (ssrc), GUINT_TO_POINTER (bitrate));
+
+  last_remb_min = g_atomic_int_get (&manager->remb_min);
+  if (bitrate > last_remb_min) {
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init (&iter, manager->remb_hash);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+      bitrate = MIN (bitrate, GPOINTER_TO_UINT (value));
+    }
+  }
+
+  g_atomic_int_set (&manager->remb_min, bitrate);
+
+  GST_TRACE_OBJECT (pad, "remb_min: %" G_GUINT32_FORMAT, manager->remb_min);
+
+  return GST_PAD_PROBE_DROP;
+}
+
+RembEventManager *
+kms_utils_remb_event_manager_create (GstPad * pad)
+{
+  RembEventManager *manager = g_slice_new0 (RembEventManager);
+
+  manager->remb_hash = g_hash_table_new (NULL, NULL);
+  manager->pad = g_object_ref (pad);
+  manager->probe_id = gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+      remb_probe, manager, NULL);
+
+  return manager;
+}
+
+void
+kms_utils_remb_event_manager_destroy (RembEventManager * manager)
+{
+  gst_pad_remove_probe (manager->pad, manager->probe_id);
+  g_object_unref (manager->pad);
+  g_hash_table_destroy (manager->remb_hash);
+  g_slice_free (RembEventManager, manager);
+}
+
+void
+kms_utils_remb_event_manager_pointer_destroy (gpointer manager)
+{
+  kms_utils_remb_event_manager_destroy ((RembEventManager *) manager);
+}
+
+guint
+kms_utils_remb_event_manager_get_min (RembEventManager * manager)
+{
+  return g_atomic_int_get (&manager->remb_min);
+}
+
+/* REMB event end */
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

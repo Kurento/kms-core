@@ -44,6 +44,17 @@ void kms_utils_control_key_frames_request_duplicates (GstPad *pad);
 /* Pad blocked action */
 void kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop, KmsPadCallback func, gpointer userData);
 
+/* REMB event */
+GstEvent * kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc);
+gboolean kms_utils_remb_event_upstream_parse (GstEvent *event, guint *bitrate, guint *ssrc);
+
+typedef struct _RembEventManager RembEventManager;
+typedef void (*BitrateUpdatedCallback) (RembEventManager * manager, guint bitrate, gpointer user_data);
+RembEventManager * kms_utils_remb_event_manager_create (GstPad *pad);
+void kms_utils_remb_event_manager_destroy (RembEventManager * manager);
+void kms_utils_remb_event_manager_pointer_destroy (gpointer manager);
+guint kms_utils_remb_event_manager_get_min (RembEventManager * manager);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
