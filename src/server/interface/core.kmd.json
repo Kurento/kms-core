@@ -114,7 +114,7 @@
       "name": "Filter",
       "abstract": true,
       "extends": "MediaElement",
-      "doc": "Base interface for all filters. This is a certain type of :rom:cls:`MediaElement`, that processes media injected through its :rom:cls:`MediaSink`, and delivers the outcome through its :rom:cls:`MediaSource`."
+      "doc": "Base interface for all filters. This is a certain type of :rom:cls:`MediaElement`, that processes media injected through its sinks, and delivers the outcome through its sources."
     },
     {
       "name": "Endpoint",
@@ -141,7 +141,7 @@
       "name": "UriEndpoint",
       "abstract": true,
       "extends": "Endpoint",
-      "doc": "Interface for endpoints the require a URI to work. An example of this, would be a :rom:cls:`PlayerEndpoint` whose URI property could be used to locate a file to stream through its :rom:cls:`MediaSource`",
+      "doc": "Interface for endpoints the require a URI to work. An example of this, would be a :rom:cls:`PlayerEndpoint` whose URI property could be used to locate a file to stream",
       "properties": [
         {
           "name": "uri",
@@ -164,60 +164,6 @@
       ]
     },
     {
-      "name": "MediaPad",
-      "abstract": true,
-      "extends": "MediaObject",
-      "doc": "A :rom:cls:`MediaPad` is an element´s interface with the outside world. The data streams flow from the :rom:cls:`MediaSource` pad to another element's :rom:cls:`MediaSink` pad.",
-      "properties": [
-        {
-          "name": "mediaElement",
-          "doc": "The :rom:cls:`MediaElement` that encloses this pad",
-          "type": "MediaElement",
-          "final": true
-        },
-        {
-          "name": "mediaType",
-          "doc": "Media that this pad accepts. One of :rom:attr:`MediaType.AUDIO`, :rom:attr:`MediaType.DATA` or :rom:attr:`MediaType.VIDEO`",
-          "type": "MediaType",
-          "final": true
-        },
-        {
-          "name": "mediaDescription",
-          "doc":  "The description for this pad.",
-          "type": "String",
-          "final": true
-        }
-      ]
-    },
-    {
-      "name": "MediaSource",
-      "abstract": true,
-      "extends": "MediaPad",
-      "doc": "Special type of pad, used by a media element to generate a media stream.",
-      "methods": [
-        {
-          "name": "getConnectedSinks",
-          "doc": "Gets all the :rom:cls:`MediaSinks<MediaSink>` to which this source is connected",
-          "params": [],
-          "return": {
-            "doc": "the list of sinks that the source is connected to",
-            "type": "MediaSink[]"
-          }
-        },
-        {
-          "name": "connect",
-          "doc": "Connects the current source with a :rom:cls:`MediaSink`",
-          "params": [
-            {
-              "name": "sink",
-              "doc": "The sink to connect this source",
-              "type": "MediaSink"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "name": "MediaPipeline",
       "extends": "MediaObject",
       "doc": "A pipeline is a container for a collection of :rom:cls:`MediaElements<MediaElement>` and :rom:cls:`MediaMixers<MediaMixer>`. It offers the methods needed to control the creation and connection of elements inside a certain pipeline.",
@@ -226,34 +172,6 @@
         "params": [
         ]
       }
-    },
-    {
-      "name": "MediaSink",
-      "abstract": true,
-      "extends": "MediaPad",
-      "doc": "Special type of pad, used by a :rom:cls:`MediaElement` to receive a media stream.",
-      "methods": [
-        {
-          "name": "disconnect",
-          "doc": "Disconnects the current sink from the referred :rom:cls:`MediaSource`",
-          "params": [
-            {
-              "name": "src",
-              "doc": "The source to disconnect",
-              "type": "MediaSource"
-            }
-          ]
-        },
-        {
-          "name": "getConnectedSrc",
-          "doc": "Gets the :rom:cls:`MediaSource` that is connected to this sink.",
-          "params": [],
-          "return": {
-            "doc": "The source connected to this sink",
-            "type": "MediaSource"
-          }
-        }
-      ]
     },
     {
       "name": "SdpEndpoint",
@@ -331,11 +249,11 @@
       "name": "MediaElement",
       "abstract": true,
       "extends": "MediaObject",
-      "doc": "Basic building blocks of the media server, that can be interconnected through the API. A :rom:cls:`MediaElement` is a module that encapsulates a specific media capability. They can be connected to create media pipelines where those capabilities are applied, in sequence, to the stream going through the pipeline.\n\n   :rom:cls:`MediaElement` objects are classified by its supported media type (audio, video, etc.) and the flow direction: :rom:cls:`MediaSource` pads are intended for media delivery while :rom:cls:`MediaSinks<MediaSink>`  behave as reception points.",
+      "doc": "Basic building blocks of the media server, that can be interconnected through the API. A :rom:cls:`MediaElement` is a module that encapsulates a specific media capability. They can be connected to create media pipelines where those capabilities are applied, in sequence, to the stream going through the pipeline.\n\n   :rom:cls:`MediaElement` objects are classified by its supported media type (audio, video, etc.)",
       "methods": [
         {
-          "name": "getMediaSrcs",
-          "doc": "Get the media sources of the given type and description",
+          "name": "getSourceConnections",
+          "doc": "Get the connections information of the elements that are sending media to this element :rom:cls:`MediaElement`",
           "params": [
             {
               "name": "mediaType",
@@ -351,13 +269,13 @@
             }
           ],
           "return": {
-            "doc": "A list of sources. The list will be empty if no sources are found.",
-            "type": "MediaSource[]"
+            "doc": "A list of the connections information that are sending media to this element. The list will be empty if no sources are found.",
+            "type": "ElementConnectionData[]"
           }
         },
         {
-          "name": "getMediaSinks",
-          "doc": "A list of sinks of the given :rom:ref:`MediaType`. The list will be empty if no sinks are found.",
+          "name": "getSinkConnections",
+          "doc": "Returns a list of the connections information of the elements that ere receiving media from this element.",
           "params": [
             {
               "name": "mediaType",
@@ -373,17 +291,17 @@
             }
           ],
           "return": {
-            "doc": "A list of sinks. The list will be empty if no sinks are found.",
-            "type": "MediaSink[]"
+            "doc": "A list of the connections information that arereceiving media from this element. The list will be empty if no sinks are found.",
+            "type": "ElementConnectionData[]"
           }
         },
         {
           "name": "connect",
-          "doc": "perform :rom:meth:`connect(sink,mediaType)` if there is exactly one sink for the given type, and their mediaDescriptions are the same",
+          "doc": "Connects two elements, with the given restrictions, current :rom:cls:`MediaElement` will start emmit media to sink element. Connection could take place in the future, when both media element show capabilities for connecting with the given restrictions",
           "params": [
             {
               "name": "sink",
-              "doc": "the target :rom:cls:`MediaElement`  from which :rom:cls:`MediaSink` will be obtained",
+              "doc": "the target :rom:cls:`MediaElement` that will receive media",
               "type": "MediaElement"
             },
             {
@@ -393,7 +311,42 @@
               "optional": true
             },
             {
-              "name": "mediaDescription",
+              "name": "sourceMediaDescription",
+              "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
+              "type": "String",
+              "optional": true
+            },
+            {
+              "name": "sinkMediaDescription",
+              "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
+              "type": "String",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "disconnect",
+          "doc": "Disconnects two elements, with the given restrictions, current :rom:cls:`MediaElement` stops sending media to sink element. If the previously requested connection didn't took place it is also removed",
+          "params": [
+            {
+              "name": "sink",
+              "doc": "the target :rom:cls:`MediaElement` that will stop receiving media",
+              "type": "MediaElement"
+            },
+            {
+              "name": "mediaType",
+              "doc": "the :rom:enum:`MediaType` of the pads that will be connected",
+              "type": "MediaType",
+              "optional": true
+            },
+            {
+              "name": "sourceMediaDescription",
+              "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
+              "type": "String",
+              "optional": true
+            },
+            {
+              "name": "sinkMediaDescription",
               "doc": "A textual description of the media source. Currently not used, aimed mainly for :rom:attr:`MediaType.DATA` sources",
               "type": "String",
               "optional": true
@@ -574,6 +527,37 @@
       ],
       "name": "VideoCaps",
       "doc": "Format for video media"
+    },
+    {
+      "name": "ElementConnectionData",
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "source",
+          "doc": "The source element in the connection",
+          "type": "MediaElement"
+        },
+        {
+          "name": "sink",
+          "doc": "The sink element in the connection",
+          "type": "MediaElement"
+        },
+        {
+          "name": "type",
+          "doc": "MediaType of the connection",
+          "type": "MediaType"
+        },
+        {
+          "name": "sourceDescription",
+          "doc": "Description of source media. Could be emty.",
+          "type": "String"
+        },
+        {
+          "name": "sinkDescription",
+          "doc": "Description of sink media. Could be emty.",
+          "type": "String"
+        }
+      ]
     }
   ],
   "events": [

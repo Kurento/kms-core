@@ -1,7 +1,5 @@
 #include <gst/gst.h>
 #include "MediaType.hpp"
-#include "MediaSourceImpl.hpp"
-#include "MediaSinkImpl.hpp"
 #include "AudioCaps.hpp"
 #include "VideoCaps.hpp"
 #include "AudioCodec.hpp"
@@ -99,128 +97,96 @@ MediaElementImpl::~MediaElementImpl ()
   g_object_unref (bus);
 }
 
-std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs ()
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSourceConnections ()
 {
-  std::vector<std::shared_ptr<MediaSource>> srcs;
-
-  srcs.push_back (getOrCreateAudioMediaSrc() );
-  srcs.push_back (getOrCreateVideoMediaSrc() );
-
-  return srcs;
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
-std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (
-    std::shared_ptr<MediaType> mediaType)
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSourceConnections (
+      std::shared_ptr<MediaType> mediaType)
 {
-  std::vector<std::shared_ptr<MediaSource>> srcs;
-
-  if (mediaType->getValue() == MediaType::AUDIO) {
-    srcs.push_back (getOrCreateAudioMediaSrc() );
-  } else if (mediaType->getValue() == MediaType::VIDEO) {
-    srcs.push_back (getOrCreateVideoMediaSrc() );
-  }
-
-  return srcs;
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
-std::vector<std::shared_ptr<MediaSource>> MediaElementImpl::getMediaSrcs (
-    std::shared_ptr<MediaType> mediaType, const std::string &description)
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSourceConnections (
+      std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  if (description == "")  {
-    return getMediaSrcs (mediaType);
-  } else {
-    std::vector<std::shared_ptr<MediaSource>> srcs;
-
-    return srcs;
-  }
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
-std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks ()
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSinkConnections ()
 {
-  std::vector<std::shared_ptr<MediaSink>> sinks;
-
-  sinks.push_back (getOrCreateAudioMediaSink() );
-  sinks.push_back (getOrCreateVideoMediaSink() );
-
-  return sinks;
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
-std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (
-                                       std::shared_ptr<MediaType> mediaType)
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSinkConnections (
+      std::shared_ptr<MediaType> mediaType)
 {
-  std::vector<std::shared_ptr<MediaSink>> sinks;
-
-  if (mediaType->getValue() == MediaType::AUDIO) {
-    sinks.push_back (getOrCreateAudioMediaSink() );
-  } else if (mediaType->getValue() == MediaType::VIDEO) {
-    sinks.push_back (getOrCreateVideoMediaSink() );
-  }
-
-  return sinks;
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
-std::vector<std::shared_ptr<MediaSink>> MediaElementImpl::getMediaSinks (
-                                       std::shared_ptr<MediaType> mediaType, const std::string &description)
+std::vector<std::shared_ptr<ElementConnectionData>>
+    MediaElementImpl::getSinkConnections (
+      std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  if (description == "")  {
-    return getMediaSinks (mediaType);
-  } else {
-    std::vector<std::shared_ptr<MediaSink>> sinks;
-
-    return sinks;
-  }
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
 {
-  std::shared_ptr<MediaElementImpl> sinkImpl =
-    std::dynamic_pointer_cast<MediaElementImpl> (sink);
-
-  std::shared_ptr<MediaSource> audio_src = getOrCreateAudioMediaSrc();
-  std::shared_ptr<MediaSink> audio_sink = sinkImpl->getOrCreateAudioMediaSink();
-
-  std::shared_ptr<MediaSource> video_src = getOrCreateVideoMediaSrc();
-  std::shared_ptr<MediaSink> video_sink = sinkImpl->getOrCreateVideoMediaSink();
-
-  audio_src->connect (audio_sink);
-
-  try {
-    video_src->connect (video_sink);
-  } catch (...) {
-    try {
-      audio_sink->disconnect (audio_src);
-    } catch (...) {
-    }
-
-    throw;
-  }
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType)
 {
-  std::shared_ptr<MediaElementImpl> sinkImpl =
-    std::dynamic_pointer_cast<MediaElementImpl> (sink);
-
-  if (mediaType->getValue() == MediaType::AUDIO) {
-    std::shared_ptr<MediaSource> audio_src = getOrCreateAudioMediaSrc();
-    std::shared_ptr<MediaSink> audio_sink = sinkImpl->getOrCreateAudioMediaSink();
-
-    audio_src->connect (audio_sink);
-  } else if (mediaType->getValue() == MediaType::VIDEO) {
-    std::shared_ptr<MediaSource> video_src = getOrCreateVideoMediaSrc();
-    std::shared_ptr<MediaSink> video_sink = sinkImpl->getOrCreateVideoMediaSink();
-
-    video_src->connect (video_sink);
-  }
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
-                                std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription)
+                                std::shared_ptr<MediaType> mediaType,
+                                const std::string &sourceMediaDescription)
 {
-  if (mediaDescription == "") {
-    connect (sink, mediaType);
-  }
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+}
+
+void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
+                                std::shared_ptr<MediaType> mediaType,
+                                const std::string &sourceMediaDescription,
+                                const std::string &sinkMediaDescription)
+{
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+}
+
+void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
+{
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+}
+
+void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
+                                   std::shared_ptr<MediaType> mediaType)
+{
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+}
+
+void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
+                                   std::shared_ptr<MediaType> mediaType,
+                                   const std::string &sourceMediaDescription)
+{
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+}
+
+void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
+                                   std::shared_ptr<MediaType> mediaType,
+                                   const std::string &sourceMediaDescription,
+                                   const std::string &sinkMediaDescription)
+{
+  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
 }
 
 void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
@@ -292,116 +258,6 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "video-caps", c, NULL);
-}
-
-/*Internal utilities methods*/
-
-std::shared_ptr<MediaSourceImpl>
-MediaElementImpl::getOrCreateAudioMediaSrc()
-{
-  std::unique_lock<std::recursive_mutex> lock (mutex);
-
-  std::shared_ptr<MediaSourceImpl> src;
-
-  try {
-    src = audioMediaSrc.lock();
-  } catch (const std::bad_weak_ptr &e) {
-  }
-
-  if (src.get() == NULL) {
-    std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::AUDIO) );
-
-    MediaSourceImpl *srcPtr = new  MediaSourceImpl (config, mediaType, "",
-        std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
-
-    src = std::dynamic_pointer_cast<MediaSourceImpl>
-          (MediaSet::getMediaSet()->ref (srcPtr) );
-
-    audioMediaSrc = std::weak_ptr<MediaSourceImpl> (src);
-  }
-
-  return src;
-}
-
-std::shared_ptr<MediaSourceImpl>
-MediaElementImpl::getOrCreateVideoMediaSrc()
-{
-  std::unique_lock<std::recursive_mutex> lock (mutex);
-
-  std::shared_ptr<MediaSourceImpl> src;
-
-  try {
-    src = videoMediaSrc.lock();
-  } catch (const std::bad_weak_ptr &e) {
-  }
-
-  if (src.get() == NULL) {
-    std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::VIDEO) );
-
-    MediaSourceImpl *srcPtr = new  MediaSourceImpl (config, mediaType, "",
-        std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
-
-    src = std::dynamic_pointer_cast<MediaSourceImpl>
-          (MediaSet::getMediaSet()->ref (srcPtr) );
-
-    videoMediaSrc = std::weak_ptr<MediaSourceImpl> (src);
-  }
-
-  return src;
-}
-
-std::shared_ptr<MediaSinkImpl>
-MediaElementImpl::getOrCreateAudioMediaSink()
-{
-  std::unique_lock<std::recursive_mutex> lock (mutex);
-
-  std::shared_ptr<MediaSinkImpl> sink;
-
-  try {
-    sink = audioMediaSink.lock();
-  } catch (const std::bad_weak_ptr &e) {
-  }
-
-  if (sink.get() == NULL) {
-    std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::AUDIO) );
-
-    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (config, mediaType, "",
-        std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
-
-    sink = std::dynamic_pointer_cast<MediaSinkImpl>
-           (MediaSet::getMediaSet()->ref (sinkPtr) );
-
-    audioMediaSink = std::weak_ptr<MediaSinkImpl> (sink);
-  }
-
-  return sink;
-}
-
-std::shared_ptr<MediaSinkImpl>
-MediaElementImpl::getOrCreateVideoMediaSink()
-{
-  std::unique_lock<std::recursive_mutex> lock (mutex);
-
-  std::shared_ptr<MediaSinkImpl> sink;
-
-  try {
-    sink = videoMediaSink.lock();
-  } catch (const std::bad_weak_ptr &e) {
-  }
-
-  if (sink.get() == NULL) {
-    std::shared_ptr<MediaType> mediaType (new MediaType (MediaType::VIDEO) );
-
-    MediaSinkImpl *sinkPtr = new  MediaSinkImpl (config, mediaType, "",
-        std::dynamic_pointer_cast <MediaElementImpl> (shared_from_this() ) );
-
-    sink = std::dynamic_pointer_cast<MediaSinkImpl>
-           (MediaSet::getMediaSet()->ref (sinkPtr) );
-
-    videoMediaSink = std::weak_ptr<MediaSinkImpl> (sink);
-  }
-
-  return sink;
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;

@@ -11,8 +11,6 @@ namespace kurento
 {
 
 class MediaType;
-class MediaSourceImpl;
-class MediaSinkImpl;
 class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
@@ -26,7 +24,8 @@ class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 public:
 
   MediaElementImpl (const boost::property_tree::ptree &config,
-                    std::shared_ptr<MediaObjectImpl> parent, const std::string &factoryName);
+                    std::shared_ptr<MediaObjectImpl> parent,
+                    const std::string &factoryName);
 
   virtual ~MediaElementImpl ();
 
@@ -35,21 +34,40 @@ public:
     return element;
   };
 
-  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs ();
-  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (
-      std::shared_ptr<MediaType> mediaType);
-  std::vector<std::shared_ptr<MediaSource>> getMediaSrcs (
-      std::shared_ptr<MediaType> mediaType, const std::string &description);
-  std::vector<std::shared_ptr<MediaSink>> getMediaSinks ();
-  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (
-                                         std::shared_ptr<MediaType> mediaType);
-  std::vector<std::shared_ptr<MediaSink>> getMediaSinks (
-                                         std::shared_ptr<MediaType> mediaType, const std::string &description);
-  void connect (std::shared_ptr<MediaElement> sink);
-  void connect (std::shared_ptr<MediaElement> sink,
-                std::shared_ptr<MediaType> mediaType);
-  void connect (std::shared_ptr<MediaElement> sink,
-                std::shared_ptr<MediaType> mediaType, const std::string &mediaDescription);
+  virtual std::vector<std::shared_ptr<ElementConnectionData>>
+      getSourceConnections ();
+  virtual std::vector<std::shared_ptr<ElementConnectionData>>
+      getSourceConnections (
+        std::shared_ptr<MediaType> mediaType);
+  virtual std::vector<std::shared_ptr<ElementConnectionData>>
+      getSourceConnections (
+        std::shared_ptr<MediaType> mediaType, const std::string &description);
+  virtual std::vector<std::shared_ptr<ElementConnectionData>>
+      getSinkConnections ();
+  virtual std::vector<std::shared_ptr<ElementConnectionData>> getSinkConnections (
+        std::shared_ptr<MediaType> mediaType);
+  virtual std::vector<std::shared_ptr<ElementConnectionData>> getSinkConnections (
+        std::shared_ptr<MediaType> mediaType, const std::string &description);
+  virtual void connect (std::shared_ptr<MediaElement> sink);
+  virtual void connect (std::shared_ptr<MediaElement> sink,
+                        std::shared_ptr<MediaType> mediaType);
+  virtual void connect (std::shared_ptr<MediaElement> sink,
+                        std::shared_ptr<MediaType> mediaType,
+                        const std::string &sourceMediaDescription);
+  virtual void connect (std::shared_ptr<MediaElement> sink,
+                        std::shared_ptr<MediaType> mediaType,
+                        const std::string &sourceMediaDescription,
+                        const std::string &sinkMediaDescription);
+  virtual void disconnect (std::shared_ptr<MediaElement> sink);
+  virtual void disconnect (std::shared_ptr<MediaElement> sink,
+                           std::shared_ptr<MediaType> mediaType);
+  virtual void disconnect (std::shared_ptr<MediaElement> sink,
+                           std::shared_ptr<MediaType> mediaType,
+                           const std::string &sourceMediaDescription);
+  virtual void disconnect (std::shared_ptr<MediaElement> sink,
+                           std::shared_ptr<MediaType> mediaType,
+                           const std::string &sourceMediaDescription,
+                           const std::string &sinkMediaDescription);
   void setAudioFormat (std::shared_ptr<AudioCaps> caps);
   void setVideoFormat (std::shared_ptr<VideoCaps> caps);
 
@@ -70,16 +88,6 @@ protected:
 
 private:
   std::recursive_mutex mutex;
-
-  std::weak_ptr<MediaSourceImpl> audioMediaSrc;
-  std::weak_ptr<MediaSourceImpl> videoMediaSrc;
-  std::weak_ptr<MediaSinkImpl> audioMediaSink;
-  std::weak_ptr<MediaSinkImpl> videoMediaSink;
-
-  std::shared_ptr<MediaSourceImpl> getOrCreateAudioMediaSrc();
-  std::shared_ptr<MediaSourceImpl> getOrCreateVideoMediaSrc();
-  std::shared_ptr<MediaSinkImpl> getOrCreateAudioMediaSink();
-  std::shared_ptr<MediaSinkImpl> getOrCreateVideoMediaSink();
 
   class StaticConstructor
   {
