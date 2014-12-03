@@ -695,12 +695,79 @@ kms_element_finalize (GObject * object)
   G_OBJECT_CLASS (kms_element_parent_class)->finalize (object);
 }
 
+static void
+kms_element_set_target_on_linked (GstPad * pad, GstPad * peer,
+    GstElement * agnosticbin)
+{
+  GstPad *target;
+
+  target = gst_element_get_request_pad (agnosticbin, "src_%u");
+
+  GST_DEBUG_OBJECT (pad, "Setting target %" GST_PTR_FORMAT, target);
+
+  if (!gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target)) {
+    GST_ERROR_OBJECT (pad, "Can not set target pad");
+  }
+
+  g_object_unref (target);
+}
+
 static gchar *
 kms_element_request_new_srcpad_action (KmsElement * self,
     KmsElementPadType type, const gchar * desc)
 {
-  /* TODO: */
-  return NULL;
+  gchar *templ_name, *pad_name;
+  GstElement *agnosticbin;
+  GstPad *srcpad;
+
+  KMS_ELEMENT_LOCK (self);
+  switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      agnosticbin = self->priv->audio_agnosticbin;
+      templ_name = "video_src_%u";
+      break;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      agnosticbin = self->priv->video_agnosticbin;
+      templ_name = "audio_src_%u";
+      break;
+    default:
+      KMS_ELEMENT_UNLOCK (self);
+      GST_WARNING_OBJECT (self, "Unsupported pad type: %s",
+          kms_element_pad_type_str (type));
+      return NULL;
+  }
+  KMS_ELEMENT_UNLOCK (self);
+
+  if (agnosticbin != NULL) {
+    /* Wait until an agnostic is created for this pad type */
+    return NULL;
+  }
+
+  /* Create pad */
+  KMS_ELEMENT_LOCK (self);
+  if (type == KMS_ELEMENT_PAD_TYPE_AUDIO) {
+    pad_name = g_strdup_printf (templ_name, self->priv->audio_pad_count++);
+  } else {
+    pad_name = g_strdup_printf (templ_name, self->priv->video_pad_count++);
+  }
+  KMS_ELEMENT_UNLOCK (self);
+
+  srcpad =
+      gst_ghost_pad_new_no_target_from_template (pad_name,
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
+              (self)), templ_name));
+
+  if (GST_STATE (self) >= GST_STATE_PAUSED
+      || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
+      || GST_STATE_TARGET (self) >= GST_STATE_PAUSED)
+    gst_pad_set_active (srcpad, TRUE);
+
+  g_signal_connect (srcpad, "linked",
+      G_CALLBACK (kms_element_set_target_on_linked), agnosticbin);
+
+  gst_element_add_pad (GST_ELEMENT (self), srcpad);
+
+  return pad_name;
 }
 
 static void
