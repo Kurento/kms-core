@@ -18,6 +18,8 @@
 
 #include <gst/gst.h>
 
+#include "kms-core-enumtypes.h"
+#include "kms-core-marshal.h"
 #include "kmselement.h"
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
@@ -75,7 +77,11 @@ struct _KmsElementPrivate
 /* Signals and args */
 enum
 {
+  /* Signals */
   AGNOSTICBIN_ADDED,
+
+  /* Actions */
+  REQUEST_NEW_SRCPAD,
   LAST_SIGNAL
 };
 
@@ -689,6 +695,14 @@ kms_element_finalize (GObject * object)
   G_OBJECT_CLASS (kms_element_parent_class)->finalize (object);
 }
 
+static gchar *
+kms_element_request_new_srcpad_action (KmsElement * self,
+    KmsElementPadType type, const gchar * desc)
+{
+  /* TODO: */
+  return NULL;
+}
+
 static void
 kms_element_class_init (KmsElementClass * klass)
 {
@@ -747,6 +761,18 @@ kms_element_class_init (KmsElementClass * klass)
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsElementClass, agnosticbin_added), NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
+  /* set actions */
+  element_signals[REQUEST_NEW_SRCPAD] =
+      g_signal_new ("request-new-srcpad",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsElementClass, request_new_srcpad), NULL, NULL,
+      __kms_core_marshal_STRING__ENUM_STRING,
+      G_TYPE_STRING, 2, KMS_TYPE_ELEMENT_PAD_TYPE, G_TYPE_STRING);
+
+  klass->request_new_srcpad =
+      GST_DEBUG_FUNCPTR (kms_element_request_new_srcpad_action);
 
   g_type_class_add_private (klass, sizeof (KmsElementPrivate));
 }

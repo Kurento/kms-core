@@ -16,6 +16,7 @@
 #define __KMS_ELEMENT_H__
 
 #include <gst/gst.h>
+#include "kmselementpadtype.h"
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
@@ -37,12 +38,6 @@ G_BEGIN_DECLS
     KmsElementClass                        \
   )                                        \
 )
-
-typedef enum {
-  KMS_ELEMENT_PAD_TYPE_DATA,
-  KMS_ELEMENT_PAD_TYPE_AUDIO,
-  KMS_ELEMENT_PAD_TYPE_VIDEO
-} KmsElementPadType;
 
 const gchar *kms_element_pad_type_str (KmsElementPadType type);
 
@@ -72,8 +67,10 @@ struct _KmsElementClass
   /* signals */
   void (*agnosticbin_added) (KmsElementClass * self);
 
-  /* private */
+  /* actions */
+  gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
 
+  /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
 };
 
