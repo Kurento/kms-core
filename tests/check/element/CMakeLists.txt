@@ -9,6 +9,7 @@ set(ALL_TESTS
   audiomixerbin
   audiomixer
   bufferinjector
+  pad_connections
 )
 
 # tests targets

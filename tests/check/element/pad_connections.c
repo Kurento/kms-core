@@ -1,0 +1,898 @@
+/*
+ * (C) Copyright 2014 Kurento (http://kurento.org/)
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the GNU Lesser General Public License
+ * (LGPL) version 2.1 which accompanies this distribution, and is available at
+ * http://www.gnu.org/licenses/lgpl-2.1.html
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ */
+
+#include <gst/check/gstcheck.h>
+#include <gst/gst.h>
+#include <glib.h>
+
+#define AUDIO "audio"
+#define VIDEO "video"
+#define VIDEO_SRC_PAD_PREFIX VIDEO "_src_"
+#define AUDIO_SRC_PAD_PREFIX AUDIO "_src_"
+
+#define KMS_ELEMENT_PAD_TYPE_DATA 0
+#define KMS_ELEMENT_PAD_TYPE_AUDIO 1
+#define KMS_ELEMENT_PAD_TYPE_VIDEO 2
+
+#define MAX_CHECKS 10
+
+static GMainLoop *loop;
+GstElement *pipeline;
+
+typedef struct _KmsConnectData
+{
+  GRecMutex mutex;
+  GstElement *dummysrc;
+  GstElement *dummysink;
+  gchar *audio_src;
+  gchar *video_src;
+  GstPad *audiosrc;
+  GstPad *videosrc;
+  GstPad *audiosink;
+  GstPad *videosink;
+  gboolean audio_connected;
+  gboolean video_connected;
+  gboolean audio_buff;
+  gboolean video_buff;
+  guint audio_checks;
+  guint video_checks;
+} KmsConnectData;
+
+#define CONNECT_DATA_LOCK(data) \
+  (g_rec_mutex_lock (&data->mutex))
+#define CONNECT_DATA_UNLOCK(data) \
+  (g_rec_mutex_unlock (&data->mutex))
+
+static void
+kms_connect_data_destroy (KmsConnectData * data)
+{
+  g_free (data->audio_src);
+  g_free (data->video_src);
+  g_rec_mutex_clear (&data->mutex);
+
+  g_slice_free (KmsConnectData, data);
+}
+
+static KmsConnectData *
+kms_connect_data_create (guint checks)
+{
+  KmsConnectData *data = g_slice_new0 (KmsConnectData);
+
+  g_rec_mutex_init (&data->mutex);
+  data->audio_checks = data->video_checks = checks;
+
+  return data;
+}
+
+static void
+bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
+{
+  switch (GST_MESSAGE_TYPE (msg)) {
+    case GST_MESSAGE_ERROR:{
+      gchar *error_file = g_strdup_printf ("error-%s", GST_OBJECT_NAME (pipe));
+
+      GST_ERROR ("Error: %" GST_PTR_FORMAT, msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, error_file);
+      g_free (error_file);
+      fail ("Error received on bus");
+      break;
+    }
+    case GST_MESSAGE_WARNING:{
+      gchar *warn_file = g_strdup_printf ("warning-%s", GST_OBJECT_NAME (pipe));
+
+      GST_WARNING ("Warning: %" GST_PTR_FORMAT, msg);
+      GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipe),
+          GST_DEBUG_GRAPH_SHOW_ALL, warn_file);
+      g_free (warn_file);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+static gboolean
+print_timedout_pipeline (gpointer data)
+{
+  gchar *pipeline_name;
+  gchar *name;
+
+  pipeline_name = gst_element_get_name (pipeline);
+  name = g_strdup_printf ("%s_timedout", pipeline_name);
+
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (pipeline),
+      GST_DEBUG_GRAPH_SHOW_ALL, name);
+
+  g_free (name);
+  g_free (pipeline_name);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+pad_added_delayed (GstElement * element, GstPad * new_pad, gpointer user_data)
+{
+  gchar *padname = *(gchar **) user_data;
+  gchar *name;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, new_pad);
+  name = gst_pad_get_name (new_pad);
+
+  if (g_strcmp0 (padname, name) == 0) {
+    g_idle_add (quit_main_loop_idle, NULL);
+  }
+
+  g_free (name);
+}
+
+static void
+pad_added (GstElement * element, GstPad * new_pad, gpointer user_data)
+{
+  gchar *prefix = user_data;
+  gchar *name;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, new_pad);
+  name = gst_pad_get_name (new_pad);
+
+  if (g_str_has_prefix (name, prefix)) {
+    g_idle_add (quit_main_loop_idle, NULL);
+  }
+
+  g_free (name);
+}
+
+GST_START_TEST (request_video_src_pad_pending)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (pad_added_delayed),
+      &padname);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+
+  g_free (padname);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
+GST_START_TEST (request_audio_src_pad_pending)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (pad_added_delayed),
+      &padname);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "audio", TRUE, NULL);
+
+  g_free (padname);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
+GST_START_TEST (request_video_src_pad)
+{
+  gchar *padname = NULL, *prefix = "video_src";
+  GstElement *dummysrc;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (pad_added), prefix);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_free (padname);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
+GST_START_TEST (request_audio_src_pad)
+{
+  gchar *padname = NULL, *prefix = "audio_src";
+  GstElement *dummysrc;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_object_set (G_OBJECT (dummysrc), "audio", TRUE, NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (pad_added), prefix);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_free (padname);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static void
+exit_on_handoff (GstElement * object, GstBuffer * buff, GstPad * pad,
+    gboolean * success)
+{
+  /* We have received a buffer, finish test */
+  GST_DEBUG_OBJECT (object, "Buffer received.");
+  g_idle_add (quit_main_loop_idle, NULL);
+}
+
+static void
+pad_added_connect_source (GstElement * element, GstPad * new_pad,
+    gpointer user_data)
+{
+  GstElement *sink;
+  GstPad *sinkpad;
+
+  sink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  g_signal_connect (sink, "handoff", G_CALLBACK (exit_on_handoff), NULL);
+
+  gst_bin_add (GST_BIN (pipeline), sink);
+
+  sinkpad = gst_element_get_static_pad (sink, "sink");
+  if (gst_pad_link (new_pad, sinkpad) != GST_PAD_LINK_OK) {
+    fail ("Could not link pads");
+  }
+
+  g_object_unref (sinkpad);
+  gst_element_sync_state_with_parent (sink);
+}
+
+GST_START_TEST (request_video_src_pad_connection)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added",
+      G_CALLBACK (pad_added_connect_source), NULL);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+
+  g_free (padname);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static gboolean
+release_requested_srcpad (GstPad * pad)
+{
+  GstElement *dummysrc;
+  gboolean success;
+  gchar *padname;
+
+  dummysrc = gst_pad_get_parent_element (pad);
+  fail_if (dummysrc == NULL);
+
+  padname = gst_pad_get_name (pad);
+
+  GST_DEBUG_OBJECT (dummysrc, "Release requested src pad %" GST_PTR_FORMAT,
+      pad);
+
+  g_signal_emit_by_name (dummysrc, "release-requested-srcpad", padname,
+      &success);
+  fail_if (!success);
+
+  gst_element_release_request_pad (dummysrc, pad);
+
+  g_object_unref (dummysrc);
+  g_free (padname);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+unlinked_srcpad_added (GstElement * dummysrc, GstPad * new_pad,
+    gpointer user_data)
+{
+  GST_DEBUG_OBJECT (dummysrc, "Added pad %" GST_PTR_FORMAT, new_pad);
+
+  g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
+      (GSourceFunc) release_requested_srcpad,
+      g_object_ref (new_pad), g_object_unref);
+}
+
+static void
+unlinked_srcpad_removed (GstElement * element, GstPad * old_pad,
+    gpointer user_data)
+{
+  GST_DEBUG ("Removed pad %" GST_PTR_FORMAT, old_pad);
+
+  g_idle_add (quit_main_loop_idle, NULL);
+}
+
+GST_START_TEST (disconnect_requested_src_pad_not_linked)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (unlinked_srcpad_added),
+      NULL);
+  g_signal_connect (dummysrc, "pad-removed",
+      G_CALLBACK (unlinked_srcpad_removed), NULL);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_free (padname);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST G_LOCK_DEFINE (handoff_lock);
+static gboolean done = FALSE;
+static gulong signal_id;
+
+static GstPadProbeReturn
+pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  GstElement *dummysrc;
+  gboolean success;
+  gchar *padname;
+
+  GST_DEBUG_OBJECT (pad, "pad is blocked now");
+
+  /* remove the probe first */
+  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
+
+  dummysrc = gst_pad_get_parent_element (pad);
+  fail_if (dummysrc == NULL);
+
+  padname = gst_pad_get_name (pad);
+  GST_DEBUG_OBJECT (dummysrc, "Invoking action release-requested-srcpad for %s",
+      padname);
+
+  g_signal_emit_by_name (dummysrc, "release-requested-srcpad", padname,
+      &success);
+  fail_if (!success);
+
+  gst_element_release_request_pad (dummysrc, pad);
+
+  g_object_unref (dummysrc);
+  g_free (padname);
+
+  return GST_PAD_PROBE_OK;
+}
+
+static gboolean
+release_linked_requested_srcpad (GstPad * pad)
+{
+  GstPad *peerpad;
+
+  peerpad = gst_pad_get_peer (pad);
+  fail_if (peerpad == NULL);
+
+  /* Do well: Remove requested pad with the source pad blocked */
+  gst_pad_add_probe (peerpad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM,
+      pad_probe_cb, g_object_ref (pad), g_object_unref);
+
+  g_object_unref (peerpad);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+unlink_on_handoff (GstElement * object, GstBuffer * buff, GstPad * pad,
+    gpointer user_data)
+{
+  /* We have received a buffer, finish test */
+  GST_DEBUG_OBJECT (object, "Buffer received.");
+
+  G_LOCK (handoff_lock);
+  if (!done) {
+    g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
+        (GSourceFunc) release_linked_requested_srcpad,
+        g_object_ref (pad), g_object_unref);
+    g_signal_handler_disconnect (object, signal_id);
+    done = TRUE;
+  }
+  G_UNLOCK (handoff_lock);
+}
+
+static void
+linked_srcpad_added (GstElement * dummysrc, GstPad * new_pad,
+    gpointer user_data)
+{
+  GstElement *sink;
+  GstPad *sinkpad;
+
+  GST_DEBUG_OBJECT (dummysrc, "Added pad %" GST_PTR_FORMAT, new_pad);
+
+  sink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  signal_id = g_signal_connect (sink, "handoff", G_CALLBACK (unlink_on_handoff),
+      NULL);
+
+  gst_bin_add (GST_BIN (pipeline), sink);
+
+  sinkpad = gst_element_get_static_pad (sink, "sink");
+  if (gst_pad_link (new_pad, sinkpad) != GST_PAD_LINK_OK) {
+    fail ("Could not link pads");
+  }
+
+  g_object_unref (sinkpad);
+  gst_element_sync_state_with_parent (sink);
+}
+
+static void
+linked_srcpad_removed (GstElement * element, GstPad * old_pad,
+    gpointer user_data)
+{
+  GST_DEBUG ("Removed pad %" GST_PTR_FORMAT, old_pad);
+
+  g_idle_add (quit_main_loop_idle, NULL);
+}
+
+GST_START_TEST (disconnect_requested_src_pad_linked)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added", G_CALLBACK (linked_srcpad_added),
+      NULL);
+  g_signal_connect (dummysrc, "pad-removed",
+      G_CALLBACK (linked_srcpad_removed), NULL);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_free (padname);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static GstPadProbeReturn
+audio_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
+{
+  GST_DEBUG_OBJECT (pad, "buffer received");
+
+  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
+
+  CONNECT_DATA_LOCK (data);
+  if (!data->audio_buff) {
+    data->audio_buff = TRUE;
+    CONNECT_DATA_UNLOCK (data);
+
+    GST_DEBUG_OBJECT (data->dummysink, "Disabling reception of audio stream");
+    /* Do not accept more audio data */
+    g_object_set (G_OBJECT (data->dummysink), "audio", FALSE, NULL);
+  } else {
+    CONNECT_DATA_UNLOCK (data);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn
+video_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
+{
+  GST_DEBUG_OBJECT (pad, "buffer received");
+
+  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
+
+  CONNECT_DATA_LOCK (data);
+  if (!data->video_buff) {
+    data->video_buff = TRUE;
+    CONNECT_DATA_UNLOCK (data);
+
+    GST_DEBUG_OBJECT (data->dummysink, "Disabling reception of video stream");
+    /* Do not accept more video data */
+    g_object_set (G_OBJECT (data->dummysink), "video", FALSE, NULL);
+  } else {
+    CONNECT_DATA_UNLOCK (data);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static gboolean
+connect_pads (gpointer user_data)
+{
+  KmsConnectData *data = user_data;
+
+  CONNECT_DATA_LOCK (data);
+
+  if (!data->audio_connected && data->audiosrc != NULL &&
+      data->audiosink != NULL) {
+    GST_DEBUG ("Connect audio stream");
+    data->audio_connected = gst_pad_link (data->audiosrc, data->audiosink) ==
+        GST_PAD_LINK_OK;
+    gst_pad_add_probe (data->audiosink, GST_PAD_PROBE_TYPE_BUFFER,
+        (GstPadProbeCallback) audio_probe_cb, data, NULL);
+  }
+
+  if (!data->video_connected && data->videosrc != NULL &&
+      data->videosink != NULL) {
+    GST_DEBUG ("Connect video stream");
+    data->video_connected = gst_pad_link (data->videosrc, data->videosink) ==
+        GST_PAD_LINK_OK;
+    gst_pad_add_probe (data->videosink, GST_PAD_PROBE_TYPE_BUFFER,
+        (GstPadProbeCallback) video_probe_cb, data, NULL);
+  }
+
+  CONNECT_DATA_UNLOCK (data);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+src_pads_added (GstElement * element, GstPad * new_pad, gpointer user_data)
+{
+  KmsConnectData *data = user_data;
+  gchar *name;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, new_pad);
+  name = gst_pad_get_name (new_pad);
+
+  CONNECT_DATA_LOCK (data);
+
+  if (g_str_has_prefix (name, VIDEO_SRC_PAD_PREFIX)) {
+    data->videosrc = new_pad;
+  } else if (g_str_has_prefix (name, AUDIO_SRC_PAD_PREFIX)) {
+    data->audiosrc = new_pad;
+  } else {
+    fail ("Unsupported pad type");
+  }
+
+  CONNECT_DATA_UNLOCK (data);
+
+  g_free (name);
+  g_idle_add (connect_pads, data);
+}
+
+static void
+sink_pads_added (GstElement * element, GstPad * new_pad, gpointer user_data)
+{
+  KmsConnectData *data = user_data;
+  gchar *name;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, new_pad);
+  name = gst_pad_get_name (new_pad);
+
+  CONNECT_DATA_LOCK (data);
+
+  if (g_str_has_suffix (name, AUDIO)) {
+    data->audiosink = new_pad;
+  } else if (g_str_has_suffix (name, VIDEO)) {
+    data->videosink = new_pad;
+  }
+
+  CONNECT_DATA_UNLOCK (data);
+
+  g_free (name);
+  g_idle_add (connect_pads, data);
+}
+
+static gboolean
+enable_audio_stream (GstElement * dummysink)
+{
+  GST_DEBUG_OBJECT (dummysink, "Enabling audio");
+  g_object_set (G_OBJECT (dummysink), "audio", TRUE, NULL);
+
+  return G_SOURCE_REMOVE;
+}
+
+static gboolean
+enable_video_stream (GstElement * dummysink)
+{
+  GST_DEBUG_OBJECT (dummysink, "Enabling video");
+  g_object_set (G_OBJECT (dummysink), "video", TRUE, NULL);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
+{
+  KmsConnectData *data = user_data;
+  gchar *name;
+
+  GST_DEBUG ("Removed pad %" GST_PTR_FORMAT, old_pad);
+  name = gst_pad_get_name (old_pad);
+
+  CONNECT_DATA_LOCK (data);
+
+  if (g_str_has_suffix (name, VIDEO)) {
+    data->videosink = NULL;
+    data->video_checks--;
+    data->video_connected = FALSE;
+    data->video_buff = FALSE;
+    if (data->video_checks > 0) {
+      g_idle_add ((GSourceFunc) enable_video_stream, data->dummysink);
+    }
+  } else if (g_str_has_suffix (name, AUDIO)) {
+    data->audiosink = NULL;
+    data->audio_checks--;
+    data->audio_connected = FALSE;
+    data->audio_buff = FALSE;
+    if (data->audio_checks > 0) {
+      g_idle_add ((GSourceFunc) enable_audio_stream, data->dummysink);
+    }
+  }
+
+  GST_DEBUG ("Audio tests %u. Video tests: %u", data->audio_checks,
+      data->video_checks);
+
+  if (data->audio_checks == 0 && data->video_checks == 0) {
+    g_idle_add (quit_main_loop_idle, NULL);
+  }
+
+  CONNECT_DATA_UNLOCK (data);
+
+  g_free (name);
+}
+
+GST_START_TEST (connection_of_elements)
+{
+  gchar *padname = NULL;
+  KmsConnectData *data;
+  GstBus *bus;
+
+  data = kms_connect_data_create (MAX_CHECKS);
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  data->dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  data->dummysink = gst_element_factory_make ("dummysink", NULL);
+  g_signal_connect (data->dummysrc, "pad-added",
+      G_CALLBACK (src_pads_added), data);
+  g_signal_connect (data->dummysink, "pad-added",
+      G_CALLBACK (sink_pads_added), data);
+
+  g_signal_connect (data->dummysink, "pad-removed",
+      G_CALLBACK (sink_pads_removed), data);
+
+  gst_bin_add_many (GST_BIN (pipeline), data->dummysrc, data->dummysink, NULL);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &data->video_src);
+  fail_if (data->video_src == NULL);
+  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &data->audio_src);
+  fail_if (data->audio_src == NULL);
+
+  GST_DEBUG ("Audio pad name %s", data->audio_src);
+  GST_DEBUG ("Video pad name %s", data->video_src);
+
+  g_object_set (G_OBJECT (data->dummysrc), "video", TRUE, NULL);
+  g_object_set (G_OBJECT (data->dummysrc), "audio", TRUE, NULL);
+
+  g_object_set (G_OBJECT (data->dummysink), "video", TRUE, NULL);
+  g_object_set (G_OBJECT (data->dummysink), "audio", TRUE, NULL);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_free (padname);
+  g_main_loop_unref (loop);
+  kms_connect_data_destroy (data);
+}
+
+GST_END_TEST
+/*
+ * End of test cases
+ */
+static Suite *
+pads_connection_suite (void)
+{
+  Suite *s = suite_create ("pad_connection");
+  TCase *tc_chain = tcase_create ("element");
+
+  suite_add_tcase (s, tc_chain);
+
+  tcase_add_test (tc_chain, request_video_src_pad_pending);
+  tcase_add_test (tc_chain, request_audio_src_pad_pending);
+  tcase_add_test (tc_chain, request_video_src_pad);
+  tcase_add_test (tc_chain, request_audio_src_pad);
+  tcase_add_test (tc_chain, request_video_src_pad_connection);
+  tcase_add_test (tc_chain, disconnect_requested_src_pad_not_linked);
+  tcase_add_test (tc_chain, disconnect_requested_src_pad_linked);
+  tcase_add_test (tc_chain, connection_of_elements);
+
+  return s;
+}
+
+GST_CHECK_MAIN (pads_connection);
