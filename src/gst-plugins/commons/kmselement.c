@@ -92,6 +92,7 @@ enum
 
   /* Actions */
   REQUEST_NEW_SRCPAD,
+  RELEASE_REQUESTED_SRCPAD,
   LAST_SIGNAL
 };
 
@@ -303,6 +304,30 @@ kms_element_set_target_on_linked (GstPad * pad, GstPad * peer,
   g_object_unref (target);
 }
 
+static void
+kms_element_remove_target_on_unlinked (GstPad * pad, GstPad * peer,
+    GstElement * agnosticbin)
+{
+  GstPad *target;
+
+  target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
+
+  if (target == NULL) {
+    GST_DEBUG_OBJECT (pad, "No target pad");
+    return;
+  }
+
+  if (!gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL)) {
+    GST_ERROR_OBJECT (pad, "Can not remove target pad");
+  }
+
+  GST_DEBUG_OBJECT (agnosticbin, "Removing requested pad %" GST_PTR_FORMAT,
+      target);
+  gst_element_release_request_pad (agnosticbin, target);
+
+  g_object_unref (target);
+}
+
 static gboolean
 kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
     const gchar ** templ_name, GstElement ** agnosticbin)
@@ -326,6 +351,31 @@ kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
 }
 
 static void
+kms_element_add_srcpadd (KmsElement * self, GstElement * agnosticbin,
+    const gchar * pad_name, const gchar * templ_name)
+{
+  GstPad *srcpad;
+
+  srcpad =
+      gst_ghost_pad_new_no_target_from_template (pad_name,
+      gst_element_class_get_pad_template (GST_ELEMENT_CLASS
+          (G_OBJECT_GET_CLASS (self)), templ_name));
+
+  if (GST_STATE (self) >= GST_STATE_PAUSED
+      || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
+      || GST_STATE_TARGET (self) >= GST_STATE_PAUSED)
+    gst_pad_set_active (srcpad, TRUE);
+
+  g_signal_connect (srcpad, "linked",
+      G_CALLBACK (kms_element_set_target_on_linked), agnosticbin);
+
+  g_signal_connect (srcpad, "unlinked",
+      G_CALLBACK (kms_element_remove_target_on_unlinked), agnosticbin);
+
+  gst_element_add_pad (GST_ELEMENT (self), srcpad);
+}
+
+static void
 kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
 {
   GHashTableIter iter;
@@ -345,7 +395,6 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
   while (g_hash_table_iter_next (&iter, &key, &value)) {
     PendingSrcPad *pendingpad = value;
     gchar *pad_name = key;
-    GstPad *srcpad;
 
     /* TODO: Discriminate pads using their description */
 
@@ -353,20 +402,7 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
       continue;
     }
 
-    srcpad =
-        gst_ghost_pad_new_no_target_from_template (pad_name,
-        gst_element_class_get_pad_template (GST_ELEMENT_CLASS
-            (G_OBJECT_GET_CLASS (self)), templ_name));
-
-    if (GST_STATE (self) >= GST_STATE_PAUSED
-        || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
-        || GST_STATE_TARGET (self) >= GST_STATE_PAUSED)
-      gst_pad_set_active (srcpad, TRUE);
-
-    g_signal_connect (srcpad, "linked",
-        G_CALLBACK (kms_element_set_target_on_linked), agnosticbin);
-
-    gst_element_add_pad (GST_ELEMENT (self), srcpad);
+    kms_element_add_srcpadd (self, agnosticbin, pad_name, templ_name);
 
     keys = g_slist_prepend (keys, key);
   }
@@ -834,7 +870,6 @@ kms_element_request_new_srcpad_action (KmsElement * self,
   const gchar *templ_name;
   gchar *pad_name;
   GstElement *agnosticbin;
-  GstPad *srcpad;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -861,23 +896,84 @@ kms_element_request_new_srcpad_action (KmsElement * self,
 
   KMS_ELEMENT_UNLOCK (self);
 
-  /* Create pad */
-  srcpad =
-      gst_ghost_pad_new_no_target_from_template (pad_name,
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (self)), templ_name));
-
-  if (GST_STATE (self) >= GST_STATE_PAUSED
-      || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
-      || GST_STATE_TARGET (self) >= GST_STATE_PAUSED)
-    gst_pad_set_active (srcpad, TRUE);
-
-  g_signal_connect (srcpad, "linked",
-      G_CALLBACK (kms_element_set_target_on_linked), agnosticbin);
-
-  gst_element_add_pad (GST_ELEMENT (self), srcpad);
+  kms_element_add_srcpadd (self, agnosticbin, pad_name, templ_name);
 
   return pad_name;
+}
+
+static void
+kms_element_remove_target_pad (KmsElement * self, GstPad * pad)
+{
+  GstElement *agnosticbin;
+  GstPad *target;
+
+  target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
+  if (target == NULL) {
+    return;
+  }
+
+  agnosticbin = gst_pad_get_parent_element (target);
+  if (agnosticbin == NULL) {
+    GST_WARNING_OBJECT (self, "No agnosticbin owns %" GST_PTR_FORMAT, pad);
+  } else {
+    gst_element_release_request_pad (agnosticbin, target);
+    g_object_unref (agnosticbin);
+  }
+
+  gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
+  g_object_unref (target);
+}
+
+static gboolean
+kms_element_release_requested_srcpad_action (KmsElement * self,
+    const gchar * pad_name)
+{
+  GValue item = G_VALUE_INIT;
+  gboolean done = FALSE;
+  gboolean released;
+  GstIterator *it;
+  GstPad *pad;
+
+  KMS_ELEMENT_LOCK (self);
+  released = g_hash_table_remove (self->priv->pendingpads, pad_name);
+  KMS_ELEMENT_UNLOCK (self);
+
+  if (released) {
+    /* Pad was not created yet */
+    return TRUE;
+  }
+
+  /* Pad is not in the pending list so it may have been already created */
+  it = gst_element_iterate_src_pads (GST_ELEMENT (self));
+
+  while (!done) {
+    switch (gst_iterator_next (it, &item)) {
+      case GST_ITERATOR_OK:{
+        gchar *name;
+
+        pad = g_value_get_object (&item);
+        name = gst_pad_get_name (pad);
+        if ((released = g_strcmp0 (name, pad_name) == 0)) {
+          kms_element_remove_target_pad (self, pad);
+          done = TRUE;
+        }
+        g_value_reset (&item);
+        g_free (name);
+        break;
+      }
+      case GST_ITERATOR_RESYNC:
+        gst_iterator_resync (it);
+        break;
+      case GST_ITERATOR_ERROR:
+      case GST_ITERATOR_DONE:
+        done = TRUE;
+        break;
+    }
+  }
+
+  gst_iterator_free (it);
+
+  return released;
 }
 
 static void
@@ -948,8 +1044,17 @@ kms_element_class_init (KmsElementClass * klass)
       __kms_core_marshal_STRING__ENUM_STRING,
       G_TYPE_STRING, 2, KMS_TYPE_ELEMENT_PAD_TYPE, G_TYPE_STRING);
 
+  element_signals[RELEASE_REQUESTED_SRCPAD] =
+      g_signal_new ("release-requested-srcpad",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsElementClass, release_requested_srcpad), NULL, NULL,
+      __kms_core_marshal_BOOLEAN__STRING, G_TYPE_BOOLEAN, 1, G_TYPE_STRING);
+
   klass->request_new_srcpad =
       GST_DEBUG_FUNCPTR (kms_element_request_new_srcpad_action);
+  klass->release_requested_srcpad =
+      GST_DEBUG_FUNCPTR (kms_element_release_requested_srcpad_action);
 
   g_type_class_add_private (klass, sizeof (KmsElementPrivate));
 }

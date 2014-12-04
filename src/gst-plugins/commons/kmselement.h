@@ -69,6 +69,7 @@ struct _KmsElementClass
 
   /* actions */
   gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
+  gboolean (*release_requested_srcpad) (KmsElement *self, const gchar *pad_name);
 
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
