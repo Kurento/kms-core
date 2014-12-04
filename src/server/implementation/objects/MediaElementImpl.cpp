@@ -11,6 +11,7 @@
 #include <MediaPipelineImpl.hpp>
 #include <MediaSet.hpp>
 #include <gst/gst.h>
+#include <ElementConnectionData.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -18,6 +19,56 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
+
+class ElementConnectionDataInternal
+{
+public:
+  ElementConnectionDataInternal (std::shared_ptr<MediaElement> source,
+                                 std::shared_ptr<MediaElement> sink,
+                                 std::shared_ptr<MediaType> type,
+                                 const std::string &sourceDescription,
+                                 const std::string &sinkDescription)
+  {
+    this->source = source;
+    this->sink = sink;
+    this->type = type;
+    this->sourceDescription = sourceDescription;
+    this->sinkDescription = sinkDescription;
+  }
+
+  ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data)
+  {
+    this->source = source;
+    this->sink = sink;
+    this->type = type;
+    this->sourceDescription = sourceDescription;
+    this->sinkDescription = sinkDescription;
+  }
+
+  std::shared_ptr<ElementConnectionData> toInterface ()
+  {
+    std::shared_ptr<ElementConnectionData> iface (new ElementConnectionData (
+          source.lock(), sink.lock(), type, sourceDescription, sinkDescription) );
+
+    if (!iface->getSink () ) {
+      throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Reference to sink is null");
+    }
+
+    if (!iface->getSource () ) {
+      throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Reference to source is null");
+    }
+
+    return iface;
+  }
+
+private:
+
+  std::weak_ptr<MediaElement> source;
+  std::weak_ptr<MediaElement> sink;
+  std::shared_ptr<MediaType> type;
+  std::string sourceDescription;
+  std::string sinkDescription;
+};
 
 void
 _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
@@ -72,7 +123,6 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                             "Cannot create gstreamer element: " + factoryName);
   }
 
-
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
   handlerId = g_signal_connect (bus, "message",
                                 G_CALLBACK (_media_element_impl_bus_message), this);
@@ -100,59 +150,148 @@ MediaElementImpl::~MediaElementImpl ()
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections ()
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  for (auto it : sources) {
+    for (auto it2 : it.second) {
+      try {
+        ret.push_back (it2.second->toInterface() );
+      } catch (KurentoException) {
+      }
+    }
+  }
+
+  return ret;
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  try {
+    for (auto it : sources.at (mediaType) ) {
+      try {
+        ret.push_back (it.second->toInterface() );
+      } catch (KurentoException) {
+
+      }
+    }
+  } catch (std::out_of_range) {
+
+  }
+
+  return ret;
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  try {
+    ret.push_back (sources.at (mediaType).at (description)->toInterface() );
+  } catch (KurentoException) {
+
+  } catch (std::out_of_range) {
+
+  }
+
+  return ret;
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections ()
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  for (auto it : sinks) {
+    for (auto it2 : it.second) {
+      for (auto it3 : it2.second) {
+        try {
+          ret.push_back (it3->toInterface() );
+        } catch (KurentoException) {
+
+        }
+      }
+    }
+  }
+
+  return ret;
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  try {
+    for (auto it : sinks.at (mediaType) ) {
+      for (auto it3 : it.second) {
+        try {
+          ret.push_back (it3->toInterface() );
+        } catch (KurentoException) {
+
+        }
+      }
+    }
+  } catch (std::out_of_range) {
+
+  }
+
+  return ret;
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::vector<std::shared_ptr<ElementConnectionData>> ret;
+
+  try {
+    for (auto it : sinks.at (mediaType).at (description) ) {
+      try {
+        ret.push_back (it->toInterface() );
+      } catch (KurentoException) {
+
+      }
+    }
+  } catch (std::out_of_range) {
+
+  }
+
+  return ret;
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  // Until mediaDescriptions are really used, we just connect audio an video
+  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) ),
+           "", "");
+  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) ),
+           "", "");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  connect (sink, mediaType, "", "");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType,
                                 const std::string &sourceMediaDescription)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  connect (sink, mediaType, sourceMediaDescription, "");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
@@ -160,25 +299,56 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 const std::string &sourceMediaDescription,
                                 const std::string &sinkMediaDescription)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  std::shared_ptr<MediaElementImpl> sinkImpl =
+    std::dynamic_pointer_cast<MediaElementImpl> (sink);
+  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex);
+  std::vector <std::shared_ptr <ElementConnectionData>> connections;
+  std::shared_ptr <ElementConnectionDataInternal> connectionData (
+    new ElementConnectionDataInternal (std::dynamic_pointer_cast<MediaElement>
+                                       (shared_from_this () ), sink, mediaType,
+                                       sourceMediaDescription,
+                                       sinkMediaDescription) );
+
+  GST_DEBUG ("Connecting %s - %s params %s %s %s", getName().c_str(),
+             sink->getName ().c_str (), mediaType->getString ().c_str (),
+             sourceMediaDescription.c_str(), sinkMediaDescription.c_str() );
+
+  connections = sink->getSourceConnections (mediaType, sinkMediaDescription);
+
+  if (!connections.empty () ) {
+    std::shared_ptr <ElementConnectionData> connection = connections.at (0);
+    connection->getSource()->disconnect (connection->getSink (), mediaType,
+                                         sourceMediaDescription,
+                                         connection->getSinkDescription () );
+  }
+
+  sinks[mediaType][sourceMediaDescription].insert (connectionData);
+  sinkImpl->sources[mediaType][sinkMediaDescription] = connectionData;
+
+  //TODO: Perform gstreamer element connection
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  // Until mediaDescriptions are really used, we just disconnect audio an video
+  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
+                MediaType::AUDIO) ), "", "");
+  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
+                MediaType::VIDEO) ), "", "");
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                    std::shared_ptr<MediaType> mediaType)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  disconnect (sink, mediaType, "", "");
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                    std::shared_ptr<MediaType> mediaType,
                                    const std::string &sourceMediaDescription)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  disconnect (sink, mediaType, sourceMediaDescription, "");
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
@@ -186,7 +356,31 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                    const std::string &sourceMediaDescription,
                                    const std::string &sinkMediaDescription)
 {
-  throw KurentoException (NOT_IMPLEMENTED, "Not implemented yet");
+  if (!sink) {
+    GST_WARNING ("Sink not available while disconnecting");
+    return;
+  }
+
+  std::shared_ptr<MediaElementImpl> sinkImpl =
+    std::dynamic_pointer_cast<MediaElementImpl> (sink);
+  std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex);
+  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+
+  GST_DEBUG ("Disconnecting %s - %s params %s %s %s", getName().c_str(),
+             sink->getName ().c_str (), mediaType->getString ().c_str (),
+             sourceMediaDescription.c_str(), sinkMediaDescription.c_str() );
+
+  try {
+    std::shared_ptr<ElementConnectionDataInternal> connectionData;
+    connectionData = sinkImpl->sources.at (mediaType).at (sourceMediaDescription);
+    sinkImpl->sources.at (mediaType).erase (sourceMediaDescription);
+    sinks.at (mediaType).at (sinkMediaDescription).erase (connectionData);
+
+    // TODO: Disconnect gstreamer elements
+  } catch (std::out_of_range) {
+
+  }
+
 }
 
 void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)

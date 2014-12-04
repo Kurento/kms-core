@@ -15,6 +15,7 @@ Build-Depends: debhelper (>= 8.0.0),
  libvpx-dev,
  libboost-system-dev,
  libboost-filesystem-dev,
+ libboost-test-dev,
  libxml2-utils
 Standards-Version: 3.9.4
 Homepage: http://kurento.org

@@ -3,9 +3,11 @@
 
 #include "MediaObjectImpl.hpp"
 #include "MediaElement.hpp"
+#include "MediaType.hpp"
 #include <EventHandler.hpp>
 #include <gst/gst.h>
 #include <mutex>
+#include <set>
 
 namespace kurento
 {
@@ -15,8 +17,18 @@ class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
 
+struct MediaTypeCmp {
+  bool operator() (const std::shared_ptr<MediaType> &a,
+                   const std::shared_ptr<MediaType> &b) const
+  {
+    return a->getValue () < b->getValue ();
+  }
+};
+
 void Serialize (std::shared_ptr<MediaElementImpl> &object,
                 JsonSerializer &serializer);
+
+class ElementConnectionDataInternal;
 
 class MediaElementImpl : public MediaObjectImpl, public virtual MediaElement
 {
@@ -87,7 +99,14 @@ protected:
   gulong handlerId;
 
 private:
-  std::recursive_mutex mutex;
+  std::recursive_mutex sourcesMutex;
+  std::recursive_mutex sinksMutex;
+
+  std::map<std::shared_ptr <MediaType>, std::map<std::string,
+      std::shared_ptr<ElementConnectionDataInternal>>, MediaTypeCmp> sources;
+  std::map<std::shared_ptr <MediaType>, std::map<std::string,
+      std::set<std::shared_ptr<ElementConnectionDataInternal>>>, MediaTypeCmp>
+      sinks;
 
   class StaticConstructor
   {
