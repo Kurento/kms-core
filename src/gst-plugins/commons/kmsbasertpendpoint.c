@@ -35,9 +35,6 @@ G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 
 #define RTPBIN "rtpbin"
 
-#define AUDIO_SESSION 0
-#define VIDEO_SESSION 1
-
 #define KMS_BASE_RTP_ENDPOINT_GET_PRIVATE(obj) (  \
   G_TYPE_INSTANCE_GET_PRIVATE (                   \
     (obj),                                        \
@@ -507,10 +504,10 @@ kms_base_rtp_endpoint_stop_signal (KmsBaseRtpEndpoint * self, guint session,
   KMS_ELEMENT_UNLOCK (self);
 
   switch (session) {
-    case AUDIO_SESSION:
+    case AUDIO_RTP_SESSION:
       media = KMS_MEDIA_TYPE_AUDIO;
       break;
-    case VIDEO_SESSION:
+    case VIDEO_RTP_SESSION:
       media = KMS_MEDIA_TYPE_VIDEO;
       break;
     default:
@@ -573,14 +570,14 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
   }
 
   if (self->priv->audio_ssrc != 0) {
-    kms_base_rtp_endpoint_stop_signal (self, AUDIO_SESSION,
+    kms_base_rtp_endpoint_stop_signal (self, AUDIO_RTP_SESSION,
         self->priv->audio_ssrc);
     g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STOP], 0,
         KMS_MEDIA_TYPE_AUDIO, TRUE);
   }
 
   if (self->priv->video_ssrc != 0) {
-    kms_base_rtp_endpoint_stop_signal (self, VIDEO_SESSION,
+    kms_base_rtp_endpoint_stop_signal (self, VIDEO_RTP_SESSION,
         self->priv->video_ssrc);
     g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STOP], 0,
         KMS_MEDIA_TYPE_VIDEO, TRUE);
@@ -649,13 +646,13 @@ kms_base_rtp_endpoint_rtpbin_on_new_ssrc (GstElement * rtpbin, guint session,
   KMS_ELEMENT_LOCK (self);
 
   switch (session) {
-    case AUDIO_SESSION:
+    case AUDIO_RTP_SESSION:
       if (self->priv->audio_ssrc != 0)
         break;
 
       self->priv->audio_ssrc = ssrc;
       break;
-    case VIDEO_SESSION:
+    case VIDEO_RTP_SESSION:
       if (self->priv->video_ssrc != 0)
         break;
 
@@ -703,10 +700,10 @@ kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes (GstElement * rtpbin, guint session,
   KMS_ELEMENT_UNLOCK (self);
 
   switch (session) {
-    case AUDIO_SESSION:
+    case AUDIO_RTP_SESSION:
       media = KMS_MEDIA_TYPE_AUDIO;
       break;
-    case VIDEO_SESSION:
+    case VIDEO_RTP_SESSION:
       media = KMS_MEDIA_TYPE_VIDEO;
       break;
     default:
