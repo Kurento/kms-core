@@ -31,6 +31,14 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_sdp_endpoint_debug);
 #define kms_base_sdp_endpoint_parent_class parent_class
 G_DEFINE_TYPE (KmsBaseSdpEndpoint, kms_base_sdp_endpoint, KMS_TYPE_ELEMENT);
 
+#define KMS_BASE_SDP_ENDPOINT_GET_PRIVATE(obj) (  \
+  G_TYPE_INSTANCE_GET_PRIVATE (                   \
+    (obj),                                        \
+    KMS_TYPE_BASE_SDP_ENDPOINT,                   \
+    KmsBaseSdpEndpointPrivate                     \
+  )                                               \
+)
+
 #define USE_IPV6_DEFAULT FALSE
 #define MAX_VIDEO_RECV_BW_DEFAULT 500
 
@@ -57,59 +65,74 @@ enum
 
 static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 
+struct _KmsBaseSdpEndpointPrivate
+{
+  GstSDPMessage *pattern_sdp;
+
+  GstSDPMessage *local_offer_sdp;
+  GstSDPMessage *local_answer_sdp;
+
+  GstSDPMessage *remote_offer_sdp;
+  GstSDPMessage *remote_answer_sdp;
+
+  gboolean use_ipv6;
+
+  guint max_video_recv_bw;
+};
+
 static void
 kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint)
 {
-  if (base_sdp_endpoint->pattern_sdp == NULL)
+  if (base_sdp_endpoint->priv->pattern_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->pattern_sdp);
-  base_sdp_endpoint->pattern_sdp = NULL;
+  gst_sdp_message_free (base_sdp_endpoint->priv->pattern_sdp);
+  base_sdp_endpoint->priv->pattern_sdp = NULL;
 }
 
 static void
 kms_base_sdp_endpoint_release_local_offer_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint)
 {
-  if (base_sdp_endpoint->local_offer_sdp == NULL)
+  if (base_sdp_endpoint->priv->local_offer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->local_offer_sdp);
-  base_sdp_endpoint->local_offer_sdp = NULL;
+  gst_sdp_message_free (base_sdp_endpoint->priv->local_offer_sdp);
+  base_sdp_endpoint->priv->local_offer_sdp = NULL;
 }
 
 static void
 kms_base_sdp_endpoint_release_local_answer_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint)
 {
-  if (base_sdp_endpoint->local_answer_sdp == NULL)
+  if (base_sdp_endpoint->priv->local_answer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->local_answer_sdp);
-  base_sdp_endpoint->local_answer_sdp = NULL;
+  gst_sdp_message_free (base_sdp_endpoint->priv->local_answer_sdp);
+  base_sdp_endpoint->priv->local_answer_sdp = NULL;
 }
 
 static void
 kms_base_sdp_endpoint_release_remote_offer_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint)
 {
-  if (base_sdp_endpoint->remote_offer_sdp == NULL)
+  if (base_sdp_endpoint->priv->remote_offer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->remote_offer_sdp);
-  base_sdp_endpoint->remote_offer_sdp = NULL;
+  gst_sdp_message_free (base_sdp_endpoint->priv->remote_offer_sdp);
+  base_sdp_endpoint->priv->remote_offer_sdp = NULL;
 }
 
 static void
 kms_base_sdp_endpoint_release_remote_answer_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint)
 {
-  if (base_sdp_endpoint->remote_answer_sdp == NULL)
+  if (base_sdp_endpoint->priv->remote_answer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->remote_answer_sdp);
-  base_sdp_endpoint->remote_answer_sdp = NULL;
+  gst_sdp_message_free (base_sdp_endpoint->priv->remote_answer_sdp);
+  base_sdp_endpoint->priv->remote_answer_sdp = NULL;
 }
 
 static void
@@ -118,7 +141,7 @@ kms_base_sdp_endpoint_set_local_offer_sdp (KmsBaseSdpEndpoint *
 {
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
   kms_base_sdp_endpoint_release_local_offer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->local_offer_sdp);
+  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->local_offer_sdp);
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
   g_object_notify (G_OBJECT (base_sdp_endpoint), "local-offer-sdp");
 }
@@ -129,7 +152,7 @@ kms_base_sdp_endpoint_set_remote_offer_sdp (KmsBaseSdpEndpoint *
 {
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
   kms_base_sdp_endpoint_release_remote_offer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->remote_offer_sdp);
+  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->remote_offer_sdp);
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
   g_object_notify (G_OBJECT (base_sdp_endpoint), "remote-offer-sdp");
 }
@@ -140,7 +163,7 @@ kms_base_sdp_endpoint_set_local_answer_sdp (KmsBaseSdpEndpoint *
 {
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
   kms_base_sdp_endpoint_release_local_answer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->local_answer_sdp);
+  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->local_answer_sdp);
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
   g_object_notify (G_OBJECT (base_sdp_endpoint), "local-answer-sdp");
 }
@@ -151,7 +174,7 @@ kms_base_sdp_endpoint_set_remote_answer_sdp (KmsBaseSdpEndpoint *
 {
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
   kms_base_sdp_endpoint_release_remote_answer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->remote_answer_sdp);
+  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->remote_answer_sdp);
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
   g_object_notify (G_OBJECT (base_sdp_endpoint), "remote-answer-sdp");
 }
@@ -230,8 +253,8 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * base_sdp_endpoint)
   GST_DEBUG ("generate_offer");
 
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  if (base_sdp_endpoint->pattern_sdp != NULL) {
-    gst_sdp_message_copy (base_sdp_endpoint->pattern_sdp, &offer);
+  if (base_sdp_endpoint->priv->pattern_sdp != NULL) {
+    gst_sdp_message_copy (base_sdp_endpoint->priv->pattern_sdp, &offer);
   }
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
 
@@ -245,7 +268,8 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * base_sdp_endpoint)
 
   kms_base_sdp_endpoint_set_local_offer_sdp (base_sdp_endpoint, offer);
 
-  sdp_utils_set_max_video_recv_bw (offer, base_sdp_endpoint->max_video_recv_bw);
+  sdp_utils_set_max_video_recv_bw (offer,
+      base_sdp_endpoint->priv->max_video_recv_bw);
 
   return offer;
 }
@@ -262,8 +286,8 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * base_sdp_endpoint,
   GST_DEBUG ("process_offer");
 
   KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  if (base_sdp_endpoint->pattern_sdp != NULL) {
-    gst_sdp_message_copy (base_sdp_endpoint->pattern_sdp, &answer);
+  if (base_sdp_endpoint->priv->pattern_sdp != NULL) {
+    gst_sdp_message_copy (base_sdp_endpoint->priv->pattern_sdp, &answer);
   }
   KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
 
@@ -291,7 +315,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * base_sdp_endpoint,
       intersect_answer, FALSE);
 
   sdp_utils_set_max_video_recv_bw (intersect_answer,
-      base_sdp_endpoint->max_video_recv_bw);
+      base_sdp_endpoint->priv->max_video_recv_bw);
 
   return intersect_answer;
 }
@@ -302,7 +326,7 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * base_sdp_endpoint,
 {
   GST_DEBUG ("process_answer");
 
-  if (base_sdp_endpoint->local_offer_sdp == NULL) {
+  if (base_sdp_endpoint->priv->local_offer_sdp == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (base_sdp_endpoint,
         "Answer received without a local offer generated");
@@ -312,7 +336,7 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * base_sdp_endpoint,
   kms_base_sdp_endpoint_set_remote_answer_sdp (base_sdp_endpoint, answer);
 
   kms_base_sdp_endpoint_start_media (base_sdp_endpoint,
-      base_sdp_endpoint->local_offer_sdp, answer, TRUE);
+      base_sdp_endpoint->priv->local_offer_sdp, answer, TRUE);
 }
 
 static void
@@ -326,13 +350,13 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_PATTERN_SDP:
       kms_base_sdp_endpoint_release_pattern_sdp (base_sdp_endpoint);
-      base_sdp_endpoint->pattern_sdp = g_value_dup_boxed (value);
+      base_sdp_endpoint->priv->pattern_sdp = g_value_dup_boxed (value);
       break;
     case PROP_USE_IPV6:
-      base_sdp_endpoint->use_ipv6 = g_value_get_boolean (value);
+      base_sdp_endpoint->priv->use_ipv6 = g_value_get_boolean (value);
       break;
     case PROP_MAX_VIDEO_RECV_BW:
-      base_sdp_endpoint->max_video_recv_bw = g_value_get_uint (value);
+      base_sdp_endpoint->priv->max_video_recv_bw = g_value_get_uint (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -352,25 +376,25 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_USE_IPV6:
-      g_value_set_boolean (value, base_sdp_endpoint->use_ipv6);
+      g_value_set_boolean (value, base_sdp_endpoint->priv->use_ipv6);
       break;
     case PROP_PATTERN_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->pattern_sdp);
+      g_value_set_boxed (value, base_sdp_endpoint->priv->pattern_sdp);
       break;
     case PROP_LOCAL_OFFER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->local_offer_sdp);
+      g_value_set_boxed (value, base_sdp_endpoint->priv->local_offer_sdp);
       break;
     case PROP_LOCAL_ANSWER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->local_answer_sdp);
+      g_value_set_boxed (value, base_sdp_endpoint->priv->local_answer_sdp);
       break;
     case PROP_REMOTE_OFFER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->remote_offer_sdp);
+      g_value_set_boxed (value, base_sdp_endpoint->priv->remote_offer_sdp);
       break;
     case PROP_REMOTE_ANSWER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->remote_answer_sdp);
+      g_value_set_boxed (value, base_sdp_endpoint->priv->remote_answer_sdp);
       break;
     case PROP_MAX_VIDEO_RECV_BW:
-      g_value_set_uint (value, base_sdp_endpoint->max_video_recv_bw);
+      g_value_set_uint (value, base_sdp_endpoint->priv->max_video_recv_bw);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -486,16 +510,16 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
           "Maximum video bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
           0, G_MAXUINT32, MAX_VIDEO_RECV_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_type_class_add_private (klass, sizeof (KmsBaseSdpEndpointPrivate));
 }
 
 static void
 kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * base_sdp_endpoint)
 {
-  base_sdp_endpoint->use_ipv6 = USE_IPV6_DEFAULT;
-  base_sdp_endpoint->pattern_sdp = NULL;
-  base_sdp_endpoint->local_offer_sdp = NULL;
-  base_sdp_endpoint->local_answer_sdp = NULL;
-  base_sdp_endpoint->remote_offer_sdp = NULL;
-  base_sdp_endpoint->remote_answer_sdp = NULL;
-  base_sdp_endpoint->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
+  base_sdp_endpoint->priv =
+      KMS_BASE_SDP_ENDPOINT_GET_PRIVATE (base_sdp_endpoint);
+
+  base_sdp_endpoint->priv->use_ipv6 = USE_IPV6_DEFAULT;
+  base_sdp_endpoint->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }

@@ -32,6 +32,8 @@ G_BEGIN_DECLS
 #define KMS_IS_BASE_SDP_ENDPOINT_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_BASE_SDP_ENDPOINT))
 #define KMS_BASE_SDP_ENDPOINT_CAST(obj) ((KmsBaseSdpEndpoint*)(obj))
+
+typedef struct _KmsBaseSdpEndpointPrivate KmsBaseSdpEndpointPrivate;
 typedef struct _KmsBaseSdpEndpoint KmsBaseSdpEndpoint;
 typedef struct _KmsBaseSdpEndpointClass KmsBaseSdpEndpointClass;
 
@@ -44,18 +46,7 @@ struct _KmsBaseSdpEndpoint
 {
   KmsElement parent;
 
-  /* private */
-  GstSDPMessage *pattern_sdp;
-
-  GstSDPMessage *local_offer_sdp;
-  GstSDPMessage *local_answer_sdp;
-
-  GstSDPMessage *remote_offer_sdp;
-  GstSDPMessage *remote_answer_sdp;
-
-  gboolean use_ipv6;
-
-  guint max_video_recv_bw;
+  KmsBaseSdpEndpointPrivate *priv;
 };
 
 struct _KmsBaseSdpEndpointClass
