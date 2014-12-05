@@ -85,12 +85,13 @@ get_caps_codec_name (const gchar * codec_name)
 {
   // TODO: Add more special cases here
 
-  if (g_ascii_strcasecmp (OPUS_ENCONDING_NAME, codec_name) == 0)
+  if (g_ascii_strcasecmp (OPUS_ENCONDING_NAME, codec_name) == 0) {
     return "X-GST-OPUS-DRAFT-SPITTKA-00";
-  else if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0)
+  } else if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
     return "VP8-DRAFT-IETF-01";
-  else
+  } else {
     return codec_name;
+  }
 }
 
 static GstCaps *
@@ -107,8 +108,9 @@ kms_base_rtp_endpoint_get_caps_from_rtpmap (const gchar * media,
 
   tokens = g_strsplit (rtpmap, "/", 3);
 
-  if (tokens[0] == NULL || tokens[1] == NULL)
+  if (tokens[0] == NULL || tokens[1] == NULL) {
     goto end;
+  }
 
   caps = gst_caps_new_simple ("application/x-rtp",
       "media", G_TYPE_STRING, media,
@@ -137,12 +139,14 @@ gst_base_rtp_get_payloader_for_caps (GstCaps * caps)
       gst_element_factory_list_filter (payloader_list, caps, GST_PAD_SRC,
       FALSE);
 
-  if (filtered_list == NULL)
+  if (filtered_list == NULL) {
     goto end;
+  }
 
   factory = GST_ELEMENT_FACTORY (filtered_list->data);
-  if (factory == NULL)
+  if (factory == NULL) {
     goto end;
+  }
 
   payloader = gst_element_factory_create (factory, NULL);
 
@@ -151,8 +155,9 @@ gst_base_rtp_get_payloader_for_caps (GstCaps * caps)
     GstStructure *st = gst_caps_get_structure (caps, 0);
     gint payload;
 
-    if (gst_structure_get_int (st, "payload", &payload))
+    if (gst_structure_get_int (st, "payload", &payload)) {
       g_object_set (payloader, "pt", payload, NULL);
+    }
   }
 
   pspec =
@@ -183,14 +188,16 @@ gst_base_rtp_get_depayloader_for_caps (GstCaps * caps)
       gst_element_factory_list_filter (payloader_list, caps, GST_PAD_SINK,
       FALSE);
 
-  if (filtered_list == NULL)
+  if (filtered_list == NULL) {
     goto end;
+  }
 
   for (l = filtered_list; l != NULL; l = l->next) {
     factory = GST_ELEMENT_FACTORY (l->data);
 
-    if (factory == NULL)
+    if (factory == NULL) {
       continue;
+    }
 
     if (g_strcmp0 (gst_plugin_feature_get_name (factory), "asteriskh263") == 0) {
       /* Do not use asteriskh263 for H263 */
@@ -282,8 +289,9 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
           (media), pt, rtpmap);
     }
 
-    if (caps == NULL)
+    if (caps == NULL) {
       continue;
+    }
 
     GST_DEBUG ("Found caps: %" GST_PTR_FORMAT, caps);
 
@@ -332,8 +340,9 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
   if (answer == NULL)
     g_object_get (base_endpoint, "remote-answer-sdp", &answer, NULL);
 
-  if (answer == NULL)
+  if (answer == NULL) {
     return NULL;
+  }
 
   len = gst_sdp_message_medias_len (answer);
 
@@ -357,8 +366,9 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
       GstCaps *caps;
       const gchar *payload = gst_sdp_media_get_format (media, j);
 
-      if (atoi (payload) != pt)
+      if (atoi (payload) != pt) {
         continue;
+      }
 
       rtpmap = sdp_utils_sdp_media_get_rtpmap (media, payload);
       caps =
@@ -394,8 +404,9 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
 
   caps = kms_base_rtp_endpoint_get_caps_for_pt (base_rtp_endpoint, pt);
 
-  if (caps != NULL)
+  if (caps != NULL) {
     return caps;
+  }
 
   return gst_caps_new_simple ("application/x-rtp", "payload", G_TYPE_INT, pt,
       "rtcp-fb-ccm-fir",
@@ -430,8 +441,9 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
   depayloader = gst_base_rtp_get_depayloader_for_caps (caps);
 
-  if (caps != NULL)
+  if (caps != NULL) {
     gst_caps_unref (caps);
+  }
 
   if (depayloader != NULL) {
     GST_DEBUG ("Found depayloader %" GST_PTR_FORMAT, depayloader);
@@ -452,9 +464,10 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 end:
   GST_PAD_STREAM_UNLOCK (pad);
 
-  if (added)
+  if (added) {
     g_signal_emit (G_OBJECT (rtp_endpoint), obj_signals[MEDIA_START], 0, media,
         TRUE);
+  }
 }
 
 static void
