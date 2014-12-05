@@ -33,6 +33,7 @@ G_BEGIN_DECLS
 #define KMS_IS_BASE_RTP_ENDPOINT_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_BASE_RTP_ENDPOINT))
 #define KMS_BASE_RTP_ENDPOINT_CAST(obj) ((KmsBaseRtpEndpoint*)(obj))
+
 typedef struct _KmsBaseRtpEndpoint KmsBaseRtpEndpoint;
 typedef struct _KmsBaseRtpEndpointClass KmsBaseRtpEndpointClass;
 typedef struct _KmsBaseRtpEndpointPrivate KmsBaseRtpEndpointPrivate;
@@ -43,16 +44,28 @@ typedef struct _KmsBaseRtpEndpointPrivate KmsBaseRtpEndpointPrivate;
   (g_rec_mutex_unlock (&KMS_BASE_RTP_ENDPOINT_CAST ((elem))->media_mutex))
 
 /* rtpbin pad names */
-#define AUDIO_RTPBIN_RECV_RTP_SINK "recv_rtp_sink_0"
-#define AUDIO_RTPBIN_RECV_RTCP_SINK "recv_rtcp_sink_0"
-#define AUDIO_RTPBIN_SEND_RTP_SRC "send_rtp_src_0"
-#define AUDIO_RTPBIN_SEND_RTCP_SRC "send_rtcp_src_0"
-#define AUDIO_RTPBIN_SEND_RTP_SINK "send_rtp_sink_0"
-#define VIDEO_RTPBIN_RECV_RTP_SINK "recv_rtp_sink_1"
-#define VIDEO_RTPBIN_RECV_RTCP_SINK "recv_rtcp_sink_1"
-#define VIDEO_RTPBIN_SEND_RTP_SRC "send_rtp_src_1"
-#define VIDEO_RTPBIN_SEND_RTCP_SRC "send_rtcp_src_1"
-#define VIDEO_RTPBIN_SEND_RTP_SINK "send_rtp_sink_1"
+#define RTPBIN_RECV_RTP_SINK "recv_rtp_sink_"
+#define RTPBIN_RECV_RTCP_SINK "recv_rtcp_sink_"
+#define RTPBIN_RECV_RTP_SRC "recv_rtp_src_"
+#define RTPBIN_SEND_RTP_SRC "send_rtp_src_"
+#define RTPBIN_SEND_RTCP_SRC "send_rtcp_src_"
+#define RTPBIN_SEND_RTP_SINK "send_rtp_sink_"
+
+#define AUDIO_RTP_SESSION "0"
+#define AUDIO_RTPBIN_RECV_RTP_SINK RTPBIN_RECV_RTP_SINK AUDIO_RTP_SESSION
+#define AUDIO_RTPBIN_RECV_RTCP_SINK RTPBIN_RECV_RTCP_SINK AUDIO_RTP_SESSION
+#define AUDIO_RTPBIN_RECV_RTP_SRC RTPBIN_RECV_RTP_SRC AUDIO_RTP_SESSION
+#define AUDIO_RTPBIN_SEND_RTP_SRC RTPBIN_SEND_RTP_SRC AUDIO_RTP_SESSION
+#define AUDIO_RTPBIN_SEND_RTCP_SRC RTPBIN_SEND_RTCP_SRC AUDIO_RTP_SESSION
+#define AUDIO_RTPBIN_SEND_RTP_SINK RTPBIN_SEND_RTP_SINK AUDIO_RTP_SESSION
+
+#define VIDEO_RTP_SESSION "1"
+#define VIDEO_RTPBIN_RECV_RTP_SINK RTPBIN_RECV_RTP_SINK VIDEO_RTP_SESSION
+#define VIDEO_RTPBIN_RECV_RTCP_SINK RTPBIN_RECV_RTCP_SINK VIDEO_RTP_SESSION
+#define VIDEO_RTPBIN_RECV_RTP_SRC RTPBIN_RECV_RTP_SRC VIDEO_RTP_SESSION
+#define VIDEO_RTPBIN_SEND_RTP_SRC RTPBIN_SEND_RTP_SRC VIDEO_RTP_SESSION
+#define VIDEO_RTPBIN_SEND_RTCP_SRC RTPBIN_SEND_RTCP_SRC VIDEO_RTP_SESSION
+#define VIDEO_RTPBIN_SEND_RTP_SINK RTPBIN_SEND_RTP_SINK VIDEO_RTP_SESSION
 
 /* RTP enconding names */
 #define OPUS_ENCONDING_NAME "OPUS"
