@@ -81,111 +81,106 @@ struct _KmsBaseSdpEndpointPrivate
 };
 
 static void
-kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint)
+kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (base_sdp_endpoint->priv->pattern_sdp == NULL)
+  if (self->priv->pattern_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->priv->pattern_sdp);
-  base_sdp_endpoint->priv->pattern_sdp = NULL;
+  gst_sdp_message_free (self->priv->pattern_sdp);
+  self->priv->pattern_sdp = NULL;
 }
 
 static void
-kms_base_sdp_endpoint_release_local_offer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint)
+kms_base_sdp_endpoint_release_local_offer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (base_sdp_endpoint->priv->local_offer_sdp == NULL)
+  if (self->priv->local_offer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->priv->local_offer_sdp);
-  base_sdp_endpoint->priv->local_offer_sdp = NULL;
+  gst_sdp_message_free (self->priv->local_offer_sdp);
+  self->priv->local_offer_sdp = NULL;
 }
 
 static void
-kms_base_sdp_endpoint_release_local_answer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint)
+kms_base_sdp_endpoint_release_local_answer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (base_sdp_endpoint->priv->local_answer_sdp == NULL)
+  if (self->priv->local_answer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->priv->local_answer_sdp);
-  base_sdp_endpoint->priv->local_answer_sdp = NULL;
+  gst_sdp_message_free (self->priv->local_answer_sdp);
+  self->priv->local_answer_sdp = NULL;
 }
 
 static void
-kms_base_sdp_endpoint_release_remote_offer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint)
+kms_base_sdp_endpoint_release_remote_offer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (base_sdp_endpoint->priv->remote_offer_sdp == NULL)
+  if (self->priv->remote_offer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->priv->remote_offer_sdp);
-  base_sdp_endpoint->priv->remote_offer_sdp = NULL;
+  gst_sdp_message_free (self->priv->remote_offer_sdp);
+  self->priv->remote_offer_sdp = NULL;
 }
 
 static void
-kms_base_sdp_endpoint_release_remote_answer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint)
+kms_base_sdp_endpoint_release_remote_answer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (base_sdp_endpoint->priv->remote_answer_sdp == NULL)
+  if (self->priv->remote_answer_sdp == NULL)
     return;
 
-  gst_sdp_message_free (base_sdp_endpoint->priv->remote_answer_sdp);
-  base_sdp_endpoint->priv->remote_answer_sdp = NULL;
+  gst_sdp_message_free (self->priv->remote_answer_sdp);
+  self->priv->remote_answer_sdp = NULL;
 }
 
 static void
 kms_base_sdp_endpoint_set_local_offer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, GstSDPMessage * offer)
+    self, GstSDPMessage * offer)
 {
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_local_offer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->local_offer_sdp);
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
-  g_object_notify (G_OBJECT (base_sdp_endpoint), "local-offer-sdp");
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_local_offer_sdp (self);
+  gst_sdp_message_copy (offer, &self->priv->local_offer_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "local-offer-sdp");
 }
 
 static void
 kms_base_sdp_endpoint_set_remote_offer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, GstSDPMessage * offer)
+    self, GstSDPMessage * offer)
 {
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_remote_offer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->remote_offer_sdp);
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
-  g_object_notify (G_OBJECT (base_sdp_endpoint), "remote-offer-sdp");
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_remote_offer_sdp (self);
+  gst_sdp_message_copy (offer, &self->priv->remote_offer_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "remote-offer-sdp");
 }
 
 static void
 kms_base_sdp_endpoint_set_local_answer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, GstSDPMessage * offer)
+    self, GstSDPMessage * offer)
 {
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_local_answer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->local_answer_sdp);
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
-  g_object_notify (G_OBJECT (base_sdp_endpoint), "local-answer-sdp");
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_local_answer_sdp (self);
+  gst_sdp_message_copy (offer, &self->priv->local_answer_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "local-answer-sdp");
 }
 
 static void
 kms_base_sdp_endpoint_set_remote_answer_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, GstSDPMessage * offer)
+    self, GstSDPMessage * offer)
 {
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_remote_answer_sdp (base_sdp_endpoint);
-  gst_sdp_message_copy (offer, &base_sdp_endpoint->priv->remote_answer_sdp);
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
-  g_object_notify (G_OBJECT (base_sdp_endpoint), "remote-answer-sdp");
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_remote_answer_sdp (self);
+  gst_sdp_message_copy (offer, &self->priv->remote_answer_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "remote-answer-sdp");
 }
 
 static void
 kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, const GstSDPMessage * offer,
+    self, const GstSDPMessage * offer,
     const GstSDPMessage * answer, gboolean local_offer)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   /* Defalut function, do nothing */
   if (base_sdp_endpoint_class->start_transport_send ==
@@ -197,10 +192,10 @@ kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 
 static void
 kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, const GstSDPMessage * answer)
+    self, const GstSDPMessage * answer)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   /* Defalut function, do nothing */
   if (base_sdp_endpoint_class->connect_input_elements ==
@@ -211,27 +206,27 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 }
 
 static void
-kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
+kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self,
     const GstSDPMessage * offer, const GstSDPMessage * answer,
     gboolean local_offer)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   GST_DEBUG ("Start media");
 
-  base_sdp_endpoint_class->start_transport_send (base_sdp_endpoint, offer,
+  base_sdp_endpoint_class->start_transport_send (self, offer,
       answer, local_offer);
 
-  base_sdp_endpoint_class->connect_input_elements (base_sdp_endpoint, answer);
+  base_sdp_endpoint_class->connect_input_elements (self, answer);
 }
 
 static gboolean
 kms_base_sdp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, GstSDPMessage * msg)
+    self, GstSDPMessage * msg)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   if (base_sdp_endpoint_class->set_transport_to_sdp ==
       kms_base_sdp_endpoint_set_transport_to_sdp) {
@@ -244,58 +239,56 @@ kms_base_sdp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
 }
 
 static GstSDPMessage *
-kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * base_sdp_endpoint)
+kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
 {
   GstSDPMessage *offer = NULL;
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   GST_DEBUG ("generate_offer");
 
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  if (base_sdp_endpoint->priv->pattern_sdp != NULL) {
-    gst_sdp_message_copy (base_sdp_endpoint->priv->pattern_sdp, &offer);
+  KMS_ELEMENT_LOCK (self);
+  if (self->priv->pattern_sdp != NULL) {
+    gst_sdp_message_copy (self->priv->pattern_sdp, &offer);
   }
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
+  KMS_ELEMENT_UNLOCK (self);
 
   if (offer == NULL)
     return NULL;
 
-  if (!base_sdp_endpoint_class->set_transport_to_sdp (base_sdp_endpoint, offer)) {
+  if (!base_sdp_endpoint_class->set_transport_to_sdp (self, offer)) {
     gst_sdp_message_free (offer);
     return NULL;
   }
 
-  kms_base_sdp_endpoint_set_local_offer_sdp (base_sdp_endpoint, offer);
+  kms_base_sdp_endpoint_set_local_offer_sdp (self, offer);
 
-  sdp_utils_set_max_video_recv_bw (offer,
-      base_sdp_endpoint->priv->max_video_recv_bw);
+  sdp_utils_set_max_video_recv_bw (offer, self->priv->max_video_recv_bw);
 
   return offer;
 }
 
 static GstSDPMessage *
-kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * base_sdp_endpoint,
+kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * offer)
 {
   GstSDPMessage *answer = NULL, *intersec_offer, *intersect_answer;
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_endpoint));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  kms_base_sdp_endpoint_set_remote_offer_sdp (base_sdp_endpoint, offer);
+  kms_base_sdp_endpoint_set_remote_offer_sdp (self, offer);
   GST_DEBUG ("process_offer");
 
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
-  if (base_sdp_endpoint->priv->pattern_sdp != NULL) {
-    gst_sdp_message_copy (base_sdp_endpoint->priv->pattern_sdp, &answer);
+  KMS_ELEMENT_LOCK (self);
+  if (self->priv->pattern_sdp != NULL) {
+    gst_sdp_message_copy (self->priv->pattern_sdp, &answer);
   }
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
+  KMS_ELEMENT_UNLOCK (self);
 
   if (answer == NULL)
     return NULL;
 
-  if (!base_sdp_endpoint_class->set_transport_to_sdp (base_sdp_endpoint,
-          answer)) {
+  if (!base_sdp_endpoint_class->set_transport_to_sdp (self, answer)) {
     gst_sdp_message_free (answer);
     return NULL;
   }
@@ -308,112 +301,109 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * base_sdp_endpoint,
   gst_sdp_message_free (intersec_offer);
   gst_sdp_message_free (answer);
 
-  kms_base_sdp_endpoint_set_local_answer_sdp (base_sdp_endpoint,
-      intersect_answer);
+  kms_base_sdp_endpoint_set_local_answer_sdp (self, intersect_answer);
 
-  kms_base_sdp_endpoint_start_media (base_sdp_endpoint, offer,
-      intersect_answer, FALSE);
+  kms_base_sdp_endpoint_start_media (self, offer, intersect_answer, FALSE);
 
   sdp_utils_set_max_video_recv_bw (intersect_answer,
-      base_sdp_endpoint->priv->max_video_recv_bw);
+      self->priv->max_video_recv_bw);
 
   return intersect_answer;
 }
 
 static void
-kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * base_sdp_endpoint,
+kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * answer)
 {
   GST_DEBUG ("process_answer");
 
-  if (base_sdp_endpoint->priv->local_offer_sdp == NULL) {
+  if (self->priv->local_offer_sdp == NULL) {
     // TODO: This should raise an error
-    GST_ERROR_OBJECT (base_sdp_endpoint,
-        "Answer received without a local offer generated");
+    GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
     return;
   }
 
-  kms_base_sdp_endpoint_set_remote_answer_sdp (base_sdp_endpoint, answer);
+  kms_base_sdp_endpoint_set_remote_answer_sdp (self, answer);
 
-  kms_base_sdp_endpoint_start_media (base_sdp_endpoint,
-      base_sdp_endpoint->priv->local_offer_sdp, answer, TRUE);
+  kms_base_sdp_endpoint_start_media (self,
+      self->priv->local_offer_sdp, answer, TRUE);
 }
 
 static void
 kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  KmsBaseSdpEndpoint *base_sdp_endpoint = KMS_BASE_SDP_ENDPOINT (object);
+  KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
+  KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
     case PROP_PATTERN_SDP:
-      kms_base_sdp_endpoint_release_pattern_sdp (base_sdp_endpoint);
-      base_sdp_endpoint->priv->pattern_sdp = g_value_dup_boxed (value);
+      kms_base_sdp_endpoint_release_pattern_sdp (self);
+      self->priv->pattern_sdp = g_value_dup_boxed (value);
       break;
     case PROP_USE_IPV6:
-      base_sdp_endpoint->priv->use_ipv6 = g_value_get_boolean (value);
+      self->priv->use_ipv6 = g_value_get_boolean (value);
       break;
     case PROP_MAX_VIDEO_RECV_BW:
-      base_sdp_endpoint->priv->max_video_recv_bw = g_value_get_uint (value);
+      self->priv->max_video_recv_bw = g_value_get_uint (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
   }
 
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
 kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  KmsBaseSdpEndpoint *base_sdp_endpoint = KMS_BASE_SDP_ENDPOINT (object);
+  KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
-  KMS_ELEMENT_LOCK (base_sdp_endpoint);
+  KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
     case PROP_USE_IPV6:
-      g_value_set_boolean (value, base_sdp_endpoint->priv->use_ipv6);
+      g_value_set_boolean (value, self->priv->use_ipv6);
       break;
     case PROP_PATTERN_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->priv->pattern_sdp);
+      g_value_set_boxed (value, self->priv->pattern_sdp);
       break;
     case PROP_LOCAL_OFFER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->priv->local_offer_sdp);
+      g_value_set_boxed (value, self->priv->local_offer_sdp);
       break;
     case PROP_LOCAL_ANSWER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->priv->local_answer_sdp);
+      g_value_set_boxed (value, self->priv->local_answer_sdp);
       break;
     case PROP_REMOTE_OFFER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->priv->remote_offer_sdp);
+      g_value_set_boxed (value, self->priv->remote_offer_sdp);
       break;
     case PROP_REMOTE_ANSWER_SDP:
-      g_value_set_boxed (value, base_sdp_endpoint->priv->remote_answer_sdp);
+      g_value_set_boxed (value, self->priv->remote_answer_sdp);
       break;
     case PROP_MAX_VIDEO_RECV_BW:
-      g_value_set_uint (value, base_sdp_endpoint->priv->max_video_recv_bw);
+      g_value_set_uint (value, self->priv->max_video_recv_bw);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
   }
 
-  KMS_ELEMENT_UNLOCK (base_sdp_endpoint);
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
 kms_base_sdp_endpoint_finalize (GObject * object)
 {
-  KmsBaseSdpEndpoint *base_sdp_endpoint = KMS_BASE_SDP_ENDPOINT (object);
+  KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
-  kms_base_sdp_endpoint_release_pattern_sdp (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_local_offer_sdp (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_local_answer_sdp (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_remote_offer_sdp (base_sdp_endpoint);
-  kms_base_sdp_endpoint_release_remote_answer_sdp (base_sdp_endpoint);
+  kms_base_sdp_endpoint_release_pattern_sdp (self);
+  kms_base_sdp_endpoint_release_local_offer_sdp (self);
+  kms_base_sdp_endpoint_release_local_answer_sdp (self);
+  kms_base_sdp_endpoint_release_remote_offer_sdp (self);
+  kms_base_sdp_endpoint_release_remote_answer_sdp (self);
 
   /* chain up */
   G_OBJECT_CLASS (kms_base_sdp_endpoint_parent_class)->finalize (object);
@@ -515,11 +505,10 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
 }
 
 static void
-kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * base_sdp_endpoint)
+kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
 {
-  base_sdp_endpoint->priv =
-      KMS_BASE_SDP_ENDPOINT_GET_PRIVATE (base_sdp_endpoint);
+  self->priv = KMS_BASE_SDP_ENDPOINT_GET_PRIVATE (self);
 
-  base_sdp_endpoint->priv->use_ipv6 = USE_IPV6_DEFAULT;
-  base_sdp_endpoint->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
+  self->priv->use_ipv6 = USE_IPV6_DEFAULT;
+  self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }
