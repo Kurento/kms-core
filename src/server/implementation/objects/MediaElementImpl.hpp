@@ -108,6 +108,8 @@ private:
       std::set<std::shared_ptr<ElementConnectionDataInternal>>>, MediaTypeCmp>
       sinks;
 
+  void disconnectAll();
+
   class StaticConstructor
   {
   public:

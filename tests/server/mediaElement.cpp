@@ -83,4 +83,9 @@ BOOST_AUTO_TEST_CASE (connection_test)
 
   connections = sink->getSourceConnections (VIDEO, "");
   BOOST_CHECK (connections.size() == 0);
+
+  src.reset();
+
+  connections = sink->getSourceConnections ();
+  BOOST_CHECK (connections.size() == 0);
 }

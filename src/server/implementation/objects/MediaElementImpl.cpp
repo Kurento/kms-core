@@ -136,6 +136,8 @@ MediaElementImpl::~MediaElementImpl ()
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
 
+  disconnectAll();
+
   pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
 
   gst_element_set_locked_state (element, TRUE);
@@ -145,6 +147,26 @@ MediaElementImpl::~MediaElementImpl ()
 
   g_signal_handler_disconnect (bus, handlerId);
   g_object_unref (bus);
+}
+
+void MediaElementImpl::disconnectAll ()
+{
+  std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex);
+  std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex);
+
+  for (std::shared_ptr<ElementConnectionData> connData :
+       getSourceConnections() ) {
+    connData->getSource ()->disconnect (connData->getSink (),
+                                        connData->getType (),
+                                        connData->getSourceDescription (),
+                                        connData->getSinkDescription () );
+  }
+
+  for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
+    disconnect (connData->getSink (), connData->getType (),
+                connData->getSourceDescription (),
+                connData->getSinkDescription () );
+  }
 }
 
 std::vector<std::shared_ptr<ElementConnectionData>>
