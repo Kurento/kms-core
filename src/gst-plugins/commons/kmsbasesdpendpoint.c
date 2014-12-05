@@ -191,7 +191,8 @@ kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
   /* Defalut function, do nothing */
   if (base_sdp_endpoint_class->start_transport_send ==
       kms_base_sdp_endpoint_start_transport_send) {
-    g_warning ("%s does not reimplement \"start_transport_send\"",
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement \"start_transport_send\"",
         G_OBJECT_CLASS_NAME (base_sdp_endpoint_class));
   }
 }
@@ -206,7 +207,8 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
   /* Defalut function, do nothing */
   if (base_sdp_endpoint_class->connect_input_elements ==
       kms_base_sdp_endpoint_connect_input_elements) {
-    g_warning ("%s does not reimplement \"connect_input_elements\"",
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement \"connect_input_elements\"",
         G_OBJECT_CLASS_NAME (base_sdp_endpoint_class));
   }
 }
@@ -219,7 +221,7 @@ kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self,
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  GST_DEBUG ("Start media");
+  GST_DEBUG_OBJECT (self, "Start media");
 
   base_sdp_endpoint_class->start_transport_send (self, offer,
       answer, local_offer);
@@ -236,7 +238,8 @@ kms_base_sdp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
 
   if (base_sdp_endpoint_class->set_transport_to_sdp ==
       kms_base_sdp_endpoint_set_transport_to_sdp) {
-    g_warning ("%s does not reimplement \"set_transport_to_sdp\"",
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement \"set_transport_to_sdp\"",
         G_OBJECT_CLASS_NAME (base_sdp_endpoint_class));
   }
 
@@ -251,7 +254,7 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  GST_DEBUG ("generate_offer");
+  GST_DEBUG_OBJECT (self, "generate_offer");
 
   KMS_ELEMENT_LOCK (self);
   if (self->priv->pattern_sdp != NULL) {
@@ -284,7 +287,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   kms_base_sdp_endpoint_set_remote_offer_sdp (self, offer);
-  GST_DEBUG ("process_offer");
+  GST_DEBUG_OBJECT (self, "process_offer");
 
   KMS_ELEMENT_LOCK (self);
   if (self->priv->pattern_sdp != NULL) {
@@ -323,7 +326,7 @@ static void
 kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * answer)
 {
-  GST_DEBUG ("process_answer");
+  GST_DEBUG_OBJECT (self, "process_answer");
 
   if (self->priv->local_offer_sdp == NULL) {
     // TODO: This should raise an error
