@@ -326,10 +326,11 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (base_rtp_endpoint);
   GstSDPMessage *answer;
   guint i, len;
+  GstCaps *ret = NULL;
 
-  answer = base_endpoint->local_answer_sdp;
+  g_object_get (base_endpoint, "local-answer-sdp", &answer, NULL);
   if (answer == NULL)
-    answer = base_endpoint->remote_answer_sdp;
+    g_object_get (base_endpoint, "remote-answer-sdp", &answer, NULL);
 
   if (answer == NULL)
     return NULL;
@@ -371,12 +372,16 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
               NULL);
         }
 
-        return caps;
+        ret = caps;
+        goto end;
       }
     }
   }
 
-  return NULL;
+end:
+  gst_sdp_message_free (answer);
+
+  return ret;
 }
 
 static GstCaps *
