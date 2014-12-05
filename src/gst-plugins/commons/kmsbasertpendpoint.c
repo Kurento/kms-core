@@ -33,8 +33,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
     KMS_TYPE_BASE_SDP_ENDPOINT);
 
-#define RTPBIN "rtpbin"
-
 #define KMS_BASE_RTP_ENDPOINT_GET_PRIVATE(obj) (  \
   G_TYPE_INSTANCE_GET_PRIVATE (                   \
     (obj),                                        \
@@ -734,7 +732,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * base_rtp_endpoint)
 {
   base_rtp_endpoint->priv =
       KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (base_rtp_endpoint);
-  base_rtp_endpoint->priv->rtpbin = gst_element_factory_make ("rtpbin", RTPBIN);
+  base_rtp_endpoint->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
 
   g_signal_connect (base_rtp_endpoint->priv->rtpbin, "request-pt-map",
       G_CALLBACK (kms_base_rtp_endpoint_request_pt_map), base_rtp_endpoint);
