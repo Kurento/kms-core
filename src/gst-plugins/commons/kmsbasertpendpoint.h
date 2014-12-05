@@ -15,7 +15,6 @@
 #ifndef __KMS_BASE_RTP_ENDPOINT_H__
 #define __KMS_BASE_RTP_ENDPOINT_H__
 
-#include <gst/gst.h>
 #include "kmsbasesdpendpoint.h"
 #include "kmsmediatype.h"
 

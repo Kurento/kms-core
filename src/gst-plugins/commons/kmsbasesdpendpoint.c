@@ -16,8 +16,6 @@
 #  include <config.h>
 #endif
 
-#include <gst/gst.h>
-
 #include "kmsbasesdpendpoint.h"
 #include "kmsagnosticcaps.h"
 #include "kms-core-marshal.h"

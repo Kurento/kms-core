@@ -16,12 +16,12 @@
 #  include <config.h>
 #endif
 
+#include "kmsbasertpendpoint.h"
+
 #include <stdlib.h>
-#include <gst/gst.h>
 
 #include "kms-core-enumtypes.h"
 #include "kms-core-marshal.h"
-#include "kmsbasertpendpoint.h"
 #include "sdp_utils.h"
 
 #define PLUGIN_NAME "base_rtp_endpoint"
