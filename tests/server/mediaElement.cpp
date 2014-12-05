@@ -29,11 +29,14 @@ BOOST_AUTO_TEST_CASE (connection_test)
   std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
         boost::property_tree::ptree() ) );
   std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "hubport") );
+        boost::property_tree::ptree(), pipe, "dummysink") );
   std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
-      boost::property_tree::ptree(), pipe, "hubport") );
+      boost::property_tree::ptree(), pipe, "dummysrc") );
   std::shared_ptr <MediaType> VIDEO (new MediaType (MediaType::VIDEO) );
   std::shared_ptr <MediaType> AUDIO (new MediaType (MediaType::AUDIO) );
+
+  src->setName ("SOURCE");
+  sink->setName ("SINK");
 
   src->connect (sink);
   auto connections = sink->getSourceConnections ();
@@ -42,6 +45,8 @@ BOOST_AUTO_TEST_CASE (connection_test)
   for (auto it : connections) {
     BOOST_CHECK (it->getSource()->getId() == src->getId() );
   }
+
+  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
 
   connections = src->getSinkConnections ();
   BOOST_CHECK (connections.size() == 2);

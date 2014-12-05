@@ -3,6 +3,11 @@ set (VALGRING_TEST_PROPERTIES
   DEBUG_MEDIASET=1
 )
 
+set (TEST_PROPERTIES
+  GST_PLUGIN_PATH=${CMAKE_BINARY_DIR}
+  GST_DEBUG_DUMP_DOT_DIR=${KURENTO_DOT_DIR}
+  )
+
 add_test_program (test_module module.cpp)
 add_dependencies(test_module ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module
@@ -43,7 +48,7 @@ target_link_libraries(test_module_manager
 )
 
 add_test_program (test_media_element mediaElement.cpp)
-add_dependencies(test_media_element ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
+add_dependencies(test_media_element kmscoreplugins ${LIBRARY_NAME}impl)
 set_property (TARGET test_media_element
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}

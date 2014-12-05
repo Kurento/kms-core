@@ -12,6 +12,7 @@
 #include <MediaSet.hpp>
 #include <gst/gst.h>
 #include <ElementConnectionData.hpp>
+#include "kmselement.h"
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -34,6 +35,15 @@ public:
     this->type = type;
     this->sourceDescription = sourceDescription;
     this->sinkDescription = sinkDescription;
+    this->sourcePadName = NULL;
+    setSinkPadName ();
+  }
+
+  ~ElementConnectionDataInternal()
+  {
+    if (sourcePadName != NULL) {
+      free (sourcePadName);
+    }
   }
 
   ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data)
@@ -43,6 +53,94 @@ public:
     this->type = type;
     this->sourceDescription = sourceDescription;
     this->sinkDescription = sinkDescription;
+    this->sourcePadName = NULL;
+    setSinkPadName ();
+  }
+
+  void setSinkPadName()
+  {
+    std::string desc = (sourceDescription.empty () ? "" : "_") + sourceDescription;
+
+    switch (type->getValue () ) {
+    case MediaType::AUDIO:
+      sinkPadName = "sink_audio" + desc;
+      break;
+
+    case MediaType::VIDEO:
+      sinkPadName = "sink_video" + desc;
+      break;
+
+    case MediaType::DATA:
+      sinkPadName = "sink_data" + desc;
+      break;
+    }
+  }
+
+  void setSourcePadName (gchar *padName)
+  {
+    if (this->sourcePadName != NULL) {
+      GST_WARNING ("Resetting padName for connection");
+
+      if (this->sourcePadName != padName) {
+        free (this->sourcePadName);
+      }
+    }
+
+    this->sourcePadName = padName;
+  }
+
+  const gchar *getSourcePadName ()
+  {
+    return sourcePadName;
+  }
+
+  std::shared_ptr<MediaElementImpl> getSource ()
+  {
+    try {
+      return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
+    } catch (std::bad_cast) {
+      GST_WARNING ("Bad cast for source element");
+      return std::shared_ptr<MediaElementImpl> ();
+    }
+  }
+
+  std::shared_ptr<MediaElementImpl> getSink ()
+  {
+    try {
+      return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
+    } catch (std::bad_cast) {
+      GST_WARNING ("Bad cast for source element");
+      return std::shared_ptr<MediaElementImpl> ();
+    }
+  }
+
+  std::string getSinkPadName ()
+  {
+    return sinkPadName;
+  }
+
+  GstPad *getSinkPad ()
+  {
+    std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
+
+    if (!sinkLocked) {
+      return NULL;
+    }
+
+    return gst_element_get_static_pad (sinkLocked->getGstreamerElement (),
+                                       getSinkPadName ().c_str() );
+  }
+
+  GstPad *getSourcePad ()
+  {
+    std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
+
+    if (!sourceLocked || sourcePadName == NULL) {
+      return NULL;
+    }
+
+    return gst_element_get_static_pad (sourceLocked->getGstreamerElement (),
+                                       sourcePadName);
   }
 
   std::shared_ptr<ElementConnectionData> toInterface ()
@@ -68,7 +166,26 @@ private:
   std::shared_ptr<MediaType> type;
   std::string sourceDescription;
   std::string sinkDescription;
+  std::string sinkPadName;
+  gchar *sourcePadName;
 };
+
+static KmsElementPadType
+convertMediaType (std::shared_ptr<MediaType> mediaType)
+{
+  switch (mediaType->getValue () ) {
+  case MediaType::AUDIO:
+    return KMS_ELEMENT_PAD_TYPE_AUDIO;
+
+  case MediaType::VIDEO:
+    return KMS_ELEMENT_PAD_TYPE_VIDEO;
+
+  case MediaType::DATA:
+    return KMS_ELEMENT_PAD_TYPE_DATA;
+  }
+
+  throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
+}
 
 void
 _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
@@ -108,6 +225,44 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
   }
 }
 
+void
+_media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
+{
+  MediaElementImpl *self = (MediaElementImpl *) data;
+
+  GST_LOG_OBJECT (pad, "Pad added");
+
+  if (GST_PAD_IS_SRC (pad) ) {
+    std::unique_lock<std::recursive_mutex> lock (self->sinksMutex);
+    std::shared_ptr<MediaType> type;
+    //FIXME: This method of pad recognition should change as well as pad names
+
+    if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio") ) {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+    } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video") ) {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+    } else {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+    }
+
+    try {
+      auto connections = self->sinks.at (type).at ("");
+
+      for (auto it : connections) {
+        if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
+          std::unique_lock<std::recursive_mutex> sinkLock (it->getSink()->sourcesMutex);
+
+          self->performConnection (it);
+        }
+      }
+    } catch (std::out_of_range) {
+
+    }
+  } else {
+    // TODO:
+  }
+}
+
 MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                                     std::shared_ptr<MediaObjectImpl> parent,
                                     const std::string &factoryName) : MediaObjectImpl (config, parent)
@@ -127,6 +282,10 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
   handlerId = g_signal_connect (bus, "message",
                                 G_CALLBACK (_media_element_impl_bus_message), this);
 
+
+  padAddedHandlerId = g_signal_connect (element, "pad_added",
+                                        G_CALLBACK (_media_element_pad_added), this);
+
   g_object_ref (element);
   gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
   gst_element_sync_state_with_parent (element);
@@ -136,6 +295,8 @@ MediaElementImpl::~MediaElementImpl ()
 {
   std::shared_ptr<MediaPipelineImpl> pipe;
 
+  GST_LOG ("Deleting media element %s", getName().c_str () );
+
   disconnectAll();
 
   pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
@@ -143,6 +304,7 @@ MediaElementImpl::~MediaElementImpl ()
   gst_element_set_locked_state (element, TRUE);
   gst_element_set_state (element, GST_STATE_NULL);
   gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
+  g_signal_handler_disconnect (element, padAddedHandlerId);
   g_object_unref (element);
 
   g_signal_handler_disconnect (bus, handlerId);
@@ -321,6 +483,8 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 const std::string &sourceMediaDescription,
                                 const std::string &sinkMediaDescription)
 {
+  KmsElementPadType type;
+  gchar *padName;
   std::shared_ptr<MediaElementImpl> sinkImpl =
     std::dynamic_pointer_cast<MediaElementImpl> (sink);
   std::unique_lock<std::recursive_mutex> lock (sinksMutex);
@@ -332,7 +496,7 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                        sourceMediaDescription,
                                        sinkMediaDescription) );
 
-  GST_DEBUG ("Connecting %s - %s params %s %s %s", getName().c_str(),
+  GST_DEBUG ("Connecting %s -> %s params %s %s %s", getName().c_str(),
              sink->getName ().c_str (), mediaType->getString ().c_str (),
              sourceMediaDescription.c_str(), sinkMediaDescription.c_str() );
 
@@ -345,10 +509,65 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                          connection->getSinkDescription () );
   }
 
+  type = convertMediaType (mediaType);
+  g_signal_emit_by_name (getGstreamerElement (), "request-new-srcpad", type,
+                         sourceMediaDescription.c_str (), &padName, NULL);
+
+  if (padName == NULL) {
+    throw KurentoException (CONNECT_ERROR, "Element: '" + getName() +
+                            "'does note provide a connection for " +
+                            mediaType->getString () + "-" +
+                            sourceMediaDescription);
+  }
+
+  connectionData->setSourcePadName (padName);
+
   sinks[mediaType][sourceMediaDescription].insert (connectionData);
   sinkImpl->sources[mediaType][sinkMediaDescription] = connectionData;
 
-  //TODO: Perform gstreamer element connection
+  performConnection (connectionData);
+}
+
+void
+MediaElementImpl::performConnection (std::shared_ptr
+                                     <ElementConnectionDataInternal> data)
+{
+  GstPad *src = NULL, *sink = NULL;
+
+  src = data->getSourcePad ();
+
+  if (!src) {
+    GST_TRACE ("Still waiting for src pad %s:%s", getName().c_str(),
+               data->getSourcePadName () );
+    return;
+  }
+
+  sink = data->getSinkPad ();
+
+  if (sink) {
+    GstPadLinkReturn ret;
+
+    GST_TRACE ("Linking %s:%s -> %s:%s", getName().c_str(),
+               data->getSourcePadName (), data->getSink()->getName().c_str(),
+               data->getSinkPadName ().c_str() );
+
+    ret = gst_pad_link_full (src, sink, GST_PAD_LINK_CHECK_NOTHING);
+
+    if (ret != GST_PAD_LINK_OK) {
+      GST_WARNING ("Cannot link pads: %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT
+                   " reason: %s", src, sink, gst_pad_link_get_name (ret) );
+    } else {
+      GST_TRACE ("Link done");
+    }
+
+    g_object_unref (sink);
+  } else {
+    GST_TRACE ("Still waiting for sink pad %s:%s",
+               data->getSink()->getName().c_str(),
+               data->getSinkPadName ().c_str() );
+  }
+
+  g_object_unref (src);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)

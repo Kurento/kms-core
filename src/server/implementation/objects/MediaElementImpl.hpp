@@ -108,7 +108,10 @@ private:
       std::set<std::shared_ptr<ElementConnectionDataInternal>>>, MediaTypeCmp>
       sinks;
 
+  gulong padAddedHandlerId;
+
   void disconnectAll();
+  void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
 
   class StaticConstructor
   {
@@ -120,6 +123,8 @@ private:
 
   friend void _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
       gpointer data);
+  friend void _media_element_pad_added (GstElement *elem, GstPad *pad,
+                                        gpointer data);
 };
 
 } /* kurento */

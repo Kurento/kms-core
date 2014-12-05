@@ -54,6 +54,7 @@ generate_code (
   SERVER_IMPL_LIB_EXTRA_HEADERS
       ${KMS_CORE_IMPL_HEADERS}
   SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
+      ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${Boost_INCLUDE_DIRS}
       ${Boost_FILESYSTEM_INCLUDE_DIRS}
@@ -65,6 +66,7 @@ generate_code (
       ${Boost_LIBRARIES}
       ${gstreamer-1.0_LIBRARIES}
       ${KmsJsonRpc_LIBRARIES}
+      kmsutils
   MODULE_EXTRA_INCLUDE_DIRS
       ${gstreamer-1.0_INCLUDE_DIRS}
       ${KmsJsonRpc_INCLUDE_DIRS}
@@ -85,3 +87,5 @@ generate_code (
       "glibmm-2.4 ${glibmm-2.4_REQUIRED}"
       "LIBNAME Boost COMPONENTS filesystem system"
 )
+
+add_dependencies(${LIBRARY_NAME}impl kmscoreplugins)
