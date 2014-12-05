@@ -424,10 +424,11 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
   GST_PAD_STREAM_LOCK (pad);
 
-  if (g_str_has_prefix (GST_OBJECT_NAME (pad), "recv_rtp_src_0_")) {
+  if (g_str_has_prefix (GST_OBJECT_NAME (pad), AUDIO_RTPBIN_RECV_RTP_SRC)) {
     agnostic = kms_element_get_audio_agnosticbin (KMS_ELEMENT (rtp_endpoint));
     media = KMS_MEDIA_TYPE_AUDIO;
-  } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "recv_rtp_src_1_")) {
+  } else if (g_str_has_prefix (GST_OBJECT_NAME (pad),
+          VIDEO_RTPBIN_RECV_RTP_SRC)) {
     agnostic = kms_element_get_video_agnosticbin (KMS_ELEMENT (rtp_endpoint));
     media = KMS_MEDIA_TYPE_VIDEO;
   } else {
