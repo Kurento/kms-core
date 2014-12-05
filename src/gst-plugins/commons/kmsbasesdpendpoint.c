@@ -51,6 +51,8 @@ enum
   LAST_SIGNAL
 };
 
+static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
+
 enum
 {
   PROP_0,
@@ -60,10 +62,9 @@ enum
   PROP_LOCAL_ANSWER_SDP,
   PROP_REMOTE_OFFER_SDP,
   PROP_REMOTE_ANSWER_SDP,
-  PROP_MAX_VIDEO_RECV_BW
+  PROP_MAX_VIDEO_RECV_BW,
+  N_PROPERTIES
 };
-
-static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 
 struct _KmsBaseSdpEndpointPrivate
 {
@@ -83,8 +84,9 @@ struct _KmsBaseSdpEndpointPrivate
 static void
 kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (self->priv->pattern_sdp == NULL)
+  if (self->priv->pattern_sdp == NULL) {
     return;
+  }
 
   gst_sdp_message_free (self->priv->pattern_sdp);
   self->priv->pattern_sdp = NULL;
@@ -93,8 +95,9 @@ kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint * self)
 static void
 kms_base_sdp_endpoint_release_local_offer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (self->priv->local_offer_sdp == NULL)
+  if (self->priv->local_offer_sdp == NULL) {
     return;
+  }
 
   gst_sdp_message_free (self->priv->local_offer_sdp);
   self->priv->local_offer_sdp = NULL;
@@ -103,8 +106,9 @@ kms_base_sdp_endpoint_release_local_offer_sdp (KmsBaseSdpEndpoint * self)
 static void
 kms_base_sdp_endpoint_release_local_answer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (self->priv->local_answer_sdp == NULL)
+  if (self->priv->local_answer_sdp == NULL) {
     return;
+  }
 
   gst_sdp_message_free (self->priv->local_answer_sdp);
   self->priv->local_answer_sdp = NULL;
@@ -113,8 +117,9 @@ kms_base_sdp_endpoint_release_local_answer_sdp (KmsBaseSdpEndpoint * self)
 static void
 kms_base_sdp_endpoint_release_remote_offer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (self->priv->remote_offer_sdp == NULL)
+  if (self->priv->remote_offer_sdp == NULL) {
     return;
+  }
 
   gst_sdp_message_free (self->priv->remote_offer_sdp);
   self->priv->remote_offer_sdp = NULL;
@@ -123,8 +128,9 @@ kms_base_sdp_endpoint_release_remote_offer_sdp (KmsBaseSdpEndpoint * self)
 static void
 kms_base_sdp_endpoint_release_remote_answer_sdp (KmsBaseSdpEndpoint * self)
 {
-  if (self->priv->remote_answer_sdp == NULL)
+  if (self->priv->remote_answer_sdp == NULL) {
     return;
+  }
 
   gst_sdp_message_free (self->priv->remote_answer_sdp);
   self->priv->remote_answer_sdp = NULL;
@@ -253,8 +259,9 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
   }
   KMS_ELEMENT_UNLOCK (self);
 
-  if (offer == NULL)
+  if (offer == NULL) {
     return NULL;
+  }
 
   if (!base_sdp_endpoint_class->set_transport_to_sdp (self, offer)) {
     gst_sdp_message_free (offer);
@@ -285,8 +292,9 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   }
   KMS_ELEMENT_UNLOCK (self);
 
-  if (answer == NULL)
+  if (answer == NULL) {
     return NULL;
+  }
 
   if (!base_sdp_endpoint_class->set_transport_to_sdp (self, answer)) {
     gst_sdp_message_free (answer);
