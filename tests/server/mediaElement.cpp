@@ -47,6 +47,7 @@ BOOST_AUTO_TEST_CASE (connection_test)
   }
 
   g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
+  g_object_set (sink->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
 
   connections = src->getSinkConnections ();
   BOOST_CHECK (connections.size() == 2);
@@ -93,4 +94,54 @@ BOOST_AUTO_TEST_CASE (connection_test)
 
   connections = sink->getSourceConnections ();
   BOOST_CHECK (connections.size() == 0);
+}
+
+BOOST_AUTO_TEST_CASE (release_before_real_connection)
+{
+  GstElement *srcElement;
+  gst_init (NULL, NULL);
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
+        boost::property_tree::ptree(), pipe, "dummysink") );
+  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
+      boost::property_tree::ptree(), pipe, "dummysrc") );
+
+  src->setName ("SOURCE");
+  sink->setName ("SINK");
+
+  g_object_set (sink->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
+  srcElement = (GstElement *) g_object_ref (src->getGstreamerElement() );
+  g_object_set (srcElement, "audio", TRUE, NULL);
+
+  src->connect (sink);
+
+  src->disconnect (sink);
+
+  src->release ();
+  src.reset();
+
+  sink->release();
+  sink.reset();
+
+  g_object_set (srcElement, "audio", TRUE, "video", TRUE, NULL);
+  g_object_unref (srcElement);
+}
+
+BOOST_AUTO_TEST_CASE (loopback)
+{
+  gst_init (NULL, NULL);
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  std::shared_ptr <MediaElementImpl> duplex (new  MediaElementImpl (
+        boost::property_tree::ptree(), pipe, "dummyduplex") );
+
+  duplex->setName ("DUPLEX");
+
+  g_object_set (duplex->getGstreamerElement(), "src-audio", TRUE, "src-video",
+                TRUE, "sink-audio", TRUE, "sink-video", TRUE, NULL);
+
+  duplex->connect (duplex);
+
+  duplex->release();
 }
