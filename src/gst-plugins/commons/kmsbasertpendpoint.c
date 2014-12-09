@@ -99,8 +99,9 @@ sdp_message_is_bundle (GstSDPMessage * msg)
     GMatchInfo *match_info = NULL;
 
     val = gst_sdp_message_get_attribute_val_n (msg, "group", i);
-    if (val == NULL)
+    if (val == NULL) {
       break;
+    }
 
     regex = g_regex_new ("BUNDLE(?<mids>.*)?", 0, 0, NULL);
     g_regex_match (regex, val, 0, &match_info);
@@ -144,6 +145,7 @@ sdp_message_is_rtcp_mux (GstSDPMessage * msg)
   return TRUE;
 }
 
+/* TODO: do configurable */
 static void
 sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
 {
@@ -183,10 +185,11 @@ sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
   }
 }
 
-static gboolean
+static const gchar *
 kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
-    GstSDPMedia * media, gboolean use_ipv6, const gchar ** media_str)
+    GstSDPMedia * media, gboolean use_ipv6)
 {
+  const gchar *media_str;
   const gchar *rtpbin_pad_name = NULL;
   guint session_id;
   gchar *rtp_addr, *rtcp_addr;
@@ -195,18 +198,17 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   guint conn_len, c;
   gchar *str;
 
-  *media_str = gst_sdp_media_get_media (media);
+  media_str = gst_sdp_media_get_media (media);
   if (self->priv->bundle) {
-    if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
+    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
       rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
       session_id = AUDIO_RTP_SESSION;
-    } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
+    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
       rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
       session_id = VIDEO_RTP_SESSION;
     } else {
-      GST_WARNING_OBJECT (self, "Media \"%s\" not supported", *media_str);
-      *media_str = NULL;
-      return TRUE;
+      GST_WARNING_OBJECT (self, "Media \"%s\" not supported", media_str);
+      return NULL;
     }
   }
 
@@ -216,26 +218,27 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   rtp_addr = rtcp_addr = "0.0.0.0";
   rtp_port = rtcp_port = 1;
 
-  ((GstSDPMedia *) media)->port = rtp_port;
+  media->port = rtp_port;
   conn_len = gst_sdp_media_connections_len (media);
   for (c = 0; c < conn_len; c++) {
-    gst_sdp_media_remove_connection ((GstSDPMedia *) media, c);
+    gst_sdp_media_remove_connection (media, c);
   }
-  gst_sdp_media_add_connection ((GstSDPMedia *) media, "IN", addr_type,
-      rtp_addr, 0, 0);
+  gst_sdp_media_add_connection (media, "IN", addr_type, rtp_addr, 0, 0);
 
   str = g_strdup_printf ("%d IN %s %s", rtcp_port, addr_type, rtcp_addr);
-  gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp", str);
+  gst_sdp_media_add_attribute (media, "rtcp", str);
   g_free (str);
 
   if (self->priv->bundle || self->priv->rtcp_mux) {
-    gst_sdp_media_add_attribute ((GstSDPMedia *) media, RTCP_MUX, "");
+    gst_sdp_media_add_attribute (media, RTCP_MUX, "");
   }
 
   if (rtpbin_pad_name != NULL) {
     GstElement *rtpbin = self->priv->rtpbin;
     GObject *rtpsession;
     GstPad *pad;
+    guint ssrc;
+    GstStructure *sdes;
 
     /* Create RtpSession requesting the pad */
     pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
@@ -243,33 +246,33 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
 
     g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
         &rtpsession);
-    if (rtpsession != NULL) {
-      guint ssrc;
-      gchar *value;
-      GstStructure *sdes;
+    if (rtpsession == NULL) {
+      GST_WARNING_OBJECT (self, "RTP Session not created for media \"%s\"",
+          media_str);
+      return NULL;
+    }
 
-      g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
-      g_object_unref (rtpsession);
+    g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
+    g_object_unref (rtpsession);
 
-      g_object_get (rtpbin, "sdes", &sdes, NULL);
-      value =
-          g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc,
-          gst_structure_get_string (sdes, "cname"));
-      gst_structure_free (sdes);
-      gst_sdp_media_add_attribute (media, "ssrc", value);
-      g_free (value);
+    g_object_get (rtpbin, "sdes", &sdes, NULL);
+    str =
+        g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc,
+        gst_structure_get_string (sdes, "cname"));
+    gst_structure_free (sdes);
+    gst_sdp_media_add_attribute (media, "ssrc", str);
+    g_free (str);
 
-      if (session_id == AUDIO_RTP_SESSION) {
-        self->priv->local_audio_ssrc = ssrc;
-      } else if (session_id == VIDEO_RTP_SESSION) {
-        self->priv->local_video_ssrc = ssrc;
-      }
+    if (session_id == AUDIO_RTP_SESSION) {
+      self->priv->local_audio_ssrc = ssrc;
+    } else if (session_id == VIDEO_RTP_SESSION) {
+      self->priv->local_video_ssrc = ssrc;
     }
   }
 
   sdp_media_set_rtcp_fb_attrs (media);
 
-  return TRUE;
+  return media_str;
 }
 
 static gboolean
@@ -283,14 +286,13 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   gboolean ret = TRUE;
 
   KMS_ELEMENT_LOCK (self);
+
   g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
   if (remote_offer_sdp != NULL) {
     self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
     self->priv->rtcp_mux = sdp_message_is_rtcp_mux (remote_offer_sdp);
     gst_sdp_message_free (remote_offer_sdp);
   }
-
-  GST_INFO ("BUNDLE: %" G_GUINT32_FORMAT, self->priv->bundle);
 
   if (self->priv->bundle) {
     bundle_mids = g_strdup ("BUNDLE");
@@ -303,14 +305,12 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     gboolean use_ipv6;
 
     g_object_get (base_sdp_endpoint, "use-ipv6", &use_ipv6, NULL);
-    if (!kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
-            use_ipv6, &media_str)) {
+    media_str =
+        kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
+        use_ipv6);
+    if (media_str == NULL) {
       ret = FALSE;
       goto end;
-    }
-
-    if (media_str == NULL) {
-      continue;
     }
 
     if (self->priv->bundle) {
