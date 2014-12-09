@@ -309,11 +309,18 @@ MediaSet::unrefSession (const std::string &sessionId)
   lock.unlock();
 }
 
+static void
+call_release (std::shared_ptr<MediaObjectImpl> mediaObject)
+{
+  mediaObject->release();
+}
+
 void
 MediaSet::unref (const std::string &sessionId,
                  std::shared_ptr< MediaObjectImpl > mediaObject)
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
+  bool released = false;
 
   if (!mediaObject) {
     return;
@@ -339,6 +346,7 @@ MediaSet::unref (const std::string &sessionId,
     if (it3->second.empty() ) {
       std::shared_ptr<MediaObjectImpl> parent;
 
+      released = true;
       parent = std::dynamic_pointer_cast<MediaObjectImpl> (mediaObject->getParent() );
 
       if (parent) {
@@ -363,6 +371,11 @@ MediaSet::unref (const std::string &sessionId,
 
   if (eventIt != eventHandler.end() ) {
     eventIt->second.erase (mediaObject->getId() );
+  }
+
+  if (released) {
+    objectsMap.erase (mediaObject->getId() );
+    workers->post ( std::bind (call_release, mediaObject) );
   }
 
   lock.unlock();

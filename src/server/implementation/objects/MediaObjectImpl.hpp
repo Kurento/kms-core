@@ -42,6 +42,11 @@ public:
   virtual std::string getName ();
   virtual void setName (const std::string &name);
 
+  virtual void release ()
+  {
+
+  }
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
