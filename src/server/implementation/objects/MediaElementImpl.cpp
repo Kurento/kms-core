@@ -336,6 +336,14 @@ MediaElementImpl::~MediaElementImpl ()
   g_object_unref (bus);
 }
 
+void
+MediaElementImpl::release ()
+{
+  disconnectAll ();
+
+  MediaObjectImpl::release();
+}
+
 void MediaElementImpl::disconnectAll ()
 {
   std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex);

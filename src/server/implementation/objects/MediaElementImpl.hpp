@@ -83,6 +83,8 @@ public:
   void setAudioFormat (std::shared_ptr<AudioCaps> caps);
   void setVideoFormat (std::shared_ptr<VideoCaps> caps);
 
+  virtual void release ();
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
