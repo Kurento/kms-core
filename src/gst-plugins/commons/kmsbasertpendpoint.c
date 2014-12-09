@@ -1065,3 +1065,15 @@ kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self)
 
   return self->priv->rtpbin;
 }
+
+guint
+kms_base_rtp_endpoint_get_local_audio_ssrc (KmsBaseRtpEndpoint * self)
+{
+  return self->priv->local_audio_ssrc;
+}
+
+guint
+kms_base_rtp_endpoint_get_local_video_ssrc (KmsBaseRtpEndpoint * self)
+{
+  return self->priv->local_video_ssrc;
+}

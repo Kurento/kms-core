@@ -102,6 +102,8 @@ GType kms_base_rtp_endpoint_get_type (void);
 
 /* rtpbin must be used helding the KmsBaseRtpEndpoint's lock */
 GstElement *kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self);
+guint kms_base_rtp_endpoint_get_local_audio_ssrc (KmsBaseRtpEndpoint * self);
+guint kms_base_rtp_endpoint_get_local_video_ssrc (KmsBaseRtpEndpoint * self);
 
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_ENDPOINT_H__ */
