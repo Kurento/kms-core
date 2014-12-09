@@ -190,7 +190,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   const gchar *rtpbin_pad_name = NULL;
   guint session_id;
   gchar *rtp_addr, *rtcp_addr;
-  const gchar *rtp_addr_type, *rtcp_addr_type;
+  const gchar *addr_type;
   guint rtp_port, rtcp_port;
   guint conn_len, c;
   gchar *str;
@@ -212,21 +212,19 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
 
   gst_sdp_media_set_proto (media, self->priv->proto);
 
-  rtp_addr_type = use_ipv6 ? "IP6" : "IP4";
-  rtcp_addr_type = use_ipv6 ? "IP6" : "IP4";
-
-  rtp_port = rtcp_port = 1;
+  addr_type = use_ipv6 ? "IP6" : "IP4";
   rtp_addr = rtcp_addr = "0.0.0.0";
+  rtp_port = rtcp_port = 1;
 
   ((GstSDPMedia *) media)->port = rtp_port;
   conn_len = gst_sdp_media_connections_len (media);
   for (c = 0; c < conn_len; c++) {
     gst_sdp_media_remove_connection ((GstSDPMedia *) media, c);
   }
-  gst_sdp_media_add_connection ((GstSDPMedia *) media, "IN", rtp_addr_type,
+  gst_sdp_media_add_connection ((GstSDPMedia *) media, "IN", addr_type,
       rtp_addr, 0, 0);
 
-  str = g_strdup_printf ("%d IN %s %s", rtcp_port, rtcp_addr_type, rtcp_addr);
+  str = g_strdup_printf ("%d IN %s %s", rtcp_port, addr_type, rtcp_addr);
   gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp", str);
   g_free (str);
 
