@@ -45,6 +45,8 @@ struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
 
+  gboolean bundle;              /* Implies rtcp-mux */
+
   GstElement *audio_payloader;
   GstElement *video_payloader;
 
@@ -57,8 +59,6 @@ struct _KmsBaseRtpEndpointPrivate
   gboolean negotiated;
 
   gint32 target_bitrate;
-
-  gint is_bundle;
 };
 
 /* Signals and args */
@@ -71,11 +71,13 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_BUNDLE    FALSE
 #define DEFAULT_TARGET_BITRATE    0
 
 enum
 {
   PROP_0,
+  PROP_BUNDLE,
   PROP_TARGET_BITRATE,
   PROP_LAST
 };
@@ -201,7 +203,6 @@ static gboolean
 kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     GstSDPMedia * media, gboolean use_ipv6, const gchar ** media_str)
 {
-  gint is_bundle = g_atomic_int_get (&self->priv->is_bundle);
   const gchar *rtpbin_pad_name = NULL;
   const gchar *proto_str;
   gchar *rtp_addr, *rtcp_addr;
@@ -212,7 +213,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
 
   *media_str = gst_sdp_media_get_media (media);
 
-  if (is_bundle) {
+  if (self->priv->bundle) {
     if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
       rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
     } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
@@ -252,7 +253,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp", str);
   g_free (str);
 
-  if (is_bundle) {
+  if (self->priv->bundle) {
     gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp-mux", "");
   }
 
@@ -299,13 +300,13 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   KMS_ELEMENT_LOCK (self);
   g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
   if (remote_offer_sdp != NULL) {
-    self->priv->is_bundle = sdp_message_is_bundle (remote_offer_sdp);
+    self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
     gst_sdp_message_free (remote_offer_sdp);
   }
 
-  GST_INFO ("BUNDLE: %" G_GUINT32_FORMAT, self->priv->is_bundle);
+  GST_INFO ("BUNDLE: %" G_GUINT32_FORMAT, self->priv->bundle);
 
-  if (self->priv->is_bundle) {
+  if (self->priv->bundle) {
     bundle_mids = g_strdup ("BUNDLE");
   }
 
@@ -326,7 +327,7 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
       continue;
     }
 
-    if (self->priv->is_bundle) {
+    if (self->priv->bundle) {
       gchar *tmp;
 
       tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
@@ -335,7 +336,7 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     }
   }
 
-  if (self->priv->is_bundle) {
+  if (self->priv->bundle) {
     gst_sdp_message_add_attribute (msg, "group", bundle_mids);
     g_free (bundle_mids);
   }
@@ -797,6 +798,9 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
+    case PROP_BUNDLE:
+      self->priv->bundle = g_value_get_boolean (value);
+      break;
     case PROP_TARGET_BITRATE:
       self->priv->target_bitrate = g_value_get_int (value);
       break;
@@ -817,6 +821,9 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
+    case PROP_BUNDLE:
+      g_value_set_boolean (value, self->priv->bundle);
+      break;
     case PROP_TARGET_BITRATE:
       g_value_set_int (value, self->priv->target_bitrate);
       break;
@@ -886,6 +893,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       kms_base_rtp_endpoint_set_transport_to_sdp;
   base_endpoint_class->connect_input_elements =
       kms_base_rtp_endpoint_connect_input_elements;
+
+  g_object_class_install_property (object_class, PROP_BUNDLE,
+      g_param_spec_boolean ("bundle", "Bundle media",
+          "Bundle media", DEFAULT_BUNDLE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_TARGET_BITRATE,
       g_param_spec_int ("target-bitrate", "Target bitrate",
@@ -1008,6 +1020,8 @@ static void
 kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 {
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
+  self->priv->bundle = DEFAULT_BUNDLE;
+
   self->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
 
   g_signal_connect (self->priv->rtpbin, "request-pt-map",
