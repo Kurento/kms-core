@@ -259,7 +259,32 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 
     }
   } else {
-    // TODO:
+    std::unique_lock<std::recursive_mutex> lock (self->sourcesMutex);
+    std::shared_ptr<MediaType> type;
+
+    if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio") ) {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+    } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video") ) {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+    } else {
+      type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+    }
+
+    try {
+      auto sourceData = self->sources.at (type).at ("");
+      auto source = sourceData->getSource();
+
+      if (source) {
+        if (g_strcmp0 (GST_OBJECT_NAME (pad),
+                       sourceData->getSinkPadName().c_str() ) == 0) {
+          std::unique_lock<std::recursive_mutex> sourceLock (source->sinksMutex);
+
+          source->performConnection (sourceData);
+        }
+      }
+    } catch (std::out_of_range) {
+
+    }
   }
 }
 
