@@ -121,45 +121,6 @@ sdp_message_is_bundle (GstSDPMessage * msg)
   return is_bundle;
 }
 
-static guint
-rtpbin_get_ssrc (GstElement * rtpbin, const gchar * rtpbin_pad_name)
-{
-  guint ssrc = 0;
-  GstPad *pad = gst_element_get_static_pad (rtpbin, rtpbin_pad_name);
-  GstCaps *caps;
-  int i;
-
-  if (pad == NULL) {            /* FIXME: race condition problem */
-    pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
-  }
-
-  if (pad == NULL) {
-    GST_WARNING ("No pad");
-    return 0;
-  }
-
-  caps = gst_pad_query_caps (pad, NULL);
-  g_object_unref (pad);
-  if (caps == NULL) {
-    GST_WARNING ("No caps");
-    return 0;
-  }
-
-  GST_DEBUG ("Peer caps: %" GST_PTR_FORMAT, caps);
-
-  for (i = 0; i < gst_caps_get_size (caps); i++) {
-    GstStructure *st;
-
-    st = gst_caps_get_structure (caps, 0);
-    if (gst_structure_get_uint (st, "ssrc", &ssrc))
-      break;
-  }
-
-  gst_caps_unref (caps);
-
-  return ssrc;
-}
-
 static void
 sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
 {
@@ -204,6 +165,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     GstSDPMedia * media, gboolean use_ipv6, const gchar ** media_str)
 {
   const gchar *rtpbin_pad_name = NULL;
+  guint session_id;
   const gchar *proto_str;
   gchar *rtp_addr, *rtcp_addr;
   const gchar *rtp_addr_type, *rtcp_addr_type;
@@ -216,8 +178,10 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   if (self->priv->bundle) {
     if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
       rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
+      session_id = AUDIO_RTP_SESSION;
     } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
       rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
+      session_id = VIDEO_RTP_SESSION;
     } else {
       GST_WARNING_OBJECT (self, "Media \"%s\" not supported", *media_str);
       *media_str = NULL;
@@ -259,11 +223,22 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
 
   if (rtpbin_pad_name != NULL) {
     GstElement *rtpbin = self->priv->rtpbin;
-    guint ssrc = rtpbin_get_ssrc (rtpbin, rtpbin_pad_name);
+    GObject *rtpsession;
+    GstPad *pad;
 
-    if (ssrc != 0) {
+    /* Create RtpSession requesting the pad */
+    pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
+    g_object_unref (pad);
+
+    g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
+        &rtpsession);
+    if (rtpsession != NULL) {
+      guint ssrc;
       gchar *value;
       GstStructure *sdes;
+
+      g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
+      g_object_unref (rtpsession);
 
       g_object_get (rtpbin, "sdes", &sdes, NULL);
       value =
@@ -273,10 +248,9 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
       gst_sdp_media_add_attribute (media, "ssrc", value);
       g_free (value);
 
-      if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
+      if (session_id == AUDIO_RTP_SESSION) {
         self->priv->local_audio_ssrc = ssrc;
-      } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
-        /* TODO: improve this assignament. ¿Get from GstRtpSession? */
+      } else if (session_id == VIDEO_RTP_SESSION) {
         self->priv->local_video_ssrc = ssrc;
       }
     }
