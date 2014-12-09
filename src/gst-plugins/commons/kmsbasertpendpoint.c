@@ -794,16 +794,18 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (object);
 
+  KMS_ELEMENT_LOCK (self);
+
   switch (property_id) {
     case PROP_TARGET_BITRATE:
-      KMS_ELEMENT_LOCK (self);
       self->priv->target_bitrate = g_value_get_int (value);
-      KMS_ELEMENT_UNLOCK (self);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
+
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
@@ -812,16 +814,18 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (object);
 
+  KMS_ELEMENT_LOCK (self);
+
   switch (property_id) {
     case PROP_TARGET_BITRATE:
-      KMS_ELEMENT_LOCK (self);
       g_value_set_int (value, self->priv->target_bitrate);
-      KMS_ELEMENT_UNLOCK (self);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
+
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
