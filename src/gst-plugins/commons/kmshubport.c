@@ -134,13 +134,14 @@ kms_hub_port_request_new_pad (GstElement * element,
     agnosticbin = kms_element_get_video_agnosticbin (KMS_ELEMENT (element));
   }
 
-  if (agnosticbin != NULL)
+  if (agnosticbin == NULL) {
+    GST_WARNING_OBJECT (element, "No agnosticbin got for template %"
+        GST_PTR_FORMAT, templ);
+    return NULL;
+  } else {
     return kms_hub_port_generate_sink_pad (element, templ, name, caps,
         agnosticbin);
-
-  return
-      GST_ELEMENT_CLASS (kms_hub_port_parent_class)->request_new_pad
-      (element, templ, name, caps);
+  }
 }
 
 static void

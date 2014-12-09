@@ -416,8 +416,6 @@ release_requested_srcpad (GstPad * pad)
       &success);
   fail_if (!success);
 
-  gst_element_release_request_pad (dummysrc, pad);
-
   g_object_unref (dummysrc);
   g_free (padname);
 
@@ -512,8 +510,6 @@ pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   g_signal_emit_by_name (dummysrc, "release-requested-srcpad", padname,
       &success);
   fail_if (!success);
-
-  gst_element_release_request_pad (dummysrc, pad);
 
   g_object_unref (dummysrc);
   g_free (padname);

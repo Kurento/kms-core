@@ -118,14 +118,14 @@ static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE (SINK_PAD,
 static GstStaticPadTemplate audio_src_factory =
 GST_STATIC_PAD_TEMPLATE (AUDIO_SRC_PAD,
     GST_PAD_SRC,
-    GST_PAD_REQUEST,
+    GST_PAD_SOMETIMES,
     GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS)
     );
 
 static GstStaticPadTemplate video_src_factory =
 GST_STATIC_PAD_TEMPLATE (VIDEO_SRC_PAD,
     GST_PAD_SRC,
-    GST_PAD_REQUEST,
+    GST_PAD_SOMETIMES,
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS)
     );
 
@@ -481,23 +481,6 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   return self->priv->video_agnosticbin;
 }
 
-static GstPad *
-kms_element_generate_src_pad (KmsElement * element, const gchar * name,
-    GstElement * agnosticbin, GstPadTemplate * templ)
-{
-  GstPad *agnostic_pad;
-  GstPad *ret_pad;
-
-  if (agnosticbin == NULL)
-    return NULL;
-
-  agnostic_pad = gst_element_get_request_pad (agnosticbin, "src_%u");
-  ret_pad = gst_ghost_pad_new_from_template (name, agnostic_pad, templ);
-  g_object_unref (agnostic_pad);
-
-  return ret_pad;
-}
-
 static void
 send_flush_on_unlink (GstPad * pad, GstPad * peer, gpointer user_data)
 {
@@ -646,80 +629,6 @@ kms_element_remove_sink_by_type_full (KmsElement * self,
 
 end:
   g_free (pad_name);
-}
-
-static GstPad *
-kms_element_request_new_pad (GstElement * element,
-    GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
-{
-  GstPad *ret_pad = NULL;
-  gchar *pad_name;
-  gboolean added;
-
-  if (templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (element)), AUDIO_SRC_PAD)) {
-    KMS_ELEMENT_LOCK (element);
-    pad_name = g_strdup_printf (AUDIO_SRC_PAD,
-        KMS_ELEMENT (element)->priv->audio_pad_count++);
-
-    ret_pad = kms_element_generate_src_pad (KMS_ELEMENT (element), pad_name,
-        KMS_ELEMENT (element)->priv->audio_agnosticbin, templ);
-
-    if (ret_pad == NULL)
-      KMS_ELEMENT (element)->priv->audio_pad_count--;
-
-    KMS_ELEMENT_UNLOCK (element);
-
-    g_free (pad_name);
-
-  } else if (templ ==
-      gst_element_class_get_pad_template (GST_ELEMENT_CLASS (G_OBJECT_GET_CLASS
-              (element)), VIDEO_SRC_PAD)) {
-    KMS_ELEMENT_LOCK (element);
-    pad_name = g_strdup_printf (VIDEO_SRC_PAD,
-        KMS_ELEMENT (element)->priv->video_pad_count++);
-
-    ret_pad = kms_element_generate_src_pad (KMS_ELEMENT (element), pad_name,
-        KMS_ELEMENT (element)->priv->video_agnosticbin, templ);
-
-    if (ret_pad == NULL)
-      KMS_ELEMENT (element)->priv->video_pad_count--;
-
-    KMS_ELEMENT_UNLOCK (element);
-
-    g_free (pad_name);
-  }
-
-  if (ret_pad == NULL) {
-    GST_INFO ("No pad created, agnostic should not be ready yet");
-    return NULL;
-  }
-
-  if (GST_STATE (element) >= GST_STATE_PAUSED
-      || GST_STATE_PENDING (element) >= GST_STATE_PAUSED
-      || GST_STATE_TARGET (element) >= GST_STATE_PAUSED)
-    gst_pad_set_active (ret_pad, TRUE);
-
-  added = gst_element_add_pad (element, ret_pad);
-
-  if (added)
-    return ret_pad;
-
-  if (gst_pad_get_direction (ret_pad) == GST_PAD_SRC) {
-    GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (ret_pad));
-
-    if (target != NULL) {
-      GstElement *agnostic = gst_pad_get_parent_element (target);
-
-      gst_element_release_request_pad (agnostic, target);
-      g_object_unref (target);
-      g_object_unref (agnostic);
-    }
-  }
-
-  g_object_unref (ret_pad);
-  return NULL;
 }
 
 static void
@@ -955,6 +864,7 @@ kms_element_release_requested_srcpad_action (KmsElement * self,
         name = gst_pad_get_name (pad);
         if ((released = g_strcmp0 (name, pad_name) == 0)) {
           kms_element_remove_target_pad (self, pad);
+          kms_element_release_pad (GST_ELEMENT (self), pad);
           done = TRUE;
         }
         g_value_reset (&item);
@@ -993,9 +903,7 @@ kms_element_class_init (KmsElementClass * klass)
       "Base/Bin/KmsElement",
       "Base class for elements",
       "José Antonio Santos Cadenas <santoscadenas@kurento.com>");
-  gstelement_class->request_new_pad =
-      GST_DEBUG_FUNCPTR (kms_element_request_new_pad);
-  gstelement_class->release_pad = GST_DEBUG_FUNCPTR (kms_element_release_pad);
+
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&audio_src_factory));
   gst_element_class_add_pad_template (gstelement_class,

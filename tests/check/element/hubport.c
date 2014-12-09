@@ -19,19 +19,45 @@
 #define HUB_AUDIO_SINK "hub_audio_sink"
 #define HUB_VIDEO_SINK "hub_video_sink"
 
+#define KMS_ELEMENT_PAD_TYPE_DATA 0
+#define KMS_ELEMENT_PAD_TYPE_AUDIO 1
+#define KMS_ELEMENT_PAD_TYPE_VIDEO 2
+
+static void
+pad_added (GstElement * element, GstPad * new_pad, gpointer user_data)
+{
+  GSList **added_apds = (GSList **) user_data;
+  gchar *name;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, new_pad);
+  name = gst_pad_get_name (new_pad);
+
+  *added_apds = g_slist_append (*added_apds, name);
+}
+
 GST_START_TEST (connect_srcs)
 {
   GstElement *hubport = gst_element_factory_make ("hubport", NULL);
+  gchar *video_pad_name, *audio_pad_name;
+  GSList *added_apds = NULL;
   GstPad *sink, *src;
+
+  g_signal_connect (hubport, "pad-added", G_CALLBACK (pad_added), &added_apds);
 
   src = gst_element_get_request_pad (hubport, "video_src_%u");
   fail_unless (src == NULL);
+
   sink = gst_element_get_request_pad (hubport, HUB_VIDEO_SINK);
   fail_unless (sink != NULL);
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), HUB_VIDEO_SINK) == 0);
-  src = gst_element_get_request_pad (hubport, "video_src_%u");
-  fail_unless (src != NULL);
-  g_object_unref (src);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (hubport, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &video_pad_name);
+  fail_if (video_pad_name == NULL);
+
+  GST_DEBUG ("Pad name %s", video_pad_name);
+
   g_object_unref (sink);
 
   src = gst_element_get_request_pad (hubport, "audio_src_%u");
@@ -39,12 +65,25 @@ GST_START_TEST (connect_srcs)
   sink = gst_element_get_request_pad (hubport, HUB_AUDIO_SINK);
   fail_unless (sink != NULL);
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), HUB_AUDIO_SINK) == 0);
-  src = gst_element_get_request_pad (hubport, "audio_src_%u");
-  fail_unless (src != NULL);
-  g_object_unref (src);
-  g_object_unref (sink);
 
+  /* request src pad using action */
+  g_signal_emit_by_name (hubport, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &audio_pad_name);
+  fail_if (audio_pad_name == NULL);
+
+  GST_DEBUG ("Pad name %s", audio_pad_name);
+
+  g_object_unref (sink);
   g_object_unref (hubport);
+
+  fail_if (g_slist_find_custom (added_apds, audio_pad_name,
+          (GCompareFunc) g_strcmp0) == NULL);
+  fail_if (g_slist_find_custom (added_apds, video_pad_name,
+          (GCompareFunc) g_strcmp0) == NULL);
+
+  g_free (audio_pad_name);
+  g_free (video_pad_name);
+  g_slist_free_full (added_apds, g_free);
 }
 
 GST_END_TEST
@@ -97,6 +136,7 @@ hubport_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+
   tcase_add_test (tc_chain, create_element);
   tcase_add_test (tc_chain, connect_sinks);
   tcase_add_test (tc_chain, connect_srcs);
