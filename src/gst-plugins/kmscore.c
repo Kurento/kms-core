@@ -25,6 +25,7 @@
 #include <kmsbufferinjector.h>
 #include <kmsdummysrc.h>
 #include <kmsdummysink.h>
+#include <kmsdummyduplex.h>
 
 static gboolean
 kurento_init (GstPlugin * kurento)
@@ -57,6 +58,9 @@ kurento_init (GstPlugin * kurento)
     return FALSE;
 
   if (!kms_dummy_sink_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_dummy_duplex_plugin_init (kurento))
     return FALSE;
 
   return TRUE;

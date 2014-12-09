@@ -15,6 +15,7 @@ set(KMS_CORE_SOURCES
   kmsbufferinjector.c kmsbufferinjector.h
   kmsdummysrc.c kmsdummysrc.h
   kmsdummysink.c kmsdummysink.h
+  kmsdummyduplex.c kmsdummyduplex.h
 )
 
 add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
