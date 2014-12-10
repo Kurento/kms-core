@@ -169,6 +169,55 @@ sdp_utils_media_get_direction (const GstSDPMedia * media)
   return SENDRECV;
 }
 
+static gchar *
+sdp_media_get_ssrc_str (const GstSDPMedia * media)
+{
+  gchar *ssrc = NULL;
+  const gchar *val;
+  GRegex *regex;
+  GMatchInfo *match_info = NULL;
+
+  val = gst_sdp_media_get_attribute_val (media, "ssrc");
+
+  if (val == NULL)
+    return NULL;
+
+  regex = g_regex_new ("^(?<ssrc>[0-9]+)(.*)?$", 0, 0, NULL);
+  g_regex_match (regex, val, 0, &match_info);
+  g_regex_unref (regex);
+
+  if (g_match_info_matches (match_info)) {
+    ssrc = g_match_info_fetch_named (match_info, "ssrc");
+  }
+  g_match_info_free (match_info);
+
+  return ssrc;
+}
+
+guint
+sdp_utils_media_get_ssrc (const GstSDPMedia * media)
+{
+  gchar *ssrc_str;
+  guint ssrc = 0;
+  gint64 val;
+
+  ssrc_str = sdp_media_get_ssrc_str (media);
+  if (ssrc_str == NULL) {
+    return 0;
+  }
+
+  val = g_ascii_strtoll (ssrc_str, NULL, 10);
+  if (val > G_MAXUINT32) {
+    GST_ERROR ("SSRC %" G_GINT64_FORMAT " not valid", val);
+  } else {
+    ssrc = val;
+  }
+
+  g_free (ssrc_str);
+
+  return ssrc;
+}
+
 static void
 sdp_media_set_direction (GstSDPMedia * media, GstSDPDirection direction)
 {
@@ -190,7 +239,7 @@ sdp_media_set_direction (GstSDPMedia * media, GstSDPDirection direction)
 }
 
 /**
- * Returns : a string or NULL if any.
+ * Returns : a string or NULL if any.
  */
 const gchar *
 sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media, const gchar * format)
@@ -231,7 +280,7 @@ sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media, const gchar * format)
 }
 
 /**
- * Returns : a string or NULL if any.
+ * Returns : a string or NULL if any.
  * The returned string should be freed with g_free() when no longer needed.
  */
 gchar *
