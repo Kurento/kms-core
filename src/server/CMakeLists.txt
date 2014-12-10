@@ -88,4 +88,6 @@ generate_code (
       "LIBNAME Boost COMPONENTS filesystem system"
 )
 
-add_dependencies(${LIBRARY_NAME}impl kmscoreplugins)
+if (NOT ${DISABLE_LIBRARIES_GENERATION})
+  add_dependencies(${LIBRARY_NAME}impl kmscoreplugins)
+endif()
