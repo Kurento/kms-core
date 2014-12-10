@@ -164,19 +164,19 @@ sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
     if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) == 0) {
       gchar *aux;
 
-      aux = g_strconcat (pt, " ccm fir", NULL);
+      aux = g_strconcat (pt, " ", RTCP_FB_FIR, NULL);
       gst_sdp_media_add_attribute (media, RTCP_FB, aux);
       g_free (aux);
 
-      aux = g_strconcat (pt, " nack", NULL);
+      aux = g_strconcat (pt, " ", RTCP_FB_NACK, NULL);
       gst_sdp_media_add_attribute (media, RTCP_FB, aux);
       g_free (aux);
 
-      aux = g_strconcat (pt, " nack pli", NULL);
+      aux = g_strconcat (pt, " ", RTCP_FB_PLI, NULL);
       gst_sdp_media_add_attribute (media, RTCP_FB, aux);
       g_free (aux);
 
-      aux = g_strconcat (pt, " goog-remb", NULL);
+      aux = g_strconcat (pt, " ", RTCP_FB_REMB, NULL);
       gst_sdp_media_add_attribute (media, RTCP_FB, aux);
       g_free (aux);
     }
