@@ -48,12 +48,17 @@ struct _KmsBaseRtpEndpointPrivate
   GstElement *audio_payloader;
   GstElement *video_payloader;
 
+  guint local_audio_ssrc;
   guint audio_ssrc;
+
+  guint local_video_ssrc;
   guint video_ssrc;
 
   gboolean negotiated;
 
   gint32 target_bitrate;
+
+  gint is_bundle;
 };
 
 /* Signals and args */
@@ -74,6 +79,274 @@ enum
   PROP_TARGET_BITRATE,
   PROP_LAST
 };
+
+/* Set Transport begin */
+static gboolean
+sdp_message_is_bundle (GstSDPMessage * msg)
+{
+  gboolean is_bundle = FALSE;
+  guint i;
+
+  for (i = 0;; i++) {
+    const gchar *val;
+    GRegex *regex;
+    GMatchInfo *match_info = NULL;
+
+    val = gst_sdp_message_get_attribute_val_n (msg, "group", i);
+    if (val == NULL)
+      break;
+
+    regex = g_regex_new ("BUNDLE(?<mids>.*)?", 0, 0, NULL);
+    g_regex_match (regex, val, 0, &match_info);
+    g_regex_unref (regex);
+
+    if (g_match_info_matches (match_info)) {
+      gchar *mids_str = g_match_info_fetch_named (match_info, "mids");
+      gchar **mids;
+
+      mids = g_strsplit (mids_str, " ", 0);
+      g_free (mids_str);
+      is_bundle = g_strv_length (mids) > 0;
+      g_strfreev (mids);
+      g_match_info_free (match_info);
+
+      break;
+    }
+
+    g_match_info_free (match_info);
+  }
+
+  return is_bundle;
+}
+
+static guint
+rtpbin_get_ssrc (GstElement * rtpbin, const gchar * rtpbin_pad_name)
+{
+  guint ssrc = 0;
+  GstPad *pad = gst_element_get_static_pad (rtpbin, rtpbin_pad_name);
+  GstCaps *caps;
+  int i;
+
+  if (pad == NULL) {            /* FIXME: race condition problem */
+    pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
+  }
+
+  if (pad == NULL) {
+    GST_WARNING ("No pad");
+    return 0;
+  }
+
+  caps = gst_pad_query_caps (pad, NULL);
+  g_object_unref (pad);
+  if (caps == NULL) {
+    GST_WARNING ("No caps");
+    return 0;
+  }
+
+  GST_DEBUG ("Peer caps: %" GST_PTR_FORMAT, caps);
+
+  for (i = 0; i < gst_caps_get_size (caps); i++) {
+    GstStructure *st;
+
+    st = gst_caps_get_structure (caps, 0);
+    if (gst_structure_get_uint (st, "ssrc", &ssrc))
+      break;
+  }
+
+  gst_caps_unref (caps);
+
+  return ssrc;
+}
+
+static void
+sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
+{
+  guint i, f_len;
+
+  if (g_strcmp0 (VIDEO_STREAM_NAME, gst_sdp_media_get_media (media)) != 0) {
+    return;
+  }
+
+  f_len = gst_sdp_media_formats_len (media);
+
+  for (i = 0; i < f_len; i++) {
+    const gchar *pt = gst_sdp_media_get_format (media, i);
+    gchar *enconding_name = gst_sdp_media_format_get_encoding_name (media, pt);
+
+    if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) == 0) {
+      gchar *aux;
+
+      aux = g_strconcat (pt, " ccm fir", NULL);
+      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+      g_free (aux);
+
+      aux = g_strconcat (pt, " nack", NULL);
+      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+      g_free (aux);
+
+      aux = g_strconcat (pt, " nack pli", NULL);
+      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+      g_free (aux);
+
+      aux = g_strconcat (pt, " goog-remb", NULL);
+      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+      g_free (aux);
+    }
+
+    g_free (enconding_name);
+  }
+}
+
+static gboolean
+kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
+    GstSDPMedia * media, gboolean use_ipv6, const gchar ** media_str)
+{
+  gint is_bundle = g_atomic_int_get (&self->priv->is_bundle);
+  const gchar *rtpbin_pad_name = NULL;
+  const gchar *proto_str;
+  gchar *rtp_addr, *rtcp_addr;
+  const gchar *rtp_addr_type, *rtcp_addr_type;
+  guint rtp_port, rtcp_port;
+  guint conn_len, c;
+  gchar *str;
+
+  *media_str = gst_sdp_media_get_media (media);
+
+  if (is_bundle) {
+    if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
+      rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
+    } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
+      rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
+    } else {
+      GST_WARNING_OBJECT (self, "Media \"%s\" not supported", *media_str);
+      *media_str = NULL;
+      return TRUE;
+    }
+  }
+  proto_str = gst_sdp_media_get_proto (media);
+  if (g_ascii_strcasecmp (SDP_MEDIA_RTP_AVP_PROTO, proto_str) != 0 &&
+      g_ascii_strcasecmp (SDP_MEDIA_RTP_SAVPF_PROTO, proto_str)) {
+    GST_WARNING ("Proto \"%s\" not supported", proto_str);
+    ((GstSDPMedia *) media)->port = 0;
+    *media_str = NULL;
+    return TRUE;
+  }
+
+  gst_sdp_media_set_proto (media, SDP_MEDIA_RTP_SAVPF_PROTO);
+
+  rtp_addr_type = use_ipv6 ? "IP6" : "IP4";
+  rtcp_addr_type = use_ipv6 ? "IP6" : "IP4";
+
+  rtp_port = rtcp_port = 1;
+  rtp_addr = rtcp_addr = "0.0.0.0";
+
+  ((GstSDPMedia *) media)->port = rtp_port;
+  conn_len = gst_sdp_media_connections_len (media);
+  for (c = 0; c < conn_len; c++) {
+    gst_sdp_media_remove_connection ((GstSDPMedia *) media, c);
+  }
+  gst_sdp_media_add_connection ((GstSDPMedia *) media, "IN", rtp_addr_type,
+      rtp_addr, 0, 0);
+
+  str = g_strdup_printf ("%d IN %s %s", rtcp_port, rtcp_addr_type, rtcp_addr);
+  gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp", str);
+  g_free (str);
+
+  if (is_bundle) {
+    gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp-mux", "");
+  }
+
+  if (rtpbin_pad_name != NULL) {
+    GstElement *rtpbin = self->priv->rtpbin;
+    guint ssrc = rtpbin_get_ssrc (rtpbin, rtpbin_pad_name);
+
+    if (ssrc != 0) {
+      gchar *value;
+      GstStructure *sdes;
+
+      g_object_get (rtpbin, "sdes", &sdes, NULL);
+      value =
+          g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc,
+          gst_structure_get_string (sdes, "cname"));
+      gst_structure_free (sdes);
+      gst_sdp_media_add_attribute (media, "ssrc", value);
+      g_free (value);
+
+      if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
+        self->priv->local_audio_ssrc = ssrc;
+      } else if (g_strcmp0 (VIDEO_STREAM_NAME, *media_str) == 0) {
+        /* TODO: improve this assignament. ¿Get from GstRtpSession? */
+        self->priv->local_video_ssrc = ssrc;
+      }
+    }
+  }
+
+  sdp_media_set_rtcp_fb_attrs (media);
+
+  return TRUE;
+}
+
+static gboolean
+kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
+    base_sdp_endpoint, GstSDPMessage * msg)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
+  GstSDPMessage *remote_offer_sdp;
+  guint len, i;
+  gchar *bundle_mids = NULL;
+  gboolean ret = TRUE;
+
+  KMS_ELEMENT_LOCK (self);
+  g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
+  if (remote_offer_sdp != NULL) {
+    self->priv->is_bundle = sdp_message_is_bundle (remote_offer_sdp);
+    gst_sdp_message_free (remote_offer_sdp);
+  }
+
+  GST_INFO ("BUNDLE: %" G_GUINT32_FORMAT, self->priv->is_bundle);
+
+  if (self->priv->is_bundle) {
+    bundle_mids = g_strdup ("BUNDLE");
+  }
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
+    const gchar *media_str = NULL;
+    gboolean use_ipv6;
+
+    g_object_get (base_sdp_endpoint, "use-ipv6", &use_ipv6, NULL);
+    if (!kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
+            use_ipv6, &media_str)) {
+      ret = FALSE;
+      goto end;
+    }
+
+    if (media_str == NULL) {
+      continue;
+    }
+
+    if (self->priv->is_bundle) {
+      gchar *tmp;
+
+      tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
+      g_free (bundle_mids);
+      bundle_mids = tmp;
+    }
+  }
+
+  if (self->priv->is_bundle) {
+    gst_sdp_message_add_attribute (msg, "group", bundle_mids);
+    g_free (bundle_mids);
+  }
+
+end:
+  KMS_ELEMENT_UNLOCK (self);
+
+  return ret;
+}
+
+/* Set Transport end */
 
 static const gchar *
 get_caps_codec_name (const gchar * codec_name)
@@ -605,7 +878,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
   base_endpoint_class = KMS_BASE_SDP_ENDPOINT_CLASS (klass);
-
+  base_endpoint_class->set_transport_to_sdp =
+      kms_base_rtp_endpoint_set_transport_to_sdp;
   base_endpoint_class->connect_input_elements =
       kms_base_rtp_endpoint_connect_input_elements;
 
