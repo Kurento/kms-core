@@ -652,11 +652,15 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
   try {
     std::shared_ptr<ElementConnectionDataInternal> connectionData;
+    gboolean ret;
+
     connectionData = sinkImpl->sources.at (mediaType).at (sourceMediaDescription);
     sinkImpl->sources.at (mediaType).erase (sourceMediaDescription);
     sinks.at (mediaType).at (sinkMediaDescription).erase (connectionData);
 
-    // TODO: Disconnect gstreamer elements
+    // TODO: If pad exists, it should be blocked before release it
+    g_signal_emit_by_name (getGstreamerElement (), "release-requested-srcpad",
+                           connectionData->getSourcePadName (), &ret, NULL);
   } catch (std::out_of_range) {
 
   }
