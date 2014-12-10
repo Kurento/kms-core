@@ -161,7 +161,7 @@ kms_hub_port_unhandled (KmsHubPort * self)
 {
   GstPad *video_src, *audio_src;
 
-  g_return_if_fail (!self);
+  g_return_if_fail (self);
 
   video_src =
       gst_element_get_static_pad (GST_ELEMENT (self), HUB_VIDEO_SRC_PAD);
