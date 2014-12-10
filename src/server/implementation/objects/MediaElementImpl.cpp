@@ -520,6 +520,12 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
   gchar *padName;
   std::shared_ptr<MediaElementImpl> sinkImpl =
     std::dynamic_pointer_cast<MediaElementImpl> (sink);
+
+  if (sinkImpl->getMediaPipeline ()->getId () != getMediaPipeline ()->getId() ) {
+    throw KurentoException (CONNECT_ERROR,
+                            "Media elements does not share pipeline");
+  }
+
   std::unique_lock<std::recursive_mutex> lock (sinksMutex);
   std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex);
   std::vector <std::shared_ptr <ElementConnectionData>> connections;

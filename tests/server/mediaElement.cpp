@@ -20,6 +20,7 @@
 #include <MediaElementImpl.hpp>
 #include <ElementConnectionData.hpp>
 #include <MediaType.hpp>
+#include <KurentoException.hpp>
 
 using namespace kurento;
 
@@ -144,4 +145,28 @@ BOOST_AUTO_TEST_CASE (loopback)
   duplex->connect (duplex);
 
   duplex->release();
+}
+
+BOOST_AUTO_TEST_CASE (no_common_pipeline)
+{
+  gst_init (NULL, NULL);
+  std::shared_ptr <MediaPipelineImpl> pipe1 (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  std::shared_ptr <MediaPipelineImpl> pipe2 (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+
+  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
+        boost::property_tree::ptree(), pipe1, "dummysink") );
+  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
+      boost::property_tree::ptree(), pipe2, "dummysrc") );
+
+  src->setName ("SOURCE");
+  sink->setName ("SINK");
+
+  try {
+    src->connect (sink);
+    BOOST_FAIL ("Previous operation should raise an exception");
+  } catch (KurentoException e) {
+    BOOST_CHECK (e.getCode () == CONNECT_ERROR);
+  }
 }
