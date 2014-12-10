@@ -95,6 +95,8 @@ set(ENUM_HEADERS
   kmselementpadtype.h
 )
 
+list(APPEND KMS_COMMONS_HEADERS ${ENUM_HEADERS})
+
 add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-enumtypes KMS ${ENUM_HEADERS})
 add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_core_marshal)
 
