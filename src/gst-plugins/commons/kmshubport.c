@@ -209,10 +209,12 @@ kms_hub_port_start_media_type (KmsElement * self, KmsElementPadType type,
 {
   GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
   GstPad *src = gst_element_get_static_pad (capsfilter, "src");
-  GstPad *internal_src = gst_ghost_pad_new_from_template (pad_name, src, templ);
+  GstPad *internal_src;
 
   gst_bin_add (GST_BIN (self), capsfilter);
   gst_element_sync_state_with_parent (capsfilter);
+
+  internal_src = gst_ghost_pad_new_from_template (pad_name, src, templ);
 
   g_object_set_data_full (G_OBJECT (internal_src), KEY_ELEM_DATA,
       g_object_ref (capsfilter), g_object_unref);
