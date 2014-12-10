@@ -60,31 +60,31 @@ install(
 )
 
 set(KMS_COMMONS_SOURCES
-                        kmsbasertpendpoint.c
-                        kmsbasesdpendpoint.c
-                        kmselement.c
-                        kmsloop.c
-                        kmsrecordingprofile.c
-                        kmshubport.c
-                        kmsbasehub.c
-                        kmsuriendpoint.c
-                        kmsgenericstructure.c
+  kmsbasertpendpoint.c
+  kmsbasesdpendpoint.c
+  kmselement.c
+  kmsloop.c
+  kmsrecordingprofile.c
+  kmshubport.c
+  kmsbasehub.c
+  kmsuriendpoint.c
+  kmsgenericstructure.c
 )
 
 set(KMS_COMMONS_HEADERS
-                        kmsbasertpendpoint.h
-                        kmsbasesdpendpoint.h
-                        kmselement.h
-                        kmsloop.h
-                        kmsrecordingprofile.h
-                        kmshubport.h
-                        kmsbasehub.h
-                        kmsagnosticcaps.h
-                        kmsutils.h
-                        kmsuriendpointstate.h
-                        kmsmediatype.h
-                        kmsuriendpoint.h
-                        kmsgenericstructure.h
+  kmsbasertpendpoint.h
+  kmsbasesdpendpoint.h
+  kmselement.h
+  kmsloop.h
+  kmsrecordingprofile.h
+  kmshubport.h
+  kmsbasehub.h
+  kmsagnosticcaps.h
+  kmsutils.h
+  kmsuriendpointstate.h
+  kmsmediatype.h
+  kmsuriendpoint.h
+  kmsgenericstructure.h
 )
 
 set(ENUM_HEADERS
