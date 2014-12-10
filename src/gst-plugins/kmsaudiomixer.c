@@ -695,6 +695,26 @@ kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
 {
   KmsGenericStructure *sync;
 
+  if (!KMS_IS_AUDIO_MIXER (self)) {
+    GST_ERROR_OBJECT (self, "Is not an audiomixer");
+    return;
+  }
+
+  if (pad == NULL) {
+    GST_ERROR ("Pad is null");
+    return;
+  }
+
+  if (agnosticbin == NULL) {
+    GST_ERROR ("Agnosticbin is null");
+    return;
+  }
+
+  if (adder == NULL) {
+    GST_ERROR ("Adder is null");
+    return;
+  }
+
   sync = kms_generic_structure_new ();
   kms_generic_structure_set_full (sync, KMS_LABEL_AUDIOMIXER,
       g_object_ref (self), (GDestroyNotify) g_object_unref);
