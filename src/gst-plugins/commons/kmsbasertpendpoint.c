@@ -65,6 +65,8 @@ struct _KmsBaseRtpEndpointPrivate
   gboolean negotiated;
 
   gint32 target_bitrate;
+  guint min_video_send_bw;
+  guint max_video_send_bw;
 };
 
 /* Signals and args */
@@ -80,6 +82,8 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define DEFAULT_PROTO    NULL
 #define DEFAULT_BUNDLE    FALSE
 #define DEFAULT_TARGET_BITRATE    0
+#define MIN_VIDEO_SEND_BW_DEFAULT 100
+#define MAX_VIDEO_SEND_BW_DEFAULT 500
 
 enum
 {
@@ -87,6 +91,8 @@ enum
   PROP_PROTO,
   PROP_BUNDLE,
   PROP_TARGET_BITRATE,
+  PROP_MIN_VIDEO_SEND_BW,
+  PROP_MAX_VIDEO_SEND_BW,
   PROP_LAST
 };
 
@@ -874,6 +880,30 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_TARGET_BITRATE:
       self->priv->target_bitrate = g_value_get_int (value);
       break;
+    case PROP_MIN_VIDEO_SEND_BW:{
+      guint v = g_value_get_uint (value);
+
+      if (v > self->priv->max_video_send_bw) {
+        v = self->priv->max_video_send_bw;
+        GST_WARNING_OBJECT (object,
+            "Trying to set min > max. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      self->priv->min_video_send_bw = v;
+      break;
+    }
+    case PROP_MAX_VIDEO_SEND_BW:{
+      guint v = g_value_get_uint (value);
+
+      if (v < self->priv->min_video_send_bw) {
+        v = self->priv->min_video_send_bw;
+        GST_WARNING_OBJECT (object,
+            "Trying to set max < min. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      self->priv->max_video_send_bw = v;
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -899,6 +929,12 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_TARGET_BITRATE:
       g_value_set_int (value, self->priv->target_bitrate);
+      break;
+    case PROP_MIN_VIDEO_SEND_BW:
+      g_value_set_uint (value, self->priv->min_video_send_bw);
+      break;
+    case PROP_MAX_VIDEO_SEND_BW:
+      g_value_set_uint (value, self->priv->max_video_send_bw);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -994,6 +1030,20 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_int ("target-bitrate", "Target bitrate",
           "Target bitrate (bps)", 0, G_MAXINT,
           DEFAULT_TARGET_BITRATE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_MIN_VIDEO_SEND_BW,
+      g_param_spec_uint ("min-video-send-bandwidth",
+          "Minimum video bandwidth for sending",
+          "Minimum video bandwidth for sending. Unit: kbps(kilobits per second). 0: unlimited",
+          0, G_MAXUINT32, MIN_VIDEO_SEND_BW_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_MAX_VIDEO_SEND_BW,
+      g_param_spec_uint ("max-video-send-bandwidth",
+          "Maximum video bandwidth for sending",
+          "Maximum video bandwidth for sending. Unit: kbps(kilobits per second). 0: unlimited",
+          0, G_MAXUINT32, MAX_VIDEO_SEND_BW_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
   obj_signals[MEDIA_START] =
@@ -1113,6 +1163,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
   self->priv->proto = DEFAULT_PROTO;
   self->priv->bundle = DEFAULT_BUNDLE;
+
+  self->priv->min_video_send_bw = MIN_VIDEO_SEND_BW_DEFAULT;
+  self->priv->max_video_send_bw = MAX_VIDEO_SEND_BW_DEFAULT;
 
   self->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
 
