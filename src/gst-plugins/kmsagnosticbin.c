@@ -307,7 +307,7 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 }
 
 static void
-link_queue_to_tee_locked (GstElement * tee, GstElement * queue)
+link_queue_to_tee (GstElement * tee, GstElement * queue)
 {
   GstPad *tee_src = gst_element_get_request_pad (tee, "src_%u");
   GstPad *queue_sink = gst_element_get_static_pad (queue, "sink");
@@ -343,67 +343,6 @@ link_queue_to_tee_locked (GstElement * tee, GstElement * queue)
 
   g_object_unref (queue_sink);
   g_object_unref (tee_src);
-}
-
-static GstPadProbeReturn
-tee_sink_blocked (GstPad * tee_sink, GstPadProbeInfo * info, gpointer queue)
-{
-  GstElement *tee = gst_pad_get_parent_element (tee_sink);
-
-  if (tee == NULL) {
-    return GST_PAD_PROBE_REMOVE;
-  }
-
-  /* HACK: Ignore caps event and stream start event that causes negotiation
-   * failures.This is a workaround that should be removed
-   */
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
-    GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
-
-    if (GST_EVENT_TYPE (event) == GST_EVENT_STREAM_START
-        || GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
-      return GST_PAD_PROBE_PASS;
-    }
-  }
-
-  /* HACK: Ignore query accept caps that causes negotiation errors.
-   * This is a workaround that should be removed
-   */
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM) {
-    GstQuery *query = GST_PAD_PROBE_INFO_QUERY (info);
-
-    if (GST_QUERY_TYPE (query) == GST_QUERY_ACCEPT_CAPS) {
-      return GST_PAD_PROBE_PASS;
-    }
-  }
-
-  GST_OBJECT_LOCK (tee_sink);
-  if (g_object_get_data (queue, LINKING_DATA)) {
-    GST_OBJECT_UNLOCK (tee_sink);
-    g_object_unref (tee);
-    return GST_PAD_PROBE_PASS;
-  }
-
-  g_object_set_data (queue, LINKING_DATA, GINT_TO_POINTER (TRUE));
-  GST_OBJECT_UNLOCK (tee_sink);
-
-  link_queue_to_tee_locked (tee, GST_ELEMENT (queue));
-  g_object_unref (tee);
-
-  return GST_PAD_PROBE_REMOVE;
-}
-
-static void
-link_queue_to_tee (GstElement * tee, GstElement * queue)
-{
-  GstPad *sink = gst_element_get_static_pad (tee, "sink");
-
-  if (sink != NULL) {
-    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BLOCK, tee_sink_blocked,
-        g_object_ref (queue), g_object_unref);
-    send_dummy_event (sink);
-    g_object_unref (sink);
-  }
 }
 
 static GstElement *
