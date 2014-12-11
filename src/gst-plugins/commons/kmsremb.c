@@ -330,6 +330,9 @@ kms_remb_remote_update (KmsRembRemote * rm,
   }
 
   if (!rm->probed) {
+    /* FIXME: if no event is sent until this condition,
+     * the restriction of this br will be removed by event manager
+     * in 10secs*/
     if ((remb_packet->bitrate < REMB_ON_CONNECT)
         && (remb_packet->bitrate >= rm->remb)) {
       rm->remb = remb_packet->bitrate;
