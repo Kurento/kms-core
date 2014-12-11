@@ -46,7 +46,7 @@ public:
 
   virtual std::string getId() override
   {
-    return "server_manager";
+    return "manager_ServerManager";
   }
 
   /* Next methods are automatically implemented by code generator */
