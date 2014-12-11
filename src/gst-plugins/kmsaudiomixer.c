@@ -52,6 +52,7 @@ struct _KmsAudioMixerPrivate
   GRecMutex mutex;
   GHashTable *adders;
   GHashTable *agnostics;
+  GHashTable *typefinds;
   KmsLoop *loop;
   guint count;
 };
@@ -348,6 +349,7 @@ kms_audio_mixer_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
+  g_hash_table_unref (self->priv->typefinds);
   g_rec_mutex_clear (&self->priv->mutex);
 
   G_OBJECT_CLASS (kms_audio_mixer_parent_class)->finalize (object);
@@ -369,6 +371,14 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
     return;
   }
 
+  KMS_AUDIO_MIXER_LOCK (self);
+
+  if (!g_hash_table_remove (self->priv->typefinds, padname)) {
+    GST_WARNING_OBJECT (self, "Audio input %s is already managed", padname);
+    KMS_AUDIO_MIXER_UNLOCK (self);
+    return;
+  }
+
   audiorate = gst_element_factory_make ("audiorate", NULL);
   agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   g_object_set_data_full (G_OBJECT (agnosticbin), KEY_SINK_PAD_NAME,
@@ -377,17 +387,15 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
   gst_bin_add_many (GST_BIN (self), audiorate, agnosticbin, NULL);
   gst_element_link_many (typefind, audiorate, agnosticbin, NULL);
 
-  gst_element_sync_state_with_parent (audiorate);
-  gst_element_sync_state_with_parent (agnosticbin);
-
-  KMS_AUDIO_MIXER_LOCK (self);
-
   g_hash_table_foreach (self->priv->adders, (GHFunc) link_new_agnosticbin,
       agnosticbin);
 
   g_hash_table_insert (self->priv->agnostics, g_strdup (padname), agnosticbin);
 
   KMS_AUDIO_MIXER_UNLOCK (self);
+
+  gst_element_sync_state_with_parent (audiorate);
+  gst_element_sync_state_with_parent (agnosticbin);
 }
 
 struct callback_counter
@@ -695,26 +703,6 @@ kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
 {
   KmsGenericStructure *sync;
 
-  if (!KMS_IS_AUDIO_MIXER (self)) {
-    GST_ERROR_OBJECT (self, "Is not an audiomixer");
-    return;
-  }
-
-  if (pad == NULL) {
-    GST_ERROR ("Pad is null");
-    return;
-  }
-
-  if (agnosticbin == NULL) {
-    GST_ERROR ("Agnosticbin is null");
-    return;
-  }
-
-  if (adder == NULL) {
-    GST_ERROR ("Adder is null");
-    return;
-  }
-
   sync = kms_generic_structure_new ();
   kms_generic_structure_set_full (sync, KMS_LABEL_AUDIOMIXER,
       g_object_ref (self), (GDestroyNotify) g_object_unref);
@@ -733,7 +721,7 @@ kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
 static void
 unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
 {
-  GstElement *agnostic = NULL, *adder = NULL, *parent;
+  GstElement *agnostic = NULL, *adder = NULL, *typefind = NULL, *parent;
   KmsAudioMixer *self;
   gchar *padname;
 
@@ -752,6 +740,11 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
 
   KMS_AUDIO_MIXER_LOCK (self);
 
+  typefind = g_hash_table_lookup (self->priv->typefinds, padname);
+  if (typefind != NULL) {
+    g_hash_table_remove (self->priv->typefinds, padname);
+  }
+
   if (self->priv->agnostics != NULL) {
     agnostic = g_hash_table_lookup (self->priv->agnostics, padname);
     g_hash_table_remove (self->priv->agnostics, padname);
@@ -769,7 +762,17 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
   if (GST_STATE (parent) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (parent) >= GST_STATE_PAUSED
       || GST_STATE_TARGET (parent) >= GST_STATE_PAUSED) {
-    kms_audio_mixer_unlink_pad_in_playing (self, pad, agnostic, adder);
+    if (typefind != NULL) {
+      GST_WARNING_OBJECT (pad, "Removed before connecting branch");
+      kms_audio_mixer_remove_elements (self, agnostic, adder);
+      gst_object_ref (typefind);
+      gst_element_set_locked_state (typefind, TRUE);
+      gst_element_set_state (typefind, GST_STATE_NULL);
+      gst_bin_remove (GST_BIN (self), typefind);
+      gst_object_unref (typefind);
+    } else {
+      kms_audio_mixer_unlink_pad_in_playing (self, pad, agnostic, adder);
+    }
   } else {
     kms_audio_mixer_remove_elements (self, agnostic, adder);
   }
@@ -882,6 +885,7 @@ kms_audio_mixer_request_new_pad (GstElement * element,
     }
     gst_element_remove_pad (element, pad);
   } else {
+    g_hash_table_insert (self->priv->typefinds, g_strdup (padname), typefind);
     g_object_set_data_full (G_OBJECT (typefind), KEY_SINK_PAD_NAME, padname,
         g_free);
     g_signal_connect (G_OBJECT (typefind), "have-type",
@@ -961,6 +965,8 @@ kms_audio_mixer_init (KmsAudioMixer * self)
   self->priv->adders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       NULL);
   self->priv->agnostics =
+      g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  self->priv->typefinds =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
   g_rec_mutex_init (&self->priv->mutex);
