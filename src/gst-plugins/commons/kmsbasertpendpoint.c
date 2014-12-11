@@ -323,10 +323,9 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 }
 
 static GstCaps *
-kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * base_rtp_endpoint,
-    guint pt)
+kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 {
-  KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (base_rtp_endpoint);
+  KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
   GstSDPMessage *answer;
   guint i, len;
   GstCaps *ret = NULL;
@@ -728,44 +727,38 @@ kms_base_rtp_endpoint_rtpbin_on_sender_timeout (GstElement * rtpbin,
 }
 
 static void
-kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * base_rtp_endpoint)
+kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 {
-  base_rtp_endpoint->priv =
-      KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (base_rtp_endpoint);
-  base_rtp_endpoint->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
+  self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
+  self->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
 
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "request-pt-map",
-      G_CALLBACK (kms_base_rtp_endpoint_request_pt_map), base_rtp_endpoint);
+  g_signal_connect (self->priv->rtpbin, "request-pt-map",
+      G_CALLBACK (kms_base_rtp_endpoint_request_pt_map), self);
 
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "pad-added",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_pad_added), base_rtp_endpoint);
+  g_signal_connect (self->priv->rtpbin, "pad-added",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_pad_added), self);
 
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "on-new-ssrc",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_new_ssrc), base_rtp_endpoint);
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "on-ssrc-sdes",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes),
-      base_rtp_endpoint);
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "on-bye-ssrc",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_ssrc), base_rtp_endpoint);
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "on-bye-timeout",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_timeout),
-      base_rtp_endpoint);
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "on-sender-timeout",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_sender_timeout),
-      base_rtp_endpoint);
+  g_signal_connect (self->priv->rtpbin, "on-new-ssrc",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_new_ssrc), self);
+  g_signal_connect (self->priv->rtpbin, "on-ssrc-sdes",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes), self);
+  g_signal_connect (self->priv->rtpbin, "on-bye-ssrc",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_ssrc), self);
+  g_signal_connect (self->priv->rtpbin, "on-bye-timeout",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_timeout), self);
+  g_signal_connect (self->priv->rtpbin, "on-sender-timeout",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_sender_timeout), self);
 
-  g_signal_connect (base_rtp_endpoint->priv->rtpbin, "new-jitterbuffer",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer),
-      base_rtp_endpoint);
+  g_signal_connect (self->priv->rtpbin, "new-jitterbuffer",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer), self);
 
-  g_object_set (base_rtp_endpoint, "accept-eos", FALSE,
-      "do-synchronization", TRUE, NULL);
+  g_object_set (self, "accept-eos", FALSE, "do-synchronization", TRUE, NULL);
 
-  gst_bin_add (GST_BIN (base_rtp_endpoint), base_rtp_endpoint->priv->rtpbin);
+  gst_bin_add (GST_BIN (self), self->priv->rtpbin);
 
-  base_rtp_endpoint->priv->audio_payloader = NULL;
-  base_rtp_endpoint->priv->video_payloader = NULL;
-  base_rtp_endpoint->priv->negotiated = FALSE;
+  self->priv->audio_payloader = NULL;
+  self->priv->video_payloader = NULL;
+  self->priv->negotiated = FALSE;
 }
 
 GstElement *
