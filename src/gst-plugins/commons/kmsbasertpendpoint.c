@@ -454,7 +454,35 @@ end:
 
 /* Start Transport Send begin */
 
-/* TODO: improve */
+static void
+kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
+{
+  GstElement *rtpbin = self->priv->rtpbin;
+  GObject *rtpsession;
+  GstPad *pad;
+  int max_recv_bw;
+
+  g_signal_emit_by_name (rtpbin, "get-internal-session", VIDEO_RTP_SESSION,
+      &rtpsession);
+  if (rtpsession == NULL) {
+    GST_WARNING_OBJECT (self,
+        "There is not session with id %" G_GUINT32_FORMAT, VIDEO_RTP_SESSION);
+    return;
+  }
+
+  g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
+  self->priv->rl =
+      kms_remb_local_create (rtpsession, self->priv->remote_video_ssrc,
+      max_recv_bw);
+
+  pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
+  self->priv->rm =
+      kms_remb_remote_create (rtpsession, self->priv->local_video_ssrc,
+      self->priv->min_video_send_bw, self->priv->max_video_send_bw, pad);
+  g_object_unref (pad);
+  g_object_unref (rtpsession);
+}
+
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, const GstSDPMessage * offer,
@@ -483,11 +511,6 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     const gchar *media_str = gst_sdp_media_get_media (media);
 
     if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-      GstElement *rtpbin = self->priv->rtpbin;
-      GObject *rtpsession;
-      GstPad *pad;
-      int max_recv_bw, min_send_bw, max_send_bw;
-
       /* TODO: support more than one in the future */
       if (self->priv->remote_video_ssrc != 0) {
         GST_WARNING_OBJECT (self,
@@ -495,28 +518,8 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
       }
       self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
 
-      g_signal_emit_by_name (rtpbin, "get-internal-session", VIDEO_RTP_SESSION,
-          &rtpsession);
-      if (rtpsession == NULL) {
-        GST_WARNING_OBJECT (rtpbin,
-            "There is not session with id %" G_GUINT32_FORMAT,
-            VIDEO_RTP_SESSION);
-        return;
-      }
-
-      g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
-      self->priv->rl =
-          kms_remb_local_create (rtpsession, self->priv->remote_video_ssrc,
-          max_recv_bw);
-      g_object_unref (rtpsession);
-
-      g_object_get (self, "min-video-send-bandwidth", &min_send_bw, NULL);
-      g_object_get (self, "max-video-send-bandwidth", &max_send_bw, NULL);
-      pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
-      self->priv->rm =
-          kms_remb_remote_create (rtpsession, self->priv->local_video_ssrc,
-          min_send_bw, max_send_bw, pad);
-      g_object_unref (pad);
+      /* TODO: create if REMB is enabled */
+      kms_base_rtp_endpoint_create_remb_managers (self);
     }
   }
 
