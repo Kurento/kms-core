@@ -278,6 +278,7 @@ sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
   }
 }
 
+/* TODO: improve */
 static const gchar *
 kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     GstSDPMedia * media, gboolean use_ipv6)
@@ -290,19 +291,22 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   guint rtp_port, rtcp_port;
   guint conn_len, c;
   gchar *str;
+  GstElement *rtpbin = self->priv->rtpbin;
+  GObject *rtpsession;
+  GstPad *pad;
+  guint ssrc;
+  GstStructure *sdes;
 
   media_str = gst_sdp_media_get_media (media);
-  if (self->priv->bundle) {
-    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-      rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
-      session_id = AUDIO_RTP_SESSION;
-    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-      rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
-      session_id = VIDEO_RTP_SESSION;
-    } else {
-      GST_WARNING_OBJECT (self, "Media \"%s\" not supported", media_str);
-      return NULL;
-    }
+  if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+    rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
+    session_id = AUDIO_RTP_SESSION;
+  } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
+    session_id = VIDEO_RTP_SESSION;
+  } else {
+    GST_WARNING_OBJECT (self, "Media \"%s\" not supported", media_str);
+    return NULL;
   }
 
   gst_sdp_media_set_proto (media, self->priv->proto);
@@ -326,41 +330,33 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     gst_sdp_media_add_attribute (media, RTCP_MUX, "");
   }
 
-  if (rtpbin_pad_name != NULL) {
-    GstElement *rtpbin = self->priv->rtpbin;
-    GObject *rtpsession;
-    GstPad *pad;
-    guint ssrc;
-    GstStructure *sdes;
+  /* Create RtpSession requesting the pad */
+  pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
+  g_object_unref (pad);
 
-    /* Create RtpSession requesting the pad */
-    pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
-    g_object_unref (pad);
+  g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
+      &rtpsession);
+  if (rtpsession == NULL) {
+    GST_WARNING_OBJECT (self, "RTP Session not created for media \"%s\"",
+        media_str);
+    return NULL;
+  }
 
-    g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
-        &rtpsession);
-    if (rtpsession == NULL) {
-      GST_WARNING_OBJECT (self, "RTP Session not created for media \"%s\"",
-          media_str);
-      return NULL;
-    }
+  g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
+  g_object_unref (rtpsession);
 
-    g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
-    g_object_unref (rtpsession);
+  g_object_get (rtpbin, "sdes", &sdes, NULL);
+  str =
+      g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc,
+      gst_structure_get_string (sdes, "cname"));
+  gst_structure_free (sdes);
+  gst_sdp_media_add_attribute (media, "ssrc", str);
+  g_free (str);
 
-    g_object_get (rtpbin, "sdes", &sdes, NULL);
-    str =
-        g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc,
-        gst_structure_get_string (sdes, "cname"));
-    gst_structure_free (sdes);
-    gst_sdp_media_add_attribute (media, "ssrc", str);
-    g_free (str);
-
-    if (session_id == AUDIO_RTP_SESSION) {
-      self->priv->local_audio_ssrc = ssrc;
-    } else if (session_id == VIDEO_RTP_SESSION) {
-      self->priv->local_video_ssrc = ssrc;
-    }
+  if (session_id == AUDIO_RTP_SESSION) {
+    self->priv->local_audio_ssrc = ssrc;
+  } else if (session_id == VIDEO_RTP_SESSION) {
+    self->priv->local_video_ssrc = ssrc;
   }
 
   sdp_media_set_rtcp_fb_attrs (media);
