@@ -787,10 +787,17 @@ kms_element_request_new_srcpad_action (KmsElement * self,
     return NULL;
   }
 
-  if (type == KMS_ELEMENT_PAD_TYPE_AUDIO) {
-    pad_name = g_strdup_printf (templ_name, self->priv->audio_pad_count++);
-  } else {
-    pad_name = g_strdup_printf (templ_name, self->priv->video_pad_count++);
+  switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      pad_name = g_strdup_printf (templ_name, self->priv->audio_pad_count++);
+      break;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      pad_name = g_strdup_printf (templ_name, self->priv->video_pad_count++);
+      break;
+    default:
+      GST_WARNING_OBJECT (self, "Unsupported pad type %u", type);
+      KMS_ELEMENT_UNLOCK (self);
+      return NULL;
   }
 
   if (agnosticbin == NULL) {
