@@ -87,9 +87,6 @@ struct _KmsElementPrivate
 /* Signals and args */
 enum
 {
-  /* Signals */
-  AGNOSTICBIN_ADDED,
-
   /* Actions */
   REQUEST_NEW_SRCPAD,
   RELEASE_REQUESTED_SRCPAD,
@@ -443,8 +440,6 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
 
-  g_signal_emit (self, element_signals[AGNOSTICBIN_ADDED], 0);
-
   kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_AUDIO);
 
   return self->priv->audio_agnosticbin;
@@ -473,8 +468,6 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   gst_bin_add (GST_BIN (self), self->priv->video_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
-
-  g_signal_emit (self, element_signals[AGNOSTICBIN_ADDED], 0);
 
   kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_VIDEO);
 
@@ -941,14 +934,6 @@ kms_element_class_init (KmsElementClass * klass)
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
-
-  /* set signals */
-  element_signals[AGNOSTICBIN_ADDED] =
-      g_signal_new ("agnosticbin-added",
-      G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_LAST,
-      G_STRUCT_OFFSET (KmsElementClass, agnosticbin_added), NULL, NULL,
-      g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
   /* set actions */
   element_signals[REQUEST_NEW_SRCPAD] =
