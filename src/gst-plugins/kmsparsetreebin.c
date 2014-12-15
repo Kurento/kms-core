@@ -47,8 +47,8 @@ create_parser_for_caps (const GstCaps * caps)
   GstElement *parser = NULL;
 
   parser_list =
-      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_PARSER |
-      GST_ELEMENT_FACTORY_TYPE_MEDIA_VIDEO, GST_RANK_NONE);
+      gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_PARSER,
+      GST_RANK_NONE);
   filtered_list =
       gst_element_factory_list_filter (parser_list, caps, GST_PAD_SINK, FALSE);
 
