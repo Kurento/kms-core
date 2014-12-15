@@ -769,7 +769,7 @@ GST_START_TEST (static_link)
 }
 
 GST_END_TEST
-GST_START_TEST (encoded_input_n_encoded_ouput)
+GST_START_TEST (encoded_input_n_encoded_output)
 {
   GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
   GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
@@ -1008,9 +1008,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, delay_stream);
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
-  tcase_add_test (tc_chain, encoded_input_n_encoded_ouput);
-
-  tcase_add_test (tc_chain, input_reconfiguration);
+  tcase_add_test (tc_chain, encoded_input_n_encoded_output);
 
   return s;
 }
