@@ -51,16 +51,12 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
   )                                          \
 )
 
-#define KMS_AGNOSTIC_BIN2_GET_COND(obj) (       \
-  &KMS_AGNOSTIC_BIN2 (obj)->priv->thread_cond   \
-)
-
 #define KMS_AGNOSTIC_BIN2_LOCK(obj) (                           \
-  g_mutex_lock (&KMS_AGNOSTIC_BIN2 (obj)->priv->thread_mutex)   \
+  g_rec_mutex_lock (&KMS_AGNOSTIC_BIN2 (obj)->priv->thread_mutex)   \
 )
 
 #define KMS_AGNOSTIC_BIN2_UNLOCK(obj) (                         \
-  g_mutex_unlock (&KMS_AGNOSTIC_BIN2 (obj)->priv->thread_mutex) \
+  g_rec_mutex_unlock (&KMS_AGNOSTIC_BIN2 (obj)->priv->thread_mutex) \
 )
 
 #define OLD_CHAIN_KEY "kms-old-chain-key"
@@ -69,9 +65,8 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 struct _KmsAgnosticBin2Private
 {
   GHashTable *bins;
-  GQueue *pads_to_link;
 
-  GMutex thread_mutex;
+  GRecMutex thread_mutex;
 
   GstElement *input_tee;
   GstCaps *input_caps;
@@ -151,7 +146,6 @@ tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
       // Request key frame to upstream elements
       kms_utils_drop_until_keyframe (pad, TRUE);
-      return GST_PAD_PROBE_DROP;
     }
   }
 
@@ -289,10 +283,13 @@ remove_tee_pad_on_unlink (GstPad * pad, GstPad * peer, gpointer user_data)
 static GstFlowReturn
 queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 {
+  GstFlowReturn ret;
   GstPadChainFunction old_func =
       g_object_get_data (G_OBJECT (pad), OLD_CHAIN_KEY);
 
-  old_func (pad, parent, buffer);
+  if (G_UNLIKELY ((ret = old_func (pad, parent, buffer)) != GST_FLOW_OK)) {
+    GST_WARNING_OBJECT (pad, "Chain returned: %s", gst_flow_get_name (ret));
+  }
 
   return GST_FLOW_OK;
 }
@@ -494,10 +491,10 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 
     if (dec_bin == NULL) {
       dec_bin = kms_agnostic_bin2_create_dec_bin (self, raw_caps);
-    }
 
-    if (dec_bin != NULL) {
-      kms_agnostic_bin2_insert_bin (self, dec_bin);
+      if (dec_bin != NULL) {
+        kms_agnostic_bin2_insert_bin (self, dec_bin);
+      }
     }
 
     gst_caps_unref (raw_caps);
@@ -581,35 +578,25 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   gst_caps_unref (caps);
 
 end:
-  g_object_unref (pad);
   g_object_unref (peer);
 }
 
 /**
- * Unlink a pad internally
- *
- * @self: The #KmsAgnosticBin2 owner of the pad
- * @pad: (transfer full): The pad to be unlinked
- */
-static void
-kms_agnostic_bin2_unlink_pad (KmsAgnosticBin2 * self, GstPad * pad)
-{
-  GST_DEBUG_OBJECT (self, "Unlinking: %" GST_PTR_FORMAT, pad);
-
-  g_object_unref (pad);
-}
-
-/**
  * Process a pad for connecting or disconnecting, it should be always called
- * from the loop.
+ * whint the agnostic lock hold.
  *
  * @self: The #KmsAgnosticBin2 owner of the pad
- * @pad: (transfer full): The pad to be processed
+ * @pad: The pad to be processed
  */
 static void
 kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
 {
   GstPad *peer = NULL;
+
+  if (!self->priv->started)
+    return;
+
+  remove_target_pad (pad);
 
   GST_DEBUG_OBJECT (self, "Processing pad: %" GST_PTR_FORMAT, pad);
 
@@ -621,53 +608,10 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
 
   peer = gst_pad_get_peer (pad);
 
-  if (peer == NULL)
-    kms_agnostic_bin2_unlink_pad (self, pad);
-  else
+  if (peer != NULL) {
     kms_agnostic_bin2_link_pad (self, pad, peer);
-
-}
-
-static gboolean
-kms_agnostic_bin2_process_pad_loop (gpointer data)
-{
-  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (data);
-
-  KMS_AGNOSTIC_BIN2_LOCK (self);
-
-  if (!self->priv->started) {
-    GST_DEBUG_OBJECT (self,
-        "Caps reconfiguration when reconnection is taking place");
-    while (!g_queue_is_empty (self->priv->pads_to_link)) {
-      gst_object_unref (GST_OBJECT (g_queue_pop_head (self->priv->
-                  pads_to_link)));
-    }
-    goto end;
   }
 
-  while (!g_queue_is_empty (self->priv->pads_to_link)) {
-    kms_agnostic_bin2_process_pad (self,
-        g_queue_pop_head (self->priv->pads_to_link));
-  }
-
-end:
-  KMS_AGNOSTIC_BIN2_UNLOCK (self);
-
-  return FALSE;
-}
-
-static void
-kms_agnostic_bin2_add_pad_to_queue (KmsAgnosticBin2 * self, GstPad * pad)
-{
-  if (!self->priv->started)
-    return;
-
-  if (g_queue_index (self->priv->pads_to_link, pad) == -1) {
-    GST_DEBUG_OBJECT (pad, "Adding pad to queue");
-
-    remove_target_pad (pad);
-    g_queue_push_tail (self->priv->pads_to_link, g_object_ref (pad));
-  }
 }
 
 static void
@@ -677,7 +621,7 @@ add_linked_pads (GstPad * pad, KmsAgnosticBin2 * self)
     return;
   }
 
-  kms_agnostic_bin2_add_pad_to_queue (self, pad);
+  kms_agnostic_bin2_process_pad (self, pad);
 }
 
 static GstPadProbeReturn
@@ -709,9 +653,6 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
 
   kms_element_for_each_src_pad (GST_ELEMENT (self),
       (KmsPadIterationAction) add_linked_pads, self);
-
-  kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_HIGH,
-      kms_agnostic_bin2_process_pad_loop, g_object_ref (self), g_object_unref);
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
@@ -753,9 +694,6 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 
   self->priv->started = FALSE;
   g_hash_table_remove_all (self->priv->bins);
-  while (!g_queue_is_empty (self->priv->pads_to_link)) {
-    gst_object_unref (GST_OBJECT (g_queue_pop_head (self->priv->pads_to_link)));
-  }
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
@@ -833,10 +771,7 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
       GST_DEBUG_OBJECT (pad, "Received reconfigure event");
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      kms_agnostic_bin2_add_pad_to_queue (self, pad);
-      kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_HIGH,
-          kms_agnostic_bin2_process_pad_loop, g_object_ref (self),
-          g_object_unref);
+      kms_agnostic_bin2_process_pad (self, pad);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
       ret = GST_PAD_PROBE_DROP;
@@ -930,9 +865,8 @@ kms_agnostic_bin2_finalize (GObject * object)
 {
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
-  g_mutex_clear (&self->priv->thread_mutex);
+  g_rec_mutex_clear (&self->priv->thread_mutex);
 
-  g_queue_free_full (self->priv->pads_to_link, g_object_unref);
   g_hash_table_unref (self->priv->bins);
 
   /* chain up */
@@ -1033,8 +967,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->loop = kms_loop_new ();
   self->priv->bins =
       g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
-  self->priv->pads_to_link = g_queue_new ();
-  g_mutex_init (&self->priv->thread_mutex);
+  g_rec_mutex_init (&self->priv->thread_mutex);
 }
 
 gboolean
