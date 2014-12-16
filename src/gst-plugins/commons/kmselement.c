@@ -109,8 +109,7 @@ enum
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE (SINK_PAD,
     GST_PAD_SINK,
     GST_PAD_SOMETIMES,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
-    );
+    GST_STATIC_CAPS_ANY);
 
 static GstStaticPadTemplate audio_src_factory =
 GST_STATIC_PAD_TEMPLATE (AUDIO_SRC_PAD,
