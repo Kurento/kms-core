@@ -157,7 +157,7 @@ pad_added_cb (GstElement * element, GstPad * pad, gpointer data)
   }
 #endif
 
-  g_object_set (G_OBJECT (sink), "sync", FALSE, NULL);
+  g_object_set (G_OBJECT (sink), "sync", FALSE, "async", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (pipeline), wavenc, sink, NULL);
   sinkpad = gst_element_get_static_pad (wavenc, "sink");

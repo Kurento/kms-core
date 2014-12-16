@@ -85,20 +85,19 @@ kms_tree_bin_unlink_input_queue_from_tee (KmsTreeBin * self)
 static void
 kms_tree_bin_init (KmsTreeBin * self)
 {
-  GstElement *fakequeue, *fakesink;
+  GstElement *fakesink;
 
   self->priv = KMS_TREE_BIN_GET_PRIVATE (self);
 
   self->priv->input_queue =
       gst_element_factory_make ("queue", INPUT_QUEUE_NAME);
   self->priv->output_tee = gst_element_factory_make ("tee", OUTPUT_TEE_NAME);
-  fakequeue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
   g_object_set (fakesink, "async", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (self), self->priv->input_queue,
-      self->priv->output_tee, fakequeue, fakesink, NULL);
-  gst_element_link_many (self->priv->output_tee, fakequeue, fakesink, NULL);
+      self->priv->output_tee, fakesink, NULL);
+  gst_element_link_many (self->priv->output_tee, fakesink, NULL);
 }
 
 static void

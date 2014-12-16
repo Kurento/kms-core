@@ -288,7 +288,15 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
       g_object_get_data (G_OBJECT (pad), OLD_CHAIN_KEY);
 
   if (G_UNLIKELY ((ret = old_func (pad, parent, buffer)) != GST_FLOW_OK)) {
-    GST_WARNING_OBJECT (pad, "Chain returned: %s", gst_flow_get_name (ret));
+    GstPad *peer;
+
+    GST_WARNING_OBJECT (pad, "Chain returned: %s. It will be unlinked",
+        gst_flow_get_name (ret));
+    peer = gst_pad_get_peer (pad);
+    if (peer != NULL) {
+      gst_pad_unlink (peer, pad);
+      g_object_unref (peer);
+    }
   }
 
   return GST_FLOW_OK;
@@ -778,12 +786,6 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
       goto end;
     }
   }
-  // If the pads needs to be reconfigured, we should drop events
-  if (gst_pad_needs_reconfigure (pad)) {
-    ret = GST_PAD_PROBE_DROP;
-  } else {
-    ret = GST_PAD_PROBE_OK;
-  }
 
 end:
   g_object_unref (self);
@@ -930,21 +932,19 @@ static void
 kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 {
   GstPadTemplate *templ;
-  GstElement *tee, *queue, *fakesink;
+  GstElement *tee, *fakesink;
   GstPad *target, *sink;
 
   self->priv = KMS_AGNOSTIC_BIN2_GET_PRIVATE (self);
 
   tee = gst_element_factory_make ("tee", NULL);
   self->priv->input_tee = tee;
-  queue = gst_element_factory_make ("queue", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
   g_object_set (fakesink, "async", FALSE, NULL);
-  g_object_set (queue, "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
 
-  gst_bin_add_many (GST_BIN (self), tee, queue, fakesink, NULL);
-  gst_element_link_many (tee, queue, fakesink, NULL);
+  gst_bin_add_many (GST_BIN (self), tee, fakesink, NULL);
+  gst_element_link_many (tee, fakesink, NULL);
 
   target = gst_element_get_static_pad (tee, "sink");
   templ = gst_static_pad_template_get (&sink_factory);
