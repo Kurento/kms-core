@@ -290,12 +290,17 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
   if (G_UNLIKELY ((ret = old_func (pad, parent, buffer)) != GST_FLOW_OK)) {
     GstPad *peer;
 
-    GST_WARNING_OBJECT (pad, "Chain returned: %s. It will be unlinked",
-        gst_flow_get_name (ret));
-    peer = gst_pad_get_peer (pad);
-    if (peer != NULL) {
-      gst_pad_unlink (peer, pad);
-      g_object_unref (peer);
+    switch (ret) {
+      case GST_FLOW_FLUSHING:
+        break;
+      default:
+        GST_WARNING_OBJECT (pad, "Chain returned: %s. It will be unlinked",
+            gst_flow_get_name (ret));
+        peer = gst_pad_get_peer (pad);
+        if (peer != NULL) {
+          gst_pad_unlink (peer, pad);
+          g_object_unref (peer);
+        }
     }
   }
 
