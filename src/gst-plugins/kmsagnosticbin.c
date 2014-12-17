@@ -644,6 +644,11 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
   GstEvent *event = gst_pad_probe_info_get_event (info);
   GstCaps *current_caps;
 
+  if (self == NULL) {
+    GST_WARNING_OBJECT (bin, "Parent agnosticbin seems to be released");
+    return GST_PAD_PROBE_OK;
+  }
+
   GST_TRACE_OBJECT (self, "Event in parser pad: %" GST_PTR_FORMAT, event);
 
   if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
