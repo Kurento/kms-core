@@ -603,31 +603,51 @@ end:
  * @self: The #KmsAgnosticBin2 owner of the pad
  * @pad: The pad to be processed
  */
-static void
+static gboolean
 kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
 {
   GstPad *peer = NULL;
 
   if (!self->priv->started) {
-    return;
+    return FALSE;
   }
-
-  remove_target_pad (pad);
 
   GST_DEBUG_OBJECT (self, "Processing pad: %" GST_PTR_FORMAT, pad);
 
-  if (pad == NULL)
-    return;
-
-  /* We consider that pad is correctly configured now */
-  gst_pad_check_reconfigure (pad);
+  if (pad == NULL) {
+    return FALSE;
+  }
 
   peer = gst_pad_get_peer (pad);
 
   if (peer != NULL) {
+    GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
+
+    if (target) {
+      GstCaps *caps = gst_pad_get_current_caps (pad);
+
+      if (caps != NULL) {
+        gboolean accepted;
+
+        accepted = gst_pad_query_accept_caps (peer, caps);
+        gst_caps_unref (caps);
+
+        if (accepted) {
+          GST_DEBUG_OBJECT (self, "No need to reconfigure pad %" GST_PTR_FORMAT,
+              pad);
+          return FALSE;
+        }
+
+        remove_target_pad (pad);
+      }
+
+      g_object_unref (target);
+    }
+
     kms_agnostic_bin2_link_pad (self, pad, peer);
   }
 
+  return TRUE;
 }
 
 static void
@@ -637,6 +657,7 @@ add_linked_pads (GstPad * pad, KmsAgnosticBin2 * self)
     return;
   }
 
+  remove_target_pad (pad);
   kms_agnostic_bin2_process_pad (self, pad);
 }
 
@@ -792,10 +813,13 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
       GST_DEBUG_OBJECT (pad, "Received reconfigure event");
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      kms_agnostic_bin2_process_pad (self, pad);
+      if (kms_agnostic_bin2_process_pad (self, pad)) {
+        ret = GST_PAD_PROBE_DROP;
+      } else {
+        ret = GST_PAD_PROBE_OK;
+      }
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
-      ret = GST_PAD_PROBE_DROP;
       goto end;
     }
   }
