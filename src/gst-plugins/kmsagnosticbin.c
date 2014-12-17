@@ -338,9 +338,10 @@ link_queue_to_tee (GstElement * tee, GstElement * queue)
 
   ret = gst_pad_link_full (tee_src, queue_sink, GST_PAD_LINK_CHECK_NOTHING);
 
-  if (G_UNLIKELY (GST_PAD_LINK_FAILED (ret)))
+  if (G_UNLIKELY (GST_PAD_LINK_FAILED (ret))) {
     GST_ERROR ("Linking %" GST_PTR_FORMAT " with %" GST_PTR_FORMAT " result %d",
         tee_src, queue_sink, ret);
+  }
 
   g_object_unref (queue_sink);
   g_object_unref (tee_src);
@@ -570,8 +571,9 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
 
   caps = gst_pad_query_caps (peer, NULL);
 
-  if (caps == NULL)
+  if (caps == NULL) {
     goto end;
+  }
 
   GST_DEBUG ("Query caps are: %" GST_PTR_FORMAT, caps);
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
@@ -606,8 +608,9 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
 {
   GstPad *peer = NULL;
 
-  if (!self->priv->started)
+  if (!self->priv->started) {
     return;
+  }
 
   remove_target_pad (pad);
 
@@ -834,8 +837,9 @@ kms_agnostic_bin2_request_new_pad (GstElement * element,
 
   gst_pad_set_active (pad, TRUE);
 
-  if (gst_element_add_pad (element, pad))
+  if (gst_element_add_pad (element, pad)) {
     return pad;
+  }
 
   g_object_unref (pad);
 
