@@ -36,9 +36,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
     GST_DEBUG_CATEGORY_INIT (kms_element_debug_category, PLUGIN_NAME,
         0, "debug category for element"));
 
-#define AUDIO_AGNOSTICBIN "audio_agnosticbin"
-#define VIDEO_AGNOSTICBIN "video_agnosticbin"
-
 #define SINK_PAD "sink_%s"
 #define VIDEO_SRC_PAD "video_src_%u"
 #define AUDIO_SRC_PAD "audio_src_%u"
@@ -424,7 +421,7 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   }
 
   self->priv->audio_agnosticbin =
-      gst_element_factory_make ("agnosticbin", AUDIO_AGNOSTICBIN);
+      gst_element_factory_make ("agnosticbin", NULL);
 
   if (self->priv->do_synchronization) {
     GstPad *sink;
@@ -457,7 +454,7 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   }
 
   self->priv->video_agnosticbin =
-      gst_element_factory_make ("agnosticbin", VIDEO_AGNOSTICBIN);
+      gst_element_factory_make ("agnosticbin", NULL);
 
   sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
   gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
