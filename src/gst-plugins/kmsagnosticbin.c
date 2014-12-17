@@ -284,7 +284,13 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
   GstPadChainFunction old_func =
       g_object_get_data (G_OBJECT (pad), OLD_CHAIN_KEY);
 
-  if (G_UNLIKELY ((ret = old_func (pad, parent, buffer)) != GST_FLOW_OK)) {
+  if (old_func == NULL) {
+    return GST_FLOW_OK;
+  }
+
+  ret = old_func (pad, parent, buffer);
+
+  if (G_UNLIKELY (ret != GST_FLOW_OK)) {
     GstPad *peer;
 
     switch (ret) {
