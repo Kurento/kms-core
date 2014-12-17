@@ -20,7 +20,6 @@
 #include "kmsagnosticbin.h"
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
-#include "kmsloop.h"
 #include "kmsparsetreebin.h"
 #include "kmsdectreebin.h"
 #include "kmsenctreebin.h"
@@ -77,7 +76,7 @@ struct _KmsAgnosticBin2Private
   guint pad_count;
   gboolean started;
 
-  KmsLoop *loop;
+  GThreadPool *remove_pool;
 };
 
 /* the capabilities of the inputs and outputs. */
@@ -152,8 +151,8 @@ tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   return GST_PAD_PROBE_OK;
 }
 
-static gboolean
-remove_on_unlinked_async (gpointer data)
+static void
+remove_on_unlinked_async (gpointer data, gpointer not_used)
 {
   GstElement *elem = GST_ELEMENT_CAST (data);
   GstObject *parent = gst_object_get_parent (GST_OBJECT (elem));
@@ -170,7 +169,7 @@ remove_on_unlinked_async (gpointer data)
     g_object_unref (parent);
   }
 
-  return G_SOURCE_REMOVE;
+  g_object_unref (data);
 }
 
 static GstPadProbeReturn
@@ -208,8 +207,7 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 
   self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (elem));
 
-  kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_DEFAULT,
-      remove_on_unlinked_async, g_object_ref (elem), g_object_unref);
+  g_thread_pool_push (self->priv->remove_pool, g_object_ref (elem), NULL);
 
   return GST_PAD_PROBE_PASS;
 }
@@ -243,8 +241,7 @@ remove_on_unlinked_cb (GstPad * pad, GstPad * peer, gpointer user_data)
       }
     }
 
-    kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_DEFAULT,
-        remove_on_unlinked_async, g_object_ref (elem), g_object_unref);
+    g_thread_pool_push (self->priv->remove_pool, g_object_ref (elem), NULL);
   }
 
 end:
@@ -882,7 +879,7 @@ kms_agnostic_bin2_dispose (GObject * object)
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
-  g_clear_object (&self->priv->loop);
+  g_thread_pool_free (self->priv->remove_pool, FALSE, FALSE);
 
   if (self->priv->input_bin_src_caps) {
     gst_caps_unref (self->priv->input_bin_src_caps);
@@ -1002,7 +999,8 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 
   self->priv->started = FALSE;
-  self->priv->loop = kms_loop_new ();
+  self->priv->remove_pool =
+      g_thread_pool_new (remove_on_unlinked_async, NULL, -1, FALSE, NULL);
   self->priv->bins =
       g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   g_rec_mutex_init (&self->priv->thread_mutex);
