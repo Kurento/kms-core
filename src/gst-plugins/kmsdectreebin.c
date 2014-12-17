@@ -64,7 +64,7 @@ kms_dec_tree_bin_configure (KmsDecTreeBin * self, const GstCaps * caps,
     const GstCaps * raw_caps)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
-  GstElement *input_queue, *dec, *output_tee;
+  GstElement *dec, *output_tee;
   GstPad *pad;
 
   dec = create_decoder_for_caps (caps, raw_caps);
@@ -82,9 +82,9 @@ kms_dec_tree_bin_configure (KmsDecTreeBin * self, const GstCaps * caps,
   gst_bin_add (GST_BIN (self), dec);
   gst_element_sync_state_with_parent (dec);
 
-  input_queue = kms_tree_bin_get_input_queue (tree_bin);
+  kms_tree_bin_set_input_element (tree_bin, dec);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  gst_element_link_many (input_queue, dec, output_tee, NULL);
+  gst_element_link (dec, output_tee);
 
   return TRUE;
 }

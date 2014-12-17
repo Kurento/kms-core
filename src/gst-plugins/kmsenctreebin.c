@@ -123,7 +123,7 @@ static gboolean
 kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
-  GstElement *input_queue, *rate, *convert, *mediator, *enc, *output_tee;
+  GstElement *rate, *convert, *mediator, *enc, *output_tee;
   RembEventManager *remb_manager;
   GstPad *sink;
 
@@ -152,10 +152,9 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
   gst_element_sync_state_with_parent (mediator);
   gst_element_sync_state_with_parent (enc);
 
-  input_queue = kms_tree_bin_get_input_queue (tree_bin);
+  kms_tree_bin_set_input_element (tree_bin, rate);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  gst_element_link_many (input_queue, rate, convert, mediator, enc, output_tee,
-      NULL);
+  gst_element_link_many (rate, convert, mediator, enc, output_tee, NULL);
 
   return TRUE;
 }

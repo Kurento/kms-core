@@ -50,10 +50,12 @@ struct _KmsTreeBinClass
 
 GType kms_tree_bin_get_type (void);
 
-GstElement * kms_tree_bin_get_input_queue (KmsTreeBin * self);
+GstElement * kms_tree_bin_get_input_element (KmsTreeBin * self);
+void kms_tree_bin_set_input_element (KmsTreeBin * self,
+    GstElement * input_element);
 GstElement * kms_tree_bin_get_output_tee (KmsTreeBin * self);
 
-void kms_tree_bin_unlink_input_queue_from_tee (KmsTreeBin * self);
+void kms_tree_bin_unlink_input_element_from_tee (KmsTreeBin * self);
 
 G_END_DECLS
 #endif /* __KMS_TREE_BIN_H__ */

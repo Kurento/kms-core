@@ -311,7 +311,7 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 }
 
 static void
-link_queue_to_tee (GstElement * tee, GstElement * queue)
+link_element_to_tee (GstElement * tee, GstElement * queue)
 {
   GstPad *tee_src = gst_element_get_request_pad (tee, "src_%u");
   GstPad *queue_sink = gst_element_get_static_pad (queue, "sink");
@@ -411,7 +411,7 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target);
   g_object_unref (target);
-  link_queue_to_tee (tee, queue);
+  link_element_to_tee (tee, queue);
 }
 
 static GstBin *
@@ -472,7 +472,7 @@ kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
     const GstCaps * raw_caps)
 {
   KmsDecTreeBin *dec_bin;
-  GstElement *output_tee, *input_queue;
+  GstElement *output_tee, *input_element;
   GstCaps *caps = self->priv->input_bin_src_caps;
 
   if (caps == NULL || raw_caps == NULL) {
@@ -489,8 +489,8 @@ kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
 
   output_tee =
       kms_tree_bin_get_output_tee (KMS_TREE_BIN (self->priv->input_bin));
-  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (dec_bin));
-  link_queue_to_tee (output_tee, input_queue);
+  input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (dec_bin));
+  link_element_to_tee (output_tee, input_element);
 
   return GST_BIN (dec_bin);
 }
@@ -549,8 +549,8 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
   output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
-  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (enc_bin));
-  link_queue_to_tee (output_tee, input_queue);
+  input_queue = kms_tree_bin_get_input_element (KMS_TREE_BIN (enc_bin));
+  link_element_to_tee (output_tee, input_queue);
 
   kms_agnostic_bin2_insert_bin (self, GST_BIN (enc_bin));
 
@@ -716,7 +716,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   if (self->priv->input_bin != NULL) {
-    kms_tree_bin_unlink_input_queue_from_tee (KMS_TREE_BIN (self->
+    kms_tree_bin_unlink_input_element_from_tee (KMS_TREE_BIN (self->
             priv->input_bin));
     old_bin = g_object_ref (GST_ELEMENT (self->priv->input_bin));
     gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
@@ -734,7 +734,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   gst_bin_add (GST_BIN (self), GST_ELEMENT (parse_bin));
   gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
 
-  input_queue = kms_tree_bin_get_input_queue (KMS_TREE_BIN (parse_bin));
+  input_queue = kms_tree_bin_get_input_element (KMS_TREE_BIN (parse_bin));
   gst_element_link (self->priv->input_tee, input_queue);
 
   self->priv->started = FALSE;
