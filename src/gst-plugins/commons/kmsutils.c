@@ -796,3 +796,4 @@ init_debug (void)
 KMS_UTILS_DESTROY (guint64);
 KMS_UTILS_DESTROY (gsize);
 KMS_UTILS_DESTROY (GstClockTime);
+KMS_UTILS_DESTROY (gfloat);

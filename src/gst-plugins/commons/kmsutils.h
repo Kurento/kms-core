@@ -64,5 +64,6 @@ GstClockTime kms_utils_get_time_nsecs ();
 KMS_UTILS_DESTROY_H (guint64)
 KMS_UTILS_DESTROY_H (gsize)
 KMS_UTILS_DESTROY_H (GstClockTime)
+KMS_UTILS_DESTROY_H (gfloat)
 
 #endif /* __KMS_UTILS_H__ */
