@@ -45,6 +45,7 @@ struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
 
+  gchar *proto;
   gboolean bundle;              /* Implies rtcp-mux */
   gboolean rtcp_mux;
 
@@ -72,12 +73,14 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_PROTO    NULL
 #define DEFAULT_BUNDLE    FALSE
 #define DEFAULT_TARGET_BITRATE    0
 
 enum
 {
   PROP_0,
+  PROP_PROTO,
   PROP_BUNDLE,
   PROP_TARGET_BITRATE,
   PROP_LAST
@@ -186,7 +189,6 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
 {
   const gchar *rtpbin_pad_name = NULL;
   guint session_id;
-  const gchar *proto_str;
   gchar *rtp_addr, *rtcp_addr;
   const gchar *rtp_addr_type, *rtcp_addr_type;
   guint rtp_port, rtcp_port;
@@ -194,7 +196,6 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   gchar *str;
 
   *media_str = gst_sdp_media_get_media (media);
-
   if (self->priv->bundle) {
     if (g_strcmp0 (AUDIO_STREAM_NAME, *media_str) == 0) {
       rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
@@ -208,16 +209,8 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
       return TRUE;
     }
   }
-  proto_str = gst_sdp_media_get_proto (media);
-  if (g_ascii_strcasecmp (SDP_MEDIA_RTP_AVP_PROTO, proto_str) != 0 &&
-      g_ascii_strcasecmp (SDP_MEDIA_RTP_SAVPF_PROTO, proto_str)) {
-    GST_WARNING ("Proto \"%s\" not supported", proto_str);
-    ((GstSDPMedia *) media)->port = 0;
-    *media_str = NULL;
-    return TRUE;
-  }
 
-  gst_sdp_media_set_proto (media, SDP_MEDIA_RTP_SAVPF_PROTO);
+  gst_sdp_media_set_proto (media, self->priv->proto);
 
   rtp_addr_type = use_ipv6 ? "IP6" : "IP4";
   rtcp_addr_type = use_ipv6 ? "IP6" : "IP4";
@@ -509,6 +502,7 @@ static void
 kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     base_endpoint, const GstSDPMessage * answer)
 {
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
   guint i, len;
 
   KMS_BASE_SDP_ENDPOINT_CLASS
@@ -524,7 +518,7 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
   len = gst_sdp_message_medias_len (answer);
 
   KMS_ELEMENT_LOCK (base_endpoint);
-  KMS_BASE_RTP_ENDPOINT (base_endpoint)->priv->negotiated = TRUE;
+  self->priv->negotiated = TRUE;
 
   for (i = 0; i < len; i++) {
     const gchar *proto_str;
@@ -534,11 +528,9 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
     guint j, f_len;
 
-    // TODO: Change constant RTP/AVP by a paremeter
     proto_str = gst_sdp_media_get_proto (media);
-    if (g_ascii_strcasecmp ("RTP/AVP", proto_str) != 0 &&
-        g_ascii_strcasecmp ("RTP/SAVPF", proto_str) != 0) {
-      GST_WARNING ("Proto \"%s\" not supported", proto_str);
+    if (g_strcmp0 (proto_str, self->priv->proto)) {
+      GST_WARNING_OBJECT (self, "Proto \"%s\" not supported", proto_str);
       continue;
     }
 
@@ -610,18 +602,9 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
   len = gst_sdp_message_medias_len (answer);
 
   for (i = 0; i < len; i++) {
-    const gchar *proto_str;
     const gchar *rtpmap;
     const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
     guint j, f_len;
-
-    // TODO: Change constant RTP/AVP by a paremeter
-    proto_str = gst_sdp_media_get_proto (media);
-    if (g_ascii_strcasecmp ("RTP/AVP", proto_str) != 0 &&
-        g_ascii_strcasecmp ("RTP/SAVPF", proto_str) != 0) {
-      GST_WARNING ("Proto \"%s\" not supported", proto_str);
-      continue;
-    }
 
     f_len = gst_sdp_media_formats_len (media);
 
@@ -793,6 +776,13 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
+    case PROP_PROTO:{
+      const gchar *str = g_value_get_string (value);
+
+      g_free (self->priv->proto);
+      self->priv->proto = g_strdup (str);
+      break;
+    }
     case PROP_BUNDLE:
       self->priv->bundle = g_value_get_boolean (value);
       break;
@@ -816,6 +806,9 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
+    case PROP_PROTO:
+      g_value_set_string (value, self->priv->proto);
+      break;
     case PROP_BUNDLE:
       g_value_set_boolean (value, self->priv->bundle);
       break;
@@ -863,6 +856,18 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 }
 
 static void
+kms_base_rtp_endpoint_finalize (GObject * gobject)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
+
+  GST_DEBUG_OBJECT (self, "finalize");
+
+  g_free (self->priv->proto);
+
+  G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
+}
+
+static void
 kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 {
   KmsBaseSdpEndpointClass *base_endpoint_class;
@@ -871,6 +876,7 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   object_class = G_OBJECT_CLASS (klass);
   object_class->dispose = kms_base_rtp_endpoint_dispose;
+  object_class->finalize = kms_base_rtp_endpoint_finalize;
   object_class->set_property = kms_base_rtp_endpoint_set_property;
   object_class->get_property = kms_bse_rtp_endpoint_get_property;
 
@@ -888,6 +894,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       kms_base_rtp_endpoint_set_transport_to_sdp;
   base_endpoint_class->connect_input_elements =
       kms_base_rtp_endpoint_connect_input_elements;
+
+  g_object_class_install_property (object_class, PROP_PROTO,
+      g_param_spec_string ("proto", "RTP/RTCP protocol",
+          "RTP/RTCP protocol", DEFAULT_PROTO,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_BUNDLE,
       g_param_spec_boolean ("bundle", "Bundle media",
@@ -1015,6 +1026,7 @@ static void
 kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 {
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
+  self->priv->proto = DEFAULT_PROTO;
   self->priv->bundle = DEFAULT_BUNDLE;
 
   self->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
