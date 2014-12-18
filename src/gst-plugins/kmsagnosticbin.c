@@ -360,6 +360,9 @@ remove_target_pad_block (GstPad * pad, GstPadProbeInfo * info, gpointer gp)
 static void
 remove_target_pad (GstPad * pad)
 {
+  // TODO: Remove target pad is just like a disconnection it should be done
+  // with care, possibly blocking the pad, or at least disconnecting directly
+  // from the tee
   GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
 
   GST_DEBUG_OBJECT (pad, "Removing target pad");
