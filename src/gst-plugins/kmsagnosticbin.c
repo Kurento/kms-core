@@ -887,6 +887,8 @@ kms_agnostic_bin2_dispose (GObject * object)
 {
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
+  GST_DEBUG_OBJECT (object, "dispose");
+
   KMS_AGNOSTIC_BIN2_LOCK (self);
   g_thread_pool_free (self->priv->remove_pool, FALSE, FALSE);
 
@@ -910,6 +912,8 @@ static void
 kms_agnostic_bin2_finalize (GObject * object)
 {
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
+
+  GST_DEBUG_OBJECT (object, "finalize");
 
   g_rec_mutex_clear (&self->priv->thread_mutex);
 
