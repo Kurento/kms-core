@@ -672,7 +672,7 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     const GstSDPMessage * answer, gboolean local_offer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  KmsIRtpConnection *bundle_conn;
+  KmsIRtpConnection *bundle_conn = NULL;
   const GstSDPMessage *sdp;
   guint len, i;
 
