@@ -62,6 +62,7 @@ install(
 set(KMS_COMMONS_SOURCES
   kmsrtcp.c
   kmsremb.c
+  kmsirtpconnection.c
   kmsbasertpendpoint.c
   kmsbasesdpendpoint.c
   kmselement.c
@@ -76,6 +77,7 @@ set(KMS_COMMONS_SOURCES
 set(KMS_COMMONS_HEADERS
   kmsrtcp.h
   kmsremb.h
+  kmsirtpconnection.h
   kmsbasertpendpoint.h
   kmsbasesdpendpoint.h
   kmselement.h
