@@ -42,6 +42,8 @@ G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
   )                                               \
 )
 
+#define RTCP_DEMUX_PEER "rtcp-demux-peer"
+
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
@@ -58,6 +60,7 @@ struct _KmsBaseRtpEndpointPrivate
   GstElement *video_payloader;
 
   guint local_audio_ssrc;
+  guint remote_audio_ssrc;
   guint audio_ssrc;
 
   guint local_video_ssrc;
@@ -405,6 +408,15 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   }
 
   if (self->priv->bundle) {
+    KmsIBundleConnection *conn =
+        kms_base_rtp_endpoint_create_bundle_connection (self,
+        BUNDLE_STREAM_NAME);
+
+    if (conn == NULL) {
+      ret = FALSE;
+      goto end;
+    }
+
     bundle_mids = g_strdup ("BUNDLE");
   }
 
@@ -432,15 +444,29 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
       tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
       g_free (bundle_mids);
       bundle_mids = tmp;
+    } else {
+      KmsIRtpConnection *conn;
+
+      if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) != 0 &&
+          g_strcmp0 (VIDEO_STREAM_NAME, media_str) != 0) {
+        GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
+        continue;
+      }
+
+      conn = kms_base_rtp_endpoint_create_connection (self, media_str);
+      if (conn == NULL) {
+        ret = FALSE;
+        goto end;
+      }
     }
   }
 
   if (self->priv->bundle) {
     gst_sdp_message_add_attribute (msg, "group", bundle_mids);
-    g_free (bundle_mids);
   }
 
 end:
+  g_free (bundle_mids);
   if (sdes != NULL) {
     gst_structure_free (sdes);
   }
@@ -483,12 +509,154 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
   g_object_unref (rtpsession);
 }
 
+static gboolean
+ssrcs_are_mapped (GstElement * ssrcdemux,
+    guint32 local_ssrc, guint32 remote_ssrc)
+{
+  GstElement *rtcpdemux =
+      g_object_get_data (G_OBJECT (ssrcdemux), RTCP_DEMUX_PEER);
+  guint local_ssrc_pair;
+
+  g_signal_emit_by_name (rtcpdemux, "get-local-rr-ssrc-pair", remote_ssrc,
+      &local_ssrc_pair);
+
+  return ((local_ssrc != 0) && (local_ssrc_pair == local_ssrc));
+}
+
+static void
+rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
+    KmsBaseRtpEndpoint * self)
+{
+  const gchar *rtp_pad_name = GST_OBJECT_NAME (pad);
+  gchar *rtcp_pad_name;
+  GstElement *rtpbin = self->priv->rtpbin;
+
+  GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
+      pad, ssrc);
+  rtcp_pad_name = g_strconcat ("rtcp_", rtp_pad_name, NULL);
+
+  KMS_ELEMENT_LOCK (self);
+
+  if ((self->priv->remote_audio_ssrc == ssrc) ||
+      ssrcs_are_mapped (ssrcdemux, self->priv->local_audio_ssrc, ssrc)) {
+    gst_element_link_pads (ssrcdemux, rtp_pad_name, rtpbin,
+        AUDIO_RTPBIN_RECV_RTP_SINK);
+    gst_element_link_pads (ssrcdemux, rtcp_pad_name, rtpbin,
+        AUDIO_RTPBIN_RECV_RTCP_SINK);
+  } else if (self->priv->remote_video_ssrc == ssrc
+      || ssrcs_are_mapped (ssrcdemux, self->priv->local_video_ssrc, ssrc)) {
+    gst_element_link_pads (ssrcdemux, rtp_pad_name, rtpbin,
+        VIDEO_RTPBIN_RECV_RTP_SINK);
+    gst_element_link_pads (ssrcdemux, rtcp_pad_name, rtpbin,
+        VIDEO_RTPBIN_RECV_RTCP_SINK);
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  g_free (rtcp_pad_name);
+}
+
+static KmsIRtpConnection *
+kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
+    gboolean local_offer)
+{
+  KmsIRtpConnection *conn;
+  GstElement *ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
+  GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
+  GstPad *src, *sink;
+
+  g_object_set_data_full (G_OBJECT (ssrcdemux), RTCP_DEMUX_PEER,
+      g_object_ref (rtcpdemux), g_object_unref);
+  g_signal_connect (ssrcdemux, "new-ssrc-pad",
+      G_CALLBACK (rtp_ssrc_demux_new_ssrc_pad), self);
+
+  conn = kms_base_rtp_endpoint_get_connection (self, BUNDLE_STREAM_NAME);
+  kms_i_rtp_connection_add (conn, GST_BIN (self), local_offer);
+  gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
+
+  src = kms_i_rtp_connection_request_rtp_src (conn);
+  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  gst_element_link_pads (rtcpdemux, "rtp_src", ssrcdemux, "sink");
+  gst_element_link_pads (rtcpdemux, "rtcp_src", ssrcdemux, "rtcp_sink");
+
+  gst_element_sync_state_with_parent_target_state (ssrcdemux);
+  gst_element_sync_state_with_parent_target_state (rtcpdemux);
+
+  return conn;
+}
+
+static void
+kms_base_rtp_endpoint_add_connection_sink (KmsBaseRtpEndpoint * self,
+    KmsIRtpConnection * conn, const gchar * rtp_session)
+{
+  GstPad *src, *sink;
+  gchar *str;
+
+  str = g_strdup_printf ("%s%s", RTPBIN_SEND_RTP_SRC, rtp_session);
+  src = gst_element_get_static_pad (self->priv->rtpbin, str);
+  g_free (str);
+  sink = kms_i_rtp_connection_request_rtp_sink (conn);
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  str = g_strdup_printf ("%s%s", RTPBIN_SEND_RTCP_SRC, rtp_session);
+  src = gst_element_get_request_pad (self->priv->rtpbin, str);
+  g_free (str);
+  sink = kms_i_rtp_connection_request_rtcp_sink (conn);
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+}
+
+static void
+kms_base_rtp_endpoint_add_connection_src (KmsBaseRtpEndpoint * self,
+    KmsIRtpConnection * conn, const gchar * rtp_session)
+{
+  GstPad *src, *sink;
+  gchar *str;
+
+  str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTP_SINK, rtp_session);
+  src = kms_i_rtp_connection_request_rtp_src (conn);
+  sink = gst_element_get_request_pad (self->priv->rtpbin, str);
+  g_free (str);
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTCP_SINK, rtp_session);
+  src = kms_i_rtp_connection_request_rtcp_src (conn);
+  sink = gst_element_get_request_pad (self->priv->rtpbin, str);
+  g_free (str);
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+}
+
+static void
+kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
+    gboolean local_offer, const gchar * name, const gchar * rtp_session)
+{
+  KmsIRtpConnection *conn;
+
+  conn = kms_base_rtp_endpoint_get_connection (self, name);
+  kms_i_rtp_connection_add (conn, GST_BIN (self), local_offer);
+
+  kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session);
+  kms_base_rtp_endpoint_add_connection_src (self, conn, rtp_session);
+}
+
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, const GstSDPMessage * offer,
     const GstSDPMessage * answer, gboolean local_offer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
+  KmsIRtpConnection *bundle_conn;
   const GstSDPMessage *sdp;
   guint len, i;
 
@@ -505,28 +673,105 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     sdp = offer;
   }
 
+  if (self->priv->bundle) {
+    bundle_conn =
+        kms_base_rtp_endpoint_add_bundle_connection (self, local_offer);
+  }
+
   len = gst_sdp_message_medias_len (sdp);
   for (i = 0; i < len; i++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
     const gchar *media_str = gst_sdp_media_get_media (media);
 
-    if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
       /* TODO: support more than one in the future */
       if (self->priv->remote_video_ssrc != 0) {
         GST_WARNING_OBJECT (self,
             "Overwriting remote video ssrc. This can cause some problem");
       }
-      self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
+      self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (media);
 
+      if (self->priv->bundle) {
+        kms_base_rtp_endpoint_add_connection_sink (self, bundle_conn,
+            AUDIO_RTP_SESSION_STR);
+      } else {
+        kms_base_rtp_endpoint_add_connection (self, local_offer,
+            AUDIO_STREAM_NAME, AUDIO_RTP_SESSION_STR);
+      }
+    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+      self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
       /* TODO: create if REMB is enabled */
       kms_base_rtp_endpoint_create_remb_managers (self);
+
+      if (self->priv->bundle) {
+        kms_base_rtp_endpoint_add_connection_sink (self, bundle_conn,
+            VIDEO_RTP_SESSION_STR);
+      } else {
+        kms_base_rtp_endpoint_add_connection (self, local_offer,
+            VIDEO_STREAM_NAME, VIDEO_RTP_SESSION_STR);
+      }
+    } else {
+      GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
     }
   }
 
   KMS_ELEMENT_UNLOCK (self);
+
 }
 
 /* Start Transport Send end */
+
+/* Connection management begin */
+static KmsIRtpConnection *
+kms_base_rtp_endpoint_get_connection_default (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->get_connection == kms_base_rtp_endpoint_get_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'get_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIRtpConnection *
+kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_connection ==
+      kms_base_rtp_endpoint_create_connection_default) {
+    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIBundleConnection *
+kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
+    self, const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_bundle_connection ==
+      kms_base_rtp_endpoint_create_bundle_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'create_bundle_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+/* Connection management end */
 
 static const gchar *
 get_caps_codec_name (const gchar * codec_name)
@@ -1116,6 +1361,12 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
+  /* Connection management */
+  klass->get_connection = kms_base_rtp_endpoint_get_connection_default;
+  klass->create_connection = kms_base_rtp_endpoint_create_connection_default;
+  klass->create_bundle_connection =
+      kms_base_rtp_endpoint_create_bundle_connection_default;
+
   base_endpoint_class = KMS_BASE_SDP_ENDPOINT_CLASS (klass);
   base_endpoint_class->set_transport_to_sdp =
       kms_base_rtp_endpoint_set_transport_to_sdp;
@@ -1298,22 +1549,46 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->negotiated = FALSE;
 }
 
+KmsIRtpConnection *
+kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->get_connection (self, name);
+}
+
+KmsIRtpConnection *
+kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->create_connection (self, name);
+}
+
+KmsIBundleConnection *
+kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->create_bundle_connection (self, name);
+}
+
 GstElement *
 kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self)
 {
   g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
 
   return self->priv->rtpbin;
-}
-
-guint
-kms_base_rtp_endpoint_get_local_audio_ssrc (KmsBaseRtpEndpoint * self)
-{
-  return self->priv->local_audio_ssrc;
-}
-
-guint
-kms_base_rtp_endpoint_get_local_video_ssrc (KmsBaseRtpEndpoint * self)
-{
-  return self->priv->local_video_ssrc;
 }

@@ -16,6 +16,7 @@
 #define __KMS_BASE_RTP_ENDPOINT_H__
 
 #include "kmsbasesdpendpoint.h"
+#include "kmsirtpconnection.h"
 #include "kmsmediatype.h"
 
 /* TODO: remove from here, it is defined in kmrtcp.h */
@@ -72,6 +73,8 @@ typedef struct _KmsBaseRtpEndpointPrivate KmsBaseRtpEndpointPrivate;
 #define VIDEO_RTPBIN_SEND_RTCP_SRC RTPBIN_SEND_RTCP_SRC VIDEO_RTP_SESSION_STR
 #define VIDEO_RTPBIN_SEND_RTP_SINK RTPBIN_SEND_RTP_SINK VIDEO_RTP_SESSION_STR
 
+#define BUNDLE_STREAM_NAME "bundle"
+
 /* RTP/RTCP profiles */
 #define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_MEDIA_RTP_SAVPF_PROTO "RTP/SAVPF"
@@ -97,14 +100,21 @@ struct _KmsBaseRtpEndpointClass
     gboolean local);
   void (*media_stop) (KmsBaseRtpEndpoint * self, KmsMediaType type,
     gboolean local);
+
+  /* virtual methods */
+  KmsIRtpConnection * (*get_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
+  KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
+  KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
 };
 
 GType kms_base_rtp_endpoint_get_type (void);
 
+KmsIRtpConnection * kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self, const gchar *name);
+KmsIRtpConnection * kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self, const gchar *name);
+KmsIBundleConnection * kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self, const gchar *name);
+
 /* rtpbin must be used helding the KmsBaseRtpEndpoint's lock */
 GstElement *kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self);
-guint kms_base_rtp_endpoint_get_local_audio_ssrc (KmsBaseRtpEndpoint * self);
-guint kms_base_rtp_endpoint_get_local_video_ssrc (KmsBaseRtpEndpoint * self);
 
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_ENDPOINT_H__ */
