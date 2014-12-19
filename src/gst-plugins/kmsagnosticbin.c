@@ -289,7 +289,7 @@ remove_tee_pad_on_unlink (GstPad * pad, GstPad * peer, gpointer user_data)
 }
 
 static GstFlowReturn
-queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
+no_fail_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 {
   GstFlowReturn ret;
   GstPadChainFunction old_func =
@@ -322,10 +322,10 @@ queue_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
 }
 
 static void
-link_element_to_tee (GstElement * tee, GstElement * queue)
+link_element_to_tee (GstElement * tee, GstElement * element)
 {
   GstPad *tee_src = gst_element_get_request_pad (tee, "src_%u");
-  GstPad *queue_sink = gst_element_get_static_pad (queue, "sink");
+  GstPad *element_sink = gst_element_get_static_pad (element, "sink");
   GstPadLinkReturn ret;
   GstPadChainFunction old_func;
 
@@ -334,30 +334,30 @@ link_element_to_tee (GstElement * tee, GstElement * queue)
    * we avoid race conditions produced by reconnect events not using the stream
    * lock
    */
-  old_func = GST_PAD_CHAINFUNC (queue_sink);
+  old_func = GST_PAD_CHAINFUNC (element_sink);
 
   if (old_func != NULL) {
-    if (old_func != queue_chain) {
-      g_object_set_data (G_OBJECT (queue_sink), OLD_CHAIN_KEY, old_func);
+    if (old_func != no_fail_chain) {
+      g_object_set_data (G_OBJECT (element_sink), OLD_CHAIN_KEY, old_func);
     }
-    gst_pad_set_chain_function (queue_sink, queue_chain);
+    gst_pad_set_chain_function (element_sink, no_fail_chain);
   }
 
-  remove_element_on_unlinked (queue, "src", "sink");
+  remove_element_on_unlinked (element, "src", "sink");
   g_signal_connect (tee_src, "unlinked", G_CALLBACK (remove_tee_pad_on_unlink),
       NULL);
 
   gst_pad_add_probe (tee_src, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM, tee_src_probe,
       NULL, NULL);
 
-  ret = gst_pad_link_full (tee_src, queue_sink, GST_PAD_LINK_CHECK_NOTHING);
+  ret = gst_pad_link_full (tee_src, element_sink, GST_PAD_LINK_CHECK_NOTHING);
 
   if (G_UNLIKELY (GST_PAD_LINK_FAILED (ret))) {
     GST_ERROR ("Linking %" GST_PTR_FORMAT " with %" GST_PTR_FORMAT " result %d",
-        tee_src, queue_sink, ret);
+        tee_src, element_sink, ret);
   }
 
-  g_object_unref (queue_sink);
+  g_object_unref (element_sink);
   g_object_unref (tee_src);
 }
 
@@ -543,7 +543,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstBin *dec_bin;
   KmsEncTreeBin *enc_bin;
-  GstElement *input_queue, *output_tee;
+  GstElement *input_element, *output_tee;
 
   dec_bin = kms_agnostic_bin2_get_or_create_dec_bin (self, caps);
   if (dec_bin == NULL) {
@@ -563,8 +563,8 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_element_sync_state_with_parent (GST_ELEMENT (enc_bin));
 
   output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
-  input_queue = kms_tree_bin_get_input_element (KMS_TREE_BIN (enc_bin));
-  link_element_to_tee (output_tee, input_queue);
+  input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (enc_bin));
+  link_element_to_tee (output_tee, input_element);
 
   kms_agnostic_bin2_insert_bin (self, GST_BIN (enc_bin));
 
@@ -724,7 +724,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   KmsParseTreeBin *parse_bin;
   GstElement *parser;
   GstPad *parser_src;
-  GstElement *input_queue;
+  GstElement *input_element;
   GstElement *old_bin = NULL;
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
@@ -748,8 +748,8 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   gst_bin_add (GST_BIN (self), GST_ELEMENT (parse_bin));
   gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
 
-  input_queue = kms_tree_bin_get_input_element (KMS_TREE_BIN (parse_bin));
-  link_element_to_tee (self->priv->input_tee, input_queue);
+  input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (parse_bin));
+  link_element_to_tee (self->priv->input_tee, input_element);
 
   self->priv->started = FALSE;
   g_hash_table_remove_all (self->priv->bins);
