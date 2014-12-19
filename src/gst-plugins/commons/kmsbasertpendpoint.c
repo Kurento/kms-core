@@ -251,9 +251,9 @@ sdp_message_get_vp8_rtcp_fb_attrs (const GstSDPMessage * msg,
   }
 }
 
-/* TODO: do configurable */
 static void
-sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
+kms_base_rtp_endpoint_media_set_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
+    GstSDPMedia * media)
 {
   guint i, f_len;
 
@@ -270,21 +270,29 @@ sdp_media_set_rtcp_fb_attrs (GstSDPMedia * media)
     if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) == 0) {
       gchar *aux;
 
-      aux = g_strconcat (pt, " ", RTCP_FB_FIR, NULL);
-      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
-      g_free (aux);
+      if (self->priv->rtcp_fir) {
+        aux = g_strconcat (pt, " ", RTCP_FB_FIR, NULL);
+        gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+        g_free (aux);
+      }
 
-      aux = g_strconcat (pt, " ", RTCP_FB_NACK, NULL);
-      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
-      g_free (aux);
+      if (self->priv->rtcp_nack) {
+        aux = g_strconcat (pt, " ", RTCP_FB_NACK, NULL);
+        gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+        g_free (aux);
+      }
 
-      aux = g_strconcat (pt, " ", RTCP_FB_PLI, NULL);
-      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
-      g_free (aux);
+      if (self->priv->rtcp_pli) {
+        aux = g_strconcat (pt, " ", RTCP_FB_PLI, NULL);
+        gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+        g_free (aux);
+      }
 
-      aux = g_strconcat (pt, " ", RTCP_FB_REMB, NULL);
-      gst_sdp_media_add_attribute (media, RTCP_FB, aux);
-      g_free (aux);
+      if (self->priv->rtcp_remb) {
+        aux = g_strconcat (pt, " ", RTCP_FB_REMB, NULL);
+        gst_sdp_media_add_attribute (media, RTCP_FB, aux);
+        g_free (aux);
+      }
     }
 
     g_free (enconding_name);
@@ -385,7 +393,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     self->priv->local_video_ssrc = ssrc;
   }
 
-  sdp_media_set_rtcp_fb_attrs (media);
+  kms_base_rtp_endpoint_media_set_rtcp_fb_attrs (self, media);
 
   return media_str;
 }
@@ -710,8 +718,10 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
       }
     } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
       self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
-      /* TODO: create if REMB is enabled */
-      kms_base_rtp_endpoint_create_remb_managers (self);
+
+      if (self->priv->rtcp_remb) {
+        kms_base_rtp_endpoint_create_remb_managers (self);
+      }
 
       if (self->priv->bundle) {
         kms_base_rtp_endpoint_add_connection_sink (self, bundle_conn,
@@ -1069,8 +1079,8 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
       if (caps != NULL) {
         if (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0) {
           gst_caps_set_simple (caps, "rtcp-fb-ccm-fir",
-              G_TYPE_BOOLEAN, TRUE, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, TRUE,
-              NULL);
+              G_TYPE_BOOLEAN, self->priv->rtcp_fir, "rtcp-fb-nack-pli",
+              G_TYPE_BOOLEAN, self->priv->rtcp_pli, NULL);
         }
 
         ret = caps;
@@ -1173,7 +1183,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
   if (ssrc == self->priv->video_ssrc) {
     g_object_set (jitterbuffer, "do-lost", TRUE,
-        "do-retransmission", TRUE,
+        "do-retransmission", self->priv->rtcp_nack,
         "rtx-next-seqnum", FALSE,
         "rtx-max-retries", 0, "rtp-max-dropout", -1, NULL);
   }
