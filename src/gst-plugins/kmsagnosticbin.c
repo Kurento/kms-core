@@ -279,13 +279,14 @@ remove_element_on_unlinked (GstElement * element, const gchar * pad_name,
 static void
 remove_tee_pad_on_unlink (GstPad * pad, GstPad * peer, gpointer user_data)
 {
-  GstElement *tee = GST_ELEMENT (GST_OBJECT_PARENT (pad));
+  GstElement *tee = gst_pad_get_parent_element (pad);
 
   if (tee == NULL) {
     return;
   }
 
   gst_element_release_request_pad (tee, pad);
+  g_object_unref (tee);
 }
 
 static GstFlowReturn
