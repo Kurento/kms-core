@@ -67,8 +67,6 @@ struct _KmsBaseRtpEndpointPrivate
   guint remote_video_ssrc;
   guint video_ssrc;
 
-  gboolean negotiated;
-
   gint32 target_bitrate;
   guint min_video_send_bw;
   guint max_video_send_bw;
@@ -346,7 +344,7 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
     rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
     session_id = VIDEO_RTP_SESSION;
   } else {
-    GST_WARNING_OBJECT (self, "Media \"%s\" not supported", media_str);
+    GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
     return NULL;
   }
 
@@ -796,15 +794,14 @@ kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
 static const gchar *
 get_caps_codec_name (const gchar * codec_name)
 {
-  // TODO: Add more special cases here
-
   if (g_ascii_strcasecmp (OPUS_ENCONDING_NAME, codec_name) == 0) {
     return "X-GST-OPUS-DRAFT-SPITTKA-00";
-  } else if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
-    return "VP8-DRAFT-IETF-01";
-  } else {
-    return codec_name;
   }
+  if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
+    return "VP8-DRAFT-IETF-01";
+  }
+
+  return codec_name;
 }
 
 static GstCaps *
@@ -932,25 +929,26 @@ end:
 }
 
 static void
-kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * ep,
+kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
     KmsElementPadType type, GstElement * payloader,
     const gchar * rtpbin_pad_name)
 {
+  GstElement *rtpbin = self->priv->rtpbin;
   GstElement *rtprtxqueue = gst_element_factory_make ("rtprtxqueue", NULL);
   GstPad *target;
 
   g_object_set (rtprtxqueue, "max-size-packets", 128, NULL);
 
   g_object_ref (payloader);
-  gst_bin_add_many (GST_BIN (ep), payloader, rtprtxqueue, NULL);
+  gst_bin_add_many (GST_BIN (self), payloader, rtprtxqueue, NULL);
   gst_element_sync_state_with_parent (payloader);
   gst_element_sync_state_with_parent (rtprtxqueue);
 
   gst_element_link (payloader, rtprtxqueue);
-  gst_element_link_pads (rtprtxqueue, "src", ep->priv->rtpbin, rtpbin_pad_name);
+  gst_element_link_pads (rtprtxqueue, "src", rtpbin, rtpbin_pad_name);
 
   target = gst_element_get_static_pad (payloader, "sink");
-  kms_element_connect_sink_target (KMS_ELEMENT (ep), target, type);
+  kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
   g_object_unref (target);
 }
 
@@ -961,78 +959,72 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
   guint i, len;
 
-  KMS_BASE_SDP_ENDPOINT_CLASS
-      (kms_base_rtp_endpoint_parent_class)->connect_input_elements
-      (base_endpoint, answer);
-  GST_DEBUG ("connect_input_elements");
-
   if (answer == NULL) {
-    GST_ERROR ("Asnwer is NULL");
+    GST_ERROR_OBJECT (self, "Asnwer is NULL");
     return;
   }
 
-  len = gst_sdp_message_medias_len (answer);
-
   KMS_ELEMENT_LOCK (base_endpoint);
-  self->priv->negotiated = TRUE;
 
+  len = gst_sdp_message_medias_len (answer);
   for (i = 0; i < len; i++) {
-    const gchar *proto_str;
+    const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
+    const gchar *media_str = gst_sdp_media_get_media (media);
+    const gchar *proto_str = gst_sdp_media_get_proto (media);
     GstElement *payloader;
     GstCaps *caps = NULL;
-    const gchar *rtpmap;
-    const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
     guint j, f_len;
+    const gchar *rtpbin_pad_name;
+    KmsElementPadType type;
 
-    proto_str = gst_sdp_media_get_proto (media);
     if (g_strcmp0 (proto_str, self->priv->proto)) {
-      GST_WARNING_OBJECT (self, "Proto \"%s\" not supported", proto_str);
+      GST_WARNING_OBJECT (self, "Proto '%s' not supported", proto_str);
       continue;
     }
 
     f_len = gst_sdp_media_formats_len (media);
-
     for (j = 0; j < f_len && caps == NULL; j++) {
       const gchar *pt = gst_sdp_media_get_format (media, j);
+      const gchar *rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
 
-      rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
-      caps =
-          kms_base_rtp_endpoint_get_caps_from_rtpmap (gst_sdp_media_get_media
-          (media), pt, rtpmap);
+      caps = kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, pt, rtpmap);
     }
 
     if (caps == NULL) {
+      GST_WARNING_OBJECT (self, "Caps not found for media '%s'", media_str);
       continue;
     }
 
-    GST_DEBUG ("Found caps: %" GST_PTR_FORMAT, caps);
+    GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
 
     payloader = gst_base_rtp_get_payloader_for_caps (caps);
-    if (payloader != NULL) {
-      const gchar *rtpbin_pad_name;
-      KmsElementPadType type;
+    gst_caps_unref (caps);
 
-      GST_DEBUG ("Found payloader %" GST_PTR_FORMAT, payloader);
-      if (g_strcmp0 ("audio", gst_sdp_media_get_media (media)) == 0) {
-        self->priv->audio_payloader = payloader;
-        type = KMS_ELEMENT_PAD_TYPE_AUDIO;
-        rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
-      } else if (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0) {
-        self->priv->video_payloader = payloader;
-        type = KMS_ELEMENT_PAD_TYPE_VIDEO;
-        rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
-      } else {
-        rtpbin_pad_name = NULL;
-        g_object_unref (payloader);
-      }
-
-      if (rtpbin_pad_name != NULL) {
-        kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
-            rtpbin_pad_name);
-      }
+    if (payloader == NULL) {
+      GST_WARNING_OBJECT (self, "Payloader not found for media '%s'",
+          media_str);
+      continue;
     }
 
-    gst_caps_unref (caps);
+    GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
+
+    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+      self->priv->audio_payloader = payloader;
+      type = KMS_ELEMENT_PAD_TYPE_AUDIO;
+      rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
+    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+      self->priv->video_payloader = payloader;
+      type = KMS_ELEMENT_PAD_TYPE_VIDEO;
+      rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
+    } else {
+      rtpbin_pad_name = NULL;
+      g_object_unref (payloader);
+    }
+
+    if (rtpbin_pad_name != NULL) {
+      kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
+          rtpbin_pad_name);
+    }
   }
 
   KMS_ELEMENT_UNLOCK (base_endpoint);
@@ -1047,22 +1039,22 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
   GstCaps *ret = NULL;
 
   g_object_get (base_endpoint, "local-answer-sdp", &answer, NULL);
-  if (answer == NULL)
+  if (answer == NULL) {
     g_object_get (base_endpoint, "remote-answer-sdp", &answer, NULL);
+  }
 
   if (answer == NULL) {
     return NULL;
   }
 
   len = gst_sdp_message_medias_len (answer);
-
   for (i = 0; i < len; i++) {
-    const gchar *rtpmap;
     const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
+    const gchar *media_str = gst_sdp_media_get_media (media);
+    const gchar *rtpmap;
     guint j, f_len;
 
     f_len = gst_sdp_media_formats_len (media);
-
     for (j = 0; j < f_len; j++) {
       GstCaps *caps;
       const gchar *payload = gst_sdp_media_get_format (media, j);
@@ -1073,11 +1065,11 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 
       rtpmap = sdp_utils_sdp_media_get_rtpmap (media, payload);
       caps =
-          kms_base_rtp_endpoint_get_caps_from_rtpmap (gst_sdp_media_get_media
-          (media), payload, rtpmap);
+          kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, payload,
+          rtpmap);
 
       if (caps != NULL) {
-        if (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0) {
+        if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
           gst_caps_set_simple (caps, "rtcp-fb-ccm-fir",
               G_TYPE_BOOLEAN, self->priv->rtcp_fir, "rtcp-fb-nack-pli",
               G_TYPE_BOOLEAN, self->priv->rtcp_pli, NULL);
@@ -1101,7 +1093,7 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
 {
   GstCaps *caps;
 
-  GST_DEBUG ("Caps request for pt: %d", pt);
+  GST_DEBUG_OBJECT (self, "Caps request for pt: %d", pt);
 
   caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
 
@@ -1109,9 +1101,15 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
     return caps;
   }
 
-  return gst_caps_new_simple ("application/x-rtp", "payload", G_TYPE_INT, pt,
-      "rtcp-fb-ccm-fir",
-      G_TYPE_BOOLEAN, TRUE, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, TRUE, NULL);
+  caps =
+      gst_caps_new_simple ("application/x-rtp", "payload", G_TYPE_INT, pt,
+      "rtcp-fb-ccm-fir", G_TYPE_BOOLEAN, self->priv->rtcp_fir,
+      "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, self->priv->rtcp_pli, NULL);
+
+  GST_WARNING_OBJECT (self, "Caps not found pt: %d. Setting: %" GST_PTR_FORMAT,
+      pt, caps);
+
+  return caps;
 }
 
 static void
@@ -1130,40 +1128,41 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
     media = KMS_MEDIA_TYPE_AUDIO;
   } else if (g_str_has_prefix (GST_OBJECT_NAME (pad),
           VIDEO_RTPBIN_RECV_RTP_SRC)) {
+    agnostic = kms_element_get_video_agnosticbin (KMS_ELEMENT (self));
+    media = KMS_MEDIA_TYPE_VIDEO;
+
     if (self->priv->rl != NULL) {
       self->priv->rl->event_manager = kms_utils_remb_event_manager_create (pad);
     }
-    agnostic = kms_element_get_video_agnosticbin (KMS_ELEMENT (self));
-    media = KMS_MEDIA_TYPE_VIDEO;
   } else {
     added = FALSE;
     goto end;
   }
 
   caps = gst_pad_query_caps (pad, NULL);
-  GST_DEBUG ("New pad: %" GST_PTR_FORMAT " for linking to %" GST_PTR_FORMAT
+  GST_DEBUG_OBJECT (self,
+      "New pad: %" GST_PTR_FORMAT " for linking to %" GST_PTR_FORMAT
       " with caps %" GST_PTR_FORMAT, pad, agnostic, caps);
 
   depayloader = gst_base_rtp_get_depayloader_for_caps (caps);
-
-  if (caps != NULL) {
-    gst_caps_unref (caps);
-  }
+  gst_caps_unref (caps);
 
   if (depayloader != NULL) {
-    GST_DEBUG ("Found depayloader %" GST_PTR_FORMAT, depayloader);
+    GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
 
     gst_bin_add (GST_BIN (self), depayloader);
-    gst_element_sync_state_with_parent (depayloader);
-
     gst_element_link_pads (depayloader, "src", agnostic, "sink");
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
+    gst_element_sync_state_with_parent (depayloader);
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
+    GST_WARNING_OBJECT (self, "Depayloder not found for pad %" GST_PTR_FORMAT,
+        pad);
+
     gst_bin_add (GST_BIN (self), fake);
-    gst_element_sync_state_with_parent (fake);
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), fake, "sink");
+    gst_element_sync_state_with_parent (fake);
   }
 
 end:
@@ -1347,15 +1346,8 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 
   GST_DEBUG_OBJECT (self, "dispose");
 
-  if (self->priv->audio_payloader != NULL) {
-    g_object_unref (self->priv->audio_payloader);
-    self->priv->audio_payloader = NULL;
-  }
-
-  if (self->priv->video_payloader != NULL) {
-    g_object_unref (self->priv->video_payloader);
-    self->priv->video_payloader = NULL;
-  }
+  g_clear_object (&self->priv->audio_payloader);
+  g_clear_object (&self->priv->video_payloader);
 
   if (self->priv->audio_ssrc != 0) {
     kms_base_rtp_endpoint_stop_signal (self, AUDIO_RTP_SESSION,
@@ -1508,14 +1500,16 @@ kms_base_rtp_endpoint_rtpbin_on_new_ssrc (GstElement * rtpbin, guint session,
 
   switch (session) {
     case AUDIO_RTP_SESSION:
-      if (self->priv->audio_ssrc != 0)
+      if (self->priv->audio_ssrc != 0) {
         break;
+      }
 
       self->priv->audio_ssrc = ssrc;
       break;
     case VIDEO_RTP_SESSION:
-      if (self->priv->video_ssrc != 0)
+      if (self->priv->video_ssrc != 0) {
         break;
+      }
 
       self->priv->video_ssrc = ssrc;
       break;
@@ -1624,7 +1618,6 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->audio_payloader = NULL;
   self->priv->video_payloader = NULL;
-  self->priv->negotiated = FALSE;
 }
 
 KmsIRtpConnection *
