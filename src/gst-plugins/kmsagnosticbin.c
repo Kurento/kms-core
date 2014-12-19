@@ -216,13 +216,24 @@ static void
 remove_on_unlinked_cb (GstPad * pad, GstPad * peer, gpointer user_data)
 {
   GstElement *elem = gst_pad_get_parent_element (pad);
+  GstObject *parent;
   KmsAgnosticBin2 *self;
 
   if (elem == NULL) {
     return;
   }
 
-  self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (elem));
+  parent = GST_OBJECT_PARENT (elem);
+
+  if (parent == NULL) {
+    goto end;
+  }
+
+  if (KMS_IS_AGNOSTIC_BIN2 (parent)) {
+    self = KMS_AGNOSTIC_BIN2 (parent);
+  } else {
+    self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (parent));
+  }
 
   if (self != NULL) {
     GstPad *sink = gst_element_get_static_pad (elem, (gchar *) user_data);
@@ -738,7 +749,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
 
   input_queue = kms_tree_bin_get_input_element (KMS_TREE_BIN (parse_bin));
-  gst_element_link (self->priv->input_tee, input_queue);
+  link_element_to_tee (self->priv->input_tee, input_queue);
 
   self->priv->started = FALSE;
   g_hash_table_remove_all (self->priv->bins);
