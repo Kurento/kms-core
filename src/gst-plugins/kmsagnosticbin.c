@@ -822,6 +822,10 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
   GstPadProbeReturn ret = GST_PAD_PROBE_OK;
   GstEvent *event;
 
+  if (self == NULL) {
+    return GST_PAD_PROBE_OK;
+  }
+
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_EVENT_BOTH) {
     event = gst_pad_probe_info_get_event (info);
 
