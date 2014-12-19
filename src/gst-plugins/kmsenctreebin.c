@@ -147,10 +147,10 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
   mediator = kms_utils_create_mediator_element (caps);
 
   gst_bin_add_many (GST_BIN (self), rate, convert, mediator, enc, NULL);
-  gst_element_sync_state_with_parent (rate);
-  gst_element_sync_state_with_parent (convert);
-  gst_element_sync_state_with_parent (mediator);
   gst_element_sync_state_with_parent (enc);
+  gst_element_sync_state_with_parent (mediator);
+  gst_element_sync_state_with_parent (convert);
+  gst_element_sync_state_with_parent (rate);
 
   kms_tree_bin_set_input_element (tree_bin, rate);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);

@@ -414,9 +414,9 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
 
     gst_bin_add_many (GST_BIN (self), convert, rate, mediator, NULL);
 
+    gst_element_sync_state_with_parent (mediator);
     gst_element_sync_state_with_parent (convert);
     gst_element_sync_state_with_parent (rate);
-    gst_element_sync_state_with_parent (mediator);
 
     gst_element_link_many (queue, rate, convert, mediator, NULL);
     target = gst_element_get_static_pad (mediator, "src");
