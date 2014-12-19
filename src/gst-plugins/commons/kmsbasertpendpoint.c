@@ -46,6 +46,7 @@ struct _KmsBaseRtpEndpointPrivate
   GstElement *rtpbin;
 
   gboolean bundle;              /* Implies rtcp-mux */
+  gboolean rtcp_mux;
 
   GstElement *audio_payloader;
   GstElement *video_payloader;
@@ -119,6 +120,25 @@ sdp_message_is_bundle (GstSDPMessage * msg)
   }
 
   return is_bundle;
+}
+
+static gboolean
+sdp_message_is_rtcp_mux (GstSDPMessage * msg)
+{
+  guint len, i;
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
+    const gchar *val;
+
+    val = gst_sdp_media_get_attribute_val (media, RTCP_MUX);
+    if (val == NULL) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
 }
 
 static void
@@ -217,8 +237,8 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp", str);
   g_free (str);
 
-  if (self->priv->bundle) {
-    gst_sdp_media_add_attribute ((GstSDPMedia *) media, "rtcp-mux", "");
+  if (self->priv->bundle || self->priv->rtcp_mux) {
+    gst_sdp_media_add_attribute ((GstSDPMedia *) media, RTCP_MUX, "");
   }
 
   if (rtpbin_pad_name != NULL) {
@@ -275,6 +295,7 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
   if (remote_offer_sdp != NULL) {
     self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
+    self->priv->rtcp_mux = sdp_message_is_rtcp_mux (remote_offer_sdp);
     gst_sdp_message_free (remote_offer_sdp);
   }
 

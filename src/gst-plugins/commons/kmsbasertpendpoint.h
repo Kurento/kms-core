@@ -75,6 +75,8 @@ typedef struct _KmsBaseRtpEndpointPrivate KmsBaseRtpEndpointPrivate;
 #define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_MEDIA_RTP_SAVPF_PROTO "RTP/SAVPF"
 
+#define RTCP_MUX "rtcp-mux"
+
 /* RTP enconding names */
 #define OPUS_ENCONDING_NAME "OPUS"
 #define VP8_ENCONDING_NAME "VP8"
