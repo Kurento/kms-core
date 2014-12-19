@@ -90,6 +90,11 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 
 #define DEFAULT_PROTO    NULL
 #define DEFAULT_BUNDLE    FALSE
+#define DEFAULT_RTCP_MUX    FALSE
+#define DEFAULT_RTCP_FIR    FALSE
+#define DEFAULT_RTCP_NACK    FALSE
+#define DEFAULT_RTCP_PLI    FALSE
+#define DEFAULT_RTCP_REMB    FALSE
 #define DEFAULT_TARGET_BITRATE    0
 #define MIN_VIDEO_SEND_BW_DEFAULT 100
 #define MAX_VIDEO_SEND_BW_DEFAULT 500
@@ -99,6 +104,11 @@ enum
   PROP_0,
   PROP_PROTO,
   PROP_BUNDLE,
+  PROP_RTCP_MUX,
+  PROP_RTCP_FIR,
+  PROP_RTCP_NACK,
+  PROP_RTCP_PLI,
+  PROP_RTCP_REMB,
   PROP_TARGET_BITRATE,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
@@ -1223,6 +1233,21 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_BUNDLE:
       self->priv->bundle = g_value_get_boolean (value);
       break;
+    case PROP_RTCP_MUX:
+      self->priv->rtcp_mux = g_value_get_boolean (value);
+      break;
+    case PROP_RTCP_FIR:
+      self->priv->rtcp_fir = g_value_get_boolean (value);
+      break;
+    case PROP_RTCP_NACK:
+      self->priv->rtcp_nack = g_value_get_boolean (value);
+      break;
+    case PROP_RTCP_PLI:
+      self->priv->rtcp_pli = g_value_get_boolean (value);
+      break;
+    case PROP_RTCP_REMB:
+      self->priv->rtcp_remb = g_value_get_boolean (value);
+      break;
     case PROP_TARGET_BITRATE:
       self->priv->target_bitrate = g_value_get_int (value);
       break;
@@ -1272,6 +1297,21 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_BUNDLE:
       g_value_set_boolean (value, self->priv->bundle);
+      break;
+    case PROP_RTCP_MUX:
+      g_value_set_boolean (value, self->priv->rtcp_mux);
+      break;
+    case PROP_RTCP_FIR:
+      g_value_set_boolean (value, self->priv->rtcp_fir);
+      break;
+    case PROP_RTCP_NACK:
+      g_value_set_boolean (value, self->priv->rtcp_nack);
+      break;
+    case PROP_RTCP_PLI:
+      g_value_set_boolean (value, self->priv->rtcp_pli);
+      break;
+    case PROP_RTCP_REMB:
+      g_value_set_boolean (value, self->priv->rtcp_remb);
       break;
     case PROP_TARGET_BITRATE:
       g_value_set_int (value, self->priv->target_bitrate);
@@ -1382,6 +1422,31 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   g_object_class_install_property (object_class, PROP_BUNDLE,
       g_param_spec_boolean ("bundle", "Bundle media",
           "Bundle media", DEFAULT_BUNDLE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_RTCP_MUX,
+      g_param_spec_boolean ("rtcp-mux", "RTCP mux",
+          "RTCP mux", DEFAULT_RTCP_MUX,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_RTCP_FIR,
+      g_param_spec_boolean ("rtcp-fir", "RTCP FIR",
+          "RTCP FIR", DEFAULT_RTCP_FIR,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_RTCP_NACK,
+      g_param_spec_boolean ("rtcp-nack", "RTCP NACK",
+          "RTCP NACK", DEFAULT_RTCP_NACK,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_RTCP_PLI,
+      g_param_spec_boolean ("rtcp-pli", "RTCP PLI",
+          "RTCP PLI", DEFAULT_RTCP_PLI,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_RTCP_REMB,
+      g_param_spec_boolean ("rtcp-remb", "RTCP REMB",
+          "RTCP REMB", DEFAULT_RTCP_REMB,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_TARGET_BITRATE,
@@ -1513,6 +1578,10 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
   self->priv->proto = DEFAULT_PROTO;
   self->priv->bundle = DEFAULT_BUNDLE;
+  self->priv->rtcp_fir = DEFAULT_RTCP_FIR;
+  self->priv->rtcp_nack = DEFAULT_RTCP_NACK;
+  self->priv->rtcp_pli = DEFAULT_RTCP_PLI;
+  self->priv->rtcp_remb = DEFAULT_RTCP_REMB;
 
   self->priv->min_video_send_bw = MIN_VIDEO_SEND_BW_DEFAULT;
   self->priv->max_video_send_bw = MAX_VIDEO_SEND_BW_DEFAULT;
