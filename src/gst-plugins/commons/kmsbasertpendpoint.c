@@ -989,17 +989,16 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
     payloader = gst_base_rtp_get_payloader_for_caps (caps);
     if (payloader != NULL) {
-      KmsBaseRtpEndpoint *rtp_endpoint = KMS_BASE_RTP_ENDPOINT (base_endpoint);
       const gchar *rtpbin_pad_name;
       KmsElementPadType type;
 
       GST_DEBUG ("Found payloader %" GST_PTR_FORMAT, payloader);
       if (g_strcmp0 ("audio", gst_sdp_media_get_media (media)) == 0) {
-        rtp_endpoint->priv->audio_payloader = payloader;
+        self->priv->audio_payloader = payloader;
         type = KMS_ELEMENT_PAD_TYPE_AUDIO;
         rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
       } else if (g_strcmp0 ("video", gst_sdp_media_get_media (media)) == 0) {
-        rtp_endpoint->priv->video_payloader = payloader;
+        self->priv->video_payloader = payloader;
         type = KMS_ELEMENT_PAD_TYPE_VIDEO;
         rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
       } else {
@@ -1008,7 +1007,7 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
       }
 
       if (rtpbin_pad_name != NULL) {
-        kms_base_rtp_endpoint_connect_payloader (rtp_endpoint, type, payloader,
+        kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
             rtpbin_pad_name);
       }
     }
@@ -1078,13 +1077,13 @@ end:
 
 static GstCaps *
 kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
-    guint pt, KmsBaseRtpEndpoint * base_rtp_endpoint)
+    guint pt, KmsBaseRtpEndpoint * self)
 {
   GstCaps *caps;
 
   GST_DEBUG ("Caps request for pt: %d", pt);
 
-  caps = kms_base_rtp_endpoint_get_caps_for_pt (base_rtp_endpoint, pt);
+  caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
 
   if (caps != NULL) {
     return caps;
@@ -1097,7 +1096,7 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
 
 static void
 kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
-    KmsBaseRtpEndpoint * rtp_endpoint)
+    KmsBaseRtpEndpoint * self)
 {
   GstElement *agnostic, *depayloader;
   gboolean added = TRUE;
@@ -1107,13 +1106,14 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
   GST_PAD_STREAM_LOCK (pad);
 
   if (g_str_has_prefix (GST_OBJECT_NAME (pad), AUDIO_RTPBIN_RECV_RTP_SRC)) {
-    agnostic = kms_element_get_audio_agnosticbin (KMS_ELEMENT (rtp_endpoint));
+    agnostic = kms_element_get_audio_agnosticbin (KMS_ELEMENT (self));
     media = KMS_MEDIA_TYPE_AUDIO;
   } else if (g_str_has_prefix (GST_OBJECT_NAME (pad),
           VIDEO_RTPBIN_RECV_RTP_SRC)) {
-    rtp_endpoint->priv->rl->event_manager =
-        kms_utils_remb_event_manager_create (pad);
-    agnostic = kms_element_get_video_agnosticbin (KMS_ELEMENT (rtp_endpoint));
+    if (self->priv->rl != NULL) {
+      self->priv->rl->event_manager = kms_utils_remb_event_manager_create (pad);
+    }
+    agnostic = kms_element_get_video_agnosticbin (KMS_ELEMENT (self));
     media = KMS_MEDIA_TYPE_VIDEO;
   } else {
     added = FALSE;
@@ -1133,7 +1133,7 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
   if (depayloader != NULL) {
     GST_DEBUG ("Found depayloader %" GST_PTR_FORMAT, depayloader);
 
-    gst_bin_add (GST_BIN (rtp_endpoint), depayloader);
+    gst_bin_add (GST_BIN (self), depayloader);
     gst_element_sync_state_with_parent (depayloader);
 
     gst_element_link_pads (depayloader, "src", agnostic, "sink");
@@ -1141,7 +1141,7 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
-    gst_bin_add (GST_BIN (rtp_endpoint), fake);
+    gst_bin_add (GST_BIN (self), fake);
     gst_element_sync_state_with_parent (fake);
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), fake, "sink");
   }
@@ -1150,19 +1150,18 @@ end:
   GST_PAD_STREAM_UNLOCK (pad);
 
   if (added) {
-    g_signal_emit (G_OBJECT (rtp_endpoint), obj_signals[MEDIA_START], 0, media,
-        TRUE);
+    g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_START], 0, media, TRUE);
   }
 }
 
 static void
 kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GstElement * jitterbuffer,
-    guint session, guint ssrc, KmsBaseRtpEndpoint * rtp_endpoint)
+    guint session, guint ssrc, KmsBaseRtpEndpoint * self)
 {
   g_object_set (jitterbuffer, "mode", 4 /* synced */ , "latency", 1500, NULL);
 
-  if (ssrc == rtp_endpoint->priv->video_ssrc) {
+  if (ssrc == self->priv->video_ssrc) {
     g_object_set (jitterbuffer, "do-lost", TRUE,
         "do-retransmission", TRUE,
         "rtx-next-seqnum", FALSE,
