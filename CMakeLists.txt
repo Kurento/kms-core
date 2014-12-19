@@ -33,6 +33,7 @@ generic_find (LIBNAME gstreamer-video-1.0 VERSION ${GST_REQUIRED} REQUIRED)
 generic_find (LIBNAME gstreamer-check-1.0 VERSION ${GST_REQUIRED})
 generic_find (LIBNAME gstreamer-sdp-1.0 VERSION ${GST_REQUIRED} REQUIRED)
 generic_find (LIBNAME gstreamer-pbutils-1.0 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-rtp-1.0 VERSION ${GST_REQUIRED} REQUIRED)
 
 generic_find (LIBNAME KmsJsonRpc VERSION ${JSON_RPC_REQUIRED} REQUIRED)
 generic_find (LIBNAME sigc++-2.0 VERSION ${SIGCPP_REQUIRED} REQUIRED)
@@ -52,7 +53,7 @@ set (CMAKE_INSTALL_GST_PLUGINS_DIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement -Wno-deprecated-declarations")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DHAVE_CONFIG_H -Wall -Werror -std=c++11")
 
 enable_testing()

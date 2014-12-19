@@ -60,6 +60,8 @@ install(
 )
 
 set(KMS_COMMONS_SOURCES
+  kmsrtcp.c
+  kmsremb.c
   kmsbasertpendpoint.c
   kmsbasesdpendpoint.c
   kmselement.c
@@ -72,6 +74,8 @@ set(KMS_COMMONS_SOURCES
 )
 
 set(KMS_COMMONS_HEADERS
+  kmsrtcp.h
+  kmsremb.h
   kmsbasertpendpoint.h
   kmsbasesdpendpoint.h
   kmselement.h
@@ -111,6 +115,7 @@ target_link_libraries(kmsgstcommons
   ${gstreamer-base-1.0_LIBRARIES}
   ${gstreamer-sdp-1.0_LIBRARIES}
   ${gstreamer-pbutils-1.0_LIBRARIES}
+  ${gstreamer-rtp-1.0_LIBRARIES}
 )
 
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")

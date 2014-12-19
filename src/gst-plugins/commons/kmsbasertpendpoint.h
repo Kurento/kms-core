@@ -18,6 +18,7 @@
 #include "kmsbasesdpendpoint.h"
 #include "kmsmediatype.h"
 
+/* TODO: remove from here, it is defined in kmrtcp.h */
 #define RTCP_MIN_INTERVAL 500 /* ms */
 
 G_BEGIN_DECLS
