@@ -701,9 +701,9 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 
     if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
       /* TODO: support more than one in the future */
-      if (self->priv->remote_video_ssrc != 0) {
+      if (self->priv->remote_audio_ssrc != 0) {
         GST_WARNING_OBJECT (self,
-            "Overwriting remote video ssrc. This can cause some problem");
+            "Overwriting remote audio ssrc. This can cause some problem");
       }
       self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (media);
 
@@ -715,6 +715,11 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
             AUDIO_STREAM_NAME, AUDIO_RTP_SESSION_STR);
       }
     } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+      /* TODO: support more than one in the future */
+      if (self->priv->remote_video_ssrc != 0) {
+        GST_WARNING_OBJECT (self,
+            "Overwriting remote video ssrc. This can cause some problem");
+      }
       self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
 
       if (self->priv->rtcp_remb) {
