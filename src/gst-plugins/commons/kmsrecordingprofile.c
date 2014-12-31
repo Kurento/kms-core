@@ -94,9 +94,40 @@ kms_recording_profile_create_profile (KmsRecordingProfile profile,
       return kms_recording_profile_create_webm_profile (has_audio, has_video);
     case KMS_RECORDING_PROFILE_MP4:
       return kms_recording_profile_create_mp4_profile (has_audio, has_video);
+    case KMS_RECORDING_PROFILE_WEBM_VIDEO_ONLY:
+      return kms_recording_profile_create_webm_profile (FALSE, has_video);
+    case KMS_RECORDING_PROFILE_WEBM_AUDIO_ONLY:
+      return kms_recording_profile_create_webm_profile (has_audio, FALSE);
+    case KMS_RECORDING_PROFILE_MP4_VIDEO_ONLY:
+      return kms_recording_profile_create_mp4_profile (FALSE, has_video);
+    case KMS_RECORDING_PROFILE_MP4_AUDIO_ONLY:
+      return kms_recording_profile_create_mp4_profile (has_audio, FALSE);
     default:
       GST_WARNING ("Invalid recording profile");
       return NULL;
   }
 
+}
+
+gboolean
+kms_recording_profile_supports_type (KmsRecordingProfile profile,
+    KmsElementPadType type)
+{
+  if (type == KMS_ELEMENT_PAD_TYPE_DATA) {
+    return FALSE;
+  }
+
+  switch (profile) {
+    case KMS_RECORDING_PROFILE_WEBM:
+    case KMS_RECORDING_PROFILE_MP4:
+      return TRUE;
+    case KMS_RECORDING_PROFILE_WEBM_VIDEO_ONLY:
+    case KMS_RECORDING_PROFILE_MP4_VIDEO_ONLY:
+      return type == KMS_ELEMENT_PAD_TYPE_VIDEO;
+    case KMS_RECORDING_PROFILE_WEBM_AUDIO_ONLY:
+    case KMS_RECORDING_PROFILE_MP4_AUDIO_ONLY:
+      return type == KMS_ELEMENT_PAD_TYPE_AUDIO;
+    default:
+      return FALSE;
+  }
 }

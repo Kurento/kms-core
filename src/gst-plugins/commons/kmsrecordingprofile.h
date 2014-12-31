@@ -19,6 +19,7 @@
 #include <glib.h>
 
 #include <gst/pbutils/encoding-profile.h>
+#include "kmselement.h"
 
 G_BEGIN_DECLS
 
@@ -26,11 +27,18 @@ typedef enum
 {
   KMS_RECORDING_PROFILE_NONE = -1,
   KMS_RECORDING_PROFILE_WEBM,
-  KMS_RECORDING_PROFILE_MP4
+  KMS_RECORDING_PROFILE_MP4,
+  KMS_RECORDING_PROFILE_WEBM_VIDEO_ONLY,
+  KMS_RECORDING_PROFILE_WEBM_AUDIO_ONLY,
+  KMS_RECORDING_PROFILE_MP4_VIDEO_ONLY,
+  KMS_RECORDING_PROFILE_MP4_AUDIO_ONLY
 } KmsRecordingProfile;
 
 GstEncodingContainerProfile * kms_recording_profile_create_profile (
     KmsRecordingProfile profile, gboolean has_audio, gboolean has_video);
+
+gboolean kms_recording_profile_supports_type (KmsRecordingProfile profile,
+    KmsElementPadType type);
 
 G_END_DECLS
 #endif /* __KMS_RECORDING_PROFILE_H__ */
