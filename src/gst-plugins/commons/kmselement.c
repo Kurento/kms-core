@@ -444,8 +444,6 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
 GstElement *
 kms_element_get_video_agnosticbin (KmsElement * self)
 {
-  GstPad *sink;
-
   GST_DEBUG ("Video agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->video_agnosticbin != NULL) {
@@ -456,10 +454,14 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   self->priv->video_agnosticbin =
       gst_element_factory_make ("agnosticbin", NULL);
 
-  sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
-      NULL);
-  g_object_unref (sink);
+  if (self->priv->do_synchronization) {
+    GstPad *sink;
+
+    sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
+    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
+        NULL);
+    g_object_unref (sink);
+  }
 
   gst_bin_add (GST_BIN (self), self->priv->video_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
