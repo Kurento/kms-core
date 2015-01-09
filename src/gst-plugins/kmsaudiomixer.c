@@ -734,7 +734,7 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
   self = KMS_AUDIO_MIXER (parent);
 
   if (gst_pad_get_direction (pad) != GST_PAD_SINK)
-    return;
+    goto end;
 
   padname = gst_pad_get_name (pad);
 
@@ -778,6 +778,8 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
+
+end:
   gst_object_unref (parent);
 }
 
