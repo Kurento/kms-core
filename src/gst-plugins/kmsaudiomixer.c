@@ -19,9 +19,9 @@
 
 #include <gst/gst.h>
 
-#include "kmsgenericstructure.h"
 #include "kmsaudiomixer.h"
 #include "kmsloop.h"
+#include "kmsrefstruct.h"
 
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
@@ -83,6 +83,37 @@ G_DEFINE_TYPE_WITH_CODE (KmsAudioMixer, kms_audio_mixer,
     GST_TYPE_BIN,
     GST_DEBUG_CATEGORY_INIT (kms_audio_mixer_debug_category,
         PLUGIN_NAME, 0, "debug category for " PLUGIN_NAME " element"));
+
+typedef struct _KmsAudioMixerData
+{
+  KmsRefStruct parent;
+  KmsAudioMixer *audiomixer;
+  GstElement *agnosticbin;
+  GstElement *adder;
+} KmsAudioMixerData;
+
+#define KMS_AUDIO_MIXER_DATA_REF(data) \
+  kms_ref_struct_ref (KMS_REF_STRUCT_CAST (data))
+#define KMS_AUDIO_MIXER_DATA_UNREF(data) \
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (data))
+
+static void
+kms_destroy_audio_mixer_data (KmsAudioMixerData * data)
+{
+  g_slice_free (KmsAudioMixerData, data);
+}
+
+static KmsAudioMixerData *
+kms_create_audio_mixer_data ()
+{
+  KmsAudioMixerData *data;
+
+  data = g_slice_new0 (KmsAudioMixerData);
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (data),
+      (GDestroyNotify) kms_destroy_audio_mixer_data);
+
+  return data;
+}
 
 static void
 link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
@@ -543,49 +574,36 @@ kms_audio_mixer_remove_elements (KmsAudioMixer * self,
   if (agnosticbin != NULL) {
     remove_agnostic_bin (agnosticbin);
   }
+
   if (adder != NULL) {
     remove_adder (adder);
   }
 }
 
 static gboolean
-remove_elements_cb (KmsGenericStructure * sync)
+remove_elements_cb (KmsAudioMixerData * sync)
 {
-  GstElement *agnosticbin, *adder;
-  KmsAudioMixer *self;
-
-  self = KMS_AUDIO_MIXER (kms_generic_structure_get (sync,
-          KMS_LABEL_AUDIOMIXER));
-  agnosticbin = GST_ELEMENT (kms_generic_structure_get (sync,
-          KMS_LABEL_AGNOSTICBIN));
-  adder = GST_ELEMENT (kms_generic_structure_get (sync, KMS_LABEL_ADDER));
-
-  kms_audio_mixer_remove_elements (self, agnosticbin, adder);
+  kms_audio_mixer_remove_elements (sync->audiomixer, sync->agnosticbin,
+      sync->adder);
 
   return G_SOURCE_REMOVE;
 }
 
 static void
-agnosticbin_counter_done (KmsGenericStructure * sync)
+agnosticbin_counter_done (KmsAudioMixerData * sync)
 {
-  KmsAudioMixer *self;
-
   /* All EOS on agnosticbin are been received */
-
-  self = KMS_AUDIO_MIXER (kms_generic_structure_get (sync,
-          KMS_LABEL_AUDIOMIXER));
-
   /* We can not access to some GstPad functions because of mutex deadlocks */
   /* So we are going to manage all the stuff in a separate thread */
-  kms_loop_idle_add_full (self->priv->loop, G_PRIORITY_DEFAULT,
-      (GSourceFunc) remove_elements_cb, kms_generic_structure_ref (sync),
-      (GDestroyNotify) kms_generic_structure_unref);
+  kms_loop_idle_add_full (sync->audiomixer->priv->loop, G_PRIORITY_DEFAULT,
+      (GSourceFunc) remove_elements_cb, KMS_AUDIO_MIXER_DATA_REF (sync),
+      (GDestroyNotify) kms_ref_struct_unref);
 
-  kms_generic_structure_unref (sync);
+  KMS_AUDIO_MIXER_DATA_UNREF (sync);
 }
 
 static void
-agnosticbin_set_EOS_cb (KmsGenericStructure * sync)
+agnosticbin_set_EOS_cb (KmsAudioMixerData * sync)
 {
   struct callback_counter *counter;
   GValue val = G_VALUE_INIT;
@@ -593,10 +611,9 @@ agnosticbin_set_EOS_cb (KmsGenericStructure * sync)
   gboolean done = FALSE;
   GstElement *agnostic;
 
-  agnostic = GST_ELEMENT (kms_generic_structure_get (sync,
-          KMS_LABEL_AGNOSTICBIN));
+  agnostic = sync->agnosticbin;
   counter =
-      create_callback_counter (kms_generic_structure_ref (sync),
+      create_callback_counter (KMS_AUDIO_MIXER_DATA_REF (sync),
       (GDestroyNotify) agnosticbin_counter_done);
 
   it = gst_element_iterate_src_pads (agnostic);
@@ -701,15 +718,12 @@ static void
 kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
     GstElement * agnosticbin, GstElement * adder)
 {
-  KmsGenericStructure *sync;
+  KmsAudioMixerData *sync;
 
-  sync = kms_generic_structure_new ();
-  kms_generic_structure_set_full (sync, KMS_LABEL_AUDIOMIXER,
-      g_object_ref (self), (GDestroyNotify) g_object_unref);
-  kms_generic_structure_set_full (sync, KMS_LABEL_AGNOSTICBIN,
-      g_object_ref (agnosticbin), (GDestroyNotify) g_object_unref);
-  kms_generic_structure_set_full (sync, KMS_LABEL_ADDER,
-      g_object_ref (adder), (GDestroyNotify) g_object_unref);
+  sync = kms_create_audio_mixer_data ();
+  sync->audiomixer = self;
+  sync->adder = adder;
+  sync->agnosticbin = agnosticbin;
 
   agnosticbin_set_EOS_cb (sync);
 
