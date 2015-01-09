@@ -418,6 +418,7 @@ kms_element_for_each_src_pad (GstElement * element,
     }
   }
 
+  g_value_unset (&item);
   gst_iterator_free (it);
 }
 
