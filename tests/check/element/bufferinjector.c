@@ -81,6 +81,7 @@ GST_START_TEST (audio_test_buffer_injector)
   GST_DEBUG ("Setting pipline to NULL state");
   gst_element_set_state (pipeline, GST_STATE_NULL);
   GST_DEBUG ("Releasing pipeline");
+  gst_bus_remove_signal_watch (bus);
   gst_object_unref (GST_OBJECT (bus));
   gst_object_unref (GST_OBJECT (pipeline));
   GST_DEBUG ("Pipeline released");
@@ -128,6 +129,7 @@ GST_START_TEST (video_test_buffer_injector)
   GST_DEBUG ("Setting pipline to NULL state");
   gst_element_set_state (pipeline, GST_STATE_NULL);
   GST_DEBUG ("Releasing pipeline");
+  gst_bus_remove_signal_watch (bus);
   gst_object_unref (GST_OBJECT (bus));
   gst_object_unref (GST_OBJECT (pipeline));
   GST_DEBUG ("Pipeline released");
@@ -178,6 +180,8 @@ GST_START_TEST (buffer_injector_drop_buffers)
   GST_DEBUG ("Setting pipline to NULL state");
   gst_element_set_state (pipeline, GST_STATE_NULL);
   GST_DEBUG ("Releasing pipeline");
+  gst_bus_remove_signal_watch (bus);
+  gst_object_unref (GST_OBJECT (bus));
   gst_object_unref (GST_OBJECT (pipeline));
   GST_DEBUG ("Pipeline released");
   g_main_loop_unref (loop);
