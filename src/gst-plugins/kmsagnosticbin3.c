@@ -227,7 +227,7 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
       transcode = !gst_caps_can_intersect (data->caps, current_caps);
       break;
     default:
-      GST_DEBUG_OBJECT (srcpad, "TODO: Operate in %s",
+      GST_ERROR_OBJECT (srcpad, "TODO: Operate in %s",
           pad_state2string (data->state));
       goto end;
   }
@@ -457,6 +457,71 @@ kms_agnostic_bin3_request_sink_pad (KmsAgnosticBin3 * self,
 /* Gets the transcoder that can manage these caps or NULL. [Transfer full] */
 /* Call this function with mutex held */
 static GstElement *
+kms_agnostic_bin3_get_transcoder_by_srcpads (KmsAgnosticBin3 * self,
+    const GstCaps * caps)
+{
+  GstElement *transcoder = NULL;
+  GSList *l;
+
+  /* Check all agnostic's src pads looking for compatible capabilities */
+  /* If we find them it means that this element is already transcoding */
+
+  for (l = self->priv->agnosticbins; l != NULL; l = l->next) {
+    GValue val = G_VALUE_INIT;
+    GstElement *agnosticbin;
+    gboolean done = FALSE;
+    GstIterator *it;
+
+    agnosticbin = GST_ELEMENT (l->data);
+
+    it = gst_element_iterate_src_pads (agnosticbin);
+    do {
+      switch (gst_iterator_next (it, &val)) {
+        case GST_ITERATOR_OK:
+        {
+          GstPad *srcpad;
+          GstCaps *current_caps;
+
+          srcpad = g_value_get_object (&val);
+          current_caps = gst_pad_get_current_caps (srcpad);
+
+          if (gst_caps_is_always_compatible (current_caps, caps)) {
+            GST_INFO_OBJECT (agnosticbin, "Supports %" GST_PTR_FORMAT, caps);
+            /* This function returns a tranfer full element */
+            transcoder = g_object_ref (agnosticbin);
+            done = TRUE;
+          }
+
+          gst_caps_unref (current_caps);
+          g_value_reset (&val);
+          break;
+        }
+        case GST_ITERATOR_RESYNC:
+          gst_iterator_resync (it);
+          break;
+        case GST_ITERATOR_ERROR:
+          GST_ERROR ("Error iterating over %s's src pads",
+              GST_ELEMENT_NAME (agnosticbin));
+        case GST_ITERATOR_DONE:
+          done = TRUE;
+          break;
+      }
+    } while (!done);
+
+    g_value_unset (&val);
+    gst_iterator_free (it);
+
+    if (transcoder != NULL) {
+      break;
+    }
+  }
+
+  return transcoder;
+}
+
+/* Gets the transcoder that can manage these caps or NULL. [Transfer full] */
+/* Call this function with mutex held */
+static GstElement *
 kms_agnostic_bin3_get_compatible_transcoder_tree (KmsAgnosticBin3 * self,
     const GstCaps * caps)
 {
@@ -475,17 +540,13 @@ kms_agnostic_bin3_get_compatible_transcoder_tree (KmsAgnosticBin3 * self,
     GstPad *sinkpad = GST_PAD (key);
     GstCaps *sinkcaps = GST_CAPS (value);
 
-    GST_INFO_OBJECT (sinkpad, "caps %" GST_PTR_FORMAT, sinkcaps);
     if (gst_caps_can_intersect (caps, sinkcaps)) {
+      GST_DEBUG_OBJECT (sinkpad, "Compatible with caps %" GST_PTR_FORMAT, caps);
       return get_transcoder_connected_to_sinkpad (sinkpad);
     }
   }
 
-  /* TODO: Check all agnostic's src pads looking for compatible  */
-  /* capabilities, iIf we find them it means that this element is */
-  /* already transcoding. */
-
-  return NULL;
+  return kms_agnostic_bin3_get_transcoder_by_srcpads (self, caps);
 }
 
 static GstPad *
@@ -695,8 +756,19 @@ kms_agnostic_bin3_src_pad_linked (GstPad * pad, GstPad * peer,
   element = kms_agnostic_bin3_get_compatible_transcoder_tree (self, caps);
 
   if (element != NULL) {
-    GST_DEBUG_OBJECT (pad, "Connected without transcoding");
+    GST_DEBUG_OBJECT (pad, "Connected without transcoding to %" GST_PTR_FORMAT,
+        element);
     goto connect_transcoder;
+  }
+
+  if (g_hash_table_size (self->priv->sinkcaps) !=
+      g_slist_length (self->priv->agnosticbins)) {
+    /* There is still pending agnosticbins that are not yet configured  */
+    /* Any of them may support this pad without transcoding. Wait until */
+    /* agnosticbins negotiate caps. They will connect pending pads as   */
+    /* soon as they get the caps event */
+    new_state = KMS_SRC_PAD_STATE_UNCONFIGURED;
+    goto change_state;
   }
 
   g_signal_emit (G_OBJECT (self), agnosticbin3_signals[SIGNAL_CAPS], 0, caps,
@@ -785,7 +857,7 @@ static void
 kms_agnostic_bin3_release_pad (GstElement * element, GstPad * pad)
 {
   /* TODO: */
-  GST_DEBUG_OBJECT (element, "Release pad");
+  GST_DEBUG_OBJECT (element, "Release pad %" GST_PTR_FORMAT, pad);
 }
 
 static void

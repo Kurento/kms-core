@@ -909,6 +909,276 @@ GST_START_TEST (connect_sinkpad_pause_srcpad_with_caps_transcoding_test)
 }
 
 GST_END_TEST static void
+exit_on_handoff (GstElement * object, GstBuffer * buff, GstPad * pad,
+    gpointer data)
+{
+  /* We have received a buffer in the second sink => finish test */
+  g_idle_add (quit_main_loop_idle, NULL);
+}
+
+static gboolean
+add_sink3 (GstElement * agnosticbin)
+{
+  GstElement *dec = gst_element_factory_make ("vp8dec", NULL);
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  g_signal_connect (sink, "handoff", G_CALLBACK (exit_on_handoff), NULL);
+
+  gst_bin_add_many (GST_BIN (pipeline), dec, sink, NULL);
+
+  if (!gst_element_link (dec, sink)) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, dec, sink);
+    return G_SOURCE_REMOVE;
+  }
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", dec, "sink")) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, agnosticbin,
+        dec);
+    return G_SOURCE_REMOVE;
+  }
+
+  gst_element_sync_state_with_parent (sink);
+  gst_element_sync_state_with_parent (dec);
+
+  return G_SOURCE_REMOVE;
+}
+
+G_LOCK_DEFINE (sink2_mutex);
+static gboolean added_sink2 = FALSE;
+
+static void
+sink2_handoff_cb (GstElement * object, GstBuffer * buff, GstPad * pad,
+    GstElement * agnosticbin)
+{
+  G_LOCK (sink2_mutex);
+  if (!added_sink2) {
+    g_idle_add ((GSourceFunc) add_sink3, agnosticbin);
+    added_sink2 = TRUE;
+  }
+  G_UNLOCK (sink2_mutex);
+}
+
+static gboolean
+add_sink2 (GstElement * agnosticbin)
+{
+  GstElement *dec = gst_element_factory_make ("avdec_msmpeg4", NULL);
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  g_signal_connect (sink, "handoff", G_CALLBACK (sink2_handoff_cb),
+      agnosticbin);
+
+  gst_bin_add_many (GST_BIN (pipeline), dec, sink, NULL);
+
+  if (!gst_element_link (dec, sink)) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, dec, sink);
+    return G_SOURCE_REMOVE;
+  }
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", dec, "sink")) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, agnosticbin,
+        dec);
+    return G_SOURCE_REMOVE;
+  }
+
+  gst_element_sync_state_with_parent (dec);
+  gst_element_sync_state_with_parent (sink);
+
+  return G_SOURCE_REMOVE;
+}
+
+G_LOCK_DEFINE (event_mutex);
+static gboolean negotiated = FALSE;
+
+static GstPadProbeReturn
+event_caps_cb (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  G_LOCK (event_mutex);
+  if (!negotiated) {
+    g_idle_add ((GSourceFunc) add_sink2, data);
+    negotiated = TRUE;
+  }
+  G_UNLOCK (event_mutex);
+
+  return GST_PAD_PROBE_REMOVE;
+}
+
+static gboolean
+add_source2 (GstElement * agnosticbin)
+{
+  GstElement *source = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *enc = gst_element_factory_make ("avenc_msmpeg4", NULL);
+  GstPad *pad;
+
+  pad = gst_element_get_static_pad (enc, "sink");
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      event_caps_cb, agnosticbin, NULL);
+  g_object_unref (pad);
+
+  g_object_set (G_OBJECT (source), "is-live", TRUE, NULL);
+
+  gst_bin_add_many (GST_BIN (pipeline), source, enc, NULL);
+
+  if (!gst_element_link (source, enc)) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, enc,
+        source);
+    return G_SOURCE_REMOVE;
+  }
+
+  if (!gst_element_link_pads (enc, "src", agnosticbin, "sink_%u")) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, enc,
+        agnosticbin);
+    return G_SOURCE_REMOVE;
+  }
+
+  gst_element_sync_state_with_parent (enc);
+  gst_element_sync_state_with_parent (source);
+
+  return G_SOURCE_REMOVE;
+}
+
+G_LOCK_DEFINE (sink1_mutex);
+static gboolean added_source2 = FALSE;
+
+static void
+sink_handoff_cb (GstElement * object, GstBuffer * buff, GstPad * pad,
+    GstElement * agnosticbin)
+{
+  G_LOCK (sink1_mutex);
+  if (!added_source2) {
+    g_idle_add ((GSourceFunc) add_source2, agnosticbin);
+    added_source2 = TRUE;
+  }
+  G_UNLOCK (sink1_mutex);
+}
+
+static gboolean
+are_same_capabilities (GstElement * agnosticbin)
+{
+  GstCaps *assigned_caps = NULL;
+  GValue val = G_VALUE_INIT;
+  gboolean done = FALSE, same = TRUE;
+  GstIterator *it;
+
+  it = gst_element_iterate_src_pads (agnosticbin);
+
+  do {
+    switch (gst_iterator_next (it, &val)) {
+      case GST_ITERATOR_OK:
+      {
+        GstPad *srcpad;
+        GstCaps *current_caps;
+
+        srcpad = g_value_get_object (&val);
+        current_caps = gst_pad_get_current_caps (srcpad);
+
+        if (assigned_caps == NULL) {
+          assigned_caps = gst_caps_copy (current_caps);
+        } else {
+          if (!gst_caps_is_equal (assigned_caps, current_caps)) {
+            /* Stop checking so test has failed */
+            done = TRUE;
+            same = FALSE;
+          }
+        }
+
+        gst_caps_unref (current_caps);
+        g_value_reset (&val);
+        break;
+      }
+      case GST_ITERATOR_RESYNC:
+        gst_iterator_resync (it);
+        break;
+      case GST_ITERATOR_ERROR:
+        GST_ERROR ("Error iterating over %s's src pads",
+            GST_ELEMENT_NAME (agnosticbin));
+      case GST_ITERATOR_DONE:
+        done = TRUE;
+        break;
+    }
+  } while (!done);
+
+  g_value_unset (&val);
+  gst_iterator_free (it);
+
+  if (assigned_caps != NULL) {
+    gst_caps_unref (assigned_caps);
+  }
+
+  return same;
+}
+
+GST_START_TEST (connect_two_sources_three_sinks)
+{
+  GstElement *source = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *dec = gst_element_factory_make ("vp8dec", NULL);
+  GstElement *sink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin3", NULL);
+  gboolean triggered = FALSE;
+  GstBus *bus;
+
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (source), "is-live", TRUE, NULL);
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  g_signal_connect (sink, "handoff", G_CALLBACK (sink_handoff_cb), agnosticbin);
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  g_signal_connect (agnosticbin, "caps", G_CALLBACK (caps_request_triggered),
+      &triggered);
+
+  gst_bin_add_many (GST_BIN (pipeline), source, agnosticbin, dec, sink, NULL);
+
+  if (!gst_element_link (dec, sink)) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, dec, sink);
+    return;
+  }
+
+  if (!gst_element_link_pads (agnosticbin, "src_%u", dec, "sink")) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, agnosticbin,
+        dec);
+    return;
+  }
+
+  if (!gst_element_link_pads (source, "src", agnosticbin, "sink_%u")) {
+    fail ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, source,
+        agnosticbin);
+  }
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  g_main_loop_run (loop);
+
+  if (FALSE) {
+    fail_if (!are_same_capabilities (agnosticbin),
+        "Transcoding should not have happened");
+  }
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST static void
 check_src_capabilities (GstElement * element, GstBuffer * buff, GstPad * pad,
     gpointer data)
 {
@@ -1194,7 +1464,7 @@ GST_START_TEST (two_sinks_two_srcs_test)
 
   g_mutex_clear (&pads.mutex);
 
-  fail_unless (triggered, "Caps signal not triggered");
+  fail_if (triggered, "Caps signal should not be triggered");
 }
 
 GST_END_TEST
@@ -1227,6 +1497,7 @@ agnosticbin3_suite (void)
   /* complex use cases */
   tcase_add_test (tc_chain, two_sinks_one_src_test);
   tcase_add_test (tc_chain, two_sinks_two_srcs_test);
+  tcase_add_test (tc_chain, connect_two_sources_three_sinks);
 
   return s;
 }
