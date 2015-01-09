@@ -653,6 +653,8 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
         if (accepted) {
           GST_DEBUG_OBJECT (self, "No need to reconfigure pad %" GST_PTR_FORMAT,
               pad);
+          g_object_unref (target);
+          g_object_unref (peer);
           return FALSE;
         }
 
