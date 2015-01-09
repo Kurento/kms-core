@@ -71,7 +71,6 @@ set(KMS_COMMONS_SOURCES
   kmshubport.c
   kmsbasehub.c
   kmsuriendpoint.c
-  kmsgenericstructure.c
   kmsrefstruct.c
 )
 
@@ -91,7 +90,6 @@ set(KMS_COMMONS_HEADERS
   kmsuriendpointstate.h
   kmsmediatype.h
   kmsuriendpoint.h
-  kmsgenericstructure.h
   kmsrefstruct.h
 )
 
