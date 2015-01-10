@@ -427,8 +427,9 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
     GstPad *sink;
 
     sink = gst_element_get_static_pad (self->priv->audio_agnosticbin, "sink");
-    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
-        NULL);
+    gst_pad_add_probe (sink,
+        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+        synchronize_probe, self, NULL);
     g_object_unref (sink);
   }
 
@@ -458,8 +459,9 @@ kms_element_get_video_agnosticbin (KmsElement * self)
     GstPad *sink;
 
     sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
-    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER, synchronize_probe, self,
-        NULL);
+    gst_pad_add_probe (sink,
+        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+        synchronize_probe, self, NULL);
     g_object_unref (sink);
   }
 
