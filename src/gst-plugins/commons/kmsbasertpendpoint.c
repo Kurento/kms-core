@@ -44,6 +44,10 @@ G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 
 #define RTCP_DEMUX_PEER "rtcp-demux-peer"
 
+#define RTP_HDR_EXT_ABS_SEND_TIME_URI "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+#define RTP_HDR_EXT_ABS_SEND_TIME_SIZE 3
+#define RTP_HDR_EXT_ABS_SEND_TIME_ID 3  /* TODO: do it dynamic when needed */
+
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
@@ -55,6 +59,9 @@ struct _KmsBaseRtpEndpointPrivate
   gboolean rtcp_nack;
   gboolean rtcp_pli;
   gboolean rtcp_remb;
+
+  /* RTP hdrext */
+  gboolean hdr_ext_abs_send_time;       /* TODO: one per media entry */
 
   GstElement *audio_payloader;
   GstElement *video_payloader;
@@ -241,6 +248,32 @@ kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
 }
 
 static void
+kms_base_rtp_endpoint_process_hdrext_attrs (KmsBaseRtpEndpoint * self,
+    const GstSDPMedia * media)
+{
+  guint a;
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+    gchar *aux;
+
+    attr = gst_sdp_media_get_attribute_val_n (media, EXT_MAP, a);
+    if (attr == NULL) {
+      return;
+    }
+
+    aux = g_strdup_printf ("%" G_GUINT32_FORMAT " %s",
+        RTP_HDR_EXT_ABS_SEND_TIME_ID, RTP_HDR_EXT_ABS_SEND_TIME_URI);
+    /* FIXME: it can be not available for some media entry */
+    if (g_strcmp0 (attr, aux) == 0) {
+      self->priv->hdr_ext_abs_send_time = TRUE;
+      return;
+    }
+    g_free (aux);
+  }
+}
+
+static void
 kms_base_rtp_endpoint_remote_sdp_message_process_attrs (KmsBaseRtpEndpoint *
     self, const GstSDPMessage * msg)
 {
@@ -250,12 +283,14 @@ kms_base_rtp_endpoint_remote_sdp_message_process_attrs (KmsBaseRtpEndpoint *
   self->priv->rtcp_nack = FALSE;
   self->priv->rtcp_pli = FALSE;
   self->priv->rtcp_remb = FALSE;
+  self->priv->hdr_ext_abs_send_time = FALSE;
 
   m_len = gst_sdp_message_medias_len (msg);
   for (m = 0; m < m_len; m++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (msg, m);
 
     kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (self, media);
+    kms_base_rtp_endpoint_process_hdrext_attrs (self, media);
   }
 }
 

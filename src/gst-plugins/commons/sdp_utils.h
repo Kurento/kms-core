@@ -24,6 +24,8 @@
 #define RTCP_FB_PLI "nack pli"
 #define RTCP_FB_REMB "goog-remb"
 
+#define EXT_MAP "extmap"
+
 typedef enum GstSDPDirection
 {
   SENDONLY,
