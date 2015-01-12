@@ -187,65 +187,75 @@ rtcp_fb_attr_check_type (const gchar * attr, const gchar * pt,
 }
 
 static void
-sdp_message_get_vp8_rtcp_fb_attrs (const GstSDPMessage * msg,
-    gboolean * fir, gboolean * nack, gboolean * pli, gboolean * remb)
+kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
+    const GstSDPMedia * media)
+{
+  const gchar *media_str = gst_sdp_media_get_media (media);
+  guint f_len, f;
+
+  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) != 0) {
+    return;
+  }
+
+  f_len = gst_sdp_media_formats_len (media);
+  for (f = 0; f < f_len; f++) {
+    const gchar *pt = gst_sdp_media_get_format (media, f);
+    gchar *enconding_name = gst_sdp_media_format_get_encoding_name (media, pt);
+    guint a;
+
+    if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) != 0) {
+      continue;
+    }
+
+    for (a = 0;; a++) {
+      const gchar *attr;
+
+      attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+      if (attr == NULL) {
+        break;
+      }
+
+      if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_FIR)) {
+        self->priv->rtcp_fir = TRUE;
+        continue;
+      }
+
+      if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_NACK)) {
+        self->priv->rtcp_nack = TRUE;
+        continue;
+      }
+
+      if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_PLI)) {
+        self->priv->rtcp_pli = TRUE;
+        continue;
+      }
+
+      if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_REMB)) {
+        self->priv->rtcp_remb = TRUE;
+        continue;
+      }
+    }
+
+    return;
+  }
+}
+
+static void
+kms_base_rtp_endpoint_remote_sdp_message_process_attrs (KmsBaseRtpEndpoint *
+    self, const GstSDPMessage * msg)
 {
   guint m_len, m;
 
-  *fir = *nack = *pli = *remb = FALSE;
+  self->priv->rtcp_fir = FALSE;
+  self->priv->rtcp_nack = FALSE;
+  self->priv->rtcp_pli = FALSE;
+  self->priv->rtcp_remb = FALSE;
 
   m_len = gst_sdp_message_medias_len (msg);
   for (m = 0; m < m_len; m++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (msg, m);
-    const gchar *media_str = gst_sdp_media_get_media (media);
-    guint f_len, f;
 
-    if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) != 0) {
-      continue;
-    }
-
-    f_len = gst_sdp_media_formats_len (media);
-    for (f = 0; f < f_len; f++) {
-      const gchar *pt = gst_sdp_media_get_format (media, f);
-      gchar *enconding_name =
-          gst_sdp_media_format_get_encoding_name (media, pt);
-      guint a;
-
-      if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) != 0) {
-        continue;
-      }
-
-      for (a = 0;; a++) {
-        const gchar *attr;
-
-        attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
-        if (attr == NULL) {
-          break;
-        }
-
-        if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_FIR)) {
-          *fir = TRUE;
-          continue;
-        }
-
-        if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_NACK)) {
-          *nack = TRUE;
-          continue;
-        }
-
-        if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_PLI)) {
-          *pli = TRUE;
-          continue;
-        }
-
-        if (rtcp_fb_attr_check_type (attr, pt, RTCP_FB_REMB)) {
-          *remb = TRUE;
-          continue;
-        }
-      }
-
-      return;
-    }
+    kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (self, media);
   }
 }
 
@@ -414,8 +424,8 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   if (remote_offer_sdp != NULL) {
     self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
     self->priv->rtcp_mux = sdp_message_is_rtcp_mux (remote_offer_sdp);
-    sdp_message_get_vp8_rtcp_fb_attrs (remote_offer_sdp, &self->priv->rtcp_fir,
-        &self->priv->rtcp_nack, &self->priv->rtcp_pli, &self->priv->rtcp_remb);
+    kms_base_rtp_endpoint_remote_sdp_message_process_attrs (self,
+        remote_offer_sdp);
     gst_sdp_message_free (remote_offer_sdp);
 
     GST_TRACE_OBJECT (self, "RTCP-FB: fir: %u, nack: %u, pli: %u, remb: %u",
