@@ -104,6 +104,7 @@ struct _KmsBaseRtpEndpointClass
   /* virtual methods */
   KmsIRtpConnection * (*get_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
   KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
+  KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
   KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
 };
 
@@ -111,6 +112,7 @@ GType kms_base_rtp_endpoint_get_type (void);
 
 KmsIRtpConnection * kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self, const gchar *name);
 KmsIRtpConnection * kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self, const gchar *name);
+KmsIRtcpMuxConnection * kms_base_rtp_endpoint_create_rtcp_mux_connection (KmsBaseRtpEndpoint * self, const gchar *name);
 KmsIBundleConnection * kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self, const gchar *name);
 
 /* rtpbin must be used helding the KmsBaseRtpEndpoint's lock */
