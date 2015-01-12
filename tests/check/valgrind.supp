@@ -94,3 +94,10 @@
   fun:_priv_kms_generic_structure_initialize
   ...
 }
+{
+  Thread pool push
+  Memcheck:Leak
+  ...
+  fun:g_thread_pool_push
+  ...
+}
