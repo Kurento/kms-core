@@ -34,10 +34,13 @@ G_BEGIN_DECLS
 
 typedef struct _KmsEncTreeBin KmsEncTreeBin;
 typedef struct _KmsEncTreeBinClass KmsEncTreeBinClass;
+typedef struct _KmsEncTreeBinPrivate KmsEncTreeBinPrivate;
 
 struct _KmsEncTreeBin
 {
   KmsTreeBin parent;
+
+  KmsEncTreeBinPrivate *priv;
 };
 
 struct _KmsEncTreeBinClass

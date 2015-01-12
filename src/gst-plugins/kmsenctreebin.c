@@ -27,6 +27,21 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define kms_enc_tree_bin_parent_class parent_class
 G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
 
+#define KMS_ENC_TREE_BIN_GET_PRIVATE(obj) ( \
+  G_TYPE_INSTANCE_GET_PRIVATE (             \
+    (obj),                                  \
+    KMS_TYPE_ENC_TREE_BIN,                  \
+    KmsEncTreeBinPrivate                    \
+  )                                         \
+)
+
+struct _KmsEncTreeBinPrivate
+{
+  GstPad *enc_sink;
+  gulong remb_manager_probe_id;
+  RembEventManager *remb_manager;
+};
+
 static void
 configure_encoder (GstElement * encoder, const gchar * factory_name)
 {
@@ -124,8 +139,6 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *enc, *output_tee;
-  RembEventManager *remb_manager;
-  GstPad *sink;
 
   enc = create_encoder_for_caps (caps);
   if (enc == NULL) {
@@ -135,12 +148,12 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps)
   }
   GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, enc);
 
-  sink = gst_element_get_static_pad (enc, "sink");
-  remb_manager = kms_utils_remb_event_manager_create (sink);
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_BUFFER,
-      config_enc_bitrate_probe, remb_manager,
-      kms_utils_remb_event_manager_pointer_destroy);
-  gst_object_unref (sink);
+  self->priv->enc_sink = gst_element_get_static_pad (enc, "sink");
+  self->priv->remb_manager =
+      kms_utils_remb_event_manager_create (self->priv->enc_sink);
+  self->priv->remb_manager_probe_id =
+      gst_pad_add_probe (self->priv->enc_sink, GST_PAD_PROBE_TYPE_BUFFER,
+      config_enc_bitrate_probe, self->priv->remb_manager, NULL);
 
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
@@ -176,12 +189,43 @@ kms_enc_tree_bin_new (const GstCaps * caps)
 static void
 kms_enc_tree_bin_init (KmsEncTreeBin * self)
 {
-  /* Nothing to do */
+  self->priv = KMS_ENC_TREE_BIN_GET_PRIVATE (self);
+
+  self->priv->enc_sink = NULL;
+  self->priv->remb_manager = NULL;
+  self->priv->remb_manager_probe_id = 0L;
+}
+
+static void
+kms_enc_tree_bin_dispose (GObject * object)
+{
+  KmsEncTreeBin *self = KMS_ENC_TREE_BIN (object);
+
+  GST_DEBUG_OBJECT (object, "dispose");
+  if (self->priv->enc_sink) {
+    if (self->priv->remb_manager_probe_id) {
+      gst_pad_remove_probe (self->priv->enc_sink,
+          self->priv->remb_manager_probe_id);
+
+      self->priv->remb_manager_probe_id = 0L;
+    }
+
+    g_clear_object (&self->priv->enc_sink);
+  }
+
+  if (self->priv->remb_manager) {
+    kms_utils_remb_event_manager_destroy (self->priv->remb_manager);
+    self->priv->remb_manager = NULL;
+  }
+
+  /* chain up */
+  G_OBJECT_CLASS (kms_enc_tree_bin_parent_class)->dispose (object);
 }
 
 static void
 kms_enc_tree_bin_class_init (KmsEncTreeBinClass * klass)
 {
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *gstelement_class = GST_ELEMENT_CLASS (klass);
 
   gst_element_class_set_details_simple (gstelement_class,
@@ -192,4 +236,8 @@ kms_enc_tree_bin_class_init (KmsEncTreeBinClass * klass)
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
       GST_DEFAULT_NAME);
+
+  gobject_class->dispose = kms_enc_tree_bin_dispose;
+
+  g_type_class_add_private (klass, sizeof (KmsEncTreeBinPrivate));
 }
