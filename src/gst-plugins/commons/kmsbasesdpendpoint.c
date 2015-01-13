@@ -255,23 +255,26 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
   GST_DEBUG_OBJECT (self, "generate_offer");
 
   KMS_ELEMENT_LOCK (self);
+
   if (self->priv->pattern_sdp != NULL) {
     gst_sdp_message_copy (self->priv->pattern_sdp, &offer);
   }
-  KMS_ELEMENT_UNLOCK (self);
 
   if (offer == NULL) {
-    return NULL;
+    goto end;
   }
 
   if (!base_sdp_endpoint_class->set_transport_to_sdp (self, offer)) {
     gst_sdp_message_free (offer);
-    return NULL;
+    offer = NULL;
+    goto end;
   }
 
   kms_base_sdp_endpoint_set_local_offer_sdp (self, offer);
-
   sdp_utils_set_max_video_recv_bw (offer, self->priv->max_video_recv_bw);
+
+end:
+  KMS_ELEMENT_UNLOCK (self);
 
   return offer;
 }
@@ -280,7 +283,7 @@ static GstSDPMessage *
 kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * offer)
 {
-  GstSDPMessage *answer = NULL, *intersec_offer, *intersect_answer;
+  GstSDPMessage *answer = NULL, *intersec_offer, *intersect_answer = NULL;
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
@@ -288,24 +291,25 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   GST_DEBUG_OBJECT (self, "process_offer");
 
   KMS_ELEMENT_LOCK (self);
+
   if (self->priv->pattern_sdp != NULL) {
     gst_sdp_message_copy (self->priv->pattern_sdp, &answer);
   }
-  KMS_ELEMENT_UNLOCK (self);
 
   if (answer == NULL) {
-    return NULL;
+    goto end;
   }
 
   if (!base_sdp_endpoint_class->set_transport_to_sdp (self, answer)) {
     gst_sdp_message_free (answer);
-    return NULL;
+    goto end;
   }
 
   if (sdp_utils_intersect_sdp_messages (offer, answer, &intersec_offer,
           &intersect_answer) != GST_SDP_OK) {
     gst_sdp_message_free (answer);
-    return NULL;
+    intersect_answer = NULL;
+    goto end;
   }
   gst_sdp_message_free (intersec_offer);
   gst_sdp_message_free (answer);
@@ -317,6 +321,9 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   sdp_utils_set_max_video_recv_bw (intersect_answer,
       self->priv->max_video_recv_bw);
 
+end:
+  KMS_ELEMENT_UNLOCK (self);
+
   return intersect_answer;
 }
 
@@ -326,16 +333,21 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
 {
   GST_DEBUG_OBJECT (self, "process_answer");
 
+  KMS_ELEMENT_LOCK (self);
+
   if (self->priv->local_offer_sdp == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
-    return;
+    goto end;
   }
 
   kms_base_sdp_endpoint_set_remote_answer_sdp (self, answer);
 
   kms_base_sdp_endpoint_start_media (self,
       self->priv->local_offer_sdp, answer, TRUE);
+
+end:
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void

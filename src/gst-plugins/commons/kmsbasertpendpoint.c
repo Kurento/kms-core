@@ -462,8 +462,6 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   GstStructure *sdes = NULL;
   const gchar *cname;
 
-  KMS_ELEMENT_LOCK (self);
-
   g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
   if (remote_offer_sdp != NULL) {
     self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
@@ -548,8 +546,6 @@ end:
   if (sdes != NULL) {
     gst_structure_free (sdes);
   }
-
-  KMS_ELEMENT_UNLOCK (self);
 
   return ret;
 }
@@ -840,8 +836,6 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
   const GstSDPMessage *sdp;
   guint len, i;
 
-  KMS_ELEMENT_LOCK (self);
-
   if (gst_sdp_message_medias_len (answer) != gst_sdp_message_medias_len (offer)) {
     GST_WARNING_OBJECT (self,
         "Incompatible offer and answer, possible errors in media");
@@ -900,8 +894,6 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
           media_str, rtp_session_str);
     }
   }
-
-  KMS_ELEMENT_UNLOCK (self);
 }
 
 /* Start Transport Send end */
@@ -1148,8 +1140,6 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     return;
   }
 
-  KMS_ELEMENT_LOCK (base_endpoint);
-
   len = gst_sdp_message_medias_len (answer);
   for (i = 0; i < len; i++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
@@ -1210,8 +1200,6 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
           rtpbin_pad_name);
     }
   }
-
-  KMS_ELEMENT_UNLOCK (base_endpoint);
 }
 
 static GstCaps *
