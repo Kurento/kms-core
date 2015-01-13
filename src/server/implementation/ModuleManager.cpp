@@ -61,7 +61,8 @@ ModuleManager::loadModule (std::string modulePath)
   }
 
   if (!module.get_symbol ("getFactoryRegistrar", registrarFactory) ) {
-    GST_WARNING ("Symbol not found");
+    GST_WARNING ("Symbol 'getFactoryRegistrar' not found in library %s",
+                 moduleFileName.c_str() );
     return -1;
   }
 
@@ -125,39 +126,30 @@ std::list<std::string> split (const std::string &s, char delim)
 void
 ModuleManager::loadModules (std::string dirPath)
 {
-  DIR *dir;
-  std::string name;
-  struct dirent *ent;
-
   GST_INFO ("Looking for modules in %s", dirPath.c_str() );
-  dir = opendir (dirPath.c_str() );
+  boost::filesystem::path dir (dirPath);
 
-  if (dir == NULL) {
-    GST_WARNING ("Unable to load modules from:  %s", dirPath.c_str() );
+  if (!boost::filesystem::is_directory (dir) ) {
+    GST_WARNING ("Unable to load modules from:  %s, it is not a directory",
+                 dirPath.c_str() );
     return;
   }
 
-  /* print all the files and directories within directory */
-  while ( (ent = readdir (dir) ) != NULL) {
-    name = ent->d_name;
+  boost::filesystem::directory_iterator end_itr;
 
-    if (ent->d_type == DT_REG) {
-      if (name.size () > 3) {
-        std::string ext = name.substr (name.size() - 3);
+  for ( boost::filesystem::directory_iterator itr ( dir ); itr != end_itr;
+        ++itr ) {
+    if (boost::filesystem::is_regular (*itr) ) {
+      boost::filesystem::path extension = itr->path().extension();
 
-        if ( ext == ".so" ) {
-          std::string name = dirPath + "/" + ent->d_name;
-          loadModule (name);
-        }
+      if (extension.string() == ".so") {
+
+        loadModule (itr->path().string() );
       }
-    } else if (ent->d_type == DT_DIR && "." != name && ".." != name) {
-      std::string dirName = dirPath + "/" + ent->d_name;
-
-      this->loadModules (dirName);
+    } else if (boost::filesystem::is_directory (*itr) ) {
+      this->loadModules (itr->path().string() );
     }
   }
-
-  closedir (dir);
 }
 
 void
