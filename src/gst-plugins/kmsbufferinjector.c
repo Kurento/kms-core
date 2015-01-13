@@ -122,7 +122,8 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     //timeout reached, it is necessary to inject a new buffer
     GST_DEBUG_OBJECT (self->priv->srcpad, "Injecting buffer");
     KMS_BUFFER_INJECTOR_LOCK (self);
-    copy = gst_buffer_make_writable (self->priv->previous_buffer);
+    copy = gst_buffer_copy (self->priv->previous_buffer);
+
     if (GST_BUFFER_DTS_IS_VALID (copy)) {
       copy->dts = copy->dts + self->priv->wait_time;
     }
@@ -323,6 +324,10 @@ kms_buffer_injector_finalize (GObject * object)
   g_rec_mutex_clear (&buffer_injector->priv->thread_mutex);
   g_mutex_clear (&buffer_injector->priv->mutex_generate);
   g_cond_clear (&buffer_injector->priv->cond_generate);
+
+  if (buffer_injector->priv->previous_buffer != NULL) {
+    gst_buffer_unref (buffer_injector->priv->previous_buffer);
+  }
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
