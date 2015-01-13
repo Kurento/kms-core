@@ -726,6 +726,7 @@ kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
   sync->agnosticbin = agnosticbin;
 
   agnosticbin_set_EOS_cb (sync);
+  KMS_AUDIO_MIXER_DATA_UNREF (sync);
 
   /* push EOS into the element, the probe will be fired when the */
   /* EOS leaves the effect and it has thus drained all of its data */
