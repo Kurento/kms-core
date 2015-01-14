@@ -61,6 +61,7 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   : MediaObjectImpl (config)
 {
   GstBus *bus;
+  GstClock *clock;
 
   pipeline = gst_pipeline_new (NULL);
 
@@ -70,6 +71,11 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   }
 
   g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
+
+  clock = gst_system_clock_obtain ();
+  gst_pipeline_use_clock (GST_PIPELINE (pipeline), clock);
+  g_object_unref (clock);
+
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   busMessagePointer = std::bind (&MediaPipelineImpl::busMessage, this,
