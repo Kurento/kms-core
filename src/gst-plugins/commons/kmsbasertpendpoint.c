@@ -826,6 +826,7 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
   kms_base_rtp_endpoint_add_connection_src (self, conn, rtp_session);
 }
 
+/* TODO: rename to start_transport */
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, const GstSDPMessage * offer,
@@ -1840,12 +1841,4 @@ kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self,
   base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   return base_rtp_class->create_bundle_connection (self, name);
-}
-
-GstElement *
-kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self)
-{
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-
-  return self->priv->rtpbin;
 }

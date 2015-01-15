@@ -115,8 +115,5 @@ KmsIRtpConnection * kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint 
 KmsIRtcpMuxConnection * kms_base_rtp_endpoint_create_rtcp_mux_connection (KmsBaseRtpEndpoint * self, const gchar *name);
 KmsIBundleConnection * kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self, const gchar *name);
 
-/* rtpbin must be used helding the KmsBaseRtpEndpoint's lock */
-GstElement *kms_base_rtp_endpoint_get_rtpbin (KmsBaseRtpEndpoint * self);
-
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_ENDPOINT_H__ */
