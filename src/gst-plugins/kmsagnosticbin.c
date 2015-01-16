@@ -145,6 +145,7 @@ tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
       // Request key frame to upstream elements
       kms_utils_drop_until_keyframe (pad, TRUE);
+      return GST_PAD_PROBE_DROP;
     }
   }
 
@@ -837,11 +838,8 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
       GST_DEBUG_OBJECT (pad, "Received reconfigure event");
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      if (kms_agnostic_bin2_process_pad (self, pad)) {
-        ret = GST_PAD_PROBE_DROP;
-      } else {
-        ret = GST_PAD_PROBE_OK;
-      }
+      kms_agnostic_bin2_process_pad (self, pad);
+      ret = GST_PAD_PROBE_DROP;
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
       goto end;
