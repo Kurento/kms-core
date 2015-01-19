@@ -210,8 +210,13 @@ kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
     const gchar *pt = gst_sdp_media_get_format (media, f);
     gchar *enconding_name = gst_sdp_media_format_get_encoding_name (media, pt);
     guint a;
+    gint result = g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name);
 
-    if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, enconding_name) != 0) {
+    if (enconding_name != NULL) {
+      g_free (enconding_name);
+    }
+
+    if (result != 0) {
       continue;
     }
 
