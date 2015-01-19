@@ -64,6 +64,8 @@ struct _KmsBaseRtpEndpointPrivate
   /* RTP hdrext */
   gboolean hdr_ext_abs_send_time;       /* TODO: one per media entry */
 
+  GHashTable *conns;
+
   GstElement *audio_payloader;
   GstElement *video_payloader;
 
@@ -123,22 +125,6 @@ enum
 
 /* Connection management begin */
 static KmsIRtpConnection *
-kms_base_rtp_endpoint_get_connection_default (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->get_connection == kms_base_rtp_endpoint_get_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'get_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIRtpConnection *
 kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
     const gchar * name)
 {
@@ -192,12 +178,23 @@ KmsIRtpConnection *
 kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
     const gchar * name)
 {
-  KmsBaseRtpEndpointClass *base_rtp_class;
+  gpointer *conn;
 
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  KMS_ELEMENT_LOCK (self);
+  conn = g_hash_table_lookup (self->priv->conns, name);
+  KMS_ELEMENT_UNLOCK (self);
 
-  return base_rtp_class->get_connection (self, name);
+  if (conn == NULL) {
+    return NULL;
+  }
+
+  return KMS_I_RTP_CONNECTION (conn);
+}
+
+GHashTable *
+kms_base_rtp_endpoint_get_connections (KmsBaseRtpEndpoint * self)
+{
+  return self->priv->conns;
 }
 
 KmsIRtpConnection *
@@ -205,11 +202,21 @@ kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
     const gchar * name)
 {
   KmsBaseRtpEndpointClass *base_rtp_class;
+  KmsIRtpConnection *conn;
 
   g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  return base_rtp_class->create_connection (self, name);
+  conn = kms_base_rtp_endpoint_get_connection (self, name);
+  if (conn != NULL) {
+    GST_WARNING_OBJECT (self, "Connection '%s' already created", name);
+    return conn;
+  }
+
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  conn = base_rtp_class->create_connection (self, name);
+  g_hash_table_insert (self->priv->conns, g_strdup (name), conn);
+
+  return conn;
 }
 
 KmsIRtcpMuxConnection *
@@ -217,11 +224,23 @@ kms_base_rtp_endpoint_create_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
     const gchar * name)
 {
   KmsBaseRtpEndpointClass *base_rtp_class;
+  KmsIRtcpMuxConnection *conn;
 
   g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  return base_rtp_class->create_rtcp_mux_connection (self, name);
+  conn =
+      KMS_I_RTCP_MUX_CONNECTION (kms_base_rtp_endpoint_get_connection (self,
+          name));
+  if (conn != NULL) {
+    GST_WARNING_OBJECT (self, "Connection '%s' already created", name);
+    return conn;
+  }
+
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  conn = base_rtp_class->create_rtcp_mux_connection (self, name);
+  g_hash_table_insert (self->priv->conns, g_strdup (name), conn);
+
+  return conn;
 }
 
 KmsIBundleConnection *
@@ -229,11 +248,23 @@ kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self,
     const gchar * name)
 {
   KmsBaseRtpEndpointClass *base_rtp_class;
+  KmsIBundleConnection *conn;
 
   g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  return base_rtp_class->create_bundle_connection (self, name);
+  conn =
+      KMS_I_BUNDLE_CONNECTION (kms_base_rtp_endpoint_get_connection (self,
+          name));
+  if (conn != NULL) {
+    GST_WARNING_OBJECT (self, "Connection '%s' already created", name);
+    return conn;
+  }
+
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  conn = base_rtp_class->create_bundle_connection (self, name);
+  g_hash_table_insert (self->priv->conns, g_strdup (name), conn);
+
+  return conn;
 }
 
 /* Connection management end */
@@ -1603,6 +1634,8 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   kms_remb_remote_destroy (self->priv->rm);
   g_free (self->priv->proto);
 
+  g_hash_table_destroy (self->priv->conns);
+
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
 }
 
@@ -1629,7 +1662,6 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
   /* Connection management */
-  klass->get_connection = kms_base_rtp_endpoint_get_connection_default;
   klass->create_connection = kms_base_rtp_endpoint_create_connection_default;
   klass->create_rtcp_mux_connection =
       kms_base_rtp_endpoint_create_rtcp_mux_connection_default;
@@ -1846,4 +1878,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->audio_payloader = NULL;
   self->priv->video_payloader = NULL;
+
+  self->priv->conns =
+      g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 }
