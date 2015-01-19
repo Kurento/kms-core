@@ -48,11 +48,11 @@ public:
 
   ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data)
   {
-    this->source = source;
-    this->sink = sink;
-    this->type = type;
-    this->sourceDescription = sourceDescription;
-    this->sinkDescription = sinkDescription;
+    this->source = data->getSource();
+    this->sink = data->getSink();
+    this->type = data->getType();
+    this->sourceDescription = data->getSourceDescription();
+    this->sinkDescription = data->getSinkDescription();
     this->sourcePadName = NULL;
     setSinkPadName ();
   }
