@@ -121,6 +121,123 @@ enum
   PROP_LAST
 };
 
+/* Connection management begin */
+static KmsIRtpConnection *
+kms_base_rtp_endpoint_get_connection_default (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->get_connection == kms_base_rtp_endpoint_get_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'get_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIRtpConnection *
+kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_connection ==
+      kms_base_rtp_endpoint_create_connection_default) {
+    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIRtcpMuxConnection *
+kms_base_rtp_endpoint_create_rtcp_mux_connection_default (KmsBaseRtpEndpoint *
+    self, const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_rtcp_mux_connection ==
+      kms_base_rtp_endpoint_create_rtcp_mux_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'create_rtcp_mux_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIBundleConnection *
+kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
+    self, const gchar * name)
+{
+  KmsBaseRtpEndpointClass *klass =
+      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_bundle_connection ==
+      kms_base_rtp_endpoint_create_bundle_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'create_bundle_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+KmsIRtpConnection *
+kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->get_connection (self, name);
+}
+
+KmsIRtpConnection *
+kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->create_connection (self, name);
+}
+
+KmsIRtcpMuxConnection *
+kms_base_rtp_endpoint_create_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->create_rtcp_mux_connection (self, name);
+}
+
+KmsIBundleConnection *
+kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self,
+    const gchar * name)
+{
+  KmsBaseRtpEndpointClass *base_rtp_class;
+
+  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
+  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_rtp_class->create_bundle_connection (self, name);
+}
+
+/* Connection management end */
+
 /* Set Transport begin */
 static gboolean
 sdp_message_is_bundle (GstSDPMessage * msg)
@@ -903,75 +1020,6 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 }
 
 /* Start Transport Send end */
-
-/* Connection management begin */
-static KmsIRtpConnection *
-kms_base_rtp_endpoint_get_connection_default (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->get_connection == kms_base_rtp_endpoint_get_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'get_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIRtpConnection *
-kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_connection ==
-      kms_base_rtp_endpoint_create_connection_default) {
-    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIRtcpMuxConnection *
-kms_base_rtp_endpoint_create_rtcp_mux_connection_default (KmsBaseRtpEndpoint *
-    self, const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_rtcp_mux_connection ==
-      kms_base_rtp_endpoint_create_rtcp_mux_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'create_rtcp_mux_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIBundleConnection *
-kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
-    self, const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_bundle_connection ==
-      kms_base_rtp_endpoint_create_bundle_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'create_bundle_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-/* Connection management end */
 
 static const gchar *
 get_caps_codec_name (const gchar * codec_name)
@@ -1798,52 +1846,4 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->audio_payloader = NULL;
   self->priv->video_payloader = NULL;
-}
-
-KmsIRtpConnection *
-kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *base_rtp_class;
-
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  return base_rtp_class->get_connection (self, name);
-}
-
-KmsIRtpConnection *
-kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *base_rtp_class;
-
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  return base_rtp_class->create_connection (self, name);
-}
-
-KmsIRtcpMuxConnection *
-kms_base_rtp_endpoint_create_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *base_rtp_class;
-
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  return base_rtp_class->create_rtcp_mux_connection (self, name);
-}
-
-KmsIBundleConnection *
-kms_base_rtp_endpoint_create_bundle_connection (KmsBaseRtpEndpoint * self,
-    const gchar * name)
-{
-  KmsBaseRtpEndpointClass *base_rtp_class;
-
-  g_return_val_if_fail (KMS_IS_BASE_RTP_ENDPOINT (self), NULL);
-  base_rtp_class = KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  return base_rtp_class->create_bundle_connection (self, name);
 }
