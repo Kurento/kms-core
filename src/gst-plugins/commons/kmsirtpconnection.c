@@ -35,6 +35,10 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsIRtpConnectionInterface, connected_signal), NULL,
       NULL, g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
+  g_object_interface_install_property (iface, g_param_spec_boolean ("connected",
+          "Connected", "Indicates if connection is already connected", FALSE,
+          G_PARAM_READWRITE));
 }
 
 void
@@ -81,6 +85,7 @@ kms_i_rtp_connection_request_rtcp_src (KmsIRtpConnection * self)
 void
 kms_i_rtp_connection_connected_signal (KmsIRtpConnection * self)
 {
+  g_object_set (G_OBJECT (self), "connected", TRUE, NULL);
   g_signal_emit (G_OBJECT (self),
       kms_i_rtp_connection_signals[SIGNAL_CONNECTED], 0);
 }
