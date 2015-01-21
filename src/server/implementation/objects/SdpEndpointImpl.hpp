@@ -49,6 +49,7 @@ private:
   GstSDPMessage *getSdpPattern ();
   static std::mutex sdpMutex;
   std::atomic_bool offerInProcess;
+  std::atomic_bool waitingAnswer;
 
   class StaticConstructor
   {

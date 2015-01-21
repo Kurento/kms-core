@@ -132,6 +132,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
   g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
   offerInProcess = false;
+  waitingAnswer = false;
 }
 
 
@@ -175,6 +176,7 @@ std::string SdpEndpointImpl::generateOffer ()
 
   sdp_to_str (offerStr, offer);
   gst_sdp_message_free (offer);
+  waitingAnswer = true;
 
   return offerStr;
 }
@@ -214,6 +216,13 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
 {
   GstSDPMessage *answerSdp;
   std::string resultStr;
+  bool expected = true;
+
+  if (!waitingAnswer.compare_exchange_strong (expected, true) ) {
+    //offer not generated
+    throw KurentoException (SDP_END_POINT_NOT_OFFER_GENERATED,
+                            "Offer not generated. It is not possible to process an answer.");
+  }
 
   answerSdp = str_to_sdp (answer);
   g_signal_emit_by_name (element, "process-answer", answerSdp, NULL);
