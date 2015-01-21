@@ -69,6 +69,9 @@ struct _KmsBaseRtpEndpointPrivate
   GstElement *audio_payloader;
   GstElement *video_payloader;
 
+  gboolean audio_payloader_connected;
+  gboolean video_payloader_connected;
+
   guint local_audio_ssrc;
   guint remote_audio_ssrc;
   guint audio_ssrc;
@@ -122,6 +125,36 @@ enum
   PROP_MAX_VIDEO_SEND_BW,
   PROP_LAST
 };
+
+typedef struct _ConnectPayloaderData
+{
+  KmsBaseRtpEndpoint *self;
+  GstElement *payloader;
+  gboolean *connected_flag;
+  KmsElementPadType type;
+} ConnectPayloaderData;
+
+static ConnectPayloaderData *
+connect_payloader_data_new (KmsBaseRtpEndpoint * self, GstElement * payloader,
+    gboolean * connected_flag, KmsElementPadType type)
+{
+  ConnectPayloaderData *data;
+
+  data = g_slice_new0 (ConnectPayloaderData);
+
+  data->self = self;
+  data->payloader = payloader;
+  data->connected_flag = connected_flag;
+  data->type = type;
+
+  return data;
+}
+
+static void
+connect_payloader_data_destroy (gpointer data, GClosure * closure)
+{
+  g_slice_free (ConnectPayloaderData, data);
+}
 
 /* Connection management begin */
 static KmsIRtpConnection *
@@ -1190,13 +1223,84 @@ end:
 }
 
 static void
+kms_base_rtp_endpoint_do_connect_payloader (KmsBaseRtpEndpoint * self,
+    GstElement * payloader, gboolean * connected_flag, KmsElementPadType type)
+{
+  GST_DEBUG_OBJECT (self, "Connecting payloader %" GST_PTR_FORMAT, payloader);
+
+  if (g_atomic_int_compare_and_exchange (connected_flag, FALSE, TRUE)) {
+    GstPad *target = gst_element_get_static_pad (payloader, "sink");
+
+    kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
+    g_object_unref (target);
+  } else {
+    GST_WARNING_OBJECT (self,
+        "Connected flag already set for payloader %" GST_PTR_FORMAT, payloader);
+  }
+}
+
+static void
+kms_base_rtp_endpoint_connect_payloader_cb (KmsIRtpConnection * conn,
+    gpointer d)
+{
+  ConnectPayloaderData *data = d;
+
+  kms_base_rtp_endpoint_do_connect_payloader (data->self, data->payloader,
+      data->connected_flag, data->type);
+}
+
+static void
+kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
+    GstElement * payloader, gboolean * connected_flag, const char *media_name,
+    KmsElementPadType type)
+{
+  ConnectPayloaderData *data;
+  gboolean connected = FALSE;
+  KmsIRtpConnection *conn;
+  const char *name;
+  gulong handler_id = 0;
+
+  if (self->priv->bundle) {
+    name = BUNDLE_STREAM_NAME;
+  } else {
+    name = media_name;
+  }
+
+  conn = kms_base_rtp_endpoint_get_connection (self, name);
+
+  if (conn == NULL) {
+    GST_WARNING_OBJECT (self, "Connection not found for media: %s", name);
+    return;
+  }
+
+  data = connect_payloader_data_new (self, payloader, connected_flag, type);
+
+  handler_id = g_signal_connect_data (conn, "connected",
+      G_CALLBACK (kms_base_rtp_endpoint_connect_payloader_cb), data,
+      connect_payloader_data_destroy, 0);
+
+  g_object_get (conn, "connected", &connected, NULL);
+
+  if (connected) {
+    if (handler_id) {
+      g_signal_handler_disconnect (conn, handler_id);
+    }
+
+    kms_base_rtp_endpoint_do_connect_payloader (self, payloader, connected_flag,
+        type);
+  } else {
+    GST_DEBUG_OBJECT (self, "Media %s not connected, waiting for signal",
+        media_name);
+  }
+}
+
+static void
 kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
-    KmsElementPadType type, GstElement * payloader,
-    const gchar * rtpbin_pad_name)
+    KmsElementPadType type, GstElement * payloader, gboolean * connected_flag,
+    const gchar * rtpbin_pad_name, const gchar * media_str)
 {
   GstElement *rtpbin = self->priv->rtpbin;
   GstElement *rtprtxqueue = gst_element_factory_make ("rtprtxqueue", NULL);
-  GstPad *target;
 
   g_object_set (rtprtxqueue, "max-size-packets", 128, NULL);
 
@@ -1208,9 +1312,8 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
   gst_element_link (payloader, rtprtxqueue);
   gst_element_link_pads (rtprtxqueue, "src", rtpbin, rtpbin_pad_name);
 
-  target = gst_element_get_static_pad (payloader, "sink");
-  kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
-  g_object_unref (target);
+  kms_base_rtp_endpoint_connect_payloader_async (self, payloader,
+      connected_flag, media_str, type);
 }
 
 static void
@@ -1235,6 +1338,7 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     guint j, f_len;
     const gchar *rtpbin_pad_name;
     KmsElementPadType type;
+    gboolean *connected_flag;
 
     if (g_strcmp0 (proto_str, self->priv->proto)) {
       GST_WARNING_OBJECT (self, "Proto '%s' not supported", proto_str);
@@ -1269,20 +1373,23 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
     if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
       self->priv->audio_payloader = payloader;
+      connected_flag = &self->priv->audio_payloader_connected;
       type = KMS_ELEMENT_PAD_TYPE_AUDIO;
       rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
     } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
       self->priv->video_payloader = payloader;
+      connected_flag = &self->priv->video_payloader_connected;
       type = KMS_ELEMENT_PAD_TYPE_VIDEO;
       rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
     } else {
       rtpbin_pad_name = NULL;
+      connected_flag = NULL;
       g_object_unref (payloader);
     }
 
     if (rtpbin_pad_name != NULL) {
       kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
-          rtpbin_pad_name);
+          connected_flag, rtpbin_pad_name, media_str);
     }
   }
 }
@@ -1878,6 +1985,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->audio_payloader = NULL;
   self->priv->video_payloader = NULL;
+
+  self->priv->audio_payloader_connected = FALSE;
+  self->priv->video_payloader_connected = FALSE;
 
   self->priv->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
