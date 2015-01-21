@@ -5,6 +5,7 @@
 #include "SdpEndpoint.hpp"
 #include <EventHandler.hpp>
 #include <gst/sdp/gstsdpmessage.h>
+#include <atomic>
 
 namespace kurento
 {
@@ -47,6 +48,7 @@ private:
 
   GstSDPMessage *getSdpPattern ();
   static std::mutex sdpMutex;
+  std::atomic_bool offerInProcess;
 
   class StaticConstructor
   {

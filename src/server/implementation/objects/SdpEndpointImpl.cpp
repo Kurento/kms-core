@@ -130,8 +130,8 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   TODO: Add support for this events
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
-
   g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
+  offerInProcess = false;
 }
 
 
@@ -154,6 +154,13 @@ std::string SdpEndpointImpl::generateOffer ()
 {
   GstSDPMessage *offer = NULL;
   std::string offerStr;
+  bool expected = false;
+
+  if (!offerInProcess.compare_exchange_strong (expected, true) ) {
+    //the endpoint is already negotiated
+    throw KurentoException (SDP_END_POINT_ALREADY_NEGOTIATED,
+                            "Endpoint already negotiated");
+  }
 
   if (element == NULL) {
   }
@@ -161,6 +168,7 @@ std::string SdpEndpointImpl::generateOffer ()
   g_signal_emit_by_name (element, "generate-offer", &offer);
 
   if (offer == NULL) {
+    offerInProcess = false;
     throw KurentoException (SDP_END_POINT_GENERATE_OFFER_ERROR,
                             "Error generating offer");
   }
@@ -175,12 +183,20 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
 {
   GstSDPMessage *offerSdp = NULL, *result = NULL;
   std::string offerSdpStr;
+  bool expected = false;
+
+  if (!offerInProcess.compare_exchange_strong (expected, true) ) {
+    //the endpoint is already negotiated
+    throw KurentoException (SDP_END_POINT_ALREADY_NEGOTIATED,
+                            "Endpoint already negotiated");
+  }
 
   offerSdp = str_to_sdp (offer);
   g_signal_emit_by_name (element, "process-offer", offerSdp, &result);
   gst_sdp_message_free (offerSdp);
 
   if (result == NULL) {
+    offerInProcess = false;
     throw KurentoException (SDP_END_POINT_PROCESS_OFFER_ERROR,
                             "Error processing offer");
   }

@@ -67,3 +67,24 @@ target_link_libraries(test_media_element
   ${glibmm-2.4_LIBRARIES}
   ${Boot_LIBRARIES}
 )
+
+add_test_program (test_sdp_endpoint sdpEndpoint.cpp)
+add_dependencies(test_sdp_endpoint kmscoreplugins ${LIBRARY_NAME}impl)
+set_property (TARGET test_sdp_endpoint
+  PROPERTY INCLUDE_DIRECTORIES
+    ${KmsJsonRpc_INCLUDE_DIRS}
+    ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
+    ${glibmm-2.4_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${Boot_INCLUDE_DIRS}
+)
+target_link_libraries(test_sdp_endpoint
+  ${LIBRARY_NAME}impl
+  ${glibmm-2.4_LIBRARIES}
+  ${Boot_LIBRARIES}
+)
