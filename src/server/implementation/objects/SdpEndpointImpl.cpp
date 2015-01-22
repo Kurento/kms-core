@@ -133,6 +133,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
   offerInProcess = false;
   waitingAnswer = false;
+  answerProcessed = false;
 }
 
 
@@ -217,11 +218,18 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   GstSDPMessage *answerSdp;
   std::string resultStr;
   bool expected = true;
+  bool expected_false = false;
 
   if (!waitingAnswer.compare_exchange_strong (expected, true) ) {
     //offer not generated
     throw KurentoException (SDP_END_POINT_NOT_OFFER_GENERATED,
                             "Offer not generated. It is not possible to process an answer.");
+  }
+
+  if (!answerProcessed.compare_exchange_strong (expected_false, true) ) {
+    //the endpoint is already negotiated
+    throw KurentoException (SDP_END_POINT_ANSWER_ALREADY_PROCCESED,
+                            "Sdp Answer already processed");
   }
 
   answerSdp = str_to_sdp (answer);

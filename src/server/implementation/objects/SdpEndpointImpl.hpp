@@ -50,6 +50,7 @@ private:
   static std::mutex sdpMutex;
   std::atomic_bool offerInProcess;
   std::atomic_bool waitingAnswer;
+  std::atomic_bool answerProcessed;
 
   class StaticConstructor
   {

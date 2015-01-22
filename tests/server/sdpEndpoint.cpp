@@ -78,3 +78,32 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 
   sdpEndpoint.reset ();
 }
+
+BOOST_AUTO_TEST_CASE (duplicate_answer)
+{
+  gst_init (NULL, NULL);
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  boost::property_tree::ptree config;
+  std::string answer;
+
+  config.add ("configPath", "../../../tests" );
+  config.add ("modules.kurento.SdpEndpoint.sdpPattern", "sdp_pattern.txt");
+
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
+      (config, pipe, "dummysdp") );
+
+  sdpEndpoint->generateOffer ();
+  sdpEndpoint->processAnswer (answer);
+
+  try {
+    sdpEndpoint->processAnswer (answer);
+    BOOST_ERROR ("Duplicate answer not detected");
+  } catch (KurentoException &e) {
+    if (e.getCode () != 40210) {
+      BOOST_ERROR ("Duplicate answer not detected");
+    }
+  }
+
+  sdpEndpoint.reset ();
+}
