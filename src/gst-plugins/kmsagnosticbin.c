@@ -29,8 +29,6 @@
 #define LINKING_DATA "linking-data"
 #define UNLINKING_DATA "unlinking-data"
 
-#define DEFAULT_QUEUE_SIZE 60
-
 static GstStaticCaps static_raw_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_RAW_AUDIO_CAPS);
 static GstStaticCaps static_raw_video_caps =
@@ -397,9 +395,6 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
 {
   GstElement *queue = gst_element_factory_make ("queue", NULL);
   GstPad *target;
-
-  g_object_set (queue, "leaky", 2 /* downstream */ ,
-      "max-size-buffers", DEFAULT_QUEUE_SIZE, NULL);
 
   gst_bin_add (GST_BIN (self), queue);
   gst_element_sync_state_with_parent (queue);
