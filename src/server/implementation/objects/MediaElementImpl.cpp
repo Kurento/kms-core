@@ -659,25 +659,8 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
     sinkImpl->sources.at (mediaType).erase (sourceMediaDescription);
     sinks.at (mediaType).at (sinkMediaDescription).erase (connectionData);
 
-    GstPad *pad = connectionData->getSourcePad ();
-
-    if (pad) {
-      GstPad *peer = gst_pad_get_peer (pad);
-
-      if (peer) {
-        gst_pad_send_event (peer, gst_event_new_flush_start () );
-      }
-
-      g_signal_emit_by_name (getGstreamerElement (), "release-requested-srcpad",
-                             connectionData->getSourcePadName (), &ret, NULL);
-
-      if (peer) {
-        gst_pad_send_event (peer, gst_event_new_flush_stop (FALSE) );
-        g_object_unref (peer);
-      }
-
-      g_object_unref (pad);
-    }
+    g_signal_emit_by_name (getGstreamerElement (), "release-requested-srcpad",
+                           connectionData->getSourcePadName (), &ret, NULL);
   } catch (std::out_of_range) {
 
   }
