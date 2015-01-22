@@ -60,6 +60,35 @@
           "type": "String"
         }
       ],
+      "methods": [
+        {
+          "name": "addTag",
+          "doc": "Request a SessionSpec offer.\n\n   This can be used to initiate a connection.",
+          "params": [
+            {
+              "name": "key",
+              "doc": "Key of the tag",
+              "type": "String"
+            },
+            {
+              "name": "value",
+              "doc": "Value of the tag",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "removeTag",
+          "doc": "Remove the tag (key and value) associated to a tag",
+          "params": [
+            {
+              "name": "key",
+              "doc": "Key of the tag to remove",
+              "type": "String"
+            }
+          ]
+        }
+      ],
       "events": [
         "Error"
       ]

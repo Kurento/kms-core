@@ -6,6 +6,7 @@
 #include <EventHandler.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <mutex>
+#include <map>
 
 namespace kurento
 {
@@ -27,6 +28,9 @@ public:
                    std::shared_ptr <MediaObject> parent);
 
   virtual ~MediaObjectImpl () {}
+
+  void addTag (const std::string &key, const std::string &value);
+  void removeTag (const std::string &key);
 
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
@@ -86,6 +90,8 @@ private:
   std::shared_ptr<MediaObject> parent;
 
   std::string createId();
+
+  std::map<std::string, std::string> tagsMap;
 
   class StaticConstructor
   {

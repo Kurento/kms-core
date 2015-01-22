@@ -98,6 +98,25 @@ std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
   return childs;
 }
 
+void MediaObjectImpl::addTag (const std::string &key, const std::string &value)
+{
+  tagsMap [key] = value;
+  GST_DEBUG ("Tag added");
+}
+
+void MediaObjectImpl::removeTag (const std::string &key)
+{
+  auto it = tagsMap.find (key);
+
+  if (it != tagsMap.end() ) {
+    tagsMap.erase (it);
+    GST_DEBUG ("Tag deleted");
+    return;
+  }
+
+  GST_DEBUG ("Tag not found");
+}
+
 MediaObjectImpl::StaticConstructor MediaObjectImpl::staticConstructor;
 
 MediaObjectImpl::StaticConstructor::StaticConstructor()
