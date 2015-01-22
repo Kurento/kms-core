@@ -344,7 +344,7 @@ kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
 }
 
 static void
-kms_element_add_srcpadd (KmsElement * self, GstElement * agnosticbin,
+kms_element_add_src_pad (KmsElement * self, GstElement * agnosticbin,
     const gchar * pad_name, const gchar * templ_name)
 {
   GstPad *srcpad;
@@ -395,7 +395,7 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
       continue;
     }
 
-    kms_element_add_srcpadd (self, agnosticbin, pad_name, templ_name);
+    kms_element_add_src_pad (self, agnosticbin, pad_name, templ_name);
 
     keys = g_slist_prepend (keys, key);
   }
@@ -806,7 +806,7 @@ kms_element_request_new_srcpad_action (KmsElement * self,
 
   KMS_ELEMENT_UNLOCK (self);
 
-  kms_element_add_srcpadd (self, agnosticbin, pad_name, templ_name);
+  kms_element_add_src_pad (self, agnosticbin, pad_name, templ_name);
 
   return pad_name;
 }
