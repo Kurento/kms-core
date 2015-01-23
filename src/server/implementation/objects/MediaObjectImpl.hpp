@@ -46,6 +46,9 @@ public:
   virtual std::string getName ();
   virtual void setName (const std::string &name);
 
+  virtual bool getSendTagsInEvents ();
+  virtual void setSendTagsInEvents (bool sendTagsInEvents);
+
   virtual void release ()
   {
 
@@ -92,6 +95,7 @@ private:
   std::string createId();
 
   std::map<std::string, std::string> tagsMap;
+  bool sendTagsInEvents;
 
   class StaticConstructor
   {

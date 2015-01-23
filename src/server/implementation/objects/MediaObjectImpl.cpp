@@ -18,6 +18,7 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
   initialId = createId();
   this->config = config;
+  this->sendTagsInEvents = false;
 }
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
@@ -26,6 +27,7 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
   this->parent = parent;
   initialId = createId();
   this->config = config;
+  this->sendTagsInEvents = false;
 }
 
 std::shared_ptr<MediaPipeline>
@@ -96,6 +98,16 @@ std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
   }
 
   return childs;
+}
+
+bool MediaObjectImpl::getSendTagsInEvents ()
+{
+  return this->sendTagsInEvents;
+}
+
+void MediaObjectImpl::setSendTagsInEvents (bool sendTagsInEvents)
+{
+  this->sendTagsInEvents = sendTagsInEvents;
 }
 
 void MediaObjectImpl::addTag (const std::string &key, const std::string &value)

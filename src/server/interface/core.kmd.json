@@ -58,6 +58,12 @@
           "name": "name",
           "doc": "Object name. This is just a comodity to simplify developers life debugging, it is not used internally for indexing nor idenfiying the objects. By default is the object type followed by the object id.",
           "type": "String"
+        },
+        {
+          "name": "sendTagsInEvents",
+          "doc": "This property allows activate/deactivate sending the element tags in all its events.",
+          "type": "boolean",
+          "defaultValue": false
         }
       ],
       "methods": [
