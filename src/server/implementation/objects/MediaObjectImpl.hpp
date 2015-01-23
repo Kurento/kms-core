@@ -7,6 +7,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <mutex>
 #include <map>
+#include "Tag.hpp"
 
 namespace kurento
 {
@@ -31,6 +32,8 @@ public:
 
   void addTag (const std::string &key, const std::string &value);
   void removeTag (const std::string &key);
+  std::string getTag (const std::string &key);
+  std::vector<std::shared_ptr<Tag>> getTags ();
 
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 

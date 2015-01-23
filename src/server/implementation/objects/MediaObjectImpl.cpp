@@ -129,6 +129,30 @@ void MediaObjectImpl::removeTag (const std::string &key)
   GST_DEBUG ("Tag not found");
 }
 
+std::string MediaObjectImpl::getTag (const std::string &key)
+{
+  auto it = tagsMap.find (key);
+
+  if (it != tagsMap.end() ) {
+    return it->second;
+  }
+
+  throw KurentoException (MEDIA_OBJECT_TAG_KEY_NOT_FOUND,
+                          "Tag key not found");
+}
+
+std::vector<std::shared_ptr<Tag>> MediaObjectImpl::getTags ()
+{
+  std::vector<std::shared_ptr<Tag>> ret;
+
+  for (auto it : tagsMap ) {
+    std::shared_ptr <Tag> tag (new Tag (it.first, it.second) );
+    ret.push_back (tag);
+  }
+
+  return ret;
+}
+
 MediaObjectImpl::StaticConstructor MediaObjectImpl::staticConstructor;
 
 MediaObjectImpl::StaticConstructor::StaticConstructor()

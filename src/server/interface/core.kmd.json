@@ -93,6 +93,30 @@
               "type": "String"
             }
           ]
+        },
+        {
+          "name": "getTag",
+          "doc": "Returns the value associated to the given key.",
+          "params": [
+            {
+              "name": "key",
+              "doc": "Tag key.",
+              "type": "String"
+            }
+          ],
+          "return": {
+            "doc": "The value associated to the given key.",
+            "type": "String"
+          }
+        },
+        {
+          "name": "getTags",
+          "doc": "Returns all the MediaObject tags.",
+          "params": [],
+          "return": {
+            "doc": "An array containing all pairs key-value associated to the MediaObject.",
+            "type": "Tag[]"
+          }
         }
       ],
       "events": [
@@ -630,6 +654,23 @@
           "name": "sinkDescription",
           "doc": "Description of sink media. Could be emty.",
           "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "Tag",
+      "doc": "Pair key-value with info about a MediaObject",
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "key",
+          "doc": "Tag key",
+          "type" : "String"
+        },
+        {
+          "name": "value",
+          "doc": "Tag Value",
+          "type" : "String"
         }
       ]
     }
