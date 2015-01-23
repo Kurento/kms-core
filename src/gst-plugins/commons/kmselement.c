@@ -487,8 +487,10 @@ static GstPadProbeReturn
 accept_eos_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
   GstEvent *event = gst_pad_probe_info_get_event (info);
+  GstEventType type = GST_EVENT_TYPE (event);
 
-  if (GST_EVENT_TYPE (event) == GST_EVENT_EOS) {
+  if (type == GST_EVENT_EOS || type == GST_EVENT_FLUSH_START
+      || type == GST_EVENT_FLUSH_STOP) {
     KmsElement *self;
     gboolean accept;
 
@@ -497,8 +499,10 @@ accept_eos_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
     accept = self->priv->accept_eos;
     KMS_ELEMENT_UNLOCK (self);
 
-    if (!accept)
-      GST_DEBUG_OBJECT (pad, "Eos dropped");
+    if (!accept) {
+      GST_DEBUG_OBJECT (pad, "Event %s dropped",
+          gst_event_type_get_name (type));
+    }
 
     return (accept) ? GST_PAD_PROBE_OK : GST_PAD_PROBE_DROP;
   }
@@ -574,7 +578,8 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   }
 
   gst_pad_set_query_function (pad, kms_element_pad_query);
-  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+  gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM | GST_PAD_PROBE_TYPE_EVENT_FLUSH,
       accept_eos_probe, self, NULL);
   g_signal_connect (G_OBJECT (pad), "unlinked",
       G_CALLBACK (send_flush_on_unlink), NULL);
