@@ -184,7 +184,7 @@ get_transcoder_connected_to_sinkpad (GstPad * pad)
 static void
 connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
 {
-  GstCaps *current_caps = NULL;
+  GstCaps *current_caps = NULL, *caps = NULL;
   GstElement *transcoder;
   KmsAgnosticBin3 *self;
   KmsSrcPadData *data;
@@ -215,16 +215,13 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
 
   switch (data->state) {
     case KMS_SRC_PAD_STATE_UNCONFIGURED:{
-      GstCaps *caps;
-
       caps = gst_pad_peer_query_caps (srcpad, current_caps);
       transcode = gst_caps_is_empty (caps);
-      gst_caps_unref (caps);
-
       break;
     }
     case KMS_SRC_PAD_STATE_CONFIGURED:
-      transcode = !gst_caps_can_intersect (data->caps, current_caps);
+      caps = gst_caps_ref (data->caps);
+      transcode = !gst_caps_can_intersect (caps, current_caps);
       break;
     default:
       GST_ERROR_OBJECT (srcpad, "TODO: Operate in %s",
@@ -233,6 +230,8 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
   }
 
   if (transcode) {
+    gboolean supported;
+
     if (g_hash_table_size (self->priv->sinkcaps) !=
         g_slist_length (self->priv->agnosticbins)) {
       /* Other transcoder which is not yet configured could */
@@ -240,8 +239,17 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
       goto end;
     }
     /* This is the last transcoder expected to be in this element so far */
-    /* TODO: Ask to see if anyone upstream supports this caps */
-    /* If no one upstream supports these capabilities we need to transcode */
+    /* Ask to see if anyone upstream supports this caps */
+    g_signal_emit (G_OBJECT (self), agnosticbin3_signals[SIGNAL_CAPS], 0, caps,
+        &supported);
+
+    if (supported) {
+      GST_DEBUG_OBJECT (srcpad, "Upstream element support %" GST_PTR_FORMAT,
+          caps);
+      goto end;
+    }
+
+    /* no one upstream supports these capabilities we need to transcode */
     transcoder = kms_agnosticbin3_get_element_for_transcoding (self);
     GST_DEBUG_OBJECT (srcpad, "Connection requires transcoding");
   } else {
@@ -269,6 +277,10 @@ connect_srcpad_to_encoder (GstPad * srcpad, GstPad * sinkpad)
   g_object_unref (target);
 
 end:
+
+  if (caps != NULL) {
+    gst_caps_unref (caps);
+  }
 
   g_mutex_unlock (&data->mutex);
   g_object_unref (self);
