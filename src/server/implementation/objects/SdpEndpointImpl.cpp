@@ -242,6 +242,7 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   return getLocalSessionDescriptor ();
 }
 
+/* TODO: change */
 std::string SdpEndpointImpl::getLocalSessionDescriptor ()
 {
   GstSDPMessage *localSdp = NULL;
@@ -263,6 +264,7 @@ std::string SdpEndpointImpl::getLocalSessionDescriptor ()
   return localSdpStr;
 }
 
+/* TODO: change */
 std::string SdpEndpointImpl::getRemoteSessionDescriptor ()
 {
   GstSDPMessage *remoteSdp = NULL;

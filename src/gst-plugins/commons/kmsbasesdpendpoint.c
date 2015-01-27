@@ -56,10 +56,14 @@ enum
   PROP_0,
   PROP_USE_IPV6,
   PROP_PATTERN_SDP,
+  /* TODO: remove begin */
   PROP_LOCAL_OFFER_SDP,
   PROP_LOCAL_ANSWER_SDP,
   PROP_REMOTE_OFFER_SDP,
   PROP_REMOTE_ANSWER_SDP,
+  /* TODO: remove end */
+  PROP_LOCAL_SDP,
+  PROP_REMOTE_SDP,
   PROP_MAX_VIDEO_RECV_BW,
   N_PROPERTIES
 };
@@ -73,6 +77,9 @@ struct _KmsBaseSdpEndpointPrivate
 
   GstSDPMessage *remote_offer_sdp;
   GstSDPMessage *remote_answer_sdp;
+
+  GstSDPMessage *local_sdp;
+  GstSDPMessage *remote_sdp;
 
   gboolean use_ipv6;
 
@@ -179,6 +186,39 @@ kms_base_sdp_endpoint_set_remote_answer_sdp (KmsBaseSdpEndpoint *
 }
 
 static void
+kms_base_sdp_endpoint_release_sdp (GstSDPMessage ** sdp)
+{
+  if (*sdp == NULL) {
+    return;
+  }
+
+  gst_sdp_message_free (*sdp);
+  *sdp = NULL;
+}
+
+static void
+kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
+    self, GstSDPMessage * local_sdp)
+{
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
+  gst_sdp_message_copy (local_sdp, &self->priv->local_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "local-sdp");
+}
+
+static void
+kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
+    self, GstSDPMessage * remote_sdp)
+{
+  KMS_ELEMENT_LOCK (self);
+  kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
+  gst_sdp_message_copy (remote_sdp, &self->priv->remote_sdp);
+  KMS_ELEMENT_UNLOCK (self);
+  g_object_notify (G_OBJECT (self), "remote-sdp");
+}
+
+static void
 kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     self, const GstSDPMessage * offer,
     const GstSDPMessage * answer, gboolean local_offer)
@@ -272,6 +312,7 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
 
   kms_base_sdp_endpoint_set_local_offer_sdp (self, offer);
   sdp_utils_set_max_video_recv_bw (offer, self->priv->max_video_recv_bw);
+  kms_base_sdp_endpoint_set_local_sdp (self, offer);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -291,6 +332,8 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   GST_DEBUG_OBJECT (self, "process_offer");
 
   KMS_ELEMENT_LOCK (self);
+
+  kms_base_sdp_endpoint_set_remote_sdp (self, offer);
 
   if (self->priv->pattern_sdp != NULL) {
     gst_sdp_message_copy (self->priv->pattern_sdp, &answer);
@@ -320,6 +363,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
 
   sdp_utils_set_max_video_recv_bw (intersect_answer,
       self->priv->max_video_recv_bw);
+  kms_base_sdp_endpoint_set_local_sdp (self, intersect_answer);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -342,6 +386,7 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
   }
 
   kms_base_sdp_endpoint_set_remote_answer_sdp (self, answer);
+  kms_base_sdp_endpoint_set_remote_sdp (self, answer);
 
   kms_base_sdp_endpoint_start_media (self,
       self->priv->local_offer_sdp, answer, TRUE);
@@ -407,6 +452,12 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
     case PROP_MAX_VIDEO_RECV_BW:
       g_value_set_uint (value, self->priv->max_video_recv_bw);
       break;
+    case PROP_LOCAL_SDP:
+      g_value_set_boxed (value, self->priv->local_sdp);
+      break;
+    case PROP_REMOTE_SDP:
+      g_value_set_boxed (value, self->priv->remote_sdp);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -425,6 +476,9 @@ kms_base_sdp_endpoint_finalize (GObject * object)
   kms_base_sdp_endpoint_release_local_answer_sdp (self);
   kms_base_sdp_endpoint_release_remote_offer_sdp (self);
   kms_base_sdp_endpoint_release_remote_answer_sdp (self);
+
+  kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
+  kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
 
   /* chain up */
   G_OBJECT_CLASS (kms_base_sdp_endpoint_parent_class)->finalize (object);
@@ -513,6 +567,16 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
   g_object_class_install_property (gobject_class, PROP_REMOTE_ANSWER_SDP,
       g_param_spec_boxed ("remote-answer-sdp", "Remote answer sdp",
           "The remote answer, negotiated with \"local-offer-sdp\"",
+          GST_TYPE_SDP_MESSAGE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_LOCAL_SDP,
+      g_param_spec_boxed ("local-sdp", "Local SDP",
+          "The local SDP",
+          GST_TYPE_SDP_MESSAGE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_REMOTE_SDP,
+      g_param_spec_boxed ("remote-sdp", "Remote SDP",
+          "The remote SDP",
           GST_TYPE_SDP_MESSAGE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MAX_VIDEO_RECV_BW,
