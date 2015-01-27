@@ -72,5 +72,13 @@ struct _KmsBaseSdpEndpointClass
 
 GType kms_base_sdp_endpoint_get_type (void);
 
+GstSDPMessage *kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self);
+void kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
+    self, GstSDPMessage * local_sdp);
+
+GstSDPMessage *kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self);
+void kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
+    self, GstSDPMessage * remote_sdp);
+
 G_END_DECLS
 #endif /* __KMS_BASE_SDP_ENDPOINT_H__ */

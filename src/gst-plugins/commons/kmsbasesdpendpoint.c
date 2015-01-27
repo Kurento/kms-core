@@ -196,7 +196,13 @@ kms_base_sdp_endpoint_release_sdp (GstSDPMessage ** sdp)
   *sdp = NULL;
 }
 
-static void
+GstSDPMessage *
+kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->local_sdp;
+}
+
+void
 kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
     self, GstSDPMessage * local_sdp)
 {
@@ -207,7 +213,13 @@ kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
   g_object_notify (G_OBJECT (self), "local-sdp");
 }
 
-static void
+GstSDPMessage *
+kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->remote_sdp;
+}
+
+void
 kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
     self, GstSDPMessage * remote_sdp)
 {
