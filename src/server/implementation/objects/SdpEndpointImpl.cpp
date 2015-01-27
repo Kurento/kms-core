@@ -242,17 +242,12 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   return getLocalSessionDescriptor ();
 }
 
-/* TODO: change */
 std::string SdpEndpointImpl::getLocalSessionDescriptor ()
 {
   GstSDPMessage *localSdp = NULL;
   std::string localSdpStr;
 
-  g_object_get (element, "local-answer-sdp", &localSdp, NULL);
-
-  if (localSdp == NULL) {
-    g_object_get (element, "local-offer-sdp", &localSdp, NULL);
-  }
+  g_object_get (element, "local-sdp", &localSdp, NULL);
 
   if (localSdp == NULL) {
     throw KurentoException (SDP_END_POINT_NO_LOCAL_SDP_ERROR, "No local SDP");
@@ -264,17 +259,12 @@ std::string SdpEndpointImpl::getLocalSessionDescriptor ()
   return localSdpStr;
 }
 
-/* TODO: change */
 std::string SdpEndpointImpl::getRemoteSessionDescriptor ()
 {
   GstSDPMessage *remoteSdp = NULL;
   std::string remoteSdpStr;
 
-  g_object_get (element, "remote-answer-sdp", &remoteSdp, NULL);
-
-  if (remoteSdp == NULL) {
-    g_object_get (element, "remote-offer-sdp", &remoteSdp, NULL);
-  }
+  g_object_get (element, "remote-sdp", &remoteSdp, NULL);
 
   if (remoteSdp == NULL) {
     throw KurentoException (SDP_END_POINT_NO_REMOTE_SDP_ERROR, "No remote SDP");

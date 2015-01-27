@@ -643,20 +643,19 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint, GstSDPMessage * msg)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  GstSDPMessage *remote_offer_sdp;
+  GstSDPMessage *remote_sdp;
   guint len, i;
   gchar *bundle_mids = NULL;
   gboolean ret = TRUE;
   GstStructure *sdes = NULL;
   const gchar *cname;
 
-  g_object_get (base_sdp_endpoint, "remote-offer-sdp", &remote_offer_sdp, NULL);
-  if (remote_offer_sdp != NULL) {
-    self->priv->bundle = sdp_message_is_bundle (remote_offer_sdp);
-    self->priv->rtcp_mux = sdp_message_is_rtcp_mux (remote_offer_sdp);
-    kms_base_rtp_endpoint_remote_sdp_message_process_attrs (self,
-        remote_offer_sdp);
-    gst_sdp_message_free (remote_offer_sdp);
+  g_object_get (base_sdp_endpoint, "remote-sdp", &remote_sdp, NULL);
+  if (remote_sdp != NULL) {
+    self->priv->bundle = sdp_message_is_bundle (remote_sdp);
+    self->priv->rtcp_mux = sdp_message_is_rtcp_mux (remote_sdp);
+    kms_base_rtp_endpoint_remote_sdp_message_process_attrs (self, remote_sdp);
+    gst_sdp_message_free (remote_sdp);
 
     GST_TRACE_OBJECT (self, "RTCP-FB: fir: %u, nack: %u, pli: %u, remb: %u",
         self->priv->rtcp_fir, self->priv->rtcp_nack, self->priv->rtcp_pli,
@@ -1434,9 +1433,9 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
   guint i, len;
   GstCaps *ret = NULL;
 
-  g_object_get (base_endpoint, "local-answer-sdp", &answer, NULL);
+  g_object_get (base_endpoint, "local-sdp", &answer, NULL);
   if (answer == NULL) {
-    g_object_get (base_endpoint, "remote-answer-sdp", &answer, NULL);
+    g_object_get (base_endpoint, "remote-sdp", &answer, NULL);
   }
 
   if (answer == NULL) {
