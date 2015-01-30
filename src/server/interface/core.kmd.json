@@ -138,6 +138,21 @@
       }
     },
     {
+      "name": "PassThrough",
+      "extends": "MediaElement",
+      "doc": "This :rom:cls:`MediaElement` that just passes media through",
+      "constructor": {
+        "doc": "Builder for the :rom:cls:`PassThrough`",
+        "params": [
+          {
+            "name": "mediaPipeline",
+            "doc": "the :rom:cls:`MediaPipeline` to which the element belongs",
+            "type": "MediaPipeline"
+          }
+        ]
+      }
+    },
+    {
       "name": "UriEndpoint",
       "abstract": true,
       "extends": "Endpoint",
