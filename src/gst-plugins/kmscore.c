@@ -23,6 +23,7 @@
 #include <kmsaudiomixerbin.h>
 #include <kmsbitratefilter.h>
 #include <kmsbufferinjector.h>
+#include <kmspassthrough.h>
 #include <kmsdummysrc.h>
 #include <kmsdummysink.h>
 #include <kmsdummyduplex.h>
@@ -53,6 +54,9 @@ kurento_init (GstPlugin * kurento)
     return FALSE;
 
   if (!kms_buffer_injector_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_pass_through_plugin_init (kurento))
     return FALSE;
 
   if (!kms_dummy_src_plugin_init (kurento))

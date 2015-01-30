@@ -10,6 +10,7 @@ set(ALL_TESTS
   audiomixer
   bufferinjector
   pad_connections
+  passthrough
 )
 
 # tests targets

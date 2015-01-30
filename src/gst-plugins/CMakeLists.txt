@@ -17,6 +17,7 @@ set(KMS_CORE_SOURCES
   kmsaudiomixerbin.c kmsaudiomixerbin.h
   kmsbitratefilter.c kmsbitratefilter.h
   kmsbufferinjector.c kmsbufferinjector.h
+  kmspassthrough.c kmspassthrough.h
   kmsdummysrc.c kmsdummysrc.h
   kmsdummysink.c kmsdummysink.h
   kmsdummyduplex.c kmsdummyduplex.h
