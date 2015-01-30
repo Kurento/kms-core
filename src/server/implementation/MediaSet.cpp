@@ -346,24 +346,27 @@ MediaSet::unref (const std::string &sessionId,
     if (it3->second.empty() ) {
       std::shared_ptr<MediaObjectImpl> parent;
 
-      released = true;
-      parent = std::dynamic_pointer_cast<MediaObjectImpl> (mediaObject->getParent() );
+      released = mediaObject.get() != serverManager.get();
 
-      if (parent) {
-        childrenMap[parent->getId()].erase (mediaObject->getId() );
-      }
+      if (released) {
+        parent = std::dynamic_pointer_cast<MediaObjectImpl> (mediaObject->getParent() );
 
-      auto childrenIt = childrenMap.find (mediaObject->getId() );
-
-      if (childrenIt != childrenMap.end() ) {
-        auto childMap = childrenIt->second;
-
-        for (auto child : childMap) {
-          unref (sessionId, child.second);
+        if (parent) {
+          childrenMap[parent->getId()].erase (mediaObject->getId() );
         }
-      }
 
-      childrenMap.erase (mediaObject->getId() );
+        auto childrenIt = childrenMap.find (mediaObject->getId() );
+
+        if (childrenIt != childrenMap.end() ) {
+          auto childMap = childrenIt->second;
+
+          for (auto child : childMap) {
+            unref (sessionId, child.second);
+          }
+        }
+
+        childrenMap.erase (mediaObject->getId() );
+      }
     }
   }
 
