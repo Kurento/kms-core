@@ -33,3 +33,17 @@
   fun:gst_plugin_register_func
   ...
 }
+{
+  Class initializers
+  Memcheck:Leak
+  ...
+  fun:g_type_class_ref
+  ...
+}
+{
+  Thread pool push
+  Memcheck:Leak
+  ...
+  fun:g_thread_pool_push
+  ...
+}
