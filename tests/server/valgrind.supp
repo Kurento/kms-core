@@ -47,3 +47,10 @@
   fun:g_thread_pool_push
   ...
 }
+{
+  Register static
+  Memcheck:Leak
+  ...
+  fun:g_type_register_static
+  ...
+}
