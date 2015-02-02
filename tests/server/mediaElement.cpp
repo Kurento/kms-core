@@ -91,10 +91,13 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = sink->getSourceConnections (VIDEO, "");
   BOOST_CHECK (connections.size() == 0);
 
+  src->release();
   src.reset();
 
   connections = sink->getSourceConnections ();
   BOOST_CHECK (connections.size() == 0);
+
+  sink->release();
 }
 
 BOOST_AUTO_TEST_CASE (release_before_real_connection)
@@ -119,14 +122,11 @@ BOOST_AUTO_TEST_CASE (release_before_real_connection)
 
   src->disconnect (sink);
 
-  src->release ();
-  src.reset();
-
-  sink->release();
-  sink.reset();
-
   g_object_set (srcElement, "audio", TRUE, "video", TRUE, NULL);
   g_object_unref (srcElement);
+
+  src->release();
+  sink->release();
 }
 
 BOOST_AUTO_TEST_CASE (loopback)
@@ -169,4 +169,7 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
   } catch (KurentoException e) {
     BOOST_CHECK (e.getCode () == CONNECT_ERROR);
   }
+
+  sink->release();
+  src->release();
 }
