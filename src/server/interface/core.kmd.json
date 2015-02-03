@@ -677,12 +677,28 @@
   ],
   "events": [
     {
+      "name": "RaiseBase",
+      "doc": "",
       "properties": [
         {
-          "name": "object",
-          "doc": ":rom:cls:`MediaObject` where the error originated",
+          "name": "source",
+          "doc": "Object that raised the event",
           "type": "MediaObject"
         },
+        {
+          "name": "timestamp",
+          "doc": "",
+          "type": "String"
+        },
+        {
+          "name": "tags",
+          "doc": "",
+          "type": "Tag[]"
+        }
+      ]
+    },
+    {
+      "properties": [
         {
           "name": "description",
           "doc": "Textual description of the error",
@@ -700,6 +716,7 @@
         }
       ],
       "name": "Error",
+      "extends": "RaiseBase",
       "doc": "An error related to the MediaObject has occurred"
     },
     {
@@ -717,21 +734,18 @@
     {
       "properties": [
         {
-          "name": "source",
-          "doc": "Object that raised the event",
-          "type": "MediaObject"
-        },
-        {
           "name": "type",
           "doc": "Type of event that was raised",
           "type": "String"
         }
       ],
       "name": "Media",
+      "extends": "RaiseBase",
       "doc": "Base for all events raised by elements in the Kurento media server."
     },
     {
       "name": "ObjectCreated",
+      "extends": "RaiseBase",
       "doc": "Indicates that an object has been created on the mediaserver",
       "properties": [
         {
@@ -743,6 +757,7 @@
     },
     {
       "name": "ObjectDestroyed",
+      "extends": "RaiseBase",
       "doc": "Indicates that an object has been destroyed on the mediaserver",
       "properties": [
         {

@@ -207,8 +207,8 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 
   if (this->serverManager && created) {
     lock.unlock ();
-    serverManager->signalObjectCreated (ObjectCreated (std::dynamic_pointer_cast
-                                        <MediaObject> (mediaObject) ) );
+    serverManager->signalObjectCreated (ObjectCreated (this->serverManager,
+                                        std::dynamic_pointer_cast<MediaObject> (mediaObject) ) );
   }
 
   return mediaObject;
@@ -422,7 +422,8 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 
   if (this->serverManager) {
     lock.unlock ();
-    serverManager->signalObjectDestroyed (ObjectDestroyed (id) );
+    serverManager->signalObjectDestroyed (ObjectDestroyed (this->serverManager,
+                                          id) );
   }
 
   checkEmpty();
