@@ -18,6 +18,8 @@
 #endif
 
 #include <gst/gst.h>
+#include <string.h>
+
 #include "kmsdummysrc.h"
 
 #define PLUGIN_NAME "dummysrc"
@@ -37,8 +39,11 @@ struct _KmsDummySrcPrivate
 {
   gboolean video;
   gboolean audio;
+  gboolean data;
   GstElement *videoappsrc;
   GstElement *audioappsrc;
+  GstElement *dataappsrc;
+  guint data_index;
 };
 
 G_DEFINE_TYPE_WITH_CODE (KmsDummySrc, kms_dummy_src,
@@ -50,6 +55,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsDummySrc, kms_dummy_src,
 enum
 {
   PROP_0,
+  PROP_DATA,
   PROP_AUDIO,
   PROP_VIDEO,
   N_PROPERTIES
@@ -60,6 +66,47 @@ enum
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
 
 static void
+kms_dummy_src_feed_data_channel (GstElement * appsrc, guint unused_size,
+    gpointer data)
+{
+  KmsDummySrc *self = KMS_DUMMY_SRC (data);
+  GstClockTime running_time, base_time, now;
+  GstClock *clock;
+  GstBuffer *buffer;
+  gchar *buffer_data;
+  GstFlowReturn ret;
+
+  if ((clock = GST_ELEMENT_CLOCK (appsrc)) == NULL) {
+    GST_ERROR_OBJECT (GST_ELEMENT (data), "no clock, we can't sync");
+    return;
+  }
+
+  buffer_data = g_strdup_printf ("Test buffer %d",
+      g_atomic_int_add (&self->priv->data_index, 1));
+
+  buffer = gst_buffer_new_wrapped (buffer_data, strlen (buffer_data));
+
+  base_time = GST_ELEMENT_CAST (appsrc)->base_time;
+
+  now = gst_clock_get_time (clock);
+  running_time = now - base_time;
+
+  /* Live sources always timestamp their buffers with the running_time of the */
+  /* pipeline. This is needed to be able to match the timestamps of different */
+  /* live sources in order to synchronize them. */
+  GST_BUFFER_PTS (buffer) = running_time;
+
+  g_signal_emit_by_name (appsrc, "push-buffer", buffer, &ret);
+
+  if (ret != GST_FLOW_OK) {
+    /* something wrong */
+    GST_WARNING ("Could not send buffer");
+  }
+
+  gst_buffer_unref (buffer);
+}
+
+static void
 kms_dummy_src_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
@@ -67,6 +114,28 @@ kms_dummy_src_set_property (GObject * object, guint property_id,
 
   KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
   switch (property_id) {
+    case PROP_DATA:
+      self->priv->data = g_value_get_boolean (value);
+
+      if (self->priv->data && self->priv->dataappsrc == NULL) {
+        GstElement *tee;
+        GstCaps *caps;
+
+        GST_DEBUG_OBJECT (self, "Creating data stream");
+        tee = kms_element_get_data_tee (KMS_ELEMENT (self));
+        caps = gst_caps_from_string ("data/x-raw");
+        self->priv->dataappsrc = gst_element_factory_make ("appsrc", NULL);
+        g_object_set (G_OBJECT (self->priv->dataappsrc), "is-live", TRUE,
+            "caps", caps, "emit-signals", TRUE, "stream-type", 0,
+            "format", GST_FORMAT_TIME, NULL);
+        gst_caps_unref (caps);
+        g_signal_connect (self->priv->dataappsrc, "need-data",
+            G_CALLBACK (kms_dummy_src_feed_data_channel), self);
+        gst_bin_add (GST_BIN (self), self->priv->dataappsrc);
+        gst_element_link_pads (self->priv->dataappsrc, "src", tee, "sink");
+        gst_element_sync_state_with_parent (self->priv->dataappsrc);
+      }
+      break;
     case PROP_AUDIO:
       self->priv->audio = g_value_get_boolean (value);
 
@@ -120,6 +189,9 @@ kms_dummy_src_get_property (GObject * object, guint property_id,
 
   KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
   switch (property_id) {
+    case PROP_DATA:
+      g_value_set_boolean (value, self->priv->data);
+      break;
     case PROP_AUDIO:
       g_value_set_boolean (value, self->priv->audio);
       break;
@@ -149,6 +221,10 @@ kms_dummy_src_class_init (KmsDummySrcClass * klass)
       "Generic",
       "Dummy src element",
       "Santiago Carot-Nemesio <sancane.kurento@gmail.com>");
+
+  obj_properties[PROP_DATA] = g_param_spec_boolean ("data",
+      "Data", "Provides data on TRUE", FALSE,
+      (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
   obj_properties[PROP_AUDIO] = g_param_spec_boolean ("audio",
       "Audio", "Provides audio on TRUE", FALSE,

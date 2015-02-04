@@ -39,6 +39,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define SINK_PAD "sink_%s"
 #define VIDEO_SRC_PAD "video_src_%u"
 #define AUDIO_SRC_PAD "audio_src_%u"
+#define DATA_SRC_PAD "data_src_%u"
 
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
@@ -61,11 +62,13 @@ struct _KmsElementPrivate
 {
   guint audio_pad_count;
   guint video_pad_count;
+  guint data_pad_count;
 
   gboolean accept_eos;
 
   GstElement *audio_agnosticbin;
   GstElement *video_agnosticbin;
+  GstElement *data_tee;
 
   /* Audio and video capabilities */
   GstCaps *audio_caps;
@@ -120,6 +123,13 @@ GST_STATIC_PAD_TEMPLATE (VIDEO_SRC_PAD,
     GST_PAD_SRC,
     GST_PAD_SOMETIMES,
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS)
+    );
+
+static GstStaticPadTemplate data_src_factory =
+GST_STATIC_PAD_TEMPLATE (DATA_SRC_PAD,
+    GST_PAD_SRC,
+    GST_PAD_SOMETIMES,
+    GST_STATIC_CAPS ("data/x-raw")
     );
 
 static PendingSrcPad *
@@ -282,11 +292,11 @@ synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 
 static void
 kms_element_set_target_on_linked (GstPad * pad, GstPad * peer,
-    GstElement * agnosticbin)
+    GstElement * element)
 {
   GstPad *target;
 
-  target = gst_element_get_request_pad (agnosticbin, "src_%u");
+  target = gst_element_get_request_pad (element, "src_%u");
 
   GST_DEBUG_OBJECT (pad, "Setting target %" GST_PTR_FORMAT, target);
 
@@ -299,7 +309,7 @@ kms_element_set_target_on_linked (GstPad * pad, GstPad * peer,
 
 static void
 kms_element_remove_target_on_unlinked (GstPad * pad, GstPad * peer,
-    GstElement * agnosticbin)
+    GstElement * element)
 {
   GstPad *target;
 
@@ -314,24 +324,27 @@ kms_element_remove_target_on_unlinked (GstPad * pad, GstPad * peer,
     GST_ERROR_OBJECT (pad, "Can not remove target pad");
   }
 
-  GST_DEBUG_OBJECT (agnosticbin, "Removing requested pad %" GST_PTR_FORMAT,
-      target);
-  gst_element_release_request_pad (agnosticbin, target);
+  GST_DEBUG_OBJECT (element, "Removing requested pad %" GST_PTR_FORMAT, target);
+  gst_element_release_request_pad (element, target);
 
   g_object_unref (target);
 }
 
 static gboolean
 kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
-    const gchar ** templ_name, GstElement ** agnosticbin)
+    const gchar ** templ_name, GstElement ** element)
 {
   switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_DATA:
+      *element = self->priv->data_tee;
+      *templ_name = DATA_SRC_PAD;
+      break;
     case KMS_ELEMENT_PAD_TYPE_AUDIO:
-      *agnosticbin = self->priv->audio_agnosticbin;
+      *element = self->priv->audio_agnosticbin;
       *templ_name = AUDIO_SRC_PAD;
       break;
     case KMS_ELEMENT_PAD_TYPE_VIDEO:
-      *agnosticbin = self->priv->video_agnosticbin;
+      *element = self->priv->video_agnosticbin;
       *templ_name = VIDEO_SRC_PAD;
       break;
     default:
@@ -344,7 +357,7 @@ kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
 }
 
 static void
-kms_element_add_src_pad (KmsElement * self, GstElement * agnosticbin,
+kms_element_add_src_pad (KmsElement * self, GstElement * element,
     const gchar * pad_name, const gchar * templ_name)
 {
   GstPad *srcpad;
@@ -360,10 +373,10 @@ kms_element_add_src_pad (KmsElement * self, GstElement * agnosticbin,
     gst_pad_set_active (srcpad, TRUE);
 
   g_signal_connect (srcpad, "linked",
-      G_CALLBACK (kms_element_set_target_on_linked), agnosticbin);
+      G_CALLBACK (kms_element_set_target_on_linked), element);
 
   g_signal_connect (srcpad, "unlinked",
-      G_CALLBACK (kms_element_remove_target_on_unlinked), agnosticbin);
+      G_CALLBACK (kms_element_remove_target_on_unlinked), element);
 
   gst_element_add_pad (GST_ELEMENT (self), srcpad);
 }
@@ -373,13 +386,13 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
 {
   GHashTableIter iter;
   gpointer key, value;
-  GstElement *agnosticbin;
+  GstElement *element;
   const gchar *templ_name;
   GSList *keys = NULL, *l;
 
   KMS_ELEMENT_LOCK (self);
 
-  if (!kms_element_get_data_by_type (self, type, &templ_name, &agnosticbin)) {
+  if (!kms_element_get_data_by_type (self, type, &templ_name, &element)) {
     KMS_ELEMENT_UNLOCK (self);
     return;
   }
@@ -395,7 +408,7 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
       continue;
     }
 
-    kms_element_add_src_pad (self, agnosticbin, pad_name, templ_name);
+    kms_element_add_src_pad (self, element, pad_name, templ_name);
 
     keys = g_slist_prepend (keys, key);
   }
@@ -408,6 +421,46 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
   KMS_ELEMENT_UNLOCK (self);
 
   g_slist_free (keys);
+}
+
+GstElement *
+kms_element_get_data_tee (KmsElement * self)
+{
+  GstElement *sink, *tee;
+
+  GST_DEBUG ("Data tee requested");
+  KMS_ELEMENT_LOCK (self);
+  if (self->priv->data_tee != NULL) {
+    KMS_ELEMENT_UNLOCK (self);
+    return self->priv->data_tee;
+  }
+
+  tee = gst_element_factory_make ("tee", NULL);
+
+  if (self->priv->do_synchronization) {
+    GstPad *sink;
+
+    sink = gst_element_get_static_pad (tee, "sink");
+    gst_pad_add_probe (sink,
+        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+        synchronize_probe, self, NULL);
+    g_object_unref (sink);
+  }
+
+  sink = gst_element_factory_make ("fakesink", NULL);
+
+  gst_bin_add_many (GST_BIN (self), tee, sink, NULL);
+  gst_element_link (tee, sink);
+
+  self->priv->data_tee = tee;
+  KMS_ELEMENT_UNLOCK (self);
+
+  gst_element_sync_state_with_parent (sink);
+  gst_element_sync_state_with_parent (tee);
+
+  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_DATA);
+
+  return tee;
 }
 
 GstElement *
@@ -781,16 +834,19 @@ kms_element_request_new_srcpad_action (KmsElement * self,
 {
   const gchar *templ_name;
   gchar *pad_name;
-  GstElement *agnosticbin;
+  GstElement *element;
 
   KMS_ELEMENT_LOCK (self);
 
-  if (!kms_element_get_data_by_type (self, type, &templ_name, &agnosticbin)) {
+  if (!kms_element_get_data_by_type (self, type, &templ_name, &element)) {
     KMS_ELEMENT_UNLOCK (self);
     return NULL;
   }
 
   switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_DATA:
+      pad_name = g_strdup_printf (templ_name, self->priv->data_pad_count++);
+      break;
     case KMS_ELEMENT_PAD_TYPE_AUDIO:
       pad_name = g_strdup_printf (templ_name, self->priv->audio_pad_count++);
       break;
@@ -803,7 +859,7 @@ kms_element_request_new_srcpad_action (KmsElement * self,
       return NULL;
   }
 
-  if (agnosticbin == NULL) {
+  if (element == NULL) {
     PendingSrcPad *data;
 
     data = create_pendingpad (type, desc);
@@ -815,7 +871,7 @@ kms_element_request_new_srcpad_action (KmsElement * self,
 
   KMS_ELEMENT_UNLOCK (self);
 
-  kms_element_add_src_pad (self, agnosticbin, pad_name, templ_name);
+  kms_element_add_src_pad (self, element, pad_name, templ_name);
 
   return pad_name;
 }
@@ -919,6 +975,8 @@ kms_element_class_init (KmsElementClass * klass)
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&video_src_factory));
   gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&data_src_factory));
+  gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&sink_factory));
 
   g_object_class_install_property (gobject_class, PROP_ACCEPT_EOS,
@@ -979,6 +1037,7 @@ kms_element_init (KmsElement * element)
   g_object_set (G_OBJECT (element), "async-handling", TRUE, NULL);
 
   element->priv->accept_eos = DEFAULT_ACCEPT_EOS;
+  element->priv->data_pad_count = 0;
   element->priv->audio_pad_count = 0;
   element->priv->video_pad_count = 0;
   element->priv->audio_agnosticbin = NULL;

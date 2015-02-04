@@ -22,6 +22,7 @@
 
 #define PLUGIN_NAME "dummysink"
 
+#define APPDATASINK "datasink"
 #define APPAUDIOSINK "audiosink"
 #define APPVIDEOSINK "videosink"
 
@@ -40,8 +41,10 @@ struct _KmsDummySinkPrivate
 {
   gboolean video;
   gboolean audio;
+  gboolean data;
   GstElement *videoappsink;
   GstElement *audioappsink;
+  GstElement *dataappsink;
 };
 
 G_DEFINE_TYPE_WITH_CODE (KmsDummySink, kms_dummy_sink,
@@ -53,6 +56,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsDummySink, kms_dummy_sink,
 enum
 {
   PROP_0,
+  PROP_DATA,
   PROP_AUDIO,
   PROP_VIDEO,
   N_PROPERTIES
@@ -69,21 +73,28 @@ kms_dummy_sink_add_sinkpad (KmsDummySink * self, KmsElementPadType type)
   GstPad *sinkpad;
   gchar *name;
 
-  if (type == KMS_ELEMENT_PAD_TYPE_AUDIO) {
-    appsink = &self->priv->audioappsink;
-    name = APPAUDIOSINK;
-  } else if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    appsink = &self->priv->videoappsink;
-    name = APPVIDEOSINK;
-  } else {
-    GST_ERROR_OBJECT (self, "Invalid pad type provided");
-    return;
+  switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_DATA:
+      appsink = &self->priv->dataappsink;
+      name = APPDATASINK;
+      break;
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      appsink = &self->priv->audioappsink;
+      name = APPAUDIOSINK;
+      break;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      appsink = &self->priv->videoappsink;
+      name = APPVIDEOSINK;
+      break;
+    default:
+      GST_ERROR_OBJECT (self, "Invalid pad type provided");
+      return;
   }
 
   if (*appsink == NULL) {
     /* First time that appsink is created */
     *appsink = gst_element_factory_make ("appsink", name);
-    g_object_set (*appsink, "async", FALSE, "sync", FALSE, NULL);
+    g_object_set (*appsink, "async", FALSE, "sync", TRUE, NULL);
     gst_bin_add (GST_BIN (self), *appsink);
     gst_element_sync_state_with_parent (*appsink);
   }
@@ -104,6 +115,19 @@ kms_dummy_sink_set_property (GObject * object, guint property_id,
 
   KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
   switch (property_id) {
+    case PROP_DATA:
+      val = g_value_get_boolean (value);
+      if (val && !self->priv->data) {
+        kms_dummy_sink_add_sinkpad (self, KMS_ELEMENT_PAD_TYPE_DATA);
+      } else if (!val && self->priv->data) {
+        kms_element_remove_sink_by_type (KMS_ELEMENT (self),
+            KMS_ELEMENT_PAD_TYPE_DATA);
+      } else {
+        GST_DEBUG_OBJECT (self, "Operation without effect");
+      }
+
+      self->priv->data = val;
+      break;
     case PROP_AUDIO:
       val = g_value_get_boolean (value);
       if (val && !self->priv->audio) {
@@ -145,6 +169,9 @@ kms_dummy_sink_get_property (GObject * object, guint property_id,
 
   KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
   switch (property_id) {
+    case PROP_DATA:
+      g_value_set_boolean (value, self->priv->data);
+      break;
     case PROP_AUDIO:
       g_value_set_boolean (value, self->priv->audio);
       break;
@@ -174,6 +201,10 @@ kms_dummy_sink_class_init (KmsDummySinkClass * klass)
       "Generic",
       "Dummy sink element",
       "Santiago Carot-Nemesio <sancane.kurento@gmail.com>");
+
+  obj_properties[PROP_DATA] = g_param_spec_boolean ("data",
+      "Data", "Provides data on TRUE", FALSE,
+      (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
   obj_properties[PROP_AUDIO] = g_param_spec_boolean ("audio",
       "Audio", "Provides audio on TRUE", FALSE,

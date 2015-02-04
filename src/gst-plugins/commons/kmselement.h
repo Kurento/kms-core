@@ -80,6 +80,7 @@ GType kms_element_get_type (void);
 /* Private methods */
 GstElement * kms_element_get_audio_agnosticbin (KmsElement * self);
 GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
+GstElement * kms_element_get_data_tee (KmsElement * self);
 
 #define kms_element_connect_sink_target(self, target, type)   \
   kms_element_connect_sink_target_full (self, target, type, NULL)
