@@ -90,9 +90,9 @@ kms_filter_element_connect_filter (KmsFilterElement * self,
 
 static void
 kms_filter_element_connect_passthrough (KmsFilterElement * self,
-    KmsElementPadType type, GstElement * agnosticbin)
+    KmsElementPadType type, GstElement * element)
 {
-  GstPad *target = gst_element_get_static_pad (agnosticbin, "sink");
+  GstPad *target = gst_element_get_static_pad (element, "sink");
 
   kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
   g_object_unref (target);
@@ -173,6 +173,10 @@ kms_filter_element_set_filter (KmsFilterElement * self)
     kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
         kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   }
+
+  /* Enable data pads */
+  kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_DATA,
+      kms_element_get_data_tee (KMS_ELEMENT (self)));
 
   KMS_FILTER_ELEMENT_UNLOCK (self);
 
