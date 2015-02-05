@@ -157,20 +157,20 @@ kms_filter_element_set_filter (KmsFilterElement * self)
   }
 
   if (self->priv->filter_type == KMS_FILTER_TYPE_VIDEO) {
-    kms_filter_element_connect_filter (self, KMS_FILTER_TYPE_VIDEO, filter,
+    kms_filter_element_connect_filter (self, KMS_ELEMENT_PAD_TYPE_VIDEO, filter,
         sink, kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
-    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_AUDIO,
+    kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
         kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   } else if (self->priv->filter_type == KMS_FILTER_TYPE_AUDIO) {
-    kms_filter_element_connect_filter (self, KMS_FILTER_TYPE_AUDIO, filter,
+    kms_filter_element_connect_filter (self, KMS_ELEMENT_PAD_TYPE_AUDIO, filter,
         sink, kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
-    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_VIDEO,
+    kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
         kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
   } else {
     GST_WARNING_OBJECT (self, "No filter configured, working in passthrogh");
-    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_VIDEO,
+    kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
         kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
-    kms_filter_element_connect_passthrough (self, KMS_FILTER_TYPE_AUDIO,
+    kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
         kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   }
 
