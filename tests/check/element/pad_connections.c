@@ -36,8 +36,8 @@ GstElement *pipeline;
 typedef struct _KmsConnectData
 {
   GRecMutex mutex;
-  GstElement *dummysrc;
-  GstElement *dummysink;
+  GstElement *src;
+  GstElement *sink;
   gchar *audio_src;
   gchar *video_src;
   gchar *data_src;
@@ -691,9 +691,9 @@ audio_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
     data->audio_buff = TRUE;
     CONNECT_DATA_UNLOCK (data);
 
-    GST_DEBUG_OBJECT (data->dummysink, "Disabling reception of audio stream");
+    GST_DEBUG_OBJECT (data->sink, "Disabling reception of audio stream");
     /* Do not accept more audio data */
-    g_object_set (G_OBJECT (data->dummysink), "audio", FALSE, NULL);
+    g_object_set (G_OBJECT (data->sink), "audio", FALSE, NULL);
   } else {
     CONNECT_DATA_UNLOCK (data);
   }
@@ -728,9 +728,9 @@ data_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
     data->data_buff = TRUE;
     CONNECT_DATA_UNLOCK (data);
 
-    GST_DEBUG_OBJECT (data->dummysink, "Disabling reception of data stream");
+    GST_DEBUG_OBJECT (data->sink, "Disabling reception of data stream");
     /* Do not accept more audio data */
-    g_object_set (G_OBJECT (data->dummysink), "data", FALSE, NULL);
+    g_object_set (G_OBJECT (data->sink), "data", FALSE, NULL);
   } else {
     CONNECT_DATA_UNLOCK (data);
   }
@@ -750,9 +750,9 @@ video_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
     data->video_buff = TRUE;
     CONNECT_DATA_UNLOCK (data);
 
-    GST_DEBUG_OBJECT (data->dummysink, "Disabling reception of video stream");
+    GST_DEBUG_OBJECT (data->sink, "Disabling reception of video stream");
     /* Do not accept more video data */
-    g_object_set (G_OBJECT (data->dummysink), "video", FALSE, NULL);
+    g_object_set (G_OBJECT (data->sink), "video", FALSE, NULL);
   } else {
     CONNECT_DATA_UNLOCK (data);
   }
@@ -899,7 +899,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
     data->video_connected = FALSE;
     data->video_buff = FALSE;
     if (data->video_checks > 0) {
-      g_idle_add ((GSourceFunc) enable_video_stream, data->dummysink);
+      g_idle_add ((GSourceFunc) enable_video_stream, data->sink);
     }
   } else if (g_str_has_suffix (name, AUDIO)) {
     data->audiosink = NULL;
@@ -907,7 +907,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
     data->audio_connected = FALSE;
     data->audio_buff = FALSE;
     if (data->audio_checks > 0) {
-      g_idle_add ((GSourceFunc) enable_audio_stream, data->dummysink);
+      g_idle_add ((GSourceFunc) enable_audio_stream, data->sink);
     }
   } else if (g_str_has_suffix (name, DATA)) {
     data->datasink = NULL;
@@ -915,7 +915,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
     data->data_connected = FALSE;
     data->data_buff = FALSE;
     if (data->data_checks > 0) {
-      g_idle_add ((GSourceFunc) enable_data_stream, data->dummysink);
+      g_idle_add ((GSourceFunc) enable_data_stream, data->sink);
     }
   }
 
@@ -946,26 +946,25 @@ GST_START_TEST (connection_of_elements)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  data->dummysrc = gst_element_factory_make ("dummysrc", NULL);
-  data->dummysink = gst_element_factory_make ("dummysink", NULL);
-  g_signal_connect (data->dummysrc, "pad-added",
-      G_CALLBACK (src_pads_added), data);
-  g_signal_connect (data->dummysink, "pad-added",
+  data->src = gst_element_factory_make ("dummysrc", NULL);
+  data->sink = gst_element_factory_make ("dummysink", NULL);
+  g_signal_connect (data->src, "pad-added", G_CALLBACK (src_pads_added), data);
+  g_signal_connect (data->sink, "pad-added",
       G_CALLBACK (sink_pads_added), data);
 
-  g_signal_connect (data->dummysink, "pad-removed",
+  g_signal_connect (data->sink, "pad-removed",
       G_CALLBACK (sink_pads_removed), data);
 
-  gst_bin_add_many (GST_BIN (pipeline), data->dummysrc, data->dummysink, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), data->src, data->sink, NULL);
 
   /* request src pad using action */
-  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+  g_signal_emit_by_name (data->src, "request-new-srcpad",
       KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &data->video_src);
   fail_if (data->video_src == NULL);
-  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+  g_signal_emit_by_name (data->src, "request-new-srcpad",
       KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &data->audio_src);
   fail_if (data->audio_src == NULL);
-  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+  g_signal_emit_by_name (data->src, "request-new-srcpad",
       KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data->data_src);
   fail_if (data->data_src == NULL);
 
@@ -973,13 +972,13 @@ GST_START_TEST (connection_of_elements)
   GST_DEBUG ("Audio pad name %s", data->audio_src);
   GST_DEBUG ("Video pad name %s", data->video_src);
 
-  g_object_set (G_OBJECT (data->dummysrc), "video", TRUE, NULL);
-  g_object_set (G_OBJECT (data->dummysrc), "audio", TRUE, NULL);
-  g_object_set (G_OBJECT (data->dummysrc), "data", TRUE, NULL);
+  g_object_set (G_OBJECT (data->src), "video", TRUE, NULL);
+  g_object_set (G_OBJECT (data->src), "audio", TRUE, NULL);
+  g_object_set (G_OBJECT (data->src), "data", TRUE, NULL);
 
-  g_object_set (G_OBJECT (data->dummysink), "video", TRUE, NULL);
-  g_object_set (G_OBJECT (data->dummysink), "audio", TRUE, NULL);
-  g_object_set (G_OBJECT (data->dummysink), "data", TRUE, NULL);
+  g_object_set (G_OBJECT (data->sink), "video", TRUE, NULL);
+  g_object_set (G_OBJECT (data->sink), "audio", TRUE, NULL);
+  g_object_set (G_OBJECT (data->sink), "data", TRUE, NULL);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
@@ -1055,27 +1054,26 @@ GST_START_TEST (connection_of_elements_data)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  data->dummysrc = gst_element_factory_make ("dummysrc", NULL);
-  data->dummysink = gst_element_factory_make ("dummysink", NULL);
-  g_signal_connect (data->dummysrc, "pad-added",
-      G_CALLBACK (src_pads_added), data);
-  g_signal_connect (data->dummysink, "pad-added",
+  data->src = gst_element_factory_make ("dummysrc", NULL);
+  data->sink = gst_element_factory_make ("dummysink", NULL);
+  g_signal_connect (data->src, "pad-added", G_CALLBACK (src_pads_added), data);
+  g_signal_connect (data->sink, "pad-added",
       G_CALLBACK (sink_pads_added), data);
 
-  g_signal_connect (data->dummysink, "pad-removed",
+  g_signal_connect (data->sink, "pad-removed",
       G_CALLBACK (sink_pads_removed), data);
 
-  gst_bin_add_many (GST_BIN (pipeline), data->dummysrc, data->dummysink, NULL);
+  gst_bin_add_many (GST_BIN (pipeline), data->src, data->sink, NULL);
 
   /* request src pad using action */
-  g_signal_emit_by_name (data->dummysrc, "request-new-srcpad",
+  g_signal_emit_by_name (data->src, "request-new-srcpad",
       KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data->data_src);
   fail_if (data->data_src == NULL);
 
   GST_DEBUG ("Data pad name %s", data->data_src);
 
-  g_object_set (G_OBJECT (data->dummysrc), "data", TRUE, NULL);
-  g_object_set (G_OBJECT (data->dummysink), "data", TRUE, NULL);
+  g_object_set (G_OBJECT (data->src), "data", TRUE, NULL);
+  g_object_set (G_OBJECT (data->sink), "data", TRUE, NULL);
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
