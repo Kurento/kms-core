@@ -86,6 +86,14 @@ struct _KmsBufferInjectorPrivate
   gint64 wait_time;
   /* nanoseconds */
   gint64 acumulated_time;
+  gint64 factor_wait_time;
+};
+
+enum
+{
+  PROP_0,
+  PROP_FACTOR_WAIT_TIME,
+  N_PROPERTIES
 };
 
 static void
@@ -100,7 +108,7 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     return;
   }
 
-  offset_time = (2 * self->priv->wait_time);
+  offset_time = (self->priv->factor_wait_time * self->priv->wait_time);
   end_time = g_get_monotonic_time () + (offset_time) * G_TIME_SPAN_MILLISECOND;
 
   self->priv->acumulated_time =
@@ -295,6 +303,8 @@ kms_buffer_injector_init (KmsBufferInjector * self)
   self->priv->configured = FALSE;
   self->priv->still_waiting = TRUE;
   self->priv->acumulated_time = 0;
+
+  self->priv->factor_wait_time = 2;
 }
 
 static GstStateChangeReturn
@@ -337,6 +347,42 @@ kms_buffer_injector_finalize (GObject * object)
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
+void
+kms_buffer_injector_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  KmsBufferInjector *bufferinjector = KMS_BUFFER_INJECTOR (object);
+
+  switch (property_id) {
+    case PROP_FACTOR_WAIT_TIME:
+      KMS_BUFFER_INJECTOR_LOCK (bufferinjector);
+      bufferinjector->priv->factor_wait_time = g_value_get_int (value);
+      KMS_BUFFER_INJECTOR_UNLOCK (bufferinjector);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+void
+kms_buffer_injector_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  KmsBufferInjector *bufferinjector = KMS_BUFFER_INJECTOR (object);
+
+  switch (property_id) {
+    case PROP_FACTOR_WAIT_TIME:
+      KMS_BUFFER_INJECTOR_LOCK (bufferinjector);
+      g_value_set_int (value, bufferinjector->priv->factor_wait_time);
+      KMS_BUFFER_INJECTOR_UNLOCK (bufferinjector);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
 static void
 kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
 {
@@ -349,6 +395,8 @@ kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
   gstelement_class = GST_ELEMENT_CLASS (klass);
 
   gstelement_class->change_state = kms_buffer_injector_change_state;
+  gobject_class->set_property = kms_buffer_injector_set_property;
+  gobject_class->get_property = kms_buffer_injector_get_property;
 
   gst_element_class_set_details_simple (gstelement_class,
       "Buffer injector",
@@ -366,6 +414,11 @@ kms_buffer_injector_class_init (KmsBufferInjectorClass * klass)
   GST_DEBUG_REGISTER_FUNCPTR (kms_buffer_injector_activate_mode);
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
+
+  g_object_class_install_property (gobject_class, PROP_FACTOR_WAIT_TIME,
+      g_param_spec_int ("factor-wait-time", "factor wait time",
+          "This property allows change the wait time. The wait time will be"
+          "multiply by this factor", 2, G_MAXINT, 2, G_PARAM_READWRITE));
 
   g_type_class_add_private (klass, sizeof (KmsBufferInjectorPrivate));
 }
