@@ -101,6 +101,8 @@ struct _KmsBaseRtpEndpointClass
   void (*media_stop) (KmsBaseRtpEndpoint * self, KmsMediaType type,
     gboolean local);
 
+  gboolean (*request_local_key_frame) (KmsBaseRtpEndpoint * self);
+
   /* virtual methods */
   KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
   KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
