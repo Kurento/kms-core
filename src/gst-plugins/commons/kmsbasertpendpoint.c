@@ -25,6 +25,7 @@
 #include "sdp_utils.h"
 #include "kmsremb.h"
 #include <gst/rtp/gstrtpbuffer.h>
+#include <gst/video/video-event.h>
 
 #define PLUGIN_NAME "base_rtp_endpoint"
 
@@ -94,6 +95,7 @@ enum
 {
   MEDIA_START,
   MEDIA_STOP,
+  SIGNAL_REQUEST_LOCAL_KEY_FRAME,
   LAST_SIGNAL
 };
 
@@ -1085,6 +1087,36 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 
 /* Start Transport Send end */
 
+static gboolean
+kms_base_rtp_endpoint_request_local_key_frame (KmsBaseRtpEndpoint * self)
+{
+  GstPad *pad;
+  GstEvent *event;
+  gboolean ret;
+
+  GST_TRACE_OBJECT (self, "Request local key frame.");
+
+  pad =
+      gst_element_get_static_pad (self->priv->rtpbin,
+      VIDEO_RTPBIN_SEND_RTP_SRC);
+  if (pad == NULL) {
+    GST_WARNING_OBJECT (self, "Not configured to request local key frame.");
+    return FALSE;
+  }
+
+  event =
+      gst_video_event_new_upstream_force_key_unit (GST_CLOCK_TIME_NONE,
+      TRUE, 0);
+  ret = gst_pad_send_event (pad, event);
+  g_object_unref (pad);
+
+  if (ret == FALSE) {
+    GST_WARNING_OBJECT (self, "Key frame request not handled");
+  }
+
+  return ret;
+}
+
 static const gchar *
 get_caps_codec_name (const gchar * codec_name)
 {
@@ -1768,6 +1800,9 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
+  klass->request_local_key_frame =
+      kms_base_rtp_endpoint_request_local_key_frame;
+
   /* Connection management */
   klass->create_connection = kms_base_rtp_endpoint_create_connection_default;
   klass->create_rtcp_mux_connection =
@@ -1853,6 +1888,13 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, media_stop), NULL, NULL,
       __kms_core_marshal_VOID__ENUM_BOOLEAN, G_TYPE_NONE, 2,
       KMS_TYPE_MEDIA_TYPE, G_TYPE_BOOLEAN);
+
+  obj_signals[SIGNAL_REQUEST_LOCAL_KEY_FRAME] =
+      g_signal_new ("request-local-key-frame",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, request_local_key_frame), NULL,
+      NULL, __kms_core_marshal_BOOLEAN__VOID, G_TYPE_BOOLEAN, 0);
 
   g_type_class_add_private (klass, sizeof (KmsBaseRtpEndpointPrivate));
 }
