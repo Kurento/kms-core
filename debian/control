@@ -59,7 +59,7 @@ Replaces:
 Description: Kurento core module
  Kurento core module and libraries development files
 
-Package: kms-core-6-0-dbg
+Package: kms-core-6.0-dbg
 Architecture: any
 Depends: kms-core (= ${binary:Version})
 Breaks:
