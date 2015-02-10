@@ -64,9 +64,6 @@ struct _KmsElementClass
 {
   GstBinClass parent_class;
 
-  /* signals */
-  void (*agnosticbin_added) (KmsElementClass * self);
-
   /* actions */
   gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
   gboolean (*release_requested_srcpad) (KmsElement *self, const gchar *pad_name);
