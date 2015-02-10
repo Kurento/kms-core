@@ -42,7 +42,7 @@ Description: Kurento core module
 
 Package: kms-core-6.0-dev
 Architecture: any
-Depends: kms-core (= ${binary:Version}),
+Depends: kms-core-6.0 (= ${binary:Version}),
  kms-cmake-utils (>= 1.1.2),
  libgstreamer1.0-dev (>= 1.4.4),
  kms-jsonrpc-dev (>> 0.2.2),
@@ -61,7 +61,7 @@ Description: Kurento core module
 
 Package: kms-core-6.0-dbg
 Architecture: any
-Depends: kms-core (= ${binary:Version})
+Depends: kms-core-6.0 (= ${binary:Version})
 Breaks:
  kms-core-dbg
 Replaces:
