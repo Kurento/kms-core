@@ -61,6 +61,7 @@ void
 kms_tree_bin_unlink_input_element_from_tee (KmsTreeBin * self)
 {
   GstPad *queue_sink, *peer, *tee_src;
+  GstElement *tee;
 
   queue_sink = gst_element_get_static_pad (self->priv->input_element, "sink");
   peer = gst_pad_get_peer (queue_sink);
@@ -78,8 +79,12 @@ kms_tree_bin_unlink_input_element_from_tee (KmsTreeBin * self)
   }
 
   gst_pad_unlink (tee_src, queue_sink);
-  gst_element_release_request_pad (GST_ELEMENT (GST_OBJECT_PARENT (tee_src)),
-      tee_src);
+
+  tee = gst_pad_get_parent_element (tee_src);
+  if (tee != NULL) {
+    gst_element_release_request_pad (tee, tee_src);
+    g_object_unref (tee);
+  }
 
   g_object_unref (tee_src);
   g_object_unref (queue_sink);
