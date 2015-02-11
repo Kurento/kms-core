@@ -7,18 +7,41 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <MediaSet.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 #define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoServerManagerImpl"
 
+#define METADATA "metadata"
+
 namespace kurento
 {
+
+static std::string
+childToString (const boost::property_tree::ptree tree, const char *nodeName)
+{
+  boost::property_tree::ptree childTree;
+  std::stringstream ss;
+
+  try {
+    childTree = tree.get_child (nodeName);
+
+    if (childTree.size() > 0) {
+      write_json (ss, childTree);
+    }
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    GST_LOG ("No %s in config file", nodeName);
+  }
+
+  return ss.str ();
+}
 
 ServerManagerImpl::ServerManagerImpl (const std::shared_ptr<ServerInfo> info,
                                       const boost::property_tree::ptree &config) : MediaObjectImpl (config),
   info (info)
 {
+  metadata = childToString (config, METADATA);
 }
 
 std::shared_ptr<ServerInfo> ServerManagerImpl::getInfo ()
@@ -40,6 +63,11 @@ std::vector<std::shared_ptr<MediaPipeline>> ServerManagerImpl::getPipelines ()
 std::vector<std::string> ServerManagerImpl::getSessions ()
 {
   return MediaSet::getMediaSet ()->getSessions();
+}
+
+std::string ServerManagerImpl::getMetadata ()
+{
+  return metadata;
 }
 
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;

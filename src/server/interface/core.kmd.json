@@ -87,6 +87,12 @@
           "doc": "All active sessions in the server",
           "type": "String[]",
           "readOnly": true
+        },
+        {
+          "name": "metadata",
+          "doc": "Metadata stored in the server",
+          "type": "String",
+          "readOnly": true
         }
       ],
       "events": [

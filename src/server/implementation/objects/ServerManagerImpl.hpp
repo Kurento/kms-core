@@ -49,6 +49,8 @@ public:
     return "manager_ServerManager";
   }
 
+  virtual std::string getMetadata ();
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
@@ -64,6 +66,7 @@ public:
 private:
 
   std::shared_ptr<ServerInfo> info;
+  std::string metadata;
 
   class StaticConstructor
   {
