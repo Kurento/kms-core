@@ -28,10 +28,6 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/UUIDGenerator.hpp
 )
 
-set (KMS_CORE_INTERFACE_HEADERS
-  interface/KurentoException.hpp
-)
-
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 generate_code (
@@ -47,8 +43,6 @@ generate_code (
       ${KmsJsonRpc_LIBRARIES}
       ${sigc++-2.0_LIBRARIES}
       ${glibmm-2.4_LIBRARIES}
-  INTERFACE_LIB_EXTRA_HEADERS
-      ${KMS_CORE_INTERFACE_HEADERS}
   SERVER_IMPL_LIB_EXTRA_SOURCES
       ${KMS_CORE_IMPL_SOURCES}
   SERVER_IMPL_LIB_EXTRA_HEADERS

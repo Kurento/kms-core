@@ -20,6 +20,9 @@
 #include <string>
 
 /* Error codes */
+#define ERROR_MIN 40000
+#define ERROR_MAX 49999
+
 /* GENERIC MEDIA ERRORS */
 #define MEDIA_ERROR_MIN 40000
 #define MEDIA_ERROR_MAX 40099
@@ -66,6 +69,11 @@
 #define HTTP_ERROR_MIN 40300
 #define HTTP_ERROR_MAX 40399
 #define HTTP_END_POINT_REGISTRATION_ERROR 40300
+
+/* Custom ERRORS */
+/* Reserved codes for custom modules */
+#define CUSTOM_ERROR_MIN 49000
+#define CUSTOM_ERROR_MAX 49999
 
 namespace kurento
 {
@@ -188,11 +196,10 @@ public:
       return "UNDEFINED";
     }
   }
-private:
 
+protected:
   std::string message;
   int code;
-
 };
 
 } /* kurento */
