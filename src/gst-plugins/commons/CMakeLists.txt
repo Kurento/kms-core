@@ -72,6 +72,7 @@ set(KMS_COMMONS_SOURCES
   kmsbasehub.c
   kmsuriendpoint.c
   kmsrefstruct.c
+  kmsistats.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -91,6 +92,7 @@ set(KMS_COMMONS_HEADERS
   kmsmediatype.h
   kmsuriendpoint.h
   kmsrefstruct.h
+  kmsistats.h
 )
 
 set(ENUM_HEADERS
