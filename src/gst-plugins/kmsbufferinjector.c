@@ -20,7 +20,7 @@
 #include "kmsbufferinjector.h"
 
 #define PLUGIN_NAME "bufferinjector"
-#define DEFAULT_WAITING_TIME (((GST_SECOND) / 15) / 1000)
+#define DEFAULT_WAITING_TIME (G_TIME_SPAN_MILLISECOND / (gfloat)15)
 
 #define KMS_BUFFER_INJECTOR_CAPS "video/x-raw; audio/x-raw"
 
@@ -82,35 +82,31 @@ struct _KmsBufferInjectorPrivate
   GstBuffer *previous_buffer;
   GMutex mutex_generate;
   GCond cond_generate;
+  /* milliseconds */
   gint64 wait_time;
+  /* nanoseconds */
+  gint64 acumulated_time;
 };
-
-static gint64
-kms_buffer_injector_get_wait_time (KmsBufferInjector * self)
-{
-  gint64 aux;
-
-  KMS_BUFFER_INJECTOR_LOCK (self);
-  aux = self->priv->wait_time;
-  KMS_BUFFER_INJECTOR_UNLOCK (self);
-
-  return aux;
-}
 
 static void
 kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
 {
-  gint64 end_time;
+  gint64 end_time;              /* microseconds */
+  gint64 offset_time;           /* milliseconds */
 
   KMS_BUFFER_INJECTOR_LOCK (self);
   if ((!self->priv->configured) || (self->priv->previous_buffer == NULL)) {
     KMS_BUFFER_INJECTOR_UNLOCK (self);
     return;
   }
-  KMS_BUFFER_INJECTOR_UNLOCK (self);
 
-  end_time =
-      g_get_monotonic_time () + (2 * kms_buffer_injector_get_wait_time (self));
+  offset_time = (2 * self->priv->wait_time);
+  end_time = g_get_monotonic_time () + (offset_time) * G_TIME_SPAN_MILLISECOND;
+
+  self->priv->acumulated_time =
+      self->priv->acumulated_time + (offset_time * G_TIME_SPAN_SECOND);
+
+  KMS_BUFFER_INJECTOR_UNLOCK (self);
 
   g_mutex_lock (&self->priv->mutex_generate);
 
@@ -129,10 +125,12 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     copy = gst_buffer_copy (self->priv->previous_buffer);
 
     if (GST_BUFFER_DTS_IS_VALID (copy)) {
-      copy->dts = copy->dts + self->priv->wait_time;
+      GST_BUFFER_DTS (copy) =
+          GST_BUFFER_DTS (copy) + self->priv->acumulated_time;
     }
     if (GST_BUFFER_PTS_IS_VALID (copy)) {
-      copy->pts = copy->pts + self->priv->wait_time;
+      GST_BUFFER_PTS (copy) =
+          GST_BUFFER_PTS (copy) + self->priv->acumulated_time;
     }
 
     GST_BUFFER_FLAG_SET (copy, GST_BUFFER_FLAG_GAP);
@@ -166,7 +164,8 @@ kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
     //calculate waiting time based on caps
     KMS_BUFFER_INJECTOR_LOCK (self);
     if (numerator > 0) {
-      self->priv->wait_time = ((GST_SECOND * denominator) / numerator) / 1000;
+      self->priv->wait_time =
+          ((gfloat) denominator / (gfloat) numerator) * G_TIME_SPAN_MILLISECOND;
     } else {
       self->priv->wait_time = DEFAULT_WAITING_TIME;
     }
@@ -209,6 +208,7 @@ kms_buffer_injector_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
   }
 
   gst_buffer_replace (&buffer_injector->priv->previous_buffer, buffer);
+  buffer_injector->priv->acumulated_time = 0;
 
   KMS_BUFFER_INJECTOR_UNLOCK (buffer_injector);
 
@@ -294,6 +294,7 @@ kms_buffer_injector_init (KmsBufferInjector * self)
   self->priv->wait_time = DEFAULT_WAITING_TIME;
   self->priv->configured = FALSE;
   self->priv->still_waiting = TRUE;
+  self->priv->acumulated_time = 0;
 }
 
 static GstStateChangeReturn
