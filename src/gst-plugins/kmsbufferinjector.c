@@ -22,15 +22,19 @@
 #define PLUGIN_NAME "bufferinjector"
 #define DEFAULT_WAITING_TIME (((GST_SECOND) / 15) / 1000)
 
+#define KMS_BUFFER_INJECTOR_CAPS "video/x-raw; audio/x-raw"
+
 static GstStaticPadTemplate sinktemplate = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS_ANY);
+    GST_STATIC_CAPS (KMS_BUFFER_INJECTOR_CAPS)
+    );
 
 static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS_ANY);
+    GST_STATIC_CAPS (KMS_BUFFER_INJECTOR_CAPS)
+    );
 
 GST_DEBUG_CATEGORY_STATIC (kms_buffer_injector_debug);
 #define GST_CAT_DEFAULT kms_buffer_injector_debug
