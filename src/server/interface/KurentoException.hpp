@@ -77,26 +77,22 @@ public:
     code (code) {};
   virtual ~KurentoException() {};
 
-  virtual const char *what() const noexcept
-  {
+  virtual const char *what() const noexcept {
     return message.c_str();
   };
 
-  const std::string &getMessage() const
-  {
+  const std::string &getMessage() const {
     return message;
   };
 
-  int getCode() const
-  {
+  int getCode() const {
     return code;
   }
 
-  std::string getType()
-  {
+  std::string getType() {
     switch (code) {
-    /* Error codes */
-    /* GENERIC MEDIA ERRORS */
+      /* Error codes */
+      /* GENERIC MEDIA ERRORS */
 
 //    case MEDIA_ERROR:
 //      return "MEDIA_ERROR";
@@ -122,7 +118,7 @@ public:
     case MALFORMED_TRANSACTION:
       return "MALFORMED_TRANSACTION";
 
-    /* MediaObject ERRORS */
+      /* MediaObject ERRORS */
     case MEDIA_OBJECT_TYPE_NOT_FOUND:
       return "MEDIA_OBJECT_TYPE_NOT_FOUND";
 
@@ -151,7 +147,7 @@ public:
     case MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT:
       return "MEDIA_OBJECT_NOT_FOUND_TRANSACTION_NO_COMMIT";
 
-    /* SDP ERRORS */
+      /* SDP ERRORS */
     case SDP_CREATE_ERROR:
       return "SDP_CREATE_ERROR";
 
@@ -184,7 +180,7 @@ public:
     case SDP_END_POINT_ANSWER_ALREADY_PROCCESED:
       return "SDP_END_POINT_ANSWER_ALREADY_PROCCESED";
 
-    /* HTTP ERRORS */
+      /* HTTP ERRORS */
     case HTTP_END_POINT_REGISTRATION_ERROR:
       return "HTTP_END_POINT_REGISTRATION_ERROR";
 
