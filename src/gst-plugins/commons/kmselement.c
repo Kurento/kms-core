@@ -428,7 +428,7 @@ kms_element_get_data_tee (KmsElement * self)
 {
   GstElement *sink, *tee;
 
-  GST_DEBUG ("Data tee requested");
+  GST_DEBUG_OBJECT (self, "Data tee requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->data_tee != NULL) {
     KMS_ELEMENT_UNLOCK (self);
@@ -466,7 +466,7 @@ kms_element_get_data_tee (KmsElement * self)
 GstElement *
 kms_element_get_audio_agnosticbin (KmsElement * self)
 {
-  GST_DEBUG ("Audio agnostic requested");
+  GST_DEBUG_OBJECT (self, "Audio agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->audio_agnosticbin != NULL) {
     KMS_ELEMENT_UNLOCK (self);
@@ -498,7 +498,7 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
 GstElement *
 kms_element_get_video_agnosticbin (KmsElement * self)
 {
-  GST_DEBUG ("Video agnostic requested");
+  GST_DEBUG_OBJECT (self, "Video agnostic requested");
   KMS_ELEMENT_LOCK (self);
   if (self->priv->video_agnosticbin != NULL) {
     KMS_ELEMENT_UNLOCK (self);
