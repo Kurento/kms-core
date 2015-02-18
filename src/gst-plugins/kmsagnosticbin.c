@@ -77,6 +77,15 @@ struct _KmsAgnosticBin2Private
   gboolean started;
 
   GThreadPool *remove_pool;
+
+  gint default_bitrate;
+};
+
+enum
+{
+  PROP_0,
+  PROP_DEFAULT_BITRATE,
+  N_PROPERTIES
 };
 
 /* the capabilities of the inputs and outputs. */
@@ -553,7 +562,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return dec_bin;
   }
 
-  enc_bin = kms_enc_tree_bin_new (caps, TARGET_BITRATE_DEFAULT);
+  enc_bin = kms_enc_tree_bin_new (caps, self->priv->default_bitrate);
   if (enc_bin == NULL) {
     return NULL;
   }
@@ -936,6 +945,43 @@ kms_agnostic_bin2_finalize (GObject * object)
   G_OBJECT_CLASS (kms_agnostic_bin2_parent_class)->finalize (object);
 }
 
+void
+kms_agnostic_bin2_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
+
+  switch (property_id) {
+    case PROP_DEFAULT_BITRATE:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      self->priv->default_bitrate = g_value_get_int (value);
+      GST_DEBUG ("default bitrate configured %d", self->priv->default_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+void
+kms_agnostic_bin2_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
+
+  switch (property_id) {
+    case PROP_DEFAULT_BITRATE:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      g_value_set_int (value, self->priv->default_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
 static void
 kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
 {
@@ -947,6 +993,8 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
 
   gobject_class->dispose = kms_agnostic_bin2_dispose;
   gobject_class->finalize = kms_agnostic_bin2_finalize;
+  gobject_class->set_property = kms_agnostic_bin2_set_property;
+  gobject_class->get_property = kms_agnostic_bin2_get_property;
 
   gst_element_class_set_details_simple (gstelement_class,
       "Agnostic connector 2nd version",
@@ -963,6 +1011,11 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
       GST_DEBUG_FUNCPTR (kms_agnostic_bin2_request_new_pad);
   gstelement_class->release_pad =
       GST_DEBUG_FUNCPTR (kms_agnostic_bin2_release_pad);
+
+  g_object_class_install_property (gobject_class, PROP_DEFAULT_BITRATE,
+      g_param_spec_int ("default-bitrate", "default bitrate",
+          "Configure the default bitrate to media encoding",
+          0, G_MAXINT, 0, G_PARAM_READWRITE));
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
@@ -1030,6 +1083,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->bins =
       g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   g_rec_mutex_init (&self->priv->thread_mutex);
+  self->priv->default_bitrate = TARGET_BITRATE_DEFAULT;
 }
 
 gboolean
