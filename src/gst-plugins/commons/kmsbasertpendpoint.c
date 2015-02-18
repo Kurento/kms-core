@@ -24,6 +24,8 @@
 #include "kms-core-marshal.h"
 #include "sdp_utils.h"
 #include "kmsremb.h"
+#include "kmsistats.h"
+
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/video/video-event.h>
 
@@ -33,8 +35,13 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_rtp_endpoint_debug
 
 #define kms_base_rtp_endpoint_parent_class parent_class
-G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
-    KMS_TYPE_BASE_SDP_ENDPOINT);
+
+static void kms_istats_interface_init (KmsIStatsInterface * iface);
+
+G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
+    KMS_TYPE_BASE_SDP_ENDPOINT,
+    G_IMPLEMENT_INTERFACE (KMS_TYPE_ISTATS, kms_istats_interface_init);
+    GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME));
 
 #define KMS_BASE_RTP_ENDPOINT_GET_PRIVATE(obj) (  \
   G_TYPE_INSTANCE_GET_PRIVATE (                   \
@@ -49,6 +56,15 @@ G_DEFINE_TYPE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define RTP_HDR_EXT_ABS_SEND_TIME_URI "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
 #define RTP_HDR_EXT_ABS_SEND_TIME_SIZE 3
 #define RTP_HDR_EXT_ABS_SEND_TIME_ID 3  /* TODO: do it dynamic when needed */
+
+typedef struct _KmsRTPStats KmsRTPStats;
+struct _KmsRTPStats
+{
+  GObject *audio_rtpsession;
+  GObject *video_rtpsession;
+  GstElement *audio_jitterbuffer;
+  GstElement *video_jitterbuffer;
+};
 
 struct _KmsBaseRtpEndpointPrivate
 {
@@ -88,6 +104,9 @@ struct _KmsBaseRtpEndpointPrivate
   /* REMB */
   KmsRembLocal *rl;
   KmsRembRemote *rm;
+
+  /* RTP statistics */
+  KmsRTPStats stats;
 };
 
 /* Signals and args */
@@ -125,6 +144,7 @@ enum
   PROP_TARGET_BITRATE,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
+  PROP_STATS,
   PROP_LAST
 };
 
@@ -536,7 +556,7 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     guint session_id, const gchar * rtpbin_pad_name)
 {
   GstElement *rtpbin = self->priv->rtpbin;
-  GObject *rtpsession;
+  GObject *new_rtpsession, **rtpsession;
   GstPad *pad;
 
   /* Create RtpSession requesting the pad */
@@ -544,15 +564,35 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
   g_object_unref (pad);
 
   g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
-      &rtpsession);
-  if (rtpsession == NULL) {
+      &new_rtpsession);
+  if (new_rtpsession == NULL) {
     return NULL;
   }
 
-  g_object_set (rtpsession, "rtcp-min-interval",
+  switch (session_id) {
+    case AUDIO_RTP_SESSION:
+      rtpsession = &self->priv->stats.audio_rtpsession;
+      break;
+    case VIDEO_RTP_SESSION:
+      rtpsession = &self->priv->stats.video_rtpsession;
+      break;
+    default:
+      GST_WARNING_OBJECT (self, "No statisticss collected for sessionID %u",
+          session_id);
+      goto end;
+  }
+
+  if (*rtpsession != NULL) {
+    g_object_unref (*rtpsession);
+  }
+
+  *rtpsession = g_object_ref (new_rtpsession);
+
+end:
+  g_object_set (new_rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
-  return rtpsession;
+  return new_rtpsession;
 }
 
 static const gchar *
@@ -1570,17 +1610,33 @@ end:
 
 static void
 kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
-    GstElement * jitterbuffer,
+    GstElement * new_jitterbuffer,
     guint session, guint ssrc, KmsBaseRtpEndpoint * self)
 {
-  g_object_set (jitterbuffer, "mode", 4 /* synced */ , "latency", 1500, NULL);
+  GstElement **jitterbuffer;
+
+  g_object_set (new_jitterbuffer, "mode", 4 /* synced */ , "latency", 1500,
+      NULL);
+
+  KMS_ELEMENT_LOCK (self);
 
   if (ssrc == self->priv->video_ssrc) {
-    g_object_set (jitterbuffer, "do-lost", TRUE,
+    g_object_set (new_jitterbuffer, "do-lost", TRUE,
         "do-retransmission", self->priv->rtcp_nack,
         "rtx-next-seqnum", FALSE,
         "rtx-max-retries", 0, "rtp-max-dropout", -1, NULL);
+    jitterbuffer = &self->priv->stats.video_jitterbuffer;
+  } else {
+    jitterbuffer = &self->priv->stats.audio_jitterbuffer;
   }
+
+  if (*jitterbuffer != NULL) {
+    gst_object_unref (*jitterbuffer);
+  }
+
+  *jitterbuffer = gst_object_ref (new_jitterbuffer);
+
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
@@ -1616,6 +1672,110 @@ kms_base_rtp_endpoint_stop_signal (KmsBaseRtpEndpoint * self, guint session,
   }
 
   g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STOP], 0, media, local);
+}
+
+static void
+kms_base_rtp_endpoint_add_rtpsession_stats (GstStructure * stats,
+    const gchar * name, GObject * rtpsession)
+{
+  GstStructure *session_stats;
+  GValueArray *arr;
+  guint i;
+
+  g_object_get (rtpsession, "stats", &session_stats, NULL);
+
+  if (session_stats == NULL)
+    return;
+
+  /* Get stats for each source */
+  g_object_get (rtpsession, "sources", &arr, NULL);
+
+  for (i = 0; i < arr->n_values; i++) {
+    GstStructure *s;
+    GObject *source;
+    GValue *val;
+    gchar *name;
+    guint ssrc;
+
+    val = g_value_array_get_nth (arr, i);
+    source = g_value_get_object (val);
+
+    g_object_get (source, "stats", &s, "ssrc", &ssrc, NULL);
+
+    name = g_strdup_printf ("ssrc%d", ssrc);
+    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, s, NULL);
+
+    gst_structure_free (s);
+    g_free (name);
+  }
+
+  g_value_array_free (arr);
+
+  gst_structure_set (stats, name, GST_TYPE_STRUCTURE, session_stats, NULL);
+
+  gst_structure_free (session_stats);
+}
+
+static void
+kms_base_rtp_endpoint_add_object_stats_with_params (GstStructure * stats,
+    const gchar * name, GObject * object, const char *fieldname, ...)
+{
+  GstStructure *obj_stats;
+  va_list var_args;
+
+  g_object_get (object, "stats", &obj_stats, NULL);
+
+  if (obj_stats == NULL)
+    return;
+
+  /* Add aditional parameters */
+  va_start (var_args, fieldname);
+  gst_structure_set_valist (obj_stats, fieldname, var_args);
+  va_end (var_args);
+
+  gst_structure_set (stats, name, GST_TYPE_STRUCTURE, obj_stats, NULL);
+
+  gst_structure_free (obj_stats);
+}
+
+static GstStructure *
+kms_base_rtp_endpoint_create_stats (KmsBaseRtpEndpoint * self)
+{
+  GstStructure *stats;
+
+  stats = gst_structure_new_empty ("stats");
+
+  if (self->priv->stats.audio_rtpsession != NULL) {
+    kms_base_rtp_endpoint_add_rtpsession_stats (stats, "audio-session",
+        self->priv->stats.audio_rtpsession);
+  }
+
+  if (self->priv->stats.video_rtpsession != NULL) {
+    kms_base_rtp_endpoint_add_rtpsession_stats (stats, "video-session",
+        self->priv->stats.video_rtpsession);
+  }
+
+  if (self->priv->stats.audio_jitterbuffer != NULL) {
+    guint percent, latency;
+
+    g_object_get (self->priv->stats.audio_jitterbuffer, "percent", &percent,
+        "latency", &latency, NULL);
+    kms_base_rtp_endpoint_add_object_stats_with_params (stats,
+        "audio-jitterbuffer", G_OBJECT (self->priv->stats.audio_jitterbuffer),
+        "latency", G_TYPE_UINT, latency, "percent", G_TYPE_UINT, percent, NULL);
+  }
+
+  if (self->priv->stats.video_jitterbuffer != NULL) {
+    guint percent, latency;
+
+    g_object_get (self->priv->stats.video_jitterbuffer, "percent", &percent,
+        "latency", &latency, NULL);
+    kms_base_rtp_endpoint_add_object_stats_with_params (stats,
+        "video-jitterbuffer", G_OBJECT (self->priv->stats.video_jitterbuffer),
+        "latency", G_TYPE_UINT, latency, "percent", G_TYPE_UINT, percent, NULL);
+  }
+
+  return stats;
 }
 
 static void
@@ -1726,6 +1886,9 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_MAX_VIDEO_SEND_BW:
       g_value_set_uint (value, self->priv->max_video_send_bw);
       break;
+    case PROP_STATS:
+      g_value_take_boxed (value, kms_base_rtp_endpoint_create_stats (self));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -1740,6 +1903,11 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
 
   GST_DEBUG_OBJECT (self, "dispose");
+
+  g_clear_object (&self->priv->stats.audio_jitterbuffer);
+  g_clear_object (&self->priv->stats.video_jitterbuffer);
+  g_clear_object (&self->priv->stats.audio_rtpsession);
+  g_clear_object (&self->priv->stats.video_rtpsession);
 
   g_clear_object (&self->priv->audio_payloader);
   g_clear_object (&self->priv->video_payloader);
@@ -1870,6 +2038,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Maximum video bandwidth for sending. Unit: kbps(kilobits per second). 0: unlimited",
           0, G_MAXUINT32, MAX_VIDEO_SEND_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_override_property (object_class, PROP_STATS, "stats");
 
   /* set signals */
   obj_signals[MEDIA_START] =
@@ -2032,4 +2202,10 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+}
+
+static void
+kms_istats_interface_init (KmsIStatsInterface * iface)
+{
+  /* Nothing to do here */
 }
