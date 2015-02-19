@@ -198,11 +198,11 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
 
   if (!gst_rtcp_buffer_add_packet (&rtcp, GST_RTCP_TYPE_PSFB, &packet)) {
     GST_WARNING_OBJECT (sess, "Cannot add RTCP packet");
-    return;
+    goto end;
   }
 
   if (!kms_remb_local_update (rl)) {
-    return;
+    goto end;
   }
 
   remb_packet.bitrate = rl->remb;
@@ -225,9 +225,11 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
           packet_ssrc)) {
     gst_rtcp_packet_remove (&packet);
   }
-  gst_rtcp_buffer_unmap (&rtcp);
 
   GST_TRACE_OBJECT (sess, "Sending REMB with bitrate: %d", remb_packet.bitrate);
+
+end:
+  gst_rtcp_buffer_unmap (&rtcp);
 }
 
 void
