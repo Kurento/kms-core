@@ -16,7 +16,8 @@ Build-Depends: debhelper (>= 8.0.0),
  libboost-system-dev,
  libboost-filesystem-dev,
  libboost-test-dev,
- libxml2-utils
+ libxml2-utils,
+ uuid-dev
 Standards-Version: 3.9.4
 Homepage: http://kurento.org
 Vcs-Git: git://github.com/Kurento/kms-core.git

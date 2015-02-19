@@ -341,6 +341,17 @@
           "doc": "Maximum video bandwidth for sending.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
           "type": "int"
         }
+      ],
+      "methods": [
+        {
+          "name": "getStats",
+          "doc": "Provides statistics collected for this endpoint",
+          "params": [],
+          "return" : {
+            "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
+            "type": "RTCStats<>"
+          }
+        }
       ]
     },
     {

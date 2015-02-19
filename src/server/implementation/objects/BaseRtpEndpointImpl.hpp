@@ -40,6 +40,8 @@ public:
   virtual int getMaxVideoSendBandwidth ();
   virtual void setMaxVideoSendBandwidth (int maxVideoSendBandwidth);
 
+  virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
@@ -50,6 +52,8 @@ public:
   virtual void Serialize (JsonSerializer &serializer);
 
 private:
+
+  std::string formatGstStructure (const GstStructure *stats);
 
   class StaticConstructor
   {

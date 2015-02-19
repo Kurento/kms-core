@@ -18,7 +18,9 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/WorkerPool.cpp
   implementation/UUIDGenerator.cpp
   implementation/RegisterParent.cpp
+  implementation/Statistics.cpp
 )
+
 set (KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
   implementation/Factory.hpp
@@ -28,6 +30,7 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/WorkerPool.hpp
   implementation/UUIDGenerator.hpp
   implementation/RegisterParent.hpp
+  implementation/Statistics.hpp
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")

@@ -6,6 +6,7 @@ include_directories(
   ${gstreamer-sdp-1.0_SOURCE_DIRS}
   ${gstreamer-pbutils-1.0_SOURCE_DIRS}
   ${gstreamer-video-1.0_INCLUDE_DIRS}
+  ${uuid_INCLUDE_DIRS}
 )
 
 set(KMS_SDP_UTILS_SOURCES
@@ -120,6 +121,7 @@ target_link_libraries(kmsgstcommons
   ${gstreamer-sdp-1.0_LIBRARIES}
   ${gstreamer-pbutils-1.0_LIBRARIES}
   ${gstreamer-rtp-1.0_LIBRARIES}
+  ${uuid_LIBRARIES}
 )
 
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")

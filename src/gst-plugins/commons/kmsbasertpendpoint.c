@@ -18,6 +18,7 @@
 
 #include "kmsbasertpendpoint.h"
 
+#include <uuid/uuid.h>
 #include <stdlib.h>
 
 #include "kms-core-enumtypes.h"
@@ -35,6 +36,8 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_rtp_endpoint_debug
 
 #define kms_base_rtp_endpoint_parent_class parent_class
+#define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
+#define KMS_KEY_ID "kms-key-id"
 
 static void kms_istats_interface_init (KmsIStatsInterface * iface);
 
@@ -602,6 +605,21 @@ kms_base_rtp_endpoint_media_set_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
   }
 }
 
+static void
+on_new_ssrc (GObject * rtpsession, GObject * rtpsrc, gpointer user_data)
+{
+  gchar *uuid_str;
+  uuid_t uuid;
+
+  uuid_str = (gchar *) g_malloc0 (UUID_STR_SIZE);
+  uuid_generate (uuid);
+  uuid_unparse (uuid, uuid_str);
+
+  /* Assign a unique ID to each RtpSource which will */
+  /* be provided in statistics */
+  g_object_set_data_full (rtpsrc, KMS_KEY_ID, uuid_str, g_free);
+}
+
 static GObject *
 kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     guint session_id, const gchar * rtpbin_pad_name)
@@ -628,6 +646,7 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     rtp_stats = rtp_session_stats_new (rtpsession);
     g_hash_table_insert (self->priv->stats, GUINT_TO_POINTER (session_id),
         rtp_stats);
+    g_signal_connect (rtpsession, "on-new-ssrc", (GCallback) on_new_ssrc, NULL);
   } else {
     GST_WARNING_OBJECT (self, "Session %u already created", session_id);
   }
@@ -1800,11 +1819,20 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     GValue *val;
     gchar *name;
     guint ssrc;
+    gchar *id;
 
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
 
+    id = g_object_get_data (source, KMS_KEY_ID);
+
+    if (id == NULL) {
+      GST_WARNING ("RTPSource without an assigned id");
+      continue;
+    }
+
     g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
+    gst_structure_set (ssrc_stats, "id", G_TYPE_STRING, id, NULL);
 
     jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, ssrc);
 

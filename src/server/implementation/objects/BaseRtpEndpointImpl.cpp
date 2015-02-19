@@ -4,6 +4,9 @@
 #include "BaseRtpEndpointImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
+#include <time.h>
+
+#include "Statistics.hpp"
 
 #define GST_CAT_DEFAULT kurento_base_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -49,6 +52,21 @@ int BaseRtpEndpointImpl::getMaxVideoSendBandwidth ()
 void BaseRtpEndpointImpl::setMaxVideoSendBandwidth (int maxVideoSendBandwidth)
 {
   g_object_set (element, "max-video-send-bandwidth", maxVideoSendBandwidth, NULL);
+}
+
+std::map <std::string, std::shared_ptr<RTCStats>>
+    BaseRtpEndpointImpl::getStats ()
+{
+  std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
+  GstStructure *stats;
+
+  g_object_get (getGstreamerElement(), "stats", &stats, NULL);
+
+  rtcStatsReport = stats::createRTCStatsReport (time (NULL), stats);
+
+  gst_structure_free (stats);
+
+  return rtcStatsReport;
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;

@@ -38,6 +38,7 @@ generic_find (LIBNAME gstreamer-rtp-1.0 VERSION ${GST_REQUIRED} REQUIRED)
 generic_find (LIBNAME KmsJsonRpc VERSION ${JSON_RPC_REQUIRED} REQUIRED)
 generic_find (LIBNAME sigc++-2.0 VERSION ${SIGCPP_REQUIRED} REQUIRED)
 generic_find (LIBNAME glibmm-2.4 VERSION ${GLIBMM_REQUIRED} REQUIRED)
+generic_find (LIBNAME uuid REQUIRED)
 
 find_package(LibVpx REQUIRED)
 
