@@ -52,10 +52,9 @@ get_video_recv_info (KmsRembLocal * rl,
 
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
-    g_object_get (source, "ssrc", &ssrc, NULL);
-    GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
+    g_object_get (source, "ssrc", &ssrc, "stats", &s, NULL);
 
-    g_object_get (source, "stats", &s, NULL);
+    GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
     GST_TRACE_OBJECT (rl->rtpsess, "stats: %" GST_PTR_FORMAT, s);
 
     if (ssrc == rl->remote_ssrc) {
@@ -89,6 +88,11 @@ get_video_recv_info (KmsRembLocal * rl,
       rl->last_octets_received = octets_received;
 
       ret = TRUE;
+    }
+
+    gst_structure_free (s);
+
+    if (ret) {
       break;
     }
   }
