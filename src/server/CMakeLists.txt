@@ -17,6 +17,7 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/ModuleManager.cpp
   implementation/WorkerPool.cpp
   implementation/UUIDGenerator.cpp
+  implementation/RegisterParent.cpp
 )
 set (KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
@@ -26,6 +27,7 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/ModuleManager.hpp
   implementation/WorkerPool.hpp
   implementation/UUIDGenerator.hpp
+  implementation/RegisterParent.hpp
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
@@ -35,6 +37,7 @@ generate_code (
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}
   INTERFACE_LIB_EXTRA_HEADERS ${KMS_CORE_INTERFACE_HEADERS}
   INTERFACE_LIB_EXTRA_INCLUDE_DIRS
+      ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${KmsJsonRpc_INCLUDE_DIRS}
       ${sigc++-2.0_INCLUDE_DIRS}

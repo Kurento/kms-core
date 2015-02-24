@@ -110,3 +110,23 @@ target_link_libraries(test_media_object
   ${Boot_LIBRARIES}
 )
 
+add_test_program (test_complex_type complexType.cpp)
+add_dependencies(test_complex_type kmscoreplugins ${LIBRARY_NAME}impl)
+set_property (TARGET test_complex_type
+  PROPERTY INCLUDE_DIRECTORIES
+    ${KmsJsonRpc_INCLUDE_DIRS}
+    ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
+    ${glibmm-2.4_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${Boot_INCLUDE_DIRS}
+)
+target_link_libraries(test_complex_type
+  ${LIBRARY_NAME}impl
+  ${glibmm-2.4_LIBRARIES}
+  ${Boot_LIBRARIES}
+)
