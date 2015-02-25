@@ -93,7 +93,7 @@ SdpEndpointImpl::getSdpPattern ()
   if (!sdp_pattern_file.is_absolute() ) {
     try {
       sdp_pattern_file = boost::filesystem::path (
-                           config.get<std::string> ("configPath") ) / sdp_pattern_file;
+                           getConfigValue<std::string, SdpEndpoint> ("configPath") ) / sdp_pattern_file;
     } catch (boost::property_tree::ptree_error &e) {
 
     }

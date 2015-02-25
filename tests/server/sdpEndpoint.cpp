@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
   boost::property_tree::ptree config;
   std::string offer;
 
-  config.add ("configPath", "../../../tests" );
+  config.add ("modules.kurento.SdpEndpoint.configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.sdpPattern", "sdp_pattern.txt");
 
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
