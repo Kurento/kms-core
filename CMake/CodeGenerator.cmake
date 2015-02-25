@@ -265,6 +265,7 @@ function (generate_kurento_libraries)
     SERVER_IMPL_LIB_EXTRA_LIBRARIES
     MODULE_EXTRA_INCLUDE_DIRS
     MODULE_EXTRA_LIBRARIES
+    MODULE_CONFIG_FILES_DIRS
     SERVER_IMPL_LIB_FIND_CMAKE_EXTRA_LIBRARIES
   )
 
@@ -753,6 +754,41 @@ function (generate_kurento_libraries)
     ${FINAL_MODELS}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/${KURENTO_MODULES_DIR_INSTALL_PREFIX}
   )
+
+  ###############################################################
+  # Install configuration files
+  ###############################################################
+
+  if(NOT DEFINED SYSCONF_INSTALL_DIR)
+    set(SYSCONF_INSTALL_DIR etc CACHE PATH
+                "Install directory for system-wide configuration files")
+  endif()
+
+  if (NOT DEFINED PARAM_MODULE_CONFIG_FILES_DIRS)
+    set (PARAM_MODULE_CONFIG_FILES_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/config)
+  endif()
+
+  message (STATUS "Getting config files from ${PARAM_MODULE_CONFIG_FILES_DIRS}")
+
+  foreach (DIR ${PARAM_MODULE_CONFIG_FILES_DIRS})
+    file (GLOB_RECURSE TMP_FILES ${DIR}/*)
+    list (APPEND CONFIG_FILES ${TMP_FILES})
+  endforeach()
+
+  if (CONFIG_FILES)
+    message (STATUS "Found config files: ${CONFIG_FILES}")
+    if (${VALUE_NAME} STREQUAL "core" OR ${VALUE_NAME} STREQUAL "elements" OR ${VALUE_NAME} STREQUAL "filters")
+      set (CONFIG_FILES_DIR "kurento")
+    else ()
+      set (CONFIG_FILES_DIR ${VALUE_NAME})
+    endif()
+    install (FILES
+      ${CONFIG_FILES}
+      DESTINATION ${SYSCONF_INSTALL_DIR}/kurento/modules/${CONFIG_FILES_DIR}
+    )
+  else()
+    message (STATUS "No config files found")
+  endif()
 
   ###############################################################
   # Generate Java Client Project
