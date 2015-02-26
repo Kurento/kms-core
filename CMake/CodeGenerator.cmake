@@ -759,11 +759,6 @@ function (generate_kurento_libraries)
   # Install configuration files
   ###############################################################
 
-  if(NOT DEFINED SYSCONF_INSTALL_DIR)
-    set(SYSCONF_INSTALL_DIR etc CACHE PATH
-                "Install directory for system-wide configuration files")
-  endif()
-
   if (NOT DEFINED PARAM_MODULE_CONFIG_FILES_DIRS)
     set (PARAM_MODULE_CONFIG_FILES_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/config)
   endif()
@@ -784,7 +779,7 @@ function (generate_kurento_libraries)
     endif()
     install (FILES
       ${CONFIG_FILES}
-      DESTINATION ${SYSCONF_INSTALL_DIR}/kurento/modules/${CONFIG_FILES_DIR}
+      DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kurento/modules/${CONFIG_FILES_DIR}
     )
   else()
     message (STATUS "No config files found")
