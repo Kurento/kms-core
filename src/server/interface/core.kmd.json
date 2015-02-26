@@ -673,6 +673,575 @@
           "type" : "String"
         }
       ]
+    },
+    {
+      "name": "RTCStatsType",
+      "typeFormat": "ENUM",
+      "doc": "The type of the object.",
+      "values": [
+        "inboundrtp",
+        "outboundrtp",
+        "session",
+        "datachannel",
+        "track",
+        "transport",
+        "candidatepair",
+        "localcandidate",
+        "remotecandidate"
+      ]
+    },
+    {
+      "name": "RTCStats",
+      "doc": "An RTCStats dictionary represents the stats gathered.",
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "id",
+          "doc": "A unique id that is associated with the object that was inspected to produce this RTCStats object.",
+          "type": "String"
+        },
+        {
+          "name": "type",
+          "doc": "The type of this object.",
+          "type": "RTCStatsType"
+        },
+        {
+          "name": "timestamp",
+          "doc": "The timestamp associated with this object. The time is relative to the UNIX epoch (Jan 1, 1970, UTC).",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "RTCRTPStreamStats",
+      "doc": "Statistics for the RTP stream",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "ssrc",
+          "doc": "The synchronized source SSRC",
+          "type": "String"
+        },
+        {
+          "name": "associateStatsId",
+          "doc": "The associateStatsId is used for looking up the corresponding (local/remote) RTCStats object for a given SSRC.",
+          "type": "String"
+        },
+        {
+          "name": "isRemote",
+          "doc": "false indicates that the statistics are measured locally, while true indicates that the measurements were done at the remote endpoint and reported in an RTCP RR/XR.",
+          "type": "boolean"
+        },
+        {
+          "name": "mediaTrackId",
+          "doc": "Track identifier.",
+          "type": "String"
+        },
+        {
+          "name": "transportId",
+          "doc": "It is a unique identifier that is associated to the object that was inspected to produce the RTCTransportStats associated with this RTP stream.",
+          "type": "String"
+        },
+        {
+          "name": "codecId",
+          "doc": "The codec identifier",
+          "type": "String"
+        },
+        {
+          "name": "firCount",
+          "doc": "Count the total number of Full Intra Request (FIR) packets received by the sender. This metric is only valid for video and is sent by receiver.",
+          "type": "int"
+        },
+        {
+          "name": "pliCount",
+          "doc": "Count the total number of Packet Loss Indication (PLI) packets received by the sender and is sent by receiver.",
+          "type": "int"
+        },
+        {
+          "name": "nackCount",
+          "doc": "Count the total number of Negative ACKnowledgement (NACK) packets received by the sender and is sent by receiver.",
+          "type": "int"
+        },
+        {
+          "name": "sliCount",
+          "doc": "Count the total number of Slice Loss Indication (SLI) packets received by the sender. This metric is only valid for video and is sent by receiver.",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "name": "RTCCodec",
+      "doc": "RTC codec statistics",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "payloadType",
+          "doc": "Payload type as used in RTP encoding.",
+          "type": "int"
+        },
+        {
+          "name": "codec",
+          "doc": "e.g., video/vp8 or equivalent.",
+          "type": "String"
+        },
+        {
+          "name": "clockRate",
+          "doc": "Represents the media sampling rate.",
+          "type": "int"
+        },
+        {
+          "name": "channels",
+          "doc": "Use 2 for stereo, missing for most other cases.",
+          "type": "int"
+        },
+        {
+          "name": "parameters",
+          "doc": "From the SDP description line.",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "RTCInboundRTPStreamStats",
+      "doc": "Statistics that represents the measurement metrics for the incoming media stream.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCRTPStreamStats",
+      "properties": [
+        {
+          "name": "packetsReceived",
+          "doc": "Total number of RTP packets received for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "bytesReceived",
+          "doc": "Total number of bytes received for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "packetsLost",
+          "doc": "Total number of RTP packets lost for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "jitter",
+          "doc": "Packet Jitter measured in seconds for this SSRC.",
+          "type": "float"
+        },
+        {
+          "name": "fractionLost",
+          "doc": "The fraction packet loss reported for this SSRC.",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "RTCOutboundRTPStreamStats",
+      "doc": "Statistics that represents the measurement metrics for the outgoing media stream.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCRTPStreamStats",
+      "properties": [
+        {
+          "name": "packetsSent",
+          "doc": "Total number of RTP packets sent for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "bytesSent",
+          "doc": "Total number of bytes sent for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "targetBitrate",
+          "doc": "Presently configured bitrate target of this SSRC, in bits per second.",
+          "type": "float"
+        },
+        {
+          "name": "roundTripTime",
+          "doc": "Estimated round trip time (seconds) for this SSRC based on the RTCP timestamp.",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "RTCPeerConnectionStats",
+      "doc": "Statistics related to the peer connection.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "dataChannelsOpened",
+          "doc": "Represents the number of unique datachannels opened.",
+          "type": "int"
+        },
+        {
+          "name": "dataChannelsClosed",
+          "doc": "Represents the number of unique datachannels closed.",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "name": "RTCMediaStreamStats",
+      "doc": "Statistics related to the media stream.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "streamIdentifier",
+          "doc": "Stream identifier.",
+          "type": "String"
+        },
+        {
+          "name": "trackIds",
+          "doc": "This is the id of the stats object, not the track.id.",
+          "type": "String[]"
+        }
+      ]
+    },
+    {
+      "name": "RTCMediaStreamTrackStats",
+      "doc": "Statistics related to the media stream.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "trackIdentifier",
+          "doc": "Represents the track.id property.",
+          "type": "String"
+        },
+        {
+          "name": "remoteSource",
+          "doc": "true indicates that this is a remote source. false in other case.",
+          "type": "boolean"
+        },
+        {
+          "name": "ssrcIds",
+          "doc": "Synchronized sources.",
+          "type": "String[]"
+        },
+        {
+          "name": "frameWidth",
+          "doc": "Only makes sense for video media streams and represents the width of the video frame for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "frameHeight",
+          "doc": "Only makes sense for video media streams and represents the height of the video frame for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "framesPerSecond",
+          "doc": "Only valid for video. It represents the nominal FPS value.",
+          "type": "float"
+        },
+        {
+          "name": "framesSent",
+          "doc": "Only valid for video. It represents the total number of frames sent for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "framesReceived",
+          "doc": "Only valid for video and when remoteSource is set to true. It represents the total number of frames received for this SSRC.",
+          "type": "int"
+        },
+        {
+          "name": "framesDecoded",
+          "doc": "Only valid for video. It represents the total number of frames correctly decoded for this SSRC. ",
+          "type": "int"
+        },
+        {
+          "name": "framesDropped",
+          "doc": "Only valid for video. The total number of frames dropped predecode or dropped because the frame missed its display deadline.",
+          "type": "int"
+        },
+        {
+          "name": "framesCorrupted",
+          "doc": "Only valid for video. The total number of corrupted frames that have been detected.",
+          "type": "int"
+        },
+        {
+          "name": "audioLevel",
+          "doc": "Only valid for audio, and the value is between 0..1 (linear), where 1.0 represents 0 dBov.",
+          "type": "float"
+        },
+        {
+          "name": "echoReturnLoss",
+          "doc": "Only present on audio tracks sourced from a microphone where echo cancellation is applied. Calculated in decibels.",
+          "type": "float"
+        },
+        {
+          "name": "echoReturnLossEnhancement",
+          "doc": "Only present on audio tracks sourced from a microphone where echo cancellation is applied.",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "RTCDataChannelState",
+      "typeFormat": "ENUM",
+      "doc": "Represents the state of the RTCDataChannel",
+      "values": [
+        "connecting",
+        "open",
+        "closing",
+        "closed"
+      ]
+    },
+    {
+      "name": "RTCDataChannelStats",
+      "doc": "Statistics related to RTC data channels.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "label",
+          "doc": "The RTCDatachannel label.",
+          "type": "String"
+        },
+        {
+          "name": "protocol",
+          "doc": "The protocol used.",
+          "type": "String"
+        },
+        {
+          "name": "datachannelid",
+          "doc": "The RTCDatachannel identifier.",
+          "type": "int"
+        },
+        {
+          "name": "state",
+          "doc": "The state of the RTCDatachannel.",
+          "type": "RTCDataChannelState"
+        },
+        {
+          "name": "messagesSent",
+          "doc": "Represents the total number of API 'message' events sent.",
+          "type": "int"
+        },
+        {
+          "name": "bytesSent",
+          "doc": "Represents the total number of payload bytes sent on this RTCDatachannel, i.e., not including headers or padding.",
+          "type": "int"
+        },
+        {
+          "name": "messagesReceived",
+          "doc": "Represents the total number of API 'message' events received.",
+          "type": "int"
+        },
+        {
+          "name": "bytesReceived",
+          "doc": "Represents the total number of bytes received on this RTCDatachannel, i.e., not including headers or padding.",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "name": "RTCTransportStats",
+      "doc": "Statistics related to RTC data channels.",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "bytesSent",
+          "doc": "Represents the total number of payload bytes sent on this PeerConnection, i.e., not including headers or padding.",
+          "type": "int"
+        },
+        {
+          "name": "bytesReceived",
+          "doc": "Represents the total number of bytes received on this PeerConnection, i.e., not including headers or padding.",
+          "type": "int"
+        },
+        {
+          "name": "rtcpTransportStatsId",
+          "doc": "If RTP and RTCP are not multiplexed, this is the id of the transport that gives stats for the RTCP component, and this record has only the RTP component stats.",
+          "type": "String"
+        },
+        {
+          "name": "activeConnection",
+          "doc": "Set to true when transport is active.",
+          "type": "boolean"
+        },
+        {
+          "name": "selectedCandidatePairId",
+          "doc": "It is a unique identifier that is associated to the object that was inspected to produce the RTCIceCandidatePairStats associated with this transport.",
+          "type": "String"
+        },
+        {
+          "name": "localCertificateId",
+          "doc": "For components where DTLS is negotiated, give local certificate.",
+          "type": "String"
+        },
+        {
+          "name": "remoteCertificateId",
+          "doc": "For components where DTLS is negotiated, give remote certificate.",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "RTCStatsIceCandidateType",
+      "typeFormat": "ENUM",
+      "doc": "Types of candidates",
+      "values": [
+        "host",
+        "serverreflexive",
+        "peerreflexive",
+        "relayed"
+      ]
+    },
+    {
+      "name": "RTCIceCandidateAttributes",
+      "doc": "",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "ipAddress",
+          "doc": "It is the IP address of the candidate, allowing for IPv4 addresses, IPv6 addresses, and fully qualified domain names (FQDNs).",
+          "type": "String"
+        },
+        {
+          "name": "portNumber",
+          "doc": "It is the port number of the candidate.",
+          "type": "int"
+        },
+        {
+          "name": "transport",
+          "doc": "Valid values for transport is one of udp and tcp. Based on the 'transport' defined in [RFC5245] section 15.1.",
+          "type": "String"
+        },
+        {
+          "name": "candidateType",
+          "doc": "The enumeration RTCStatsIceCandidateType is based on the cand-type defined in [RFC5245] section 15.1.",
+          "type": "RTCStatsIceCandidateType"
+        },
+        {
+          "name": "priority",
+          "doc": "Represents the priority of the candidate",
+          "type": "int"
+        },
+        {
+          "name": "addressSourceUrl",
+          "doc": "The URL of the TURN or STUN server indicated in the RTCIceServers that translated this IP address.",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "RTCStatsIceCandidatePairState",
+      "typeFormat": "ENUM",
+      "doc": "Represents the state of the checklist for the local and remote candidates in a pair.",
+      "values": [
+        "frozen",
+        "waiting",
+        "inprogress",
+        "failed",
+        "succeeded",
+        "cancelled"
+      ]
+    },
+    {
+      "name": "RTCIceCandidatePairStats",
+      "doc": "",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "transportId",
+          "doc": "It is a unique identifier that is associated to the object that was inspected to produce the RTCTransportStats associated with this candidate pair.",
+          "type": "String"
+        },
+        {
+          "name": "localCandidateId",
+          "doc": "It is a unique identifier that is associated to the object that was inspected to produce the RTCIceCandidateAttributes for the local candidate associated with this candidate pair.",
+          "type": "String"
+        },
+        {
+          "name": "remoteCandidateId",
+          "doc": "It is a unique identifier that is associated to the object that was inspected to produce the RTCIceCandidateAttributes for the remote candidate associated with this candidate pair.",
+          "type": "String"
+        },
+        {
+          "name": "state",
+          "doc": "Represents the state of the checklist for the local and remote candidates in a pair.",
+          "type": "RTCStatsIceCandidatePairState"
+        },
+        {
+          "name": "priority",
+          "doc": "Calculated from candidate priorities as defined in [RFC5245] section 5.7.2.",
+          "type": "int"
+        },
+        {
+          "name": "nominated",
+          "doc": "Related to updating the nominated flag described in Section 7.1.3.2.4 of [RFC5245].",
+          "type": "boolean"
+        },
+        {
+          "name": "writable",
+          "doc": "Has gotten ACK to an ICE request.",
+          "type": "boolean"
+        },
+        {
+          "name": "readable",
+          "doc": "Has gotten a valid incoming ICE request.",
+          "type": "boolean"
+        },
+        {
+          "name": "bytesSent",
+          "doc": "Represents the total number of payload bytes sent on this candidate pair, i.e., not including headers or padding.",
+          "type": "int"
+        },
+        {
+          "name": "bytesReceived",
+          "doc": "Represents the total number of payload bytes received on this candidate pair, i.e., not including headers or padding.",
+          "type": "int"
+        },
+        {
+          "name": "roundTripTime",
+          "doc": "Represents the RTT computed by the STUN connectivity checks",
+          "type": "float"
+        },
+        {
+          "name": "availableOutgoingBitrate",
+          "doc": "Measured in Bits per second, and is implementation dependent. It may be calculated by the underlying congestion control.",
+          "type": "float"
+        },
+        {
+          "name": "availableIncomingBitrate",
+          "doc": "Measured in Bits per second, and is implementation dependent. It may be calculated by the underlying congestion control.",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "RTCCertificateStats",
+      "doc": "",
+      "typeFormat": "REGISTER",
+      "extends" : "RTCStats",
+      "properties": [
+        {
+          "name": "fingerprint",
+          "doc": "Only use the fingerprint value as defined in Section 5 of [RFC4572].",
+          "type": "String"
+        },
+        {
+          "name": "fingerprintAlgorithm",
+          "doc": "For instance, 'sha-256'.",
+          "type": "String"
+        },
+        {
+          "name": "base64Certificate",
+          "doc": "For example, DER-encoded, base-64 representation of a certifiate.",
+          "type": "String"
+        },
+        {
+          "name": "issuerCertificateId",
+          "doc": "",
+          "type": "String"
+        }
+      ]
     }
   ],
   "events": [
