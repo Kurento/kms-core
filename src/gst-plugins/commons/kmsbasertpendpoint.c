@@ -57,6 +57,9 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define RTP_HDR_EXT_ABS_SEND_TIME_SIZE 3
 #define RTP_HDR_EXT_ABS_SEND_TIME_ID 3  /* TODO: do it dynamic when needed */
 
+#define JB_INITIAL_LATENCY 0
+#define JB_READY_LATENCY 1500
+
 typedef struct _KmsRTPStats KmsRTPStats;
 struct _KmsRTPStats
 {
@@ -1608,15 +1611,33 @@ end:
   }
 }
 
+static GstPadProbeReturn
+kms_base_rtp_endpoint_change_latency_probe (GstPad * pad,
+    GstPadProbeInfo * info, gpointer gp)
+{
+  GstElement *jitterbuffer = GST_PAD_PARENT (pad);
+
+  g_object_set (jitterbuffer, "latency", JB_READY_LATENCY, NULL);
+
+  return GST_PAD_PROBE_REMOVE;
+}
+
 static void
 kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GstElement * new_jitterbuffer,
     guint session, guint ssrc, KmsBaseRtpEndpoint * self)
 {
   GstElement **jitterbuffer;
+  GstPad *src_pad;
 
-  g_object_set (new_jitterbuffer, "mode", 4 /* synced */ , "latency", 1500,
-      NULL);
+  g_object_set (new_jitterbuffer, "mode", 4 /* synced */ ,
+      "latency", JB_INITIAL_LATENCY, NULL);
+
+  src_pad = gst_element_get_static_pad (new_jitterbuffer, "src");
+  gst_pad_add_probe (src_pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      kms_base_rtp_endpoint_change_latency_probe, NULL, NULL);
+  g_object_unref (src_pad);
 
   KMS_ELEMENT_LOCK (self);
 
