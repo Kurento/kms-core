@@ -60,13 +60,18 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define JB_INITIAL_LATENCY 0
 #define JB_READY_LATENCY 1500
 
-typedef struct _KmsRTPStats KmsRTPStats;
-struct _KmsRTPStats
+typedef struct _KmsSSRCStats KmsSSRCStats;
+struct _KmsSSRCStats
 {
-  GObject *audio_rtpsession;
-  GObject *video_rtpsession;
-  GstElement *audio_jitterbuffer;
-  GstElement *video_jitterbuffer;
+  guint ssrc;
+  GstElement *jitter_buffer;
+};
+
+typedef struct _KmsRTPSessionStats KmsRTPSessionStats;
+struct _KmsRTPSessionStats
+{
+  GObject *rtp_session;
+  GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
 };
 
 struct _KmsBaseRtpEndpointPrivate
@@ -109,7 +114,7 @@ struct _KmsBaseRtpEndpointPrivate
   KmsRembRemote *rm;
 
   /* RTP statistics */
-  KmsRTPStats stats;
+  GHashTable *stats;
 };
 
 /* Signals and args */
@@ -179,6 +184,49 @@ static void
 connect_payloader_data_destroy (gpointer data, GClosure * closure)
 {
   g_slice_free (ConnectPayloaderData, data);
+}
+
+static KmsSSRCStats *
+ssrc_stats_new (guint ssrc, GstElement * jitter_buffer)
+{
+  KmsSSRCStats *stats;
+
+  stats = g_slice_new0 (KmsSSRCStats);
+
+  stats->jitter_buffer = gst_object_ref (jitter_buffer);
+  stats->ssrc = ssrc;
+
+  return stats;
+}
+
+static void
+ssrc_stats_destroy (KmsSSRCStats * stats)
+{
+  g_clear_object (&stats->jitter_buffer);
+  g_slice_free (KmsSSRCStats, stats);
+}
+
+static KmsRTPSessionStats *
+rtp_session_stats_new (GObject * rtp_session)
+{
+  KmsRTPSessionStats *stats;
+
+  stats = g_slice_new0 (KmsRTPSessionStats);
+  stats->rtp_session = g_object_ref (rtp_session);
+
+  return stats;
+}
+
+static void
+rtp_session_stats_destroy (KmsRTPSessionStats * stats)
+{
+  if (stats->ssrcs != NULL) {
+    g_slist_free_full (stats->ssrcs, (GDestroyNotify) ssrc_stats_destroy);
+  }
+
+  g_clear_object (&stats->rtp_session);
+
+  g_slice_free (KmsRTPSessionStats, stats);
 }
 
 /* Connection management begin */
@@ -559,7 +607,8 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     guint session_id, const gchar * rtpbin_pad_name)
 {
   GstElement *rtpbin = self->priv->rtpbin;
-  GObject *new_rtpsession, **rtpsession;
+  KmsRTPSessionStats *rtp_stats;
+  GObject *rtpsession;
   GstPad *pad;
 
   /* Create RtpSession requesting the pad */
@@ -567,35 +616,26 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
   g_object_unref (pad);
 
   g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
-      &new_rtpsession);
-  if (new_rtpsession == NULL) {
+      &rtpsession);
+  if (rtpsession == NULL) {
     return NULL;
   }
 
-  switch (session_id) {
-    case AUDIO_RTP_SESSION:
-      rtpsession = &self->priv->stats.audio_rtpsession;
-      break;
-    case VIDEO_RTP_SESSION:
-      rtpsession = &self->priv->stats.video_rtpsession;
-      break;
-    default:
-      GST_WARNING_OBJECT (self, "No statisticss collected for sessionID %u",
-          session_id);
-      goto end;
+  rtp_stats =
+      g_hash_table_lookup (self->priv->stats, GUINT_TO_POINTER (session_id));
+
+  if (rtp_stats == NULL) {
+    rtp_stats = rtp_session_stats_new (rtpsession);
+    g_hash_table_insert (self->priv->stats, GUINT_TO_POINTER (session_id),
+        rtp_stats);
+  } else {
+    GST_WARNING_OBJECT (self, "Session %u already created", session_id);
   }
 
-  if (*rtpsession != NULL) {
-    g_object_unref (*rtpsession);
-  }
-
-  *rtpsession = g_object_ref (new_rtpsession);
-
-end:
-  g_object_set (new_rtpsession, "rtcp-min-interval",
+  g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
-  return new_rtpsession;
+  return rtpsession;
 }
 
 static const gchar *
@@ -1624,16 +1664,17 @@ kms_base_rtp_endpoint_change_latency_probe (GstPad * pad,
 
 static void
 kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
-    GstElement * new_jitterbuffer,
+    GstElement * jitterbuffer,
     guint session, guint ssrc, KmsBaseRtpEndpoint * self)
 {
-  GstElement **jitterbuffer;
+  KmsRTPSessionStats *rtp_stats;
+  KmsSSRCStats *ssrc_stats;
   GstPad *src_pad;
 
-  g_object_set (new_jitterbuffer, "mode", 4 /* synced */ ,
+  g_object_set (jitterbuffer, "mode", 4 /* synced */ ,
       "latency", JB_INITIAL_LATENCY, NULL);
 
-  src_pad = gst_element_get_static_pad (new_jitterbuffer, "src");
+  src_pad = gst_element_get_static_pad (jitterbuffer, "src");
   gst_pad_add_probe (src_pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       kms_base_rtp_endpoint_change_latency_probe, NULL, NULL);
@@ -1641,21 +1682,22 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
   KMS_ELEMENT_LOCK (self);
 
+  rtp_stats =
+      g_hash_table_lookup (self->priv->stats, GUINT_TO_POINTER (session));
+
+  if (rtp_stats != NULL) {
+    ssrc_stats = ssrc_stats_new (ssrc, jitterbuffer);
+    rtp_stats->ssrcs = g_slist_prepend (rtp_stats->ssrcs, ssrc_stats);
+  } else {
+    GST_ERROR_OBJECT (self, "Session %u exists for SSRC %u", session, ssrc);
+  }
+
   if (ssrc == self->priv->video_ssrc) {
-    g_object_set (new_jitterbuffer, "do-lost", TRUE,
+    g_object_set (jitterbuffer, "do-lost", TRUE,
         "do-retransmission", self->priv->rtcp_nack,
         "rtx-next-seqnum", FALSE,
         "rtx-max-retries", 0, "rtp-max-dropout", -1, NULL);
-    jitterbuffer = &self->priv->stats.video_jitterbuffer;
-  } else {
-    jitterbuffer = &self->priv->stats.audio_jitterbuffer;
   }
-
-  if (*jitterbuffer != NULL) {
-    gst_object_unref (*jitterbuffer);
-  }
-
-  *jitterbuffer = gst_object_ref (new_jitterbuffer);
 
   KMS_ELEMENT_UNLOCK (self);
 }
@@ -1696,23 +1738,64 @@ kms_base_rtp_endpoint_stop_signal (KmsBaseRtpEndpoint * self, guint session,
 }
 
 static void
-kms_base_rtp_endpoint_add_rtpsession_stats (GstStructure * stats,
-    const gchar * name, GObject * rtpsession)
+ssrc_stats_add_jitter_stats (GstStructure * ssrc_stats,
+    GstElement * jitter_buffer)
+{
+  GstStructure *jitter_stats;
+  guint percent, latency;
+
+  g_object_get (jitter_buffer, "percent", &percent, "latency", &latency,
+      "stats", &jitter_stats, NULL);
+
+  if (jitter_stats == NULL)
+    return;
+
+  /* Append adition fields to the stats */
+  gst_structure_set (jitter_stats, "latency", G_TYPE_UINT, latency, "percent",
+      G_TYPE_UINT, percent, NULL);
+
+  /* Append jitter buffer stats to the ssrc stats */
+  gst_structure_set (ssrc_stats, "jitter-buffer", GST_TYPE_STRUCTURE,
+      jitter_stats, NULL);
+
+  gst_structure_free (jitter_stats);
+}
+
+static GstElement *
+rtp_session_stats_get_jitter_buffer (KmsRTPSessionStats * rtp_stats, guint ssrc)
+{
+  GSList *e;
+
+  for (e = rtp_stats->ssrcs; e != NULL; e = e->next) {
+    KmsSSRCStats *ssrc_stats = e->data;
+
+    if (ssrc_stats->ssrc == ssrc)
+      return ssrc_stats->jitter_buffer;
+  }
+
+  return NULL;
+}
+
+static void
+append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
+    GstStructure * stats)
 {
   GstStructure *session_stats;
+  gchar *str_session;
   GValueArray *arr;
   guint i;
 
-  g_object_get (rtpsession, "stats", &session_stats, NULL);
+  g_object_get (rtp_stats->rtp_session, "stats", &session_stats, NULL);
 
   if (session_stats == NULL)
     return;
 
   /* Get stats for each source */
-  g_object_get (rtpsession, "sources", &arr, NULL);
+  g_object_get (rtp_stats->rtp_session, "sources", &arr, NULL);
 
   for (i = 0; i < arr->n_values; i++) {
-    GstStructure *s;
+    GstElement *jitter_buffer;
+    GstStructure *ssrc_stats;
     GObject *source;
     GValue *val;
     gchar *name;
@@ -1721,42 +1804,30 @@ kms_base_rtp_endpoint_add_rtpsession_stats (GstStructure * stats,
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
 
-    g_object_get (source, "stats", &s, "ssrc", &ssrc, NULL);
+    g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
 
-    name = g_strdup_printf ("ssrc%d", ssrc);
-    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, s, NULL);
+    jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, ssrc);
 
-    gst_structure_free (s);
+    if (jitter_buffer != NULL) {
+      ssrc_stats_add_jitter_stats (ssrc_stats, jitter_buffer);
+    }
+
+    name = g_strdup_printf ("ssrc-%u", ssrc);
+    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, ssrc_stats,
+        NULL);
+
+    gst_structure_free (ssrc_stats);
     g_free (name);
   }
 
   g_value_array_free (arr);
 
-  gst_structure_set (stats, name, GST_TYPE_STRUCTURE, session_stats, NULL);
+  str_session = g_strdup_printf ("session-%u", GPOINTER_TO_UINT (session));
+  gst_structure_set (stats, str_session, GST_TYPE_STRUCTURE, session_stats,
+      NULL);
 
   gst_structure_free (session_stats);
-}
-
-static void
-kms_base_rtp_endpoint_add_object_stats_with_params (GstStructure * stats,
-    const gchar * name, GObject * object, const char *fieldname, ...)
-{
-  GstStructure *obj_stats;
-  va_list var_args;
-
-  g_object_get (object, "stats", &obj_stats, NULL);
-
-  if (obj_stats == NULL)
-    return;
-
-  /* Add aditional parameters */
-  va_start (var_args, fieldname);
-  gst_structure_set_valist (obj_stats, fieldname, var_args);
-  va_end (var_args);
-
-  gst_structure_set (stats, name, GST_TYPE_STRUCTURE, obj_stats, NULL);
-
-  gst_structure_free (obj_stats);
+  g_free (str_session);
 }
 
 static GstStructure *
@@ -1766,35 +1837,8 @@ kms_base_rtp_endpoint_create_stats (KmsBaseRtpEndpoint * self)
 
   stats = gst_structure_new_empty ("stats");
 
-  if (self->priv->stats.audio_rtpsession != NULL) {
-    kms_base_rtp_endpoint_add_rtpsession_stats (stats, "audio-session",
-        self->priv->stats.audio_rtpsession);
-  }
-
-  if (self->priv->stats.video_rtpsession != NULL) {
-    kms_base_rtp_endpoint_add_rtpsession_stats (stats, "video-session",
-        self->priv->stats.video_rtpsession);
-  }
-
-  if (self->priv->stats.audio_jitterbuffer != NULL) {
-    guint percent, latency;
-
-    g_object_get (self->priv->stats.audio_jitterbuffer, "percent", &percent,
-        "latency", &latency, NULL);
-    kms_base_rtp_endpoint_add_object_stats_with_params (stats,
-        "audio-jitterbuffer", G_OBJECT (self->priv->stats.audio_jitterbuffer),
-        "latency", G_TYPE_UINT, latency, "percent", G_TYPE_UINT, percent, NULL);
-  }
-
-  if (self->priv->stats.video_jitterbuffer != NULL) {
-    guint percent, latency;
-
-    g_object_get (self->priv->stats.video_jitterbuffer, "percent", &percent,
-        "latency", &latency, NULL);
-    kms_base_rtp_endpoint_add_object_stats_with_params (stats,
-        "video-jitterbuffer", G_OBJECT (self->priv->stats.video_jitterbuffer),
-        "latency", G_TYPE_UINT, latency, "percent", G_TYPE_UINT, percent, NULL);
-  }
+  g_hash_table_foreach (self->priv->stats, (GHFunc) append_rtp_session_stats,
+      stats);
 
   return stats;
 }
@@ -1925,11 +1969,6 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 
   GST_DEBUG_OBJECT (self, "dispose");
 
-  g_clear_object (&self->priv->stats.audio_jitterbuffer);
-  g_clear_object (&self->priv->stats.video_jitterbuffer);
-  g_clear_object (&self->priv->stats.audio_rtpsession);
-  g_clear_object (&self->priv->stats.video_rtpsession);
-
   g_clear_object (&self->priv->audio_payloader);
   g_clear_object (&self->priv->video_payloader);
 
@@ -1962,6 +2001,7 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   g_free (self->priv->proto);
 
   g_hash_table_destroy (self->priv->conns);
+  g_hash_table_destroy (self->priv->stats);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
 }
@@ -2223,6 +2263,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+
+  self->priv->stats = g_hash_table_new_full (g_direct_hash, g_direct_equal,
+      NULL, (GDestroyNotify) rtp_session_stats_destroy);
 }
 
 static void
