@@ -13,9 +13,15 @@
  *
  */
 
+
+#ifndef __UUID_GENERATOR_HPP__
+#define __UUID_GENERATOR_HPP__
+
 namespace kurento
 {
 
 std::string generateUUID ();
 
 }
+
+#endif /* __UUID_GENERATOR_HPP__ */
