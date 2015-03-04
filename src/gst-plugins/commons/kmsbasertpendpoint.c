@@ -1210,7 +1210,6 @@ configure_rtp_session (const GstSDPMedia * media, gpointer user_data)
   return TRUE;
 }
 
-/* TODO: rename to start_transport */
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, const GstSDPMessage * offer,
