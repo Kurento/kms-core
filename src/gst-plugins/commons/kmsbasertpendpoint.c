@@ -419,22 +419,26 @@ sdp_message_is_bundle (GstSDPMessage * msg)
 }
 
 static gboolean
+check_rtcp_mux (const GstSDPMedia * media, gboolean * check)
+{
+  const gchar *val;
+
+  val = gst_sdp_media_get_attribute_val (media, RTCP_MUX);
+
+  *check = (val != NULL);
+
+  /* Stop iterating when val = NULL */
+  return *check;
+}
+
+static gboolean
 sdp_message_is_rtcp_mux (GstSDPMessage * msg)
 {
-  guint len, i;
+  gboolean ret;
 
-  len = gst_sdp_message_medias_len (msg);
-  for (i = 0; i < len; i++) {
-    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
-    const gchar *val;
+  sdp_utils_for_each_media (msg, (GstSDPMediaFunc) check_rtcp_mux, &ret);
 
-    val = gst_sdp_media_get_attribute_val (media, RTCP_MUX);
-    if (val == NULL) {
-      return FALSE;
-    }
-  }
-
-  return TRUE;
+  return ret;
 }
 
 static gboolean
@@ -536,25 +540,27 @@ kms_base_rtp_endpoint_process_hdrext_attrs (KmsBaseRtpEndpoint * self,
   }
 }
 
+static gboolean
+sdp_message_process_attrs (const GstSDPMedia * media, KmsBaseRtpEndpoint * self)
+{
+  kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (self, media);
+  kms_base_rtp_endpoint_process_hdrext_attrs (self, media);
+
+  return TRUE;
+}
+
 static void
 kms_base_rtp_endpoint_remote_sdp_message_process_attrs (KmsBaseRtpEndpoint *
     self, const GstSDPMessage * msg)
 {
-  guint m_len, m;
-
   self->priv->rtcp_fir = FALSE;
   self->priv->rtcp_nack = FALSE;
   self->priv->rtcp_pli = FALSE;
   self->priv->rtcp_remb = FALSE;
   self->priv->hdr_ext_abs_send_time = FALSE;
 
-  m_len = gst_sdp_message_medias_len (msg);
-  for (m = 0; m < m_len; m++) {
-    const GstSDPMedia *media = gst_sdp_message_get_media (msg, m);
-
-    kms_base_rtp_endpoint_process_vp8_rtcp_fb_attrs (self, media);
-    kms_base_rtp_endpoint_process_hdrext_attrs (self, media);
-  }
+  sdp_utils_for_each_media (msg, (GstSDPMediaFunc) sdp_message_process_attrs,
+      self);
 }
 
 static void
@@ -1115,6 +1121,61 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
   kms_base_rtp_endpoint_add_connection_src (self, conn, rtp_session);
 }
 
+struct rtp_conf_data
+{
+  KmsBaseRtpEndpoint *rtp_endpoint;
+  KmsIRtpConnection *bundle_conn;
+  gboolean local_offer;
+};
+
+static gboolean
+configure_rtp_session (const GstSDPMedia * media, gpointer user_data)
+{
+  struct rtp_conf_data *rtp_data = (struct rtp_conf_data *) user_data;
+  KmsBaseRtpEndpoint *self = rtp_data->rtp_endpoint;
+
+  const gchar *media_str = gst_sdp_media_get_media (media);
+  gchar *rtp_session_str;
+
+  if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+    /* TODO: support more than one in the future */
+    if (self->priv->remote_audio_ssrc != 0) {
+      GST_WARNING_OBJECT (self,
+          "Overwriting remote audio ssrc. This can cause some problem");
+    }
+    self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (media);
+    rtp_session_str = AUDIO_RTP_SESSION_STR;
+  } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    /* TODO: support more than one in the future */
+    if (self->priv->remote_video_ssrc != 0) {
+      GST_WARNING_OBJECT (self,
+          "Overwriting remote video ssrc. This can cause some problem");
+    }
+    self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
+    rtp_session_str = VIDEO_RTP_SESSION_STR;
+
+    if (self->priv->rtcp_remb) {
+      kms_base_rtp_endpoint_create_remb_managers (self);
+    }
+  } else {
+    GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
+    return TRUE;
+  }
+
+  if (self->priv->bundle) {
+    kms_base_rtp_endpoint_add_connection_sink (self, rtp_data->bundle_conn,
+        rtp_session_str);
+  } else if (self->priv->rtcp_mux) {
+    kms_base_rtp_endpoint_add_rtcp_mux_connection (self, rtp_data->local_offer,
+        media_str, rtp_session_str);
+  } else {
+    kms_base_rtp_endpoint_add_connection (self, rtp_data->local_offer,
+        media_str, rtp_session_str);
+  }
+
+  return TRUE;
+}
+
 /* TODO: rename to start_transport */
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
@@ -1122,9 +1183,13 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     const GstSDPMessage * answer, gboolean local_offer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  KmsIRtpConnection *bundle_conn = NULL;
   const GstSDPMessage *sdp;
-  guint len, i;
+
+  struct rtp_conf_data conf_data = {
+    .rtp_endpoint = self,
+    .bundle_conn = NULL,
+    .local_offer = local_offer
+  };
 
   if (gst_sdp_message_medias_len (answer) != gst_sdp_message_medias_len (offer)) {
     GST_WARNING_OBJECT (self,
@@ -1138,52 +1203,11 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
   }
 
   if (self->priv->bundle) {
-    bundle_conn =
+    conf_data.bundle_conn =
         kms_base_rtp_endpoint_add_bundle_connection (self, local_offer);
   }
 
-  len = gst_sdp_message_medias_len (sdp);
-  for (i = 0; i < len; i++) {
-    const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
-    const gchar *media_str = gst_sdp_media_get_media (media);
-    gchar *rtp_session_str;
-
-    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-      /* TODO: support more than one in the future */
-      if (self->priv->remote_audio_ssrc != 0) {
-        GST_WARNING_OBJECT (self,
-            "Overwriting remote audio ssrc. This can cause some problem");
-      }
-      self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (media);
-      rtp_session_str = AUDIO_RTP_SESSION_STR;
-    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-      /* TODO: support more than one in the future */
-      if (self->priv->remote_video_ssrc != 0) {
-        GST_WARNING_OBJECT (self,
-            "Overwriting remote video ssrc. This can cause some problem");
-      }
-      self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
-      rtp_session_str = VIDEO_RTP_SESSION_STR;
-
-      if (self->priv->rtcp_remb) {
-        kms_base_rtp_endpoint_create_remb_managers (self);
-      }
-    } else {
-      GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
-      continue;
-    }
-
-    if (self->priv->bundle) {
-      kms_base_rtp_endpoint_add_connection_sink (self, bundle_conn,
-          rtp_session_str);
-    } else if (self->priv->rtcp_mux) {
-      kms_base_rtp_endpoint_add_rtcp_mux_connection (self, local_offer,
-          media_str, rtp_session_str);
-    } else {
-      kms_base_rtp_endpoint_add_connection (self, local_offer,
-          media_str, rtp_session_str);
-    }
-  }
+  sdp_utils_for_each_media (sdp, configure_rtp_session, &conf_data);
 }
 
 /* Start Transport Send end */
@@ -1449,82 +1473,85 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
       connected_flag, media_str, type);
 }
 
+static gboolean
+set_media_payloader (const GstSDPMedia * media, KmsBaseRtpEndpoint * self)
+{
+  const gchar *media_str = gst_sdp_media_get_media (media);
+  const gchar *proto_str = gst_sdp_media_get_proto (media);
+  GstElement *payloader;
+  GstCaps *caps = NULL;
+  guint j, f_len;
+  const gchar *rtpbin_pad_name;
+  KmsElementPadType type;
+  gboolean *connected_flag;
+
+  if (g_strcmp0 (proto_str, self->priv->proto)) {
+    GST_WARNING_OBJECT (self, "Proto '%s' not supported", proto_str);
+    return TRUE;
+  }
+
+  f_len = gst_sdp_media_formats_len (media);
+  for (j = 0; j < f_len && caps == NULL; j++) {
+    const gchar *pt = gst_sdp_media_get_format (media, j);
+    const gchar *rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
+
+    caps = kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, pt, rtpmap);
+  }
+
+  if (caps == NULL) {
+    GST_WARNING_OBJECT (self, "Caps not found for media '%s'", media_str);
+    return TRUE;
+  }
+
+  GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
+
+  payloader = gst_base_rtp_get_payloader_for_caps (caps);
+  gst_caps_unref (caps);
+
+  if (payloader == NULL) {
+    GST_WARNING_OBJECT (self, "Payloader not found for media '%s'", media_str);
+    return TRUE;
+  }
+
+  GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
+
+  if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+    self->priv->audio_payloader = payloader;
+    connected_flag = &self->priv->audio_payloader_connected;
+    type = KMS_ELEMENT_PAD_TYPE_AUDIO;
+    rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
+  } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    self->priv->video_payloader = payloader;
+    connected_flag = &self->priv->video_payloader_connected;
+    type = KMS_ELEMENT_PAD_TYPE_VIDEO;
+    rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
+  } else {
+    rtpbin_pad_name = NULL;
+    connected_flag = NULL;
+    g_object_unref (payloader);
+  }
+
+  if (rtpbin_pad_name != NULL) {
+    kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
+        connected_flag, rtpbin_pad_name, media_str);
+  }
+
+  return TRUE;
+}
+
 static void
 kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     base_endpoint, const GstSDPMessage * answer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
-  guint i, len;
 
   if (answer == NULL) {
     GST_ERROR_OBJECT (self, "Asnwer is NULL");
     return;
   }
 
-  len = gst_sdp_message_medias_len (answer);
-  for (i = 0; i < len; i++) {
-    const GstSDPMedia *media = gst_sdp_message_get_media (answer, i);
-    const gchar *media_str = gst_sdp_media_get_media (media);
-    const gchar *proto_str = gst_sdp_media_get_proto (media);
-    GstElement *payloader;
-    GstCaps *caps = NULL;
-    guint j, f_len;
-    const gchar *rtpbin_pad_name;
-    KmsElementPadType type;
-    gboolean *connected_flag;
-
-    if (g_strcmp0 (proto_str, self->priv->proto)) {
-      GST_WARNING_OBJECT (self, "Proto '%s' not supported", proto_str);
-      continue;
-    }
-
-    f_len = gst_sdp_media_formats_len (media);
-    for (j = 0; j < f_len && caps == NULL; j++) {
-      const gchar *pt = gst_sdp_media_get_format (media, j);
-      const gchar *rtpmap = sdp_utils_sdp_media_get_rtpmap (media, pt);
-
-      caps = kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, pt, rtpmap);
-    }
-
-    if (caps == NULL) {
-      GST_WARNING_OBJECT (self, "Caps not found for media '%s'", media_str);
-      continue;
-    }
-
-    GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
-
-    payloader = gst_base_rtp_get_payloader_for_caps (caps);
-    gst_caps_unref (caps);
-
-    if (payloader == NULL) {
-      GST_WARNING_OBJECT (self, "Payloader not found for media '%s'",
-          media_str);
-      continue;
-    }
-
-    GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
-
-    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-      self->priv->audio_payloader = payloader;
-      connected_flag = &self->priv->audio_payloader_connected;
-      type = KMS_ELEMENT_PAD_TYPE_AUDIO;
-      rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
-    } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-      self->priv->video_payloader = payloader;
-      connected_flag = &self->priv->video_payloader_connected;
-      type = KMS_ELEMENT_PAD_TYPE_VIDEO;
-      rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
-    } else {
-      rtpbin_pad_name = NULL;
-      connected_flag = NULL;
-      g_object_unref (payloader);
-    }
-
-    if (rtpbin_pad_name != NULL) {
-      kms_base_rtp_endpoint_connect_payloader (self, type, payloader,
-          connected_flag, rtpbin_pad_name, media_str);
-    }
-  }
+  sdp_utils_for_each_media (answer, (GstSDPMediaFunc) set_media_payloader,
+      self);
 }
 
 static GstCaps *
