@@ -637,3 +637,20 @@ init_debug (void)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
       GST_DEFAULT_NAME);
 }
+
+void
+sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func,
+    gpointer user_data)
+{
+  guint i, len;
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
+
+    if (!func (media, user_data)) {
+      /* Do not continue iterating */
+      return;
+    }
+  }
+}

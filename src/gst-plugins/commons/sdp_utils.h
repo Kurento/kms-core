@@ -34,6 +34,8 @@ typedef enum GstSDPDirection
   INACTIVE
 } GstSDPDirection;
 
+typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
+
 GstSDPDirection sdp_utils_media_get_direction (const GstSDPMedia * media);
 const gchar *sdp_utils_get_direction_str (GstSDPDirection direction);
 guint sdp_utils_media_get_ssrc (const GstSDPMedia * media);
@@ -49,5 +51,7 @@ gchar *gst_sdp_media_format_get_encoding_name (const GstSDPMedia * media,
     const gchar * format);
 
 void sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw);
+
+void sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
 
 #endif /* __SDP_H__ */
