@@ -517,65 +517,59 @@ event_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   return GST_PAD_PROBE_DROP;
 }
 
+void
+unlink_agnosticbin_source (const GValue * item, gpointer user_data)
+{
+  GstElement *agnosticbin = GST_ELEMENT (user_data);
+  GstPad *srcpad, *sinkpad = NULL;
+  GstElement *adder = NULL;
+
+  srcpad = g_value_get_object (item);
+
+  sinkpad = gst_pad_get_peer (srcpad);
+  if (sinkpad == NULL) {
+    GST_WARNING_OBJECT (srcpad, "Not linked");
+    goto end;
+  }
+
+  adder = gst_pad_get_parent_element (sinkpad);
+  if (adder == NULL) {
+    GST_ERROR_OBJECT (sinkpad, "No parent element");
+    goto end;
+  }
+
+  GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
+      srcpad, sinkpad);
+
+  if (!gst_pad_unlink (srcpad, sinkpad)) {
+    GST_ERROR ("Can not unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
+        srcpad, sinkpad);
+  }
+
+  gst_element_release_request_pad (adder, sinkpad);
+  gst_element_release_request_pad (agnosticbin, srcpad);
+
+end:
+  if (sinkpad != NULL) {
+    gst_object_unref (sinkpad);
+  }
+
+  if (adder != NULL) {
+    gst_object_unref (adder);
+  }
+}
+
 static void
 unlink_agnosticbin (GstElement * agnosticbin)
 {
-  GValue val = G_VALUE_INIT;
   GstIterator *it;
-  gboolean done = FALSE;
 
   it = gst_element_iterate_src_pads (agnosticbin);
-  do {
-    switch (gst_iterator_next (it, &val)) {
-      case GST_ITERATOR_OK:
-      {
-        GstPad *srcpad, *sinkpad;
-        GstElement *adder;
 
-        srcpad = g_value_get_object (&val);
-        sinkpad = gst_pad_get_peer (srcpad);
-        if (sinkpad == NULL) {
-          GST_WARNING_OBJECT (srcpad, "Not linked");
-          g_value_reset (&val);
-          break;
-        }
-
-        adder = gst_pad_get_parent_element (sinkpad);
-        if (adder == NULL) {
-          GST_ERROR_OBJECT (sinkpad, "No parent element");
-          gst_object_unref (sinkpad);
-          g_value_reset (&val);
-          break;
-        }
-
-        GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
-            srcpad, sinkpad);
-
-        if (!gst_pad_unlink (srcpad, sinkpad)) {
-          GST_ERROR ("Can not unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
-              srcpad, sinkpad);
-        }
-
-        gst_element_release_request_pad (adder, sinkpad);
-        gst_element_release_request_pad (agnosticbin, srcpad);
-
-        gst_object_unref (sinkpad);
-        gst_object_unref (adder);
-        g_value_reset (&val);
-        break;
-      }
-      case GST_ITERATOR_RESYNC:
-        gst_iterator_resync (it);
-        break;
-      case GST_ITERATOR_ERROR:
-        GST_ERROR ("Error iterating over %s's src pads",
-            GST_ELEMENT_NAME (agnosticbin));
-      case GST_ITERATOR_DONE:
-        g_value_unset (&val);
-        done = TRUE;
-        break;
-    }
-  } while (!done);
+  while (gst_iterator_foreach (it, unlink_agnosticbin_source,
+          agnosticbin) == GST_ITERATOR_RESYNC) {
+    gst_iterator_resync (it);
+  }
 
   gst_iterator_free (it);
 }
@@ -629,13 +623,26 @@ agnosticbin_counter_done (KmsAudioMixerData * sync)
   KMS_AUDIO_MIXER_DATA_UNREF (sync);
 }
 
+void
+install_EOS_probe_on_srcpad (const GValue * item, gpointer user_data)
+{
+  struct callback_counter *counter = user_data;
+  GstPad *srcpad;
+
+  srcpad = g_value_get_object (item);
+
+  /* install new probe for EOS */
+  callback_count_inc (counter);
+  gst_pad_add_probe (srcpad, GST_PAD_PROBE_TYPE_BLOCK |
+      GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, event_probe_cb, counter,
+      (GDestroyNotify) callback_count_dec);
+}
+
 static void
 agnosticbin_set_EOS_cb (KmsAudioMixerData * sync)
 {
   struct callback_counter *counter;
-  GValue val = G_VALUE_INIT;
   GstIterator *it;
-  gboolean done = FALSE;
   GstElement *agnostic;
 
   agnostic = sync->agnosticbin;
@@ -644,99 +651,69 @@ agnosticbin_set_EOS_cb (KmsAudioMixerData * sync)
       (GDestroyNotify) agnosticbin_counter_done);
 
   it = gst_element_iterate_src_pads (agnostic);
-  do {
-    switch (gst_iterator_next (it, &val)) {
-      case GST_ITERATOR_OK:
-      {
-        GstPad *srcpad;
 
-        srcpad = g_value_get_object (&val);
-
-        /* install new probe for EOS */
-        callback_count_inc (counter);
-        gst_pad_add_probe (srcpad, GST_PAD_PROBE_TYPE_BLOCK |
-            GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, event_probe_cb, counter,
-            (GDestroyNotify) callback_count_dec);
-
-        g_value_reset (&val);
-        break;
-      }
-      case GST_ITERATOR_RESYNC:
-        gst_iterator_resync (it);
-        break;
-      case GST_ITERATOR_ERROR:
-        GST_ERROR ("Error iterating over %s's src pads",
-            GST_ELEMENT_NAME (agnostic));
-      case GST_ITERATOR_DONE:
-        g_value_unset (&val);
-        done = TRUE;
-        break;
-    }
-  } while (!done);
+  while (gst_iterator_foreach (it, install_EOS_probe_on_srcpad,
+          counter) == GST_ITERATOR_RESYNC) {
+    gst_iterator_resync (it);
+  }
 
   callback_count_dec (counter);
   gst_iterator_free (it);
 }
 
+void
+unlink_adder_sink (const GValue * item, gpointer user_data)
+{
+  GstElement *adder = GST_ELEMENT (user_data);
+  GstPad *sinkpad, *srcpad = NULL;
+  GstElement *agnosticbin = NULL;
+
+  sinkpad = g_value_get_object (item);
+
+  srcpad = gst_pad_get_peer (sinkpad);
+  if (srcpad == NULL) {
+    GST_WARNING_OBJECT (sinkpad, "Not linked");
+    goto end;
+  }
+
+  agnosticbin = gst_pad_get_parent_element (srcpad);
+  if (agnosticbin == NULL) {
+    GST_ERROR_OBJECT (srcpad, "No parent element");
+    goto end;
+  }
+
+  GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
+      srcpad, sinkpad);
+
+  if (!gst_pad_unlink (srcpad, sinkpad)) {
+    GST_ERROR ("Can not unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
+        srcpad, sinkpad);
+  }
+
+  gst_element_release_request_pad (adder, sinkpad);
+  gst_element_release_request_pad (agnosticbin, srcpad);
+
+end:
+  if (srcpad != NULL) {
+    gst_object_unref (srcpad);
+  }
+
+  if (agnosticbin != NULL) {
+    gst_object_unref (agnosticbin);
+  }
+}
+
 static void
 unlink_adder_sources (GstElement * adder)
 {
-  GValue val = G_VALUE_INIT;
   GstIterator *it;
-  gboolean done = FALSE;
 
   it = gst_element_iterate_sink_pads (adder);
-  do {
-    switch (gst_iterator_next (it, &val)) {
-      case GST_ITERATOR_OK:
-      {
-        GstPad *sinkpad, *srcpad;
-        GstElement *agnosticbin;
 
-        sinkpad = g_value_get_object (&val);
-        srcpad = gst_pad_get_peer (sinkpad);
-        if (srcpad == NULL) {
-          GST_WARNING_OBJECT (sinkpad, "Not linked");
-          g_value_reset (&val);
-          break;
-        }
-
-        agnosticbin = gst_pad_get_parent_element (srcpad);
-        if (agnosticbin == NULL) {
-          GST_ERROR_OBJECT (srcpad, "No parent element");
-          gst_object_unref (srcpad);
-          g_value_reset (&val);
-          break;
-        }
-
-        GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
-            agnosticbin, adder);
-
-        if (!gst_pad_unlink (srcpad, sinkpad)) {
-          GST_ERROR ("Can not unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
-              srcpad, sinkpad);
-        }
-
-        gst_element_release_request_pad (adder, sinkpad);
-        gst_element_release_request_pad (agnosticbin, srcpad);
-
-        gst_object_unref (srcpad);
-        gst_object_unref (agnosticbin);
-        g_value_reset (&val);
-        break;
-      }
-      case GST_ITERATOR_RESYNC:
-        gst_iterator_resync (it);
-        break;
-      case GST_ITERATOR_ERROR:
-        GST_ERROR ("Error iterating over %s's src pads",
-            GST_ELEMENT_NAME (adder));
-      case GST_ITERATOR_DONE:
-        g_value_unset (&val);
-        done = TRUE;
-        break;
-    }
-  } while (!done);
+  while (gst_iterator_foreach (it, unlink_adder_sink,
+          adder) == GST_ITERATOR_RESYNC) {
+    gst_iterator_resync (it);
+  }
 
   gst_iterator_free (it);
 }
