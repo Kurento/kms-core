@@ -333,6 +333,8 @@ remove_agnostic_bin (GstElement * agnosticbin)
 
   gst_bin_remove_many (GST_BIN (self), typefind, audiorate, agnosticbin, NULL);
 
+  gst_object_unref (agnosticbin);
+
 end:
   if (audiorate != NULL) {
     gst_object_unref (audiorate);
@@ -340,10 +342,6 @@ end:
 
   if (typefind != NULL) {
     gst_object_unref (typefind);
-  }
-
-  if (agnosticbin != NULL) {
-    gst_object_unref (agnosticbin);
   }
 
   gst_object_unref (self);
