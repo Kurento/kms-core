@@ -118,26 +118,52 @@ kms_create_audio_mixer_data ()
 static void
 link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
 {
+  GstPad *srcpad = NULL, *sinkpad = NULL;
   char *padname;
 
   padname = g_object_get_data (G_OBJECT (agnosticbin), KEY_SINK_PAD_NAME);
   if (padname == NULL) {
     GST_ERROR ("No pad associated with %" GST_PTR_FORMAT, agnosticbin);
-    return;
+    goto end;
   }
 
   if (g_str_equal (key, padname)) {
     /* Do not connect the origin audio input */
     GST_TRACE ("Do not connect echo audio input %" GST_PTR_FORMAT, agnosticbin);
-    return;
+    goto end;
   }
 
-  GST_DEBUG ("Linking %s to %s", GST_ELEMENT_NAME (agnosticbin),
-      GST_ELEMENT_NAME (adder));
+  srcpad = gst_element_get_request_pad (agnosticbin, "src_%u");
+  if (srcpad == NULL) {
+    GST_ERROR ("Could not get src pad in %" GST_PTR_FORMAT, agnosticbin);
+    goto end;
+  }
 
-  if (!gst_element_link_pads (agnosticbin, "src_%u", adder, "sink_%u"))
-    GST_ERROR ("Could not link %s to %s", GST_ELEMENT_NAME (agnosticbin),
-        GST_ELEMENT_NAME (adder));
+  sinkpad = gst_element_get_request_pad (adder, "sink_%u");
+  if (srcpad == NULL) {
+    GST_ERROR ("Could not get sink pad in %" GST_PTR_FORMAT, adder);
+    gst_element_release_request_pad (agnosticbin, srcpad);
+    goto end;
+  }
+
+  GST_DEBUG ("Linking %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
+      sinkpad);
+
+  if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK) {
+    GST_ERROR ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
+        sinkpad);
+    gst_element_release_request_pad (agnosticbin, srcpad);
+    gst_element_release_request_pad (adder, sinkpad);
+  }
+
+end:
+  if (srcpad != NULL) {
+    g_object_unref (srcpad);
+  }
+
+  if (sinkpad != NULL) {
+    g_object_unref (sinkpad);
+  }
 }
 
 static void
@@ -207,7 +233,8 @@ kms_audio_mixer_remove_sometimes_src_pad (KmsAudioMixer * self,
     gst_pad_set_active (GST_PAD (internal), FALSE);
   }
 
-  GST_DEBUG ("Removing source pad %p", internal);
+  GST_DEBUG ("Removing source pad %" GST_PTR_FORMAT, internal);
+
   gst_element_remove_pad (GST_ELEMENT (self), GST_PAD (internal));
   gst_object_unref (internal);
 
@@ -522,7 +549,7 @@ unlink_agnosticbin (GstElement * agnosticbin)
         }
 
         GST_DEBUG ("Unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
-            agnosticbin, adder);
+            srcpad, sinkpad);
 
         if (!gst_pad_unlink (srcpad, sinkpad)) {
           GST_ERROR ("Can not unlink %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT,
