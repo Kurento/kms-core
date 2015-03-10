@@ -363,6 +363,7 @@ kms_base_sdp_endpoint_finalize (GObject * object)
 {
   KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
+  kms_base_sdp_endpoint_release_sdp (&self->priv->pattern_sdp);
   kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
   kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
 
