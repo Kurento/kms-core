@@ -16,6 +16,7 @@
 #include <gst/gst.h>
 
 #include "WorkerPool.hpp"
+#include <atomic>
 
 #define GST_CAT_DEFAULT kurento_worker_pool
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
