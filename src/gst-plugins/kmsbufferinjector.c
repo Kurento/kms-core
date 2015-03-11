@@ -234,8 +234,6 @@ kms_buffer_injector_handle_sink_event (GstPad * pad, GstObject * parent,
 {
   KmsBufferInjector *buffer_injector = KMS_BUFFER_INJECTOR (parent);
 
-  buffer_injector = KMS_BUFFER_INJECTOR (parent);
-
   if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
     GstCaps *caps;
 
