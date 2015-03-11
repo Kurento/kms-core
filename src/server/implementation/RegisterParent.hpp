@@ -18,6 +18,7 @@
 
 #include <map>
 #include <functional>
+#include <atomic>
 
 namespace kurento
 {
