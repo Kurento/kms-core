@@ -53,3 +53,4 @@ build
 CMakeLists.txt.user
 kms-core.json
 manifest.json
+code_analysis
