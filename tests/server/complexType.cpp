@@ -13,6 +13,9 @@
  *
  */
 
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MODULE ComplexType
+#include <boost/test/unit_test.hpp>
 #include <ModuleManager.hpp>
 #include <KurentoException.hpp>
 #include <jsonrpc/JsonSerializer.hpp>
@@ -21,14 +24,14 @@
 #include <MediaSet.hpp>
 
 using namespace kurento;
-int
-main (int argc, char **argv)
+
+BOOST_AUTO_TEST_CASE (complex_type)
 {
   std::shared_ptr <ModuleManager> moduleManager (new ModuleManager() );
   std::shared_ptr<kurento::Factory> mediaPipelineFactory;
   std::shared_ptr<kurento::MediaObject> mediaPipeline;
 
-  gst_init (&argc, &argv);
+  gst_init (NULL, NULL);
 
   std::string moduleName = "../../src/server/libkmscoremodule.so";
 
@@ -54,17 +57,14 @@ main (int argc, char **argv)
     Serialize (complexTypeReturned , writer2);
 
     if (writer.JsonValue.toStyledString() != writer2.JsonValue.toStyledString() ) {
-      std::cerr << "Serialization does not match" << std::endl;
-      return 1;
+      BOOST_ERROR ("Serialization does not match");
     }
 
   } catch (kurento::KurentoException &e) {
     std::cerr << "Unexpected exception: " << e.what() << std::endl;
-    return 1;
+    BOOST_ERROR ("Unexpected error");
   }
 
   kurento::MediaSet::getMediaSet()->release (std::dynamic_pointer_cast
       <MediaObjectImpl> (mediaPipeline) );
-
-  return 0;
 }
