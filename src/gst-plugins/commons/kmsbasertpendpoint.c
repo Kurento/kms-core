@@ -746,18 +746,102 @@ kms_base_rtp_endpoint_update_sdp_media (KmsBaseRtpEndpoint * self,
   return media_str;
 }
 
+struct update_media_data
+{
+  KmsBaseRtpEndpoint *self;
+  gboolean created_bundle;
+  gchar *bundle_mids;
+  const gchar *cname;
+};
+
+static gboolean
+configure_bundle_connection (struct update_media_data *data,
+    const gchar * media_str)
+{
+  gchar *tmp;
+
+  if (!data->created_bundle) {
+    KmsIBundleConnection *conn =
+        kms_base_rtp_endpoint_create_bundle_connection (data->self,
+        BUNDLE_STREAM_NAME);
+
+    if (conn == NULL) {
+      return FALSE;
+    }
+
+    data->bundle_mids = g_strdup ("BUNDLE");
+    data->created_bundle = TRUE;
+  }
+
+  tmp = g_strconcat (data->bundle_mids, " ", media_str, NULL);
+  g_free (data->bundle_mids);
+  data->bundle_mids = tmp;
+
+  return TRUE;
+}
+
+static gboolean
+update_sdp_media (const GstSDPMedia * media, gpointer user_data)
+{
+  struct update_media_data *data = user_data;
+  KmsBaseRtpEndpoint *self = data->self;
+  const gchar *media_str = NULL;
+  gboolean use_ipv6;
+
+  g_object_get (self, "use-ipv6", &use_ipv6, NULL);
+  media_str =
+      kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
+      use_ipv6, data->cname);
+
+  if (media_str == NULL) {
+    return FALSE;
+  }
+
+  if (self->priv->bundle && (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0 ||
+          g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0)) {
+    if (!configure_bundle_connection (data, media_str)) {
+      return FALSE;
+    }
+  } else {
+    KmsIRtpConnection *conn;
+
+    if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) != 0 &&
+        g_strcmp0 (VIDEO_STREAM_NAME, media_str) != 0) {
+      GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
+      return TRUE;
+    }
+
+    if (self->priv->rtcp_mux) {
+      conn =
+          KMS_I_RTP_CONNECTION
+          (kms_base_rtp_endpoint_create_rtcp_mux_connection (self, media_str));
+    } else {
+      conn = kms_base_rtp_endpoint_create_connection (self, media_str);
+    }
+
+    if (conn == NULL) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
 static gboolean
 kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     base_sdp_endpoint, GstSDPMessage * msg)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
   GstSDPMessage *remote_sdp;
-  guint len, i;
-  gchar *bundle_mids = NULL;
-  gboolean ret = TRUE;
+  gboolean ret;
   GstStructure *sdes = NULL;
-  const gchar *cname;
-  gboolean created_bundle = FALSE;
+
+  struct update_media_data data = {
+    .self = self,
+    .created_bundle = FALSE,
+    .bundle_mids = NULL,
+    .cname = NULL
+  };
 
   g_object_get (base_sdp_endpoint, "remote-sdp", &remote_sdp, NULL);
   if (remote_sdp != NULL) {
@@ -772,76 +856,20 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   }
 
   g_object_get (self->priv->rtpbin, "sdes", &sdes, NULL);
-  cname = gst_structure_get_string (sdes, "cname");
+  data.cname = gst_structure_get_string (sdes, "cname");
 
-  len = gst_sdp_message_medias_len (msg);
-  for (i = 0; i < len; i++) {
-    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
-    const gchar *media_str = NULL;
-    gboolean use_ipv6;
+  ret = sdp_utils_for_each_media (msg, update_sdp_media, &data);
 
-    g_object_get (base_sdp_endpoint, "use-ipv6", &use_ipv6, NULL);
-    media_str =
-        kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
-        use_ipv6, cname);
-
-    if (media_str == NULL) {
-      ret = FALSE;
-      goto end;
-    }
-
-    if (self->priv->bundle && (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0 ||
-            g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0)) {
-      gchar *tmp;
-
-      if (!created_bundle) {
-        KmsIBundleConnection *conn =
-            kms_base_rtp_endpoint_create_bundle_connection (self,
-            BUNDLE_STREAM_NAME);
-
-        if (conn == NULL) {
-          ret = FALSE;
-          goto end;
-        }
-
-        bundle_mids = g_strdup ("BUNDLE");
-        created_bundle = TRUE;
-      }
-
-      tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
-      g_free (bundle_mids);
-      bundle_mids = tmp;
-    } else {
-      KmsIRtpConnection *conn;
-
-      if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) != 0 &&
-          g_strcmp0 (VIDEO_STREAM_NAME, media_str) != 0) {
-        GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
-        continue;
-      }
-
-      if (self->priv->rtcp_mux) {
-        conn =
-            KMS_I_RTP_CONNECTION
-            (kms_base_rtp_endpoint_create_rtcp_mux_connection (self,
-                media_str));
-      } else {
-        conn = kms_base_rtp_endpoint_create_connection (self, media_str);
-      }
-
-      if (conn == NULL) {
-        ret = FALSE;
-        goto end;
-      }
-    }
+  if (!ret) {
+    goto end;
   }
 
-  if (bundle_mids != NULL) {
-    gst_sdp_message_add_attribute (msg, "group", bundle_mids);
+  if (data.bundle_mids != NULL) {
+    gst_sdp_message_add_attribute (msg, "group", data.bundle_mids);
   }
 
 end:
-  g_free (bundle_mids);
+  g_free (data.bundle_mids);
 
   if (sdes != NULL) {
     gst_structure_free (sdes);
