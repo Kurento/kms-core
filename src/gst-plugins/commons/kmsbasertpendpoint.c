@@ -757,6 +757,7 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
   gboolean ret = TRUE;
   GstStructure *sdes = NULL;
   const gchar *cname;
+  gboolean created_bundle = FALSE;
 
   g_object_get (base_sdp_endpoint, "remote-sdp", &remote_sdp, NULL);
   if (remote_sdp != NULL) {
@@ -768,19 +769,6 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     GST_TRACE_OBJECT (self, "RTCP-FB: fir: %u, nack: %u, pli: %u, remb: %u",
         self->priv->rtcp_fir, self->priv->rtcp_nack, self->priv->rtcp_pli,
         self->priv->rtcp_remb);
-  }
-
-  if (self->priv->bundle) {
-    KmsIBundleConnection *conn =
-        kms_base_rtp_endpoint_create_bundle_connection (self,
-        BUNDLE_STREAM_NAME);
-
-    if (conn == NULL) {
-      ret = FALSE;
-      goto end;
-    }
-
-    bundle_mids = g_strdup ("BUNDLE");
   }
 
   g_object_get (self->priv->rtpbin, "sdes", &sdes, NULL);
@@ -796,13 +784,29 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     media_str =
         kms_base_rtp_endpoint_update_sdp_media (self, (GstSDPMedia *) media,
         use_ipv6, cname);
+
     if (media_str == NULL) {
       ret = FALSE;
       goto end;
     }
 
-    if (self->priv->bundle) {
+    if (self->priv->bundle && (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0 ||
+            g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0)) {
       gchar *tmp;
+
+      if (!created_bundle) {
+        KmsIBundleConnection *conn =
+            kms_base_rtp_endpoint_create_bundle_connection (self,
+            BUNDLE_STREAM_NAME);
+
+        if (conn == NULL) {
+          ret = FALSE;
+          goto end;
+        }
+
+        bundle_mids = g_strdup ("BUNDLE");
+        created_bundle = TRUE;
+      }
 
       tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
       g_free (bundle_mids);
@@ -832,12 +836,13 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
     }
   }
 
-  if (self->priv->bundle) {
+  if (bundle_mids != NULL) {
     gst_sdp_message_add_attribute (msg, "group", bundle_mids);
   }
 
 end:
   g_free (bundle_mids);
+
   if (sdes != NULL) {
     gst_structure_free (sdes);
   }
