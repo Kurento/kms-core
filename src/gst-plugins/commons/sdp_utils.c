@@ -638,7 +638,7 @@ init_debug (void)
       GST_DEFAULT_NAME);
 }
 
-void
+gboolean
 sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func,
     gpointer user_data)
 {
@@ -650,7 +650,9 @@ sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func,
 
     if (!func (media, user_data)) {
       /* Do not continue iterating */
-      return;
+      return FALSE;
     }
   }
+
+  return TRUE;
 }

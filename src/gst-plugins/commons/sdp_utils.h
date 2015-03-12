@@ -52,6 +52,6 @@ gchar *gst_sdp_media_format_get_encoding_name (const GstSDPMedia * media,
 
 void sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw);
 
-void sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
+gboolean sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
 
 #endif /* __SDP_H__ */
