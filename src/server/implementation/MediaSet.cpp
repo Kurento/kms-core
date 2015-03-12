@@ -567,29 +567,18 @@ MediaSet::getSessions ()
   return ret;
 }
 
-static void
-store_pipelines (std::list<std::shared_ptr<MediaObjectImpl>> &list,
-                 std::map<std::string, std::shared_ptr<MediaObjectImpl>> &map)
-{
-  for (auto it : map) {
-    if (std::dynamic_pointer_cast <MediaPipelineImpl> (it.second) ) {
-      list.push_back (it.second);
-    }
-  }
-}
-
 std::list<std::shared_ptr<MediaObjectImpl>>
     MediaSet::getPipelines (const std::string &sessionId)
 {
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
   try {
-    if (sessionId.empty () ) {
-      for (auto it : sessionMap) {
-        store_pipelines (ret, it.second);
+    for (auto it : objectsMap) {
+      if (auto obj = it.second.lock() ) {
+        if (std::dynamic_pointer_cast <MediaPipelineImpl> (obj) ) {
+          ret.push_back (obj);
+        }
       }
-    } else {
-      store_pipelines (ret, sessionMap.at (sessionId) );
     }
   } catch (std::out_of_range) {
     GST_ERROR ("Cannot get session %s", sessionId.c_str() );
