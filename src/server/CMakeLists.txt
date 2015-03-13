@@ -19,6 +19,7 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/UUIDGenerator.cpp
   implementation/RegisterParent.cpp
   implementation/Statistics.cpp
+  implementation/DotGraph.cpp
 )
 
 set (KMS_CORE_IMPL_HEADERS
@@ -31,6 +32,7 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/UUIDGenerator.hpp
   implementation/RegisterParent.hpp
   implementation/Statistics.hpp
+  implementation/DotGraph.hpp
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")

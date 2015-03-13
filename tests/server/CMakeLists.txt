@@ -29,7 +29,7 @@ target_link_libraries(test_module_manager
 )
 
 add_test_program (test_media_element mediaElement.cpp)
-add_dependencies(test_media_element kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_media_element kmscoreplugins ${LIBRARY_NAME}impl kmsgstcommons)
 set_property (TARGET test_media_element
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -47,6 +47,7 @@ target_link_libraries(test_media_element
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
   ${Boot_LIBRARIES}
+  kmsgstcommons
 )
 
 add_test_program (test_sdp_endpoint sdpEndpoint.cpp)

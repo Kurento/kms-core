@@ -13,6 +13,7 @@
 #include <gst/gst.h>
 #include <ElementConnectionData.hpp>
 #include "kmselement.h"
+#include <DotGraph.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -736,6 +737,11 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "video-caps", c, NULL);
+}
+
+std::string MediaElementImpl::getGstreamerDot()
+{
+  return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_ALL);
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;

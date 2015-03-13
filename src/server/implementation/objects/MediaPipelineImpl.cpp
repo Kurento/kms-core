@@ -4,6 +4,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
+#include <DotGraph.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -96,6 +97,11 @@ MediaPipelineImpl::~MediaPipelineImpl ()
   g_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+}
+
+std::string MediaPipelineImpl::getGstreamerDot()
+{
+  return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
 }
 
 MediaObjectImpl *

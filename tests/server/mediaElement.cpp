@@ -173,3 +173,35 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
   sink->release();
   src->release();
 }
+
+BOOST_AUTO_TEST_CASE (dot_test)
+{
+  gst_init (NULL, NULL);
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
+        boost::property_tree::ptree(), pipe, "dummysink") );
+  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
+      boost::property_tree::ptree(), pipe, "dummysrc") );
+  GstElement *gstSrc;
+  GstElement *gstSink;
+
+  gstSrc = (GstElement *) g_object_ref ( src->getGstreamerElement() );
+  g_object_set (gstSrc, "audio", TRUE, "video", TRUE, NULL);
+  gstSink = (GstElement *) g_object_ref ( src->getGstreamerElement() );
+  g_object_set (gstSink, "audio", TRUE, "video", TRUE, NULL);
+
+  src->connect (sink);
+
+  std::string dot = sink->getGstreamerDot();
+
+  BOOST_CHECK (!dot.empty() );
+
+  dot = src->getGstreamerDot();
+
+  BOOST_CHECK (!dot.empty() );
+
+  dot = pipe->getGstreamerDot();
+
+  BOOST_CHECK (!dot.empty() );
+}

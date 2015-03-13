@@ -251,7 +251,18 @@
         "doc": "Create a :rom:cls:`MediaPipeline`",
         "params": [
         ]
-      }
+      },
+      "methods": [
+        {
+          "name": "getGstreamerDot",
+          "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside the pipeline",
+          "params": [],
+          "return": {
+            "doc": "The dot graph",
+            "type": "String"
+          }
+        }
+      ]
     },
     {
       "name": "SdpEndpoint",
@@ -483,6 +494,15 @@
               "type": "VideoCaps"
             }
           ]
+        },
+        {
+          "name": "getGstreamerDot",
+          "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside",
+          "params": [],
+          "return": {
+            "doc": "The dot graph",
+            "type": "String"
+          }
         }
       ]
     }
