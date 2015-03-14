@@ -14,6 +14,7 @@
 #include <ElementConnectionData.hpp>
 #include "kmselement.h"
 #include <DotGraph.hpp>
+#include <GstreamerDotDetails.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -737,6 +738,29 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 
   c = gst_caps_from_string (str_caps.c_str() );
   g_object_set (element, "video-caps", c, NULL);
+}
+
+std::string MediaElementImpl::getGstreamerDot (
+  std::shared_ptr<GstreamerDotDetails> details)
+{
+  switch (details->getValue() ) {
+  case GstreamerDotDetails::SHOW_MEDIA_TYPE:
+    return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_MEDIA_TYPE);
+
+  case GstreamerDotDetails::SHOW_CAPS_DETAILS:
+    return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_CAPS_DETAILS);
+
+  case GstreamerDotDetails::SHOW_NON_DEFAULT_PARAMS:
+    return generateDotGraph (GST_BIN (element),
+                             GST_DEBUG_GRAPH_SHOW_NON_DEFAULT_PARAMS);
+
+  case GstreamerDotDetails::SHOW_STATES:
+    return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_STATES);
+
+  case GstreamerDotDetails::SHOW_ALL:
+  default:
+    return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_ALL);
+  }
 }
 
 std::string MediaElementImpl::getGstreamerDot()

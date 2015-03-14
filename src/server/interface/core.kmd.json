@@ -256,7 +256,14 @@
         {
           "name": "getGstreamerDot",
           "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside the pipeline",
-          "params": [],
+          "params": [
+            {
+              "name": "details",
+              "type": "GstreamerDotDetails",
+              "doc": "Details of graph",
+              "optional": true
+            }
+          ],
           "return": {
             "doc": "The dot graph",
             "type": "String"
@@ -498,7 +505,14 @@
         {
           "name": "getGstreamerDot",
           "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside",
-          "params": [],
+          "params": [
+            {
+              "name": "details",
+              "type": "GstreamerDotDetails",
+              "doc": "Details of graph",
+              "optional": true
+            }
+          ],
           "return": {
             "doc": "The dot graph",
             "type": "String"
@@ -542,6 +556,18 @@
       "values": [
         "KMS",
         "KCS"
+      ]
+    },
+    {
+      "name": "GstreamerDotDetails",
+      "typeFormat": "ENUM",
+      "doc": "Details of gstreamer dot graphs",
+      "values": [
+        "SHOW_MEDIA_TYPE",
+        "SHOW_CAPS_DETAILS",
+        "SHOW_NON_DEFAULT_PARAMS",
+        "SHOW_STATES",
+        "SHOW_ALL"
       ]
     },
     {

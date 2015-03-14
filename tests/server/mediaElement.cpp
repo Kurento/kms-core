@@ -21,6 +21,7 @@
 #include <ElementConnectionData.hpp>
 #include <MediaType.hpp>
 #include <KurentoException.hpp>
+#include <GstreamerDotDetails.hpp>
 
 using namespace kurento;
 
@@ -202,6 +203,12 @@ BOOST_AUTO_TEST_CASE (dot_test)
   BOOST_CHECK (!dot.empty() );
 
   dot = pipe->getGstreamerDot();
+
+  BOOST_CHECK (!dot.empty() );
+
+  std::shared_ptr<kurento::GstreamerDotDetails> details (new
+      kurento::GstreamerDotDetails (kurento::GstreamerDotDetails::SHOW_STATES) );
+  dot = pipe->getGstreamerDot (details);
 
   BOOST_CHECK (!dot.empty() );
 }

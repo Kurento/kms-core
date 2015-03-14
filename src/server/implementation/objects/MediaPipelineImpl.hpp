@@ -30,6 +30,8 @@ public:
   }
 
   virtual std::string getGstreamerDot ();
+  virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>
+                                       details);
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,

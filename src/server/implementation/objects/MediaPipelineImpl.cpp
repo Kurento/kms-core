@@ -5,6 +5,7 @@
 #include <KurentoException.hpp>
 #include <gst/gst.h>
 #include <DotGraph.hpp>
+#include <GstreamerDotDetails.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -97,6 +98,29 @@ MediaPipelineImpl::~MediaPipelineImpl ()
   g_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
+}
+
+std::string MediaPipelineImpl::getGstreamerDot (
+  std::shared_ptr<GstreamerDotDetails> details)
+{
+  switch (details->getValue() ) {
+  case GstreamerDotDetails::SHOW_MEDIA_TYPE:
+    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_MEDIA_TYPE);
+
+  case GstreamerDotDetails::SHOW_CAPS_DETAILS:
+    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_CAPS_DETAILS);
+
+  case GstreamerDotDetails::SHOW_NON_DEFAULT_PARAMS:
+    return generateDotGraph (GST_BIN (pipeline),
+                             GST_DEBUG_GRAPH_SHOW_NON_DEFAULT_PARAMS);
+
+  case GstreamerDotDetails::SHOW_STATES:
+    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_STATES);
+
+  case GstreamerDotDetails::SHOW_ALL:
+  default:
+    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
+  }
 }
 
 std::string MediaPipelineImpl::getGstreamerDot()
