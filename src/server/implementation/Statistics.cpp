@@ -23,6 +23,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoStatistics"
 
 #define UUID_STR_SIZE 37 /* 36-byte string (plus tailing '\0') */
+#define KMS_STATISTIC_FIELD_PREFIX_SESSION "session-"
 #define KMS_STATISTIC_FIELD_PREFIX_SSRC "ssrc-"
 
 namespace kurento
@@ -115,10 +116,10 @@ createRTCRTPStreamStats (uint nackCount, const GstStructure *stats)
   return rtcStats;
 }
 
-std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
-      float timestamp, const GstStructure *stats)
+static void
+collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
+                          &rtcStatsReport, float timestamp, const GstStructure *stats)
 {
-  std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
   guint nackCount = 0;
   gint i, n;
 
@@ -139,7 +140,7 @@ std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
 
     value = gst_structure_get_value (stats, name);
 
-    if (GST_VALUE_HOLDS_STRUCTURE (value) ) {
+    if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
       gchar *str_val;
 
       str_val = g_strdup_value_contents (value);
@@ -153,7 +154,45 @@ std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
                                         gst_value_get_structure (value) );
 
     rtcStats->setTimestamp (timestamp);
+
     rtcStatsReport[rtcStats->getId ()] = rtcStats;
+  }
+}
+
+std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
+      float timestamp, const GstStructure *stats)
+{
+  std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
+  gint i, n;
+
+  n = gst_structure_n_fields (stats);
+
+  for (i = 0; i < n; i++) {
+    std::shared_ptr<RTCStats> rtcStats;
+    const GValue *value;
+    const gchar *name;
+
+    name = gst_structure_nth_field_name (stats, i);
+
+    if (!g_str_has_prefix (name, KMS_STATISTIC_FIELD_PREFIX_SESSION) ) {
+      GST_DEBUG ("Ignoring field %s", name);
+      continue;
+    }
+
+    value = gst_structure_get_value (stats, name);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+      gchar *str_val;
+
+      str_val = g_strdup_value_contents (value);
+      GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+      g_free (str_val);
+
+      continue;
+    }
+
+    collectRTCRTPStreamStats (rtcStatsReport, timestamp,
+                              gst_value_get_structure (value) );
   }
 
   return rtcStatsReport;
