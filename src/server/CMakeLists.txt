@@ -62,6 +62,7 @@ generate_code (
       ${Boost_FILESYSTEM_INCLUDE_DIRS}
       ${Boost_SYSTEM_INCLUDE_DIRS}
       ${gstreamer-1.0_INCLUDE_DIRS}
+      ${gstreamer-sdp-1.0_INCLUDE_DIRS}
       ${KmsJsonRpc_INCLUDE_DIRS}
   SERVER_IMPL_LIB_EXTRA_LIBRARIES
       ${gstreamer-sdp-1.0_LIBRARIES}
@@ -71,6 +72,7 @@ generate_code (
       kmsutils
   MODULE_EXTRA_INCLUDE_DIRS
       ${gstreamer-1.0_INCLUDE_DIRS}
+      ${gstreamer-sdp-1.0_INCLUDE_DIRS}
       ${KmsJsonRpc_INCLUDE_DIRS}
       ${sigc++-2.0_INCLUDE_DIRS}
   MODULE_EXTRA_LIBRARIES
