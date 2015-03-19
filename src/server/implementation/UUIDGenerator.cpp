@@ -29,8 +29,9 @@ protected:
   {
     std::chrono::high_resolution_clock::time_point now =
       std::chrono::high_resolution_clock::now();
-    std::chrono::duration<time_t> time =
-      std::chrono::duration_cast<std::chrono::duration<time_t>>
+
+    std::chrono::nanoseconds time =
+      std::chrono::duration_cast<std::chrono::nanoseconds>
       (now.time_since_epoch () );
 
     ran.seed (time.count() );
@@ -41,7 +42,6 @@ protected:
 
 class RandomGenerator : RandomGeneratorBase
 {
-  boost::mt19937 ran;
   boost::uuids::basic_random_generator<boost::mt19937> gen;
 
 public:
