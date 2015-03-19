@@ -1,3 +1,69 @@
+kms-core (5.1.1) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Santiago Carot-Nemesio ]
+  * agnosticbin3: Check compatible agnosticbins checking src pads capabilities
+  * kmsagnosticbin3: Configure all pending source pad when last agnosticbin is configured
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet: Take care of not releasing serverManager
+  * passthrough: Add element that inherits from kmselement and does nothing
+  * PassThrough: Add passthrough MeidaElement
+
+  [ David Fernandez ]
+  * kmsaudiomixer: Change audiomixer element by liveadder to avoid audio problems
+
+  [ Jose Antonio Santos Cadenas ]
+  * valgrind.supp: Add suppression for mediaElement test
+  * mediaElement: Call release method before destroy elements
+  * valgrind: Add suppression for g_type_register_static
+  * Update .gitreview to use new repo
+  * Add support for more cmake versions
+  * Update .gitreview to upload to release-5.1 branch
+
+  [ Miguel París Díaz ]
+  * kmstreebin: check tee src has parent before releasing
+  * kmsbasertpendpoint: add request_local_key_frame
+  * KurentoException: format code
+  * KurentoException: custom errors support
+
+  [ David Fernandez ]
+  * kmsbufferinjector: Change elements caps to RAW caps
+  * kmsbufferinjector: Update buffer timestamp in injected buffers
+  * kmsbufferinjector: Add property to modify the wait time
+
+  [ Santiago Carot-Nemesio ]
+  * kmsfilterelement: Fix bad usage of KmsFilterType data type
+
+  [ Jose Antonio Santos Cadenas ]
+  * Set correct version for generated npm code
+
+  [ Santiago Carot-Nemesio ]
+  * kmsremb: Fix memory leak
+  * kmsremb: Make sure we always call gst_rtcp_buffer_unmap after mapping it
+
+  [ Miguel París Díaz ]
+  * Use target bitrate for encoders
+
+  [ David Fernandez ]
+  * kmsagnosticbin: Add property to modify default bitrate in media encoding
+
+  [ Santiago Carot-Nemesio ]
+  * kmsaudiomixer: Use gst_pad_link instead of gst_element_link_pads
+  * kmsaudiomixer: Simplify iteration over pads
+  * audiomixer: Fix wrong unref
+
+  [ Jose Antonio Santos Cadenas ]
+  * UUIDGenerator: Fix initialization of random seed
+  * UUIDGenerator: Reinitialize seed if the process changes
+  * Prepare release 5.1.1
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Thu, 19 Mar 2015 22:31:56 +0100
+
 kms-core (5.1.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
