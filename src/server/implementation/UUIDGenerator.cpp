@@ -18,14 +18,25 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
 #include <sstream>
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace kurento
 {
 
-class RandomGeneratorBase
+class RandomGenerator
 {
-protected:
-  RandomGeneratorBase ()
+  boost::uuids::basic_random_generator<boost::mt19937> gen;
+  boost::mt19937 ran;
+  pid_t pid;
+
+public:
+  RandomGenerator () : gen (&ran)
+  {
+    init ();
+  }
+
+  void init ()
   {
     std::chrono::high_resolution_clock::time_point now =
       std::chrono::high_resolution_clock::now();
@@ -35,22 +46,21 @@ protected:
       (now.time_since_epoch () );
 
     ran.seed (time.count() );
+
+    pid = getpid();
   }
 
-  boost::mt19937 ran;
-};
-
-class RandomGenerator : RandomGeneratorBase
-{
-  boost::uuids::basic_random_generator<boost::mt19937> gen;
-
-public:
-  RandomGenerator () : RandomGeneratorBase(), gen (&ran)
+  void reinit ()
   {
+    if (pid != getpid() ) {
+      init();
+    }
   }
 
   std::string getUUID ()
   {
+    reinit();
+
     std::stringstream ss;
     boost::uuids::uuid uuid = gen ();
 
