@@ -612,7 +612,7 @@ kms_base_rtp_endpoint_media_set_rtcp_fb_attrs (KmsBaseRtpEndpoint * self,
 }
 
 static void
-on_new_ssrc (GObject * rtpsession, GObject * rtpsrc, gpointer user_data)
+assign_uuid (GObject * ssrc)
 {
   gchar *uuid_str;
   uuid_t uuid;
@@ -621,9 +621,9 @@ on_new_ssrc (GObject * rtpsession, GObject * rtpsrc, gpointer user_data)
   uuid_generate (uuid);
   uuid_unparse (uuid, uuid_str);
 
-  /* Assign a unique ID to each RtpSource which will */
+  /* Assign a unique ID to each SSRC which will */
   /* be provided in statistics */
-  g_object_set_data_full (rtpsrc, KMS_KEY_ID, uuid_str, g_free);
+  g_object_set_data_full (ssrc, KMS_KEY_ID, uuid_str, g_free);
 }
 
 static GObject *
@@ -652,7 +652,6 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     rtp_stats = rtp_session_stats_new (rtpsession);
     g_hash_table_insert (self->priv->stats, GUINT_TO_POINTER (session_id),
         rtp_stats);
-    g_signal_connect (rtpsession, "on-new-ssrc", (GCallback) on_new_ssrc, NULL);
   } else {
     GST_WARNING_OBJECT (self, "Session %u already created", session_id);
   }
@@ -1887,8 +1886,7 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     id = g_object_get_data (source, KMS_KEY_ID);
 
     if (id == NULL) {
-      GST_WARNING ("RTPSource without an assigned id");
-      continue;
+      assign_uuid (source);
     }
 
     g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
