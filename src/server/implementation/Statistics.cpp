@@ -42,14 +42,16 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   packetLost = jitter = fractionLost = pliCount = firCount = 0;
   bytesReceived = packetsReceived = G_GUINT64_CONSTANT (0);
 
-  gst_structure_get (stats, "packets-received", &packetsReceived,
-                     "octets-received", &bytesReceived, "rb-packetslost", &packetLost,
-                     "rb-fractionlost", &fractionLost, "rb-jitter", &jitter, NULL);
+  gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
+                     "octets-received", G_TYPE_UINT64, &bytesReceived,
+                     "rb-packetslost", G_TYPE_INT, &packetLost,
+                     "rb-fractionlost", G_TYPE_UINT, &fractionLost,
+                     "rb-jitter", G_TYPE_UINT, &jitter, NULL);
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "recv-pli-count", &pliCount, "recv-fir-count",
-                          &firCount, NULL) ) {
+  if (!gst_structure_get (stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
+                          "recv-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
@@ -68,14 +70,15 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   bytesSent = packetsSent = bitRate = roundTripTime = G_GUINT64_CONSTANT (0);
   pliCount = firCount = 0;
 
-  gst_structure_get (stats, "packets-sent", &packetsSent,
-                     "octets-sent", &bytesSent, "bitrate", &bitRate,
-                     "rb-round-trip", &roundTripTime, NULL);
+  gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
+                     "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
+                     G_TYPE_UINT64, &bitRate, "rb-round-trip", G_TYPE_UINT64,
+                     &roundTripTime, NULL);
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "sent-pli-count", &pliCount, "sent-fir-count",
-                          &firCount, NULL) ) {
+  if (!gst_structure_get (stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
+                          "sent-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
@@ -99,10 +102,10 @@ createRTCRTPStreamStats (uint nackCount, const GstStructure *stats)
   ssrcStr = g_strdup_printf ("%u", ssrc);
 
   if (isInternal) {
-    /* This source emits media */
+    /* Local SSRC */
     rtcStats = createRTCOutboundRTPStreamStats (stats);
   } else {
-    /* This source receives media */
+    /* Remote SSRC */
     rtcStats = createRTCInboundRTPStreamStats (stats);
   }
 
