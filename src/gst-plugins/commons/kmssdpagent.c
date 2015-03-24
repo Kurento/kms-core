@@ -29,6 +29,12 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
 #define USE_IPV6_DEFAULT FALSE
 #define BUNDLE_DEFAULT FALSE
 
+#define ORIGIN_ATTR_NETTYPE "IN"
+#define ORIGIN_ATTR_ADDR_TYPE_IP4 "IP4"
+#define ORIGIN_ATTR_ADDR_TYPE_IP6 "IP6"
+#define DEFAULT_IP4_ADDR "0.0.0.0"
+#define DEFAULT_IP6_ADDR "::"
+
 /* Object properties */
 enum
 {
@@ -149,12 +155,68 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
   SDP_AGENT_UNLOCK (self);
 }
 
-static GstSDPMessage *
-kms_sdp_agent_create_offer_impl (KmsSdpAgent * self)
+static gboolean
+kms_sdp_agent_set_default_session_attributes (KmsSdpAgent * agent,
+    GstSDPMessage * offer, GError ** error)
 {
-  /* TODO: */
+  const gchar *addrtype;
+  const gchar *addr;
+  const gchar *err_attr;
 
-  return NULL;
+  SDP_AGENT_LOCK (agent);
+
+  addrtype =
+      (agent->priv->
+      use_ipv6) ? ORIGIN_ATTR_ADDR_TYPE_IP6 : ORIGIN_ATTR_ADDR_TYPE_IP4;
+  addr = (agent->priv->use_ipv6) ? DEFAULT_IP6_ADDR : DEFAULT_IP4_ADDR;
+
+  SDP_AGENT_UNLOCK (agent);
+
+  if (gst_sdp_message_set_version (offer, "0") != GST_SDP_OK) {
+    err_attr = "version";
+    goto error;
+  }
+
+  if (gst_sdp_message_set_origin (offer, "-", "0", "0", ORIGIN_ATTR_NETTYPE,
+          addrtype, addr) != GST_SDP_OK) {
+    err_attr = "origin";
+    goto error;
+  }
+
+  if (gst_sdp_message_set_session_name (offer,
+          "Kurento Media Server") != GST_SDP_OK) {
+    err_attr = "session";
+    goto error;
+  }
+
+  if (gst_sdp_message_set_connection (offer, ORIGIN_ATTR_NETTYPE, addrtype,
+          addr, 0, 0) != GST_SDP_OK) {
+    err_attr = "connection";
+    goto error;
+  }
+
+  return TRUE;
+
+error:
+  g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+      "Can not set attr: %s", err_attr);
+
+  return FALSE;
+}
+
+static GstSDPMessage *
+kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
+{
+  GstSDPMessage *offer = NULL;
+
+  gst_sdp_message_new (&offer);
+  if (!kms_sdp_agent_set_default_session_attributes (agent, offer, error)) {
+    kms_sdp_agent_release_sdp (&offer);
+  }
+
+  /* TODO: Add medias */
+
+  return offer;
 }
 
 static GstSDPMessage *
@@ -238,11 +300,11 @@ kms_sdp_agent_new (void)
 }
 
 GstSDPMessage *
-kms_sdp_agent_create_offer (KmsSdpAgent * agent)
+kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
 
-  return KMS_SDP_AGENT_GET_CLASS (agent)->create_offer (agent);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->create_offer (agent, error);
 }
 
 GstSDPMessage *

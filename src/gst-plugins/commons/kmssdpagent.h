@@ -19,6 +19,16 @@
 #include <gst/sdp/gstsdpmessage.h>
 
 G_BEGIN_DECLS
+
+#define KMS_SDP_AGENT_ERROR \
+  g_quark_from_static_string("kms-sdp-agent-error-quark")
+
+typedef enum
+{
+  SDP_AGENT_INVALID_PARAMETER,
+  SDP_AGENT_UNEXPECTED_ERROR
+} SdpAgentError;
+
 #define KMS_TYPE_SDP_AGENT \
   (kms_sdp_agent_get_type())
 
@@ -68,7 +78,7 @@ struct _KmsSdpAgentClass
   GObjectClass parent_class;
 
   /* methods */
-  GstSDPMessage *(*create_offer) (KmsSdpAgent * agent);
+  GstSDPMessage *(*create_offer) (KmsSdpAgent * agent, GError **error);
   GstSDPMessage *(*create_answer) (KmsSdpAgent * agent, const GstSDPMessage * offer);
   void (*set_local_description) (KmsSdpAgent * agent, GstSDPMessage * description);
   void (*set_remote_description) (KmsSdpAgent * agent, GstSDPMessage * description);
@@ -77,7 +87,7 @@ struct _KmsSdpAgentClass
 GType kms_sdp_agent_get_type (void);
 
 KmsSdpAgent * kms_sdp_agent_new (void);
-GstSDPMessage * kms_sdp_agent_create_offer (KmsSdpAgent * agent);
+GstSDPMessage * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
 GstSDPMessage * kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer);
 void kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage * description);
 void kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description);
