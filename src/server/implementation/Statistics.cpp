@@ -121,7 +121,7 @@ createRTCRTPStreamStats (uint nackCount, const GstStructure *stats)
 
 static void
 collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
-                          &rtcStatsReport, float timestamp, const GstStructure *stats)
+                          &rtcStatsReport, double timestamp, const GstStructure *stats)
 {
   guint nackCount = 0;
   gint i, n;
@@ -163,7 +163,7 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
 }
 
 std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
-      float timestamp, const GstStructure *stats)
+      double timestamp, const GstStructure *stats)
 {
   std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
   gint i, n;

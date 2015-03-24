@@ -26,7 +26,7 @@ namespace stats
 {
 
 std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
-      float timestamp, const GstStructure *stats);
+      double timestamp, const GstStructure *stats);
 
 } /* statistics */
 

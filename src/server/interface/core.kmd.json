@@ -765,7 +765,7 @@
         {
           "name": "timestamp",
           "doc": "The timestamp associated with this object. The time is relative to the UNIX epoch (Jan 1, 1970, UTC).",
-          "type": "float"
+          "type": "double"
         }
       ]
     },
