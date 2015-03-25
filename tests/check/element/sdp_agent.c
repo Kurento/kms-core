@@ -23,6 +23,7 @@
 
 #include "kmssdpagent.h"
 #include "kmssdpmediahandler.h"
+#include "kmssdpsctpmediahandler.h"
 
 static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
@@ -68,13 +69,6 @@ GST_START_TEST (sdp_agent_test_add_proto_handler)
   agent = kms_sdp_agent_new ();
   fail_if (agent == NULL);
 
-  handler = KMS_SDP_MEDIA_HANDLER (g_object_new (KMS_TYPE_SDP_MEDIA_HANDLER,
-          "proto", "TEST", NULL));
-  fail_if (handler == NULL);
-
-  ret = kms_sdp_agent_add_proto_handler (agent, "video", handler);
-  fail_unless (ret);
-
   handler =
       KMS_SDP_MEDIA_HANDLER (g_object_new (KMS_TYPE_SDP_MEDIA_HANDLER, NULL));
   fail_if (handler == NULL);
@@ -83,6 +77,14 @@ GST_START_TEST (sdp_agent_test_add_proto_handler)
   ret = kms_sdp_agent_add_proto_handler (agent, "audio", handler);
   fail_if (ret);
   g_object_unref (handler);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (agent, "application", handler);
+  fail_unless (ret);
+
+  sdp_agent_create_offer (agent);
 
   g_object_unref (agent);
 }

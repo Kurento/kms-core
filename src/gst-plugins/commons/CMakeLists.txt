@@ -76,6 +76,7 @@ set(KMS_COMMONS_SOURCES
   kmsistats.c
   kmssdpagent.c
   kmssdpmediahandler.c
+  kmssdpsctpmediahandler.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -98,6 +99,7 @@ set(KMS_COMMONS_HEADERS
   kmsistats.h
   kmssdpagent.h
   kmssdpmediahandler.h
+  kmssdpsctpmediahandler.h
 )
 
 set(ENUM_HEADERS
