@@ -62,6 +62,8 @@ struct _KmsSdpAgentPrivate
   gboolean use_ipv6;
   gboolean bundle;
 
+  GHashTable *medias;
+
   GMutex mutex;
 };
 
@@ -97,6 +99,7 @@ kms_sdp_agent_finalize (GObject * object)
 
   kms_sdp_agent_release_sdp (&self->priv->local_description);
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
+  g_hash_table_unref (self->priv->medias);
 
   g_mutex_clear (&self->priv->mutex);
 
@@ -204,6 +207,39 @@ error:
   return FALSE;
 }
 
+static gboolean
+kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
+    KmsSdpMediaHandler * handler)
+{
+  GHashTable *handlers;
+  gboolean ret = FALSE;
+  gchar *proto;
+
+  g_object_get (handler, "proto", &proto, NULL);
+
+  if (proto == NULL) {
+    GST_WARNING_OBJECT (agent, "Handler's proto can't be NULL");
+    return FALSE;
+  }
+
+  SDP_AGENT_LOCK (agent);
+
+  handlers = g_hash_table_lookup (agent->priv->medias, media);
+
+  if (handlers == NULL) {
+    /* create handlers map for this media */
+    handlers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+        (GDestroyNotify) g_object_unref);
+    g_hash_table_insert (agent->priv->medias, g_strdup (media), handlers);
+  }
+
+  ret = g_hash_table_insert (handlers, proto, handler);
+
+  SDP_AGENT_UNLOCK (agent);
+
+  return ret;
+}
+
 static GstSDPMessage *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
@@ -273,6 +309,7 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   g_object_class_install_properties (gobject_class,
       N_PROPERTIES, obj_properties);
 
+  klass->add_proto_handler = kms_sdp_agent_add_proto_handler_impl;
   klass->create_offer = kms_sdp_agent_create_offer_impl;
   klass->create_answer = kms_sdp_agent_create_answer_impl;
   klass->set_local_description = kms_sdp_agent_set_local_description_impl;
@@ -287,6 +324,8 @@ kms_sdp_agent_init (KmsSdpAgent * self)
   self->priv = KMS_SDP_AGENT_GET_PRIVATE (self);
 
   g_mutex_init (&self->priv->mutex);
+  self->priv->medias = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, (GDestroyNotify) g_hash_table_unref);
 }
 
 KmsSdpAgent *
@@ -297,6 +336,16 @@ kms_sdp_agent_new (void)
   agent = KMS_SDP_AGENT (g_object_new (KMS_TYPE_SDP_AGENT, NULL));
 
   return agent;
+}
+
+gboolean
+kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
+    KmsSdpMediaHandler * handler)
+{
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
+
+  return KMS_SDP_AGENT_GET_CLASS (agent)->add_proto_handler (agent, media,
+      handler);
 }
 
 GstSDPMessage *

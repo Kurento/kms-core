@@ -22,6 +22,7 @@
 #include <glib.h>
 
 #include "kmssdpagent.h"
+#include "kmssdpmediahandler.h"
 
 static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
@@ -58,6 +59,36 @@ GST_START_TEST (sdp_agent_test_create_offer)
 
 GST_END_TEST;
 
+GST_START_TEST (sdp_agent_test_add_proto_handler)
+{
+  KmsSdpAgent *agent;
+  KmsSdpMediaHandler *handler;
+  gboolean ret;
+
+  agent = kms_sdp_agent_new ();
+  fail_if (agent == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (g_object_new (KMS_TYPE_SDP_MEDIA_HANDLER,
+          "proto", "TEST", NULL));
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (agent, "video", handler);
+  fail_unless (ret);
+
+  handler =
+      KMS_SDP_MEDIA_HANDLER (g_object_new (KMS_TYPE_SDP_MEDIA_HANDLER, NULL));
+  fail_if (handler == NULL);
+
+  /* Try to add an invalid handler */
+  ret = kms_sdp_agent_add_proto_handler (agent, "audio", handler);
+  fail_if (ret);
+  g_object_unref (handler);
+
+  g_object_unref (agent);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -67,6 +98,7 @@ sdp_agent_suite (void)
   suite_add_tcase (s, tc_chain);
 
   tcase_add_test (tc_chain, sdp_agent_test_create_offer);
+  tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
 
   return s;
 }

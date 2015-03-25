@@ -18,6 +18,8 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include "kmssdpmediahandler.h"
+
 G_BEGIN_DECLS
 
 #define KMS_SDP_AGENT_ERROR \
@@ -78,6 +80,7 @@ struct _KmsSdpAgentClass
   GObjectClass parent_class;
 
   /* methods */
+  gboolean (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
   GstSDPMessage *(*create_offer) (KmsSdpAgent * agent, GError **error);
   GstSDPMessage *(*create_answer) (KmsSdpAgent * agent, const GstSDPMessage * offer);
   void (*set_local_description) (KmsSdpAgent * agent, GstSDPMessage * description);
@@ -87,10 +90,12 @@ struct _KmsSdpAgentClass
 GType kms_sdp_agent_get_type (void);
 
 KmsSdpAgent * kms_sdp_agent_new (void);
+gboolean kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
 GstSDPMessage * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
 GstSDPMessage * kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer);
 void kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage * description);
 void kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description);
+
 
 G_END_DECLS
 
