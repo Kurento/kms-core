@@ -91,6 +91,70 @@ GST_START_TEST (sdp_agent_test_add_proto_handler)
 
 GST_END_TEST;
 
+static const gchar *pattern_sdp_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n"
+    "m=audio 9 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendonly\r\n"
+    "m=video 9 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendonly\r\n";
+
+GST_START_TEST (sdp_agent_test_rejected_negotiation)
+{
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gboolean ret;
+  gchar *sdp_str;
+  guint i, len;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (answerer, "application", handler);
+  fail_unless (ret);
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_str, -1, offer) == GST_SDP_OK);
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  len = gst_sdp_message_medias_len (answer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+
+    media = gst_sdp_message_get_media (answer, i);
+    fail_if (media == NULL);
+
+    /* Media should have been rejected */
+    fail_if (media->port != 0);
+  }
+  g_object_unref (answerer);
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -101,6 +165,7 @@ sdp_agent_suite (void)
 
   tcase_add_test (tc_chain, sdp_agent_test_create_offer);
   tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
+  tcase_add_test (tc_chain, sdp_agent_test_rejected_negotiation);
 
   return s;
 }

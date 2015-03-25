@@ -18,6 +18,7 @@
 
 #include "kmssdpagent.h"
 #include "kms-core-marshal.h"
+#include "sdp_utils.h"
 
 #define PLUGIN_NAME "sdpagent"
 
@@ -293,13 +294,133 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   return offer;
 }
 
+struct sdp_answer_data
+{
+  KmsSdpAgent *agent;
+  GstSDPMessage *answer;
+};
+
+static void
+reject_media (const GstSDPMedia * offered, GstSDPMessage * answer)
+{
+  GstSDPMedia *media;
+  guint i, len;
+
+  gst_sdp_media_new (&media);
+
+  /* [rfc3264] To reject an offered stream, the port number in the */
+  /* corresponding stream in the answer MUST be set to zero. Any   */
+  /* media formats listed are ignored. */
+
+  gst_sdp_media_set_media (media, gst_sdp_media_get_media (offered));
+  gst_sdp_media_set_port_info (media, 0, 1);
+  gst_sdp_media_set_proto (media, gst_sdp_media_get_proto (offered));
+
+  len = gst_sdp_media_formats_len (offered);
+  for (i = 0; i < len; i++) {
+    const gchar *format;
+
+    format = gst_sdp_media_get_format (offered, i);
+    gst_sdp_media_insert_format (media, i, format);
+  }
+
+  gst_sdp_message_add_media (answer, media);
+  gst_sdp_media_free (media);
+}
+
+static gboolean
+create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
+{
+  KmsSdpAgent *agent = data->agent;
+  GstSDPMessage *answer = data->answer;
+  GHashTable *handlers;
+
+  SDP_AGENT_LOCK (agent);
+
+  handlers =
+      g_hash_table_lookup (agent->priv->medias,
+      gst_sdp_media_get_media (media));
+  if (handlers == NULL) {
+    GST_WARNING_OBJECT (agent, "%s media not supported",
+        gst_sdp_media_get_media (media));
+    reject_media (media, answer);
+  }
+
+  SDP_AGENT_UNLOCK (agent);
+
+  return TRUE;
+}
+
+static gchar **
+array_to_strvector (const GArray * array)
+{
+  gchar **str_array;
+  guint i, n;
+
+  n = array->len + 1;
+
+  str_array = g_new (gchar *, n);
+  str_array[n] = NULL;
+
+  for (i = 0; i < array->len; i++) {
+    gchar *val;
+
+    val = &g_array_index (array, gchar, i);
+    str_array[i] = g_strdup (val);
+  }
+
+  return str_array;
+}
+
+static void
+sdp_copy_timming_attrs (const GstSDPMessage * src, GstSDPMessage * dest)
+{
+  guint i, n;
+
+  n = gst_sdp_message_times_len (src);
+
+  for (i = 0; i < n; i++) {
+    const GstSDPTime *time;
+    gchar **repeat;
+
+    time = gst_sdp_message_get_time (src, i);
+    repeat = array_to_strvector (time->repeat);
+    gst_sdp_message_add_time (dest, time->start, time->stop,
+        (const gchar **) repeat);
+    g_strfreev (repeat);
+  }
+}
+
 static GstSDPMessage *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
-    const GstSDPMessage * offer)
+    const GstSDPMessage * offer, GError ** error)
 {
-  /* TODO: */
+  GstSDPMessage *answer;
+  struct sdp_answer_data data;
 
-  return NULL;
+  gst_sdp_message_new (&answer);
+  data.answer = answer;
+  data.agent = agent;
+
+  if (!kms_sdp_agent_set_default_session_attributes (agent, answer, error)) {
+    kms_sdp_agent_release_sdp (&answer);
+    return NULL;
+  }
+
+  /* [rfc3264] The "t=" line in the answer MUST be equal to the ones in the */
+  /* offer. The time of the session cannot be negotiated. */
+  if (FALSE)
+    sdp_copy_timming_attrs (offer, answer);
+
+  if (!sdp_utils_for_each_media (offer, (GstSDPMediaFunc) create_media_answer,
+          &data)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        " create SDP response");
+    kms_sdp_agent_release_sdp (&answer);
+    return NULL;
+  }
+
+  return answer;
 }
 
 static void
@@ -395,11 +516,12 @@ kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 }
 
 GstSDPMessage *
-kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer)
+kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
+    GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
 
-  return KMS_SDP_AGENT_GET_CLASS (agent)->create_answer (agent, offer);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->create_answer (agent, offer, error);
 }
 
 void
