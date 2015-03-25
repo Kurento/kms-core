@@ -240,6 +240,40 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   return ret;
 }
 
+struct sdp_offer_data
+{
+  GstSDPMessage *offer;
+  const gchar *media;
+};
+
+static void
+add_media_to_offer (gchar * proto, KmsSdpMediaHandler * handler,
+    struct sdp_offer_data *data)
+{
+  GstSDPMedia *media;
+
+  media = kms_sdp_media_handler_create_offer (handler, data->media);
+
+  if (media == NULL) {
+    return;
+  }
+
+  gst_sdp_message_add_media (data->offer, media);
+  gst_sdp_media_free (media);
+}
+
+static void
+create_media_offers (gchar * media, GHashTable * handlers,
+    GstSDPMessage * offer)
+{
+  struct sdp_offer_data data = {
+    .offer = offer,
+    .media = media
+  };
+
+  g_hash_table_foreach (handlers, (GHFunc) add_media_to_offer, &data);
+}
+
 static GstSDPMessage *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
@@ -248,9 +282,13 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   gst_sdp_message_new (&offer);
   if (!kms_sdp_agent_set_default_session_attributes (agent, offer, error)) {
     kms_sdp_agent_release_sdp (&offer);
+    return NULL;
   }
 
-  /* TODO: Add medias */
+  SDP_AGENT_LOCK (agent);
+  g_hash_table_foreach (agent->priv->medias, (GHFunc) create_media_offers,
+      offer);
+  SDP_AGENT_UNLOCK (agent);
 
   return offer;
 }
