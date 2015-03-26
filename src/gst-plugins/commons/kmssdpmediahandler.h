@@ -70,14 +70,14 @@ struct _KmsSdpMediaHandlerClass
   GObjectClass parent_class;
 
   /* methods */
-  GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media);
-  GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer);
+  GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
+  GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GError **error);
 };
 
 GType kms_sdp_media_handler_get_type (void);
 
-GstSDPMedia * kms_sdp_media_handler_create_offer (KmsSdpMediaHandler *handler, const gchar *media);
-GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, const GstSDPMedia * offer);
+GstSDPMedia * kms_sdp_media_handler_create_offer (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
+GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GError **error);
 
 G_END_DECLS
 

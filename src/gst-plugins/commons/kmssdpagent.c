@@ -252,10 +252,13 @@ add_media_to_offer (gchar * proto, KmsSdpMediaHandler * handler,
     struct sdp_offer_data *data)
 {
   GstSDPMedia *media;
+  GError *err = NULL;
 
-  media = kms_sdp_media_handler_create_offer (handler, data->media);
+  media = kms_sdp_media_handler_create_offer (handler, data->media, &err);
 
-  if (media == NULL) {
+  if (err != NULL) {
+    GST_ERROR_OBJECT (handler, "%s", err->message);
+    g_error_free (err);
     return;
   }
 
@@ -335,6 +338,7 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
   GHashTable *handlers;
   GstSDPMedia *answer_media = NULL;
   KmsSdpMediaHandler *handler;
+  GError *err = NULL;
 
   SDP_AGENT_LOCK (agent);
 
@@ -352,7 +356,11 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
           "No handler for %s media found for protocol %s",
           gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
     } else {
-      answer_media = kms_sdp_media_handler_create_answer (handler, media);
+      answer_media = kms_sdp_media_handler_create_answer (handler, media, &err);
+      if (err != NULL) {
+        GST_ERROR_OBJECT (handler, "%s", err->message);
+        g_error_free (err);
+      }
     }
   }
 

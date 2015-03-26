@@ -16,6 +16,7 @@
 #include "config.h"
 #endif
 
+#include "kmssdpagent.h"
 #include "kmssdpmediahandler.h"
 
 #define OBJECT_NAME "sdpmediahandler"
@@ -96,18 +97,20 @@ kms_sdp_media_handler_finalize (GObject * object)
 
 static GstSDPMedia *
 kms_sdp_media_handler_create_offer_impl (KmsSdpMediaHandler * handler,
-    const gchar * media)
+    const gchar * media, GError ** error)
 {
-  GST_WARNING_OBJECT (handler, "Method not implemented");
+  g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+      "Not implemented");
 
   return NULL;
 }
 
 static GstSDPMedia *
 kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer)
+    const GstSDPMedia * offer, GError ** error)
 {
-  GST_WARNING_OBJECT (handler, "Method not implemented");
+  g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+      "Not implemented");
 
   return NULL;
 }
@@ -141,20 +144,20 @@ kms_sdp_media_handler_init (KmsSdpMediaHandler * self)
 
 GstSDPMedia *
 kms_sdp_media_handler_create_offer (KmsSdpMediaHandler * handler,
-    const gchar * media)
+    const gchar * media, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_offer (handler,
-      media);
+      media, error);
 }
 
 GstSDPMedia *
 kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer)
+    const GstSDPMedia * offer, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
-      offer);
+      offer, error);
 }

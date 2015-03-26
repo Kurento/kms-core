@@ -16,6 +16,7 @@
 #include "config.h"
 #endif
 
+#include "kmssdpagent.h"
 #include "kmssdpsctpmediahandler.h"
 
 #define OBJECT_NAME "sdpsctpmediahandler"
@@ -67,28 +68,52 @@ kms_sdp_sctp_media_handler_constructor (GType gtype, guint n_properties,
 
 static GstSDPMedia *
 kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
-    const gchar * media)
+    const gchar * media, GError ** error)
 {
   GstSDPMedia *m = NULL;
   guint i;
 
   if (g_strcmp0 (media, "application") != 0) {
-    GST_WARNING_OBJECT (handler, "Unsupported %s media", media);
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Unsupported %s media", media);
     goto error;
   }
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
-    GST_WARNING_OBJECT (handler, "Unable to create %s media", media);
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to create %s media", media);
     goto error;
   }
 
-  gst_sdp_media_set_media (m, media);
-  gst_sdp_media_set_proto (m, SDP_MEDIA_DTLS_SCTP_PROTO);
-  gst_sdp_media_set_port_info (m, 1, 1);
+  if (gst_sdp_media_set_media (m, media) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to set %s media", media);
+    goto error;
+  }
 
-  gst_sdp_media_add_format (m, SDP_MEDIA_DTLS_SCTP_FMT);
+  if (gst_sdp_media_set_proto (m, SDP_MEDIA_DTLS_SCTP_PROTO) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to set %s protocol", SDP_MEDIA_DTLS_SCTP_PROTO);
+    goto error;
+  }
 
-  gst_sdp_media_add_attribute (m, "setup", "actpass");
+  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to set port");
+    goto error;
+  }
+
+  if (gst_sdp_media_add_format (m, SDP_MEDIA_DTLS_SCTP_FMT) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to set format");
+    goto error;
+  }
+
+  if (gst_sdp_media_add_attribute (m, "setup", "actpass") != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to set attribute setup:actpass");
+    goto error;
+  }
 
   /* Format parameters when protocol is DTLS/SCTP carries the SCTP port */
   /* number and the mandatory "a=sctpmap:" attribute contains the actual */
@@ -99,7 +124,14 @@ kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
     sctp_port = g_array_index (m->fmts, gchar *, i);
     attr = g_strdup_printf ("%s webrtc-datachannel %d",
         sctp_port, DEFAULT_STREAMS_N);
-    gst_sdp_media_add_attribute (m, "sctpmap", attr);
+
+    if (gst_sdp_media_add_attribute (m, "sctpmap", attr) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Unable to set attribute sctpman:%s", attr);
+      g_free (attr);
+      goto error;
+    }
+
     g_free (attr);
   }
 
@@ -175,8 +207,9 @@ format_supported (const GstSDPMedia * media, const gchar * fmt)
   return ret;
 }
 
-static void
-add_supported_sctmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
+static gboolean
+add_supported_sctmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
+    GError ** error)
 {
   guint i, len;
 
@@ -193,12 +226,19 @@ add_supported_sctmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
       continue;
     }
 
-    gst_sdp_media_add_attribute (answer, "sctpmap", val);
+    if (gst_sdp_media_add_attribute (answer, "sctpmap", val) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not add attribute sctpmap:%s", val);
+      return FALSE;
+    }
   }
+
+  return TRUE;
 }
 
-static void
-add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
+static gboolean
+add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
+    GError ** error)
 {
   guint i, len;
 
@@ -213,8 +253,9 @@ add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
     val = get_sctpmap_value (offer, fmt);
 
     if (val == NULL) {
-      GST_WARNING ("Not sctpmap:%s attribute found in offer", fmt);
-      continue;
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Not sctpmap:%s attribute found in offer", fmt);
+      return FALSE;
     }
 
     attrs = g_strsplit (val, " ", 0);
@@ -229,11 +270,18 @@ add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
         break;
       }
 
-      gst_sdp_media_add_attribute (answer, attrs[1], val);
+      if (gst_sdp_media_add_attribute (answer, attrs[1], val) != GST_SDP_OK) {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+            "Can add attribute %s:%s", attrs[1], val);
+        g_strfreev (attrs);
+        return FALSE;
+      }
     }
 
     g_strfreev (attrs);
   }
+
+  return TRUE;
 }
 
 static gboolean
@@ -269,14 +317,16 @@ is_subproto (const GstSDPMedia * media, const gchar * label)
   return FALSE;
 }
 
-static void
-add_setup_attribute (GstSDPMedia * answer, const GstSDPAttribute * attr)
+static gboolean
+add_setup_attribute (GstSDPMedia * answer, const GstSDPAttribute * attr,
+    GError ** error)
 {
   const gchar *setup;
 
   if (g_strcmp0 (attr->key, "setup") != 0) {
-    GST_WARNING ("%s is not a setup attribute", attr->key);
-    return;
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "%s is not a setup attribute", attr->key);
+    return FALSE;
   }
 
   if (g_strcmp0 (attr->value, "active") == 0) {
@@ -289,11 +339,18 @@ add_setup_attribute (GstSDPMedia * answer, const GstSDPAttribute * attr)
     setup = "holdconn";
   }
 
-  gst_sdp_media_add_attribute (answer, attr->key, setup);
+  if (gst_sdp_media_add_attribute (answer, attr->key, setup) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not add attribute %s:%s", attr->key, setup);
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
-static void
-add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
+static gboolean
+add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
+    GError ** error)
 {
   guint i, len;
 
@@ -311,7 +368,9 @@ add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
 
     if (g_strcmp0 (attr->key, "setup") == 0) {
       /* follow rules defined in RFC4145 */
-      add_setup_attribute (answer, attr);
+      if (!add_setup_attribute (answer, attr, error)) {
+        return FALSE;
+      }
       continue;
     }
 
@@ -319,47 +378,72 @@ add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer)
       /* TODO: Implment a mechanism that allows us to know if a */
       /* new connection is gonna be required or an existing one */
       /* can be used. By default we always create a new one. */
-      gst_sdp_media_add_attribute (answer, "connection", "new");
+      if (gst_sdp_media_add_attribute (answer, "connection",
+              "new") != GST_SDP_OK) {
+        g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+            SDP_AGENT_UNEXPECTED_ERROR, "Can not add attribute connection:new");
+        return FALSE;
+      }
       continue;
     }
 
-    gst_sdp_media_add_attribute (answer, attr->key, attr->value);
+    if (gst_sdp_media_add_attribute (answer, attr->key,
+            attr->value) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not add attribute %s:%s", attr->key, attr->value);
+      return FALSE;
+    }
   }
+
+  return TRUE;
 }
 
 GstSDPMedia *
 kms_sdp_sctp_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer)
+    const GstSDPMedia * offer, GError ** error)
 {
   GstSDPMedia *m = NULL;
   gchar *proto = NULL;
   guint i, len;
 
   if (g_strcmp0 (gst_sdp_media_get_media (offer), "application") != 0) {
-    GST_WARNING_OBJECT (handler, "Unsupported %s media",
-        gst_sdp_media_get_media (offer));
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Unsupported %s media", gst_sdp_media_get_media (offer));
     goto error;
   }
 
   g_object_get (handler, "proto", &proto, NULL);
 
   if (g_strcmp0 (proto, gst_sdp_media_get_proto (offer)) != 0) {
-    GST_WARNING_OBJECT (handler, "Unexpected media protocol %s",
-        gst_sdp_media_get_proto (offer));
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PROTOCOL,
+        "Unexpected media protocol %s", gst_sdp_media_get_proto (offer));
     goto error;
   }
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
-    GST_WARNING_OBJECT (handler, "Unable to create %s media answer",
-        gst_sdp_media_get_media (offer));
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Unable to create %s media answer", gst_sdp_media_get_media (offer));
     goto error;
   }
 
-  gst_sdp_media_set_media (m, gst_sdp_media_get_media (offer));
-  gst_sdp_media_set_proto (m, proto);
-  gst_sdp_media_set_port_info (m, 1, 1);
+  if (gst_sdp_media_set_media (m,
+          gst_sdp_media_get_media (offer)) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Can not set %s media ttribute", gst_sdp_media_get_media (offer));
+    goto error;
+  }
 
-  g_free (proto);
+  if (gst_sdp_media_set_proto (m, proto) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Can not set proto %s attribute", proto);
+    goto error;
+  }
+
+  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
+    goto error;
+  }
 
   len = gst_sdp_media_formats_len (offer);
 
@@ -369,14 +453,30 @@ kms_sdp_sctp_media_handler_create_answer (KmsSdpMediaHandler * handler,
 
     fmt = gst_sdp_media_get_format (offer, i);
 
-    if (format_supported (offer, fmt)) {
-      gst_sdp_media_add_format (m, fmt);
+    if (!format_supported (offer, fmt)) {
+      continue;
+    }
+
+    if (gst_sdp_media_add_format (m, fmt) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can add format %s", fmt);
+      goto error;
     }
   }
 
-  add_supported_sctmap_attrs (offer, m);
-  add_supported_subproto_attrs (offer, m);
-  add_missing_attrs (offer, m);
+  if (!add_supported_sctmap_attrs (offer, m, error)) {
+    goto error;
+  }
+
+  if (!add_supported_subproto_attrs (offer, m, error)) {
+    goto error;
+  }
+
+  if (!add_missing_attrs (offer, m, error) != GST_SDP_OK) {
+    goto error;
+  }
+
+  g_free (proto);
 
   return m;
 
