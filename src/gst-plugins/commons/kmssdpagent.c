@@ -300,8 +300,8 @@ struct sdp_answer_data
   GstSDPMessage *answer;
 };
 
-static void
-reject_media (const GstSDPMedia * offered, GstSDPMessage * answer)
+static GstSDPMedia *
+reject_media_answer (const GstSDPMedia * offered)
 {
   GstSDPMedia *media;
   guint i, len;
@@ -324,8 +324,7 @@ reject_media (const GstSDPMedia * offered, GstSDPMessage * answer)
     gst_sdp_media_insert_format (media, i, format);
   }
 
-  gst_sdp_message_add_media (answer, media);
-  gst_sdp_media_free (media);
+  return media;
 }
 
 static gboolean
@@ -334,19 +333,37 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
   KmsSdpAgent *agent = data->agent;
   GstSDPMessage *answer = data->answer;
   GHashTable *handlers;
+  GstSDPMedia *answer_media = NULL;
+  KmsSdpMediaHandler *handler;
 
   SDP_AGENT_LOCK (agent);
 
   handlers =
       g_hash_table_lookup (agent->priv->medias,
       gst_sdp_media_get_media (media));
+
   if (handlers == NULL) {
     GST_WARNING_OBJECT (agent, "%s media not supported",
         gst_sdp_media_get_media (media));
-    reject_media (media, answer);
+  } else {
+    handler = g_hash_table_lookup (handlers, gst_sdp_media_get_proto (media));
+    if (handler == NULL) {
+      GST_WARNING_OBJECT (agent,
+          "No handler for %s media found for protocol %s",
+          gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
+    } else {
+      answer_media = kms_sdp_media_handler_create_answer (handler, media);
+    }
   }
 
   SDP_AGENT_UNLOCK (agent);
+
+  if (answer_media == NULL) {
+    answer_media = reject_media_answer (media);
+  }
+
+  gst_sdp_message_add_media (answer, answer_media);
+  gst_sdp_media_free (answer_media);
 
   return TRUE;
 }

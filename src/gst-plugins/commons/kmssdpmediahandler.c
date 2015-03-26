@@ -103,6 +103,15 @@ kms_sdp_media_handler_create_offer_impl (KmsSdpMediaHandler * handler,
   return NULL;
 }
 
+static GstSDPMedia *
+kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer)
+{
+  GST_WARNING_OBJECT (handler, "Method not implemented");
+
+  return NULL;
+}
+
 static void
 kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 {
@@ -119,6 +128,7 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
 
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
+  klass->create_answer = kms_sdp_media_handler_create_answer_impl;
 
   g_type_class_add_private (klass, sizeof (KmsSdpMediaHandlerPrivate));
 }
@@ -137,4 +147,14 @@ kms_sdp_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_offer (handler,
       media);
+}
+
+GstSDPMedia *
+kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer)
+{
+  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
+
+  return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
+      offer);
 }

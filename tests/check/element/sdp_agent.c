@@ -155,6 +155,87 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
 
 GST_END_TEST;
 
+static const gchar *pattern_sdp_sctp_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n"
+    "m=audio 9 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendonly\r\n"
+    "m=video 9 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendonly\r\n"
+    "m=application 9 DTLS/SCTP 5000 5001 5002\r\n"
+    "a=setup:actpass\r\n"
+    "a=mid:data\r\n"
+    "a=sctpmap:5000 webrtc-datachannel 1024\r\n"
+    "a=sctpmap:5001 bfcp 2\r\n"
+    "a=sctpmap:5002 t38 1\r\n"
+    "a=webrtc-datachannel:5000 stream=1;label=\"channel 1\";subprotocol=\"chat\"\r\n"
+    "a=webrtc-datachannel:5000 stream=2;label=\"channel 2\";subprotocol=\"file transfer\";max_retr=3\r\n"
+    "a=bfcp:5000 stream=2;label=\"channel 2\";subprotocol=\"file transfer\";max_retr=3\r\n";
+
+GST_START_TEST (sdp_agent_test_sctp_negotiation)
+{
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gboolean ret;
+  gchar *sdp_str;
+  guint i, len;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (answerer, "application", handler);
+  fail_unless (ret);
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          pattern_sdp_sctp_str, -1, offer) == GST_SDP_OK);
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  len = gst_sdp_message_medias_len (answer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+
+    media = gst_sdp_message_get_media (answer, i);
+    fail_if (media == NULL);
+
+    /* Media should have been rejected */
+    if (g_strcmp0 (gst_sdp_media_get_media (media), "application") != 0) {
+      fail_if (media->port != 0);
+      continue;
+    } else {
+      fail_if (media->port == 0);
+    }
+
+    /* This negotiation should only have 5 attributes */
+    fail_if (gst_sdp_media_attributes_len (media) != 5);
+  }
+  g_object_unref (answerer);
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -166,6 +247,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_create_offer);
   tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
   tcase_add_test (tc_chain, sdp_agent_test_rejected_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_sctp_negotiation);
 
   return s;
 }

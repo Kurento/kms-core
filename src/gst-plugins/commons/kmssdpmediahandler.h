@@ -71,11 +71,13 @@ struct _KmsSdpMediaHandlerClass
 
   /* methods */
   GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media);
+  GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer);
 };
 
 GType kms_sdp_media_handler_get_type (void);
 
 GstSDPMedia * kms_sdp_media_handler_create_offer (KmsSdpMediaHandler *handler, const gchar *media);
+GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, const GstSDPMedia * offer);
 
 G_END_DECLS
 
