@@ -17,7 +17,7 @@ get_git_version (PROJECT_VERSION ${VALUE_VERSION})
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
 set (GST_REQUIRED ~1.4.4)
-set (GLIB_REQUIRED ^2.38)
+set (GLIB_REQUIRED ^2.42)
 set (JSON_RPC_REQUIRED ^0.2.0)
 set (SIGCPP_REQUIRED ^2.0.10)
 set (GLIBMM_REQUIRED ^2.37)
