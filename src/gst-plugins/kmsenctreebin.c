@@ -141,7 +141,8 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     gint target_bitrate)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
-  GstElement *rate, *convert, *mediator, *enc, *output_tee;
+  GstElement *rate, *convert, *mediator, *enc, *output_tee, *capsfilter;
+  gboolean is_h264;
 
   enc = create_encoder_for_caps (caps, target_bitrate);
   if (enc == NULL) {
@@ -149,6 +150,11 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
         caps);
     return FALSE;
   }
+  // FIXME: This is a hack to avoid an error on x264enc that does not work
+  // properly with some raw formats, this should be fixed in gstreamer
+  // but until this is done this hack makes it work
+  is_h264 = g_str_has_prefix (GST_OBJECT_NAME (enc), "x264");
+
   GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, enc);
 
   self->priv->enc_sink = gst_element_get_static_pad (enc, "sink");
@@ -167,10 +173,26 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   gst_element_sync_state_with_parent (mediator);
   gst_element_sync_state_with_parent (convert);
   gst_element_sync_state_with_parent (rate);
+  if (is_h264) {
+    GstCaps *caps = gst_caps_from_string ("video/x-raw,format=I420");
+
+    capsfilter = gst_element_factory_make ("capsfilter", NULL);
+
+    g_object_set (capsfilter, "caps", caps, NULL);
+    gst_caps_unref (caps);
+
+    gst_bin_add (GST_BIN (self), capsfilter);
+    gst_element_sync_state_with_parent (capsfilter);
+  }
 
   kms_tree_bin_set_input_element (tree_bin, rate);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  gst_element_link_many (rate, convert, mediator, enc, output_tee, NULL);
+  if (is_h264) {
+    gst_element_link_many (rate, convert, mediator, capsfilter, enc, output_tee,
+        NULL);
+  } else {
+    gst_element_link_many (rate, convert, mediator, enc, output_tee, NULL);
+  }
 
   return TRUE;
 }
