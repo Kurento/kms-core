@@ -1,3 +1,14 @@
+kms-core (5.1.2) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+  * enctreebin: Hack for workaround a bug in x264enc
+  * Prepare release 5.1.2
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 27 Mar 2015 18:27:00 +0100
+
 kms-core (5.1.1) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
