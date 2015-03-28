@@ -612,6 +612,147 @@ end:
   return result;
 }
 
+static gboolean
+sdp_utils_add_setup_attribute (GstSDPMedia * answer,
+    const GstSDPAttribute * attr)
+{
+  const gchar *setup;
+
+  /* follow rules defined in RFC4145 */
+
+  if (g_strcmp0 (attr->key, "setup") != 0) {
+    GST_WARNING ("%s is not a setup attribute", attr->key);
+    return FALSE;
+  }
+
+  if (g_strcmp0 (attr->value, "active") == 0) {
+    setup = "passive";
+  } else if (g_strcmp0 (attr->value, "passive") == 0) {
+    setup = "active";
+  } else if (g_strcmp0 (attr->value, "actpass") == 0) {
+    setup = "active";
+  } else {
+    setup = "holdconn";
+  }
+
+  if (gst_sdp_media_add_attribute (answer, attr->key, setup) != GST_SDP_OK) {
+    GST_WARNING ("Can not add attribute %s:%s", attr->key, setup);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
+sdp_utils_set_direction_answer (GstSDPMedia * answer,
+    const GstSDPAttribute * attr)
+{
+  const gchar *direction;
+  gboolean ret;
+
+  /* rfc3264 6.1 */
+  if (g_ascii_strcasecmp (attr->key, SENDONLY_STR) == 0) {
+    direction = RECVONLY_STR;
+  } else if (g_ascii_strcasecmp (attr->key, RECVONLY_STR) == 0) {
+    direction = SENDONLY_STR;
+  } else if (g_ascii_strcasecmp (attr->key, SENDRECV_STR) == 0) {
+    direction = SENDRECV_STR;
+  } else if (g_ascii_strcasecmp (attr->key, INACTIVE_STR) == 0) {
+    direction = INACTIVE_STR;
+  } else {
+    GST_WARNING ("Invalid attribute direction: %s", attr->key);
+    return FALSE;
+  }
+
+  ret = gst_sdp_media_add_attribute (answer, direction, "") == GST_SDP_OK;
+  if (!ret) {
+    GST_WARNING ("Can not set attribute a=%s", direction);
+  }
+
+  return ret;
+}
+
+gboolean
+sdp_utils_intersect_media_attributes (const GstSDPMedia * offer,
+    GstSDPMedia * answer, GstSDPIntersectMediaFunc func, gpointer user_data)
+{
+  gboolean dir_set = FALSE;
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (offer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_media_get_attribute (offer, i);
+
+    if (g_strcmp0 (attr->key, "setup") == 0) {
+      /* follow rules defined in RFC4145 */
+      if (!sdp_utils_add_setup_attribute (answer, attr)) {
+        return FALSE;
+      }
+      continue;
+    }
+
+    if (g_strcmp0 (attr->key, "connection") == 0) {
+      /* TODO: Implment a mechanism that allows us to know if a */
+      /* new connection is gonna be required or an existing one */
+      /* can be used. By default we always create a new one. */
+      if (gst_sdp_media_add_attribute (answer, "connection",
+              "new") != GST_SDP_OK) {
+        GST_WARNING ("Can not add attribute connection:new");
+        return FALSE;
+      }
+      continue;
+    }
+
+    if (!dir_set && sdp_utils_attribute_is_direction (attr, NULL)) {
+      if (!sdp_utils_set_direction_answer (answer, attr)) {
+        return FALSE;
+      }
+
+      dir_set = TRUE;
+      continue;
+    }
+
+    /* No common media attribute. Filter using callback */
+    if (func != NULL && !func (attr, answer, user_data)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+const gchar *
+sdp_utils_get_attr_map_value (const GstSDPMedia * media, const gchar * name,
+    const gchar * fmt)
+{
+  const gchar *val = NULL;
+  guint i;
+
+  for (i = 0;; i++) {
+    gchar **attrs;
+
+    val = gst_sdp_media_get_attribute_val_n (media, name, i);
+
+    if (val == NULL) {
+      return NULL;
+    }
+
+    attrs = g_strsplit (val, " ", 0);
+
+    if (g_strcmp0 (fmt, attrs[0] /* format */ ) == 0) {
+      g_strfreev (attrs);
+      return val;
+    }
+
+    g_strfreev (attrs);
+  }
+
+  return NULL;
+}
+
 void
 sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw)
 {

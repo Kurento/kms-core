@@ -35,6 +35,7 @@ typedef enum GstSDPDirection
 } GstSDPDirection;
 
 typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
+typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, GstSDPMedia * answer, gpointer user_data);
 
 GstSDPDirection sdp_utils_media_get_direction (const GstSDPMedia * media);
 const gchar *sdp_utils_get_direction_str (GstSDPDirection direction);
@@ -51,6 +52,10 @@ gchar *gst_sdp_media_format_get_encoding_name (const GstSDPMedia * media,
     const gchar * format);
 
 void sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw);
+
+gboolean sdp_utils_intersect_media_attributes (const GstSDPMedia * offer, GstSDPMedia * answer, GstSDPIntersectMediaFunc func, gpointer user_data);
+
+const gchar *sdp_utils_get_attr_map_value (const GstSDPMedia * media, const gchar *name, const gchar * fmt);
 
 gboolean sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
 

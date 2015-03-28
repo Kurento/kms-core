@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include "kmssdpagent.h"
+#include "sdp_utils.h"
 #include "kmssdprtpavpmediahandler.h"
 
 #define OBJECT_NAME "rtpavpmediahandler"
@@ -39,14 +40,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpMediaHandler,
 
 #define DEFAULT_RTP_AUDIO_BASE_PAYLOAD 0
 #define DEFAULT_RTP_VIDEO_BASE_PAYLOAD 24
-
-#define SENDONLY_STR  "sendonly"
-#define RECVONLY_STR  "recvonly"
-#define SENDRECV_STR  "sendrecv"
-#define INACTIVE_STR  "inactive"
-
-static gchar *directions[] =
-    { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR };
 
 /* Table extracted from rfc3551 [6] */
 static gchar *rtpmaps[] = {
@@ -330,32 +323,6 @@ error:
   return NULL;
 }
 
-static const gchar *
-get_rtpmap_value (const GstSDPMedia * media, const gchar * fmt)
-{
-  const gchar *val = NULL;
-  guint i;
-
-  for (i = 0;; i++) {
-    gchar **attrs;
-
-    val = gst_sdp_media_get_attribute_val_n (media, "rtpmap", i);
-
-    if (val == NULL) {
-      return NULL;
-    }
-
-    attrs = g_strsplit (val, " ", 0);
-
-    if (g_strcmp0 (fmt, attrs[0] /* format */ ) == 0) {
-      g_strfreev (attrs);
-      return val;
-    }
-
-    g_strfreev (attrs);
-  }
-}
-
 static gboolean
 encoding_supported (const GstSDPMedia * media, const gchar * enc)
 {
@@ -388,7 +355,7 @@ format_supported (const GstSDPMedia * media, const gchar * fmt)
   gchar **attrs;
   gboolean ret;
 
-  val = get_rtpmap_value (media, fmt);
+  val = sdp_utils_get_attr_map_value (media, "rtpmap", fmt);
 
   if (val == NULL) {
     gint pt;
@@ -423,7 +390,7 @@ add_supported_rtpmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
     const gchar *fmt, *val;
 
     fmt = gst_sdp_media_get_format (answer, i);
-    val = get_rtpmap_value (offer, fmt);
+    val = sdp_utils_get_attr_map_value (offer, "rtpmap", fmt);
 
     if (val == NULL) {
       gint pt;
@@ -457,86 +424,18 @@ add_supported_rtpmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
 }
 
 static gboolean
-is_attribute_direction (const GstSDPAttribute * attr)
+instersect_rtp_avp_media_attr (const GstSDPAttribute * attr,
+    GstSDPMedia * answer, gpointer user_data)
 {
-  guint i, len;
-
-  len = G_N_ELEMENTS (directions);
-
-  for (i = 0; i < len; i++) {
-    if (g_ascii_strcasecmp (attr->key, directions[i]) == 0) {
-      return TRUE;
-    }
+  if (g_strcmp0 (attr->key, "rtpmap") == 0) {
+    /* ignore */
+    return TRUE;
   }
 
-  return FALSE;
-}
-
-static gboolean
-set_direction_answer (GstSDPMedia * answer, const GstSDPAttribute * attr,
-    GError ** error)
-{
-  const gchar *direction;
-  gboolean ret;
-
-  /* rfc3264 6.1 */
-  if (g_ascii_strcasecmp (attr->key, SENDONLY_STR) == 0) {
-    direction = RECVONLY_STR;
-  } else if (g_ascii_strcasecmp (attr->key, RECVONLY_STR) == 0) {
-    direction = SENDONLY_STR;
-  } else if (g_ascii_strcasecmp (attr->key, SENDRECV_STR) == 0) {
-    direction = SENDRECV_STR;
-  } else if (g_ascii_strcasecmp (attr->key, INACTIVE_STR) == 0) {
-    direction = INACTIVE_STR;
-  } else {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Invalid attribute direction: %s", attr->key);
+  if (gst_sdp_media_add_attribute (answer, attr->key,
+          attr->value) != GST_SDP_OK) {
+    GST_WARNING ("Can not add attribute %s", attr->key);
     return FALSE;
-  }
-
-  ret = gst_sdp_media_add_attribute (answer, direction, "") == GST_SDP_OK;
-  if (!ret) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not set attribute a=%s", direction);
-  }
-
-  return ret;
-}
-
-static gboolean
-add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
-    GError ** error)
-{
-  gboolean dir_set = FALSE;
-  guint i, len;
-
-  len = gst_sdp_media_attributes_len (offer);
-
-  for (i = 0; i < len; i++) {
-    const GstSDPAttribute *attr;
-
-    attr = gst_sdp_media_get_attribute (offer, i);
-
-    if (g_strcmp0 (attr->key, "rtpmap") == 0) {
-      /* ignore */
-      continue;
-    }
-
-    if (!dir_set && is_attribute_direction (attr)) {
-      if (!set_direction_answer (answer, attr, error)) {
-        return FALSE;
-      }
-
-      dir_set = TRUE;
-      continue;
-    }
-
-    if (gst_sdp_media_add_attribute (answer, attr->key,
-            attr->value) != GST_SDP_OK) {
-      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can not add attribute %s:%s", attr->key, attr->value);
-      return FALSE;
-    }
   }
 
   return TRUE;
@@ -613,7 +512,10 @@ kms_sdp_rtp_avp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (!add_missing_attrs (offer, m, error) != GST_SDP_OK) {
+  if (!sdp_utils_intersect_media_attributes (offer, m,
+          instersect_rtp_avp_media_attr, NULL)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
     goto error;
   }
 

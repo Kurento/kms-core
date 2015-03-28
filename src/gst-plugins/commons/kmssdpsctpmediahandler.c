@@ -17,6 +17,7 @@
 #endif
 
 #include "kmssdpagent.h"
+#include "sdp_utils.h"
 #include "kmssdpsctpmediahandler.h"
 
 #define OBJECT_NAME "sdpsctpmediahandler"
@@ -161,32 +162,6 @@ subproto_supported (const gchar * subproto)
   return FALSE;
 }
 
-static const gchar *
-get_sctpmap_value (const GstSDPMedia * media, const gchar * fmt)
-{
-  const gchar *val = NULL;
-  guint i;
-
-  for (i = 0;; i++) {
-    gchar **attrs;
-
-    val = gst_sdp_media_get_attribute_val_n (media, "sctpmap", i);
-
-    if (val == NULL) {
-      return NULL;
-    }
-
-    attrs = g_strsplit (val, " ", 0);
-
-    if (g_strcmp0 (fmt, attrs[0] /* format */ ) == 0) {
-      g_strfreev (attrs);
-      return val;
-    }
-
-    g_strfreev (attrs);
-  }
-}
-
 static gboolean
 format_supported (const GstSDPMedia * media, const gchar * fmt)
 {
@@ -194,7 +169,7 @@ format_supported (const GstSDPMedia * media, const gchar * fmt)
   gchar **attrs;
   gboolean ret;
 
-  val = get_sctpmap_value (media, fmt);
+  val = sdp_utils_get_attr_map_value (media, "sctpmap", fmt);
 
   if (val == NULL) {
     return FALSE;
@@ -219,7 +194,7 @@ add_supported_sctmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
     const gchar *fmt, *val;
 
     fmt = gst_sdp_media_get_format (answer, i);
-    val = get_sctpmap_value (offer, fmt);
+    val = sdp_utils_get_attr_map_value (offer, "sctpmap", fmt);
 
     if (val == NULL) {
       GST_WARNING ("Not sctpmap:%s attribute found in offer", fmt);
@@ -250,7 +225,7 @@ add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
     guint j;
 
     fmt = gst_sdp_media_get_format (answer, i);
-    val = get_sctpmap_value (offer, fmt);
+    val = sdp_utils_get_attr_map_value (offer, "sctpmap", fmt);
 
     if (val == NULL) {
       g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
@@ -296,7 +271,7 @@ is_subproto (const GstSDPMedia * media, const gchar * label)
     gchar **attrs;
 
     fmt = gst_sdp_media_get_format (media, i);
-    val = get_sctpmap_value (media, fmt);
+    val = sdp_utils_get_attr_map_value (media, "sctpmap", fmt);
 
     if (val == NULL) {
       GST_WARNING ("Not sctpmap:%s attribute found in offer", fmt);
@@ -318,81 +293,20 @@ is_subproto (const GstSDPMedia * media, const gchar * label)
 }
 
 static gboolean
-add_setup_attribute (GstSDPMedia * answer, const GstSDPAttribute * attr,
-    GError ** error)
+instersect_sctp_media_attr (const GstSDPAttribute * attr, GstSDPMedia * answer,
+    gpointer user_data)
 {
-  const gchar *setup;
+  GstSDPMedia *offer = user_data;
 
-  if (g_strcmp0 (attr->key, "setup") != 0) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "%s is not a setup attribute", attr->key);
+  if (g_strcmp0 (attr->key, "sctpmap") == 0 || is_subproto (offer, attr->key)) {
+    /* ignore */
+    return TRUE;
+  }
+
+  if (gst_sdp_media_add_attribute (answer, attr->key,
+          attr->value) != GST_SDP_OK) {
+    GST_WARNING ("Can not add attribute %s:%s", attr->key, attr->value);
     return FALSE;
-  }
-
-  if (g_strcmp0 (attr->value, "active") == 0) {
-    setup = "passive";
-  } else if (g_strcmp0 (attr->value, "passive") == 0) {
-    setup = "active";
-  } else if (g_strcmp0 (attr->value, "actpass") == 0) {
-    setup = "active";
-  } else {
-    setup = "holdconn";
-  }
-
-  if (gst_sdp_media_add_attribute (answer, attr->key, setup) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not add attribute %s:%s", attr->key, setup);
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-static gboolean
-add_missing_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
-    GError ** error)
-{
-  guint i, len;
-
-  len = gst_sdp_media_attributes_len (offer);
-
-  for (i = 0; i < len; i++) {
-    const GstSDPAttribute *attr;
-
-    attr = gst_sdp_media_get_attribute (offer, i);
-
-    if (g_strcmp0 (attr->key, "sctpmap") == 0 || is_subproto (offer, attr->key)) {
-      /* ignore */
-      continue;
-    }
-
-    if (g_strcmp0 (attr->key, "setup") == 0) {
-      /* follow rules defined in RFC4145 */
-      if (!add_setup_attribute (answer, attr, error)) {
-        return FALSE;
-      }
-      continue;
-    }
-
-    if (g_strcmp0 (attr->key, "connection") == 0) {
-      /* TODO: Implment a mechanism that allows us to know if a */
-      /* new connection is gonna be required or an existing one */
-      /* can be used. By default we always create a new one. */
-      if (gst_sdp_media_add_attribute (answer, "connection",
-              "new") != GST_SDP_OK) {
-        g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-            SDP_AGENT_UNEXPECTED_ERROR, "Can not add attribute connection:new");
-        return FALSE;
-      }
-      continue;
-    }
-
-    if (gst_sdp_media_add_attribute (answer, attr->key,
-            attr->value) != GST_SDP_OK) {
-      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can not add attribute %s:%s", attr->key, attr->value);
-      return FALSE;
-    }
   }
 
   return TRUE;
@@ -472,7 +386,10 @@ kms_sdp_sctp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (!add_missing_attrs (offer, m, error) != GST_SDP_OK) {
+  if (!sdp_utils_intersect_media_attributes (offer, m,
+          instersect_sctp_media_attr, (gpointer) offer)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
     goto error;
   }
 
