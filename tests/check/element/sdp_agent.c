@@ -21,9 +21,11 @@
 #include <gst/gst.h>
 #include <glib.h>
 
+#include "sdp_utils.h"
 #include "kmssdpagent.h"
 #include "kmssdpmediahandler.h"
 #include "kmssdpsctpmediahandler.h"
+#include "kmssdprtpavpmediahandler.h"
 
 static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
@@ -236,7 +238,105 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
 
 GST_END_TEST;
 
-static Suite *
+static gboolean
+set_media_direction (GstSDPMedia * media, const gchar * direction)
+{
+  return gst_sdp_media_add_attribute (media, direction, "") == GST_SDP_OK;
+}
+
+static gboolean
+expected_media_direction (const GstSDPMedia * media, const gchar * expected)
+{
+  guint i, attrs_len;
+
+  attrs_len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < attrs_len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_media_get_attribute (media, i);
+
+    if (g_ascii_strcasecmp (attr->key, expected) == 0) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static void
+negotiate_rtp_avp (const gchar * direction, const gchar * expected)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gboolean ret;
+  gchar *sdp_str;
+  const GstSDPMedia *media;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_unless (ret);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  ret = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_unless (ret);
+
+  /* re-use handler for video in answerer */
+  g_object_ref (handler);
+  ret = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_unless (ret);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+
+  fail_unless (sdp_utils_for_each_media (offer,
+          (GstSDPMediaFunc) set_media_direction, (gpointer) direction));
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  /* Check only audio media */
+  media = gst_sdp_message_get_media (answer, 1);
+  fail_if (media == NULL);
+
+  fail_if (!expected_media_direction (media, expected));
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_rtp_avp_negotiation)
+{
+  negotiate_rtp_avp ("sendonly", "recvonly");
+  negotiate_rtp_avp ("recvonly", "sendonly");
+  negotiate_rtp_avp ("sendrecv", "sendrecv");
+}
+
+GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
   Suite *s = suite_create ("kmssdpagent");
@@ -248,6 +348,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
   tcase_add_test (tc_chain, sdp_agent_test_rejected_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_sctp_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_rtp_avp_negotiation);
 
   return s;
 }

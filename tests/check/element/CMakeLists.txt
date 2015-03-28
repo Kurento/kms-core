@@ -33,7 +33,7 @@ endforeach(test)
 
 #SDP Tests
 add_test_program (test_sdp_agent sdp_agent.c)
-add_dependencies(test_sdp_agent kmsgstcommons)
+add_dependencies(test_sdp_agent kmsgstcommons sdputils)
 target_include_directories(test_sdp_agent PRIVATE
   ${gstreamer-1.0_INCLUDE_DIRS}
   ${gstreamer-check-1.0_INCLUDE_DIRS}
@@ -44,6 +44,7 @@ target_link_libraries(test_sdp_agent
   ${gstreamer-1.0_LIBRARIES}
   ${gstreamer-check-1.0_LIBRARIES}
   kmsgstcommons
+  sdputils
 )
 
 add_custom_target(clear_directory
