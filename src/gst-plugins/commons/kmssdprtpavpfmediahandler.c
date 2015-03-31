@@ -281,79 +281,51 @@ supported_rtcp_fb_val (const gchar * val)
 
 static gboolean
 kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (KmsSdpMediaHandler *
-    handler, GstSDPMedia * answer, GError ** error)
+    handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
   KmsSdpRtpAvpfMediaHandler *self = KMS_SDP_RTP_AVPF_MEDIA_HANDLER (handler);
-  guint i, processed, len;
+  guint i;
 
-  i = processed = 0;
-  len = gst_sdp_media_attributes_len (answer);
-
-  while (processed < len) {
-    const GstSDPAttribute *attr;
+  for (i = 0;; i++) {
+    const gchar *val;
     gchar **opts;
 
-    attr = gst_sdp_media_get_attribute (answer, i);
+    val = gst_sdp_media_get_attribute_val_n (offer, SDP_MEDIA_RTCP_FB, i);
 
-    if (attr->key == NULL) {
+    if (val == NULL) {
       return TRUE;
     }
 
-    if (g_strcmp0 (attr->key, SDP_MEDIA_RTCP_FB) != 0) {
-      i++;
-      processed++;
-      continue;
-    }
+    opts = g_strsplit (val, " ", 0);
 
-    opts = g_strsplit (attr->value, " ", 0);
     if (!format_supported (answer, opts[0] /* format */ )) {
-      /* remove rtcp-fb attribute */
-      if (gst_sdp_media_remove_attribute (answer, i) != GST_SDP_OK) {
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-            "Can not remove unsupported attribute a=rtcp-fb:%s", attr->value);
-        g_strfreev (opts);
-        return FALSE;
-      }
-
+      /* Ignore rtcp-fb attribute */
       g_strfreev (opts);
-      processed++;
       continue;
     }
 
     if (g_strcmp0 (opts[1] /* rtcp-fb-val */ , SDP_MEDIA_RTCP_FB_NACK) == 0
         && !self->priv->nack) {
-      /* remove rtcp-fb nack attribute */
-      if (gst_sdp_media_remove_attribute (answer, i) != GST_SDP_OK) {
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-            "Can not remove unsupported attribute a=rtcp-fb:%s", attr->value);
-        g_strfreev (opts);
-        return FALSE;
-      }
-
+      /* ignore rtcp-fb nack attribute */
       g_strfreev (opts);
-      processed++;
       continue;
     }
 
     if (!supported_rtcp_fb_val (opts[1] /* rtcp-fb-val */ )) {
-      GST_DEBUG ("%d Removing unsupported attribute a=rtcp-fb:%s", i,
-          attr->value);
-
-      if (gst_sdp_media_remove_attribute (answer, i) != GST_SDP_OK) {
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-            "Can not remove unsupported attribute a=rtcp-fb:%s", attr->value);
-        g_strfreev (opts);
-        return FALSE;
-      }
-
+      /* ignore unsupported rtcp-fb attribute */
       g_strfreev (opts);
-      processed++;
       continue;
     }
 
+    if (gst_sdp_media_add_attribute (answer, SDP_MEDIA_RTCP_FB,
+            val) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can add media attribute a=%s:%s", SDP_MEDIA_RTCP_FB, val);
+      g_strfreev (opts);
+      return FALSE;
+    }
+
     g_strfreev (opts);
-    i++;
-    processed++;
   }
 
   return TRUE;
@@ -374,9 +346,13 @@ kms_sdp_rtp_avpf_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  /* By default, RTP/AVP adds all attributes that it is not capable */
-  /* of manage. We should filter those related to RTP/AVPF protocol */
-  if (!kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (handler, m, error)) {
+  if (!kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (handler, offer, m,
+          error)) {
+    goto error;
+  }
+
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->intersect_sdp_medias (handler,
+          offer, m, error)) {
     goto error;
   }
 
@@ -388,6 +364,69 @@ error:
   }
 
   return NULL;
+}
+
+static gboolean
+kms_sdp_rtp_avpf_media_handler_can_insert_attribute (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
+    GstSDPMedia * answer)
+{
+  if (g_strcmp0 (attr->key, SDP_MEDIA_RTCP_FB) == 0) {
+    /* ignore */
+    return FALSE;
+  }
+
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
+      (handler, offer, attr, answer)) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+struct intersect_data
+{
+  KmsSdpMediaHandler *handler;
+  const GstSDPMedia *offer;
+};
+
+static gboolean
+instersect_rtp_avpf_media_attr (const GstSDPAttribute * attr,
+    GstSDPMedia * answer, gpointer user_data)
+{
+  struct intersect_data *data = (struct intersect_data *) user_data;
+
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, answer)) {
+    return FALSE;
+  }
+
+  if (gst_sdp_media_add_attribute (answer, attr->key,
+          attr->value) != GST_SDP_OK) {
+    GST_WARNING ("Can not add attribute %s", attr->key);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
+kms_sdp_rtp_avpf_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  struct intersect_data data = {
+    .handler = handler,
+    .offer = offer
+  };
+
+  if (!sdp_utils_intersect_media_attributes (offer, answer,
+          instersect_rtp_avpf_media_attr, &data)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 static void
@@ -438,6 +477,11 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
 
   handler_class->create_offer = kms_sdp_rtp_avpf_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_rtp_avpf_media_handler_create_answer;
+
+  handler_class->can_insert_attribute =
+      kms_sdp_rtp_avpf_media_handler_can_insert_attribute;
+  handler_class->intersect_sdp_medias =
+      kms_sdp_rtp_avpf_media_handler_intersect_sdp_medias;
 
   g_object_class_install_property (gobject_class, PROP_NACK,
       g_param_spec_boolean ("nack", "Nack",

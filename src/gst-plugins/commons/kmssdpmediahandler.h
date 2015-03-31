@@ -69,9 +69,13 @@ struct _KmsSdpMediaHandlerClass
 {
   GObjectClass parent_class;
 
-  /* methods */
+  /* public methods */
   GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
   GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GError **error);
+
+  /* private methods */
+  gboolean (*can_insert_attribute) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer);
+  gboolean (*intersect_sdp_medias) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
 };
 
 GType kms_sdp_media_handler_get_type (void);

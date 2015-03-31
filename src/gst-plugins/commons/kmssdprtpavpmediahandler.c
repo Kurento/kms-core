@@ -424,17 +424,17 @@ add_supported_rtpmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
 }
 
 static gboolean
-instersect_rtp_avp_media_attr (const GstSDPAttribute * attr,
-    GstSDPMedia * answer, gpointer user_data)
+kms_sdp_rtp_avp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
+    GstSDPMedia * answer)
 {
   if (g_strcmp0 (attr->key, "rtpmap") == 0) {
     /* ignore */
-    return TRUE;
+    return FALSE;
   }
 
-  if (gst_sdp_media_add_attribute (answer, attr->key,
-          attr->value) != GST_SDP_OK) {
-    GST_WARNING ("Can not add attribute %s", attr->key);
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
+      (handler, offer, attr, answer)) {
     return FALSE;
   }
 
@@ -512,10 +512,8 @@ kms_sdp_rtp_avp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (!sdp_utils_intersect_media_attributes (offer, m,
-          instersect_rtp_avp_media_attr, NULL)) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->intersect_sdp_medias (handler,
+          offer, m, error)) {
     goto error;
   }
 
@@ -535,6 +533,51 @@ error:
   return NULL;
 }
 
+struct intersect_data
+{
+  KmsSdpMediaHandler *handler;
+  const GstSDPMedia *offer;
+};
+
+static gboolean
+instersect_rtp_avp_media_attr (const GstSDPAttribute * attr,
+    GstSDPMedia * answer, gpointer user_data)
+{
+  struct intersect_data *data = (struct intersect_data *) user_data;
+
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, answer)) {
+    return FALSE;
+  }
+
+  if (gst_sdp_media_add_attribute (answer, attr->key,
+          attr->value) != GST_SDP_OK) {
+    GST_WARNING ("Can not add attribute %s", attr->key);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
+kms_sdp_rtp_avp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  struct intersect_data data = {
+    .handler = handler,
+    .offer = offer
+  };
+
+  if (!sdp_utils_intersect_media_attributes (offer, answer,
+          instersect_rtp_avp_media_attr, &data)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 static void
 kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
 {
@@ -547,6 +590,12 @@ kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
   gobject_class->constructor = kms_sdp_rtp_avp_media_handler_constructor;
   handler_class->create_offer = kms_sdp_rtp_avp_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_rtp_avp_media_handler_create_answer;
+
+  handler_class->can_insert_attribute =
+      kms_sdp_rtp_avp_media_handler_can_insert_attribute;
+  handler_class->intersect_sdp_medias =
+      kms_sdp_rtp_avp_media_handler_intersect_sdp_medias;
+
 }
 
 static void

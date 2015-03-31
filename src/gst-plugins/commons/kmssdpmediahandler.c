@@ -115,6 +115,41 @@ kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
   return NULL;
 }
 
+static gboolean
+kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, const GstSDPAttribute * attr,
+    GstSDPMedia * media)
+{
+  guint i, len;
+
+  /* Returns TRUE only if this attribute is not already in media */
+
+  len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_media_get_attribute (media, i);
+
+    if (g_strcmp0 (attr->key, a->key) == 0 &&
+        g_strcmp0 (attr->value, a->value) == 0) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+static gboolean
+kms_sdp_media_handler_intersect_sdp_medias_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+      "Not implemented");
+
+  return FALSE;
+}
+
 static void
 kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 {
@@ -132,6 +167,9 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;
+
+  klass->can_insert_attribute = kms_sdp_media_handler_can_insert_attribute_impl;
+  klass->intersect_sdp_medias = kms_sdp_media_handler_intersect_sdp_medias_impl;
 
   g_type_class_add_private (klass, sizeof (KmsSdpMediaHandlerPrivate));
 }

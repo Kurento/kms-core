@@ -716,8 +716,8 @@ sdp_utils_intersect_media_attributes (const GstSDPMedia * offer,
     }
 
     /* No common media attribute. Filter using callback */
-    if (func != NULL && !func (attr, answer, user_data)) {
-      return FALSE;
+    if (func != NULL) {
+      func (attr, answer, user_data);
     }
   }
 
