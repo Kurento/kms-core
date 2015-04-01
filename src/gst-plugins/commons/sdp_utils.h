@@ -37,6 +37,7 @@ typedef enum GstSDPDirection
 typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
 typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, GstSDPMedia * answer, gpointer user_data);
 
+gboolean sdp_utils_attribute_is_direction (const GstSDPAttribute * attr, GstSDPDirection * direction);
 GstSDPDirection sdp_utils_media_get_direction (const GstSDPMedia * media);
 const gchar *sdp_utils_get_direction_str (GstSDPDirection direction);
 guint sdp_utils_media_get_ssrc (const GstSDPMedia * media);

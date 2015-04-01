@@ -130,7 +130,7 @@ sdp_media_create_from_src (const GstSDPMedia * src, GstSDPMedia ** media)
   return GST_SDP_OK;
 }
 
-static gboolean
+gboolean
 sdp_utils_attribute_is_direction (const GstSDPAttribute * attr,
     GstSDPDirection * direction)
 {
@@ -614,7 +614,7 @@ end:
 
 static gboolean
 sdp_utils_add_setup_attribute (GstSDPMedia * answer,
-    const GstSDPAttribute * attr)
+    const GstSDPAttribute * attr, GstSDPAttribute * new_attr)
 {
   const gchar *setup;
 
@@ -635,20 +635,14 @@ sdp_utils_add_setup_attribute (GstSDPMedia * answer,
     setup = "holdconn";
   }
 
-  if (gst_sdp_media_add_attribute (answer, attr->key, setup) != GST_SDP_OK) {
-    GST_WARNING ("Can not add attribute %s:%s", attr->key, setup);
-    return FALSE;
-  }
-
-  return TRUE;
+  return gst_sdp_attribute_set (new_attr, attr->key, setup) == GST_SDP_OK;
 }
 
 static gboolean
 sdp_utils_set_direction_answer (GstSDPMedia * answer,
-    const GstSDPAttribute * attr)
+    const GstSDPAttribute * attr, GstSDPAttribute * new_attr)
 {
   const gchar *direction;
-  gboolean ret;
 
   /* rfc3264 6.1 */
   if (g_ascii_strcasecmp (attr->key, SENDONLY_STR) == 0) {
@@ -664,12 +658,7 @@ sdp_utils_set_direction_answer (GstSDPMedia * answer,
     return FALSE;
   }
 
-  ret = gst_sdp_media_add_attribute (answer, direction, "") == GST_SDP_OK;
-  if (!ret) {
-    GST_WARNING ("Can not set attribute a=%s", direction);
-  }
-
-  return ret;
+  return gst_sdp_attribute_set (new_attr, direction, "") == GST_SDP_OK;
 }
 
 gboolean
@@ -682,42 +671,46 @@ sdp_utils_intersect_media_attributes (const GstSDPMedia * offer,
   len = gst_sdp_media_attributes_len (offer);
 
   for (i = 0; i < len; i++) {
-    const GstSDPAttribute *attr;
+    const GstSDPAttribute *attr, *a;
+    GstSDPAttribute new_attr;
 
     attr = gst_sdp_media_get_attribute (offer, i);
 
     if (g_strcmp0 (attr->key, "setup") == 0) {
       /* follow rules defined in RFC4145 */
-      if (!sdp_utils_add_setup_attribute (answer, attr)) {
+      if (!sdp_utils_add_setup_attribute (answer, attr, &new_attr)) {
+        GST_WARNING ("Can not set attribute a=%s:%s", attr->key, attr->value);
         return FALSE;
       }
-      continue;
-    }
-
-    if (g_strcmp0 (attr->key, "connection") == 0) {
+      a = &new_attr;
+    } else if (g_strcmp0 (attr->key, "connection") == 0) {
       /* TODO: Implment a mechanism that allows us to know if a */
       /* new connection is gonna be required or an existing one */
       /* can be used. By default we always create a new one. */
-      if (gst_sdp_media_add_attribute (answer, "connection",
-              "new") != GST_SDP_OK) {
-        GST_WARNING ("Can not add attribute connection:new");
+      if (gst_sdp_attribute_set (&new_attr, "connection", "new") != GST_SDP_OK) {
+        GST_WARNING ("Can not add attribute a=connection:new");
         return FALSE;
       }
-      continue;
-    }
-
-    if (!dir_set && sdp_utils_attribute_is_direction (attr, NULL)) {
-      if (!sdp_utils_set_direction_answer (answer, attr)) {
+      a = &new_attr;
+    } else if (!dir_set && sdp_utils_attribute_is_direction (attr, NULL)) {
+      if (!sdp_utils_set_direction_answer (answer, attr, &new_attr)) {
+        GST_WARNING ("Can not set direction attribute");
         return FALSE;
       }
 
       dir_set = TRUE;
-      continue;
+      a = &new_attr;
+    } else {
+      a = attr;
     }
 
     /* No common media attribute. Filter using callback */
     if (func != NULL) {
-      func (attr, answer, user_data);
+      func (a, answer, user_data);
+    }
+
+    if (a == &new_attr) {
+      gst_sdp_attribute_clear (&new_attr);
     }
   }
 
