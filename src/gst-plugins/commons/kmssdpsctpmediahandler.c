@@ -302,6 +302,12 @@ kms_sdp_sctp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
     return FALSE;
   }
 
+  if (sdp_utils_attribute_is_direction (attr, NULL)) {
+    /* SDP direction attributes MUST be discarded if present. */
+    /* [draft-ietf-mmusic-sctp-sdp] 9.2                       */
+    return FALSE;
+  }
+
   if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
       (handler, offer, attr, answer)) {
     return FALSE;
