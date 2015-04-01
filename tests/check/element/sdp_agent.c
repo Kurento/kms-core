@@ -27,6 +27,7 @@
 #include "kmssdpsctpmediahandler.h"
 #include "kmssdprtpavpmediahandler.h"
 #include "kmssdprtpavpfmediahandler.h"
+#include "kmssdprtpsavpfmediahandler.h"
 
 static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
@@ -396,6 +397,65 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   g_object_unref (answerer);
 }
 
+GST_END_TEST
+GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gboolean ret;
+  gchar *sdp_str;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_unless (ret);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  ret = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_unless (ret);
+
+  /* re-use handler for video in answerer */
+  g_object_ref (handler);
+  ret = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_unless (ret);
+
+  g_object_ref (handler);
+  ret = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_unless (ret);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -410,6 +470,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_sctp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avpf_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_rtp_savpf_negotiation);
 
   return s;
 }

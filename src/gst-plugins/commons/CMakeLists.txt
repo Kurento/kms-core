@@ -79,6 +79,7 @@ set(KMS_COMMONS_SOURCES
   kmssdpsctpmediahandler.c
   kmssdprtpavpmediahandler.c
   kmssdprtpavpfmediahandler.c
+  kmssdprtpsavpfmediahandler.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -104,6 +105,7 @@ set(KMS_COMMONS_HEADERS
   kmssdpsctpmediahandler.h
   kmssdprtpavpmediahandler.h
   kmssdprtpavpfmediahandler.h
+  kmssdprtpsavpfmediahandler.h
 )
 
 set(ENUM_HEADERS
