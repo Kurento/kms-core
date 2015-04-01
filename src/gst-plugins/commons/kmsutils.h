@@ -65,5 +65,6 @@ KMS_UTILS_DESTROY_H (guint64)
 KMS_UTILS_DESTROY_H (gsize)
 KMS_UTILS_DESTROY_H (GstClockTime)
 KMS_UTILS_DESTROY_H (gfloat)
+KMS_UTILS_DESTROY_H (guint)
 
 #endif /* __KMS_UTILS_H__ */
