@@ -415,20 +415,20 @@ struct intersect_data
 {
   KmsSdpMediaHandler *handler;
   const GstSDPMedia *offer;
+  GstSDPMedia *answer;
 };
 
 static gboolean
-instersect_sctp_media_attr (const GstSDPAttribute * attr,
-    GstSDPMedia * answer, gpointer user_data)
+instersect_sctp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
   if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, answer)) {
+      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
     return FALSE;
   }
 
-  if (gst_sdp_media_add_attribute (answer, attr->key,
+  if (gst_sdp_media_add_attribute (data->answer, attr->key,
           attr->value) != GST_SDP_OK) {
     GST_WARNING ("Can not add attribute %s", attr->key);
     return FALSE;
@@ -443,10 +443,11 @@ kms_sdp_sctp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
 {
   struct intersect_data data = {
     .handler = handler,
-    .offer = offer
+    .offer = offer,
+    .answer = answer
   };
 
-  if (!sdp_utils_intersect_media_attributes (offer, answer,
+  if (!sdp_utils_intersect_media_attributes (offer,
           instersect_sctp_media_attr, &data)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
         SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");

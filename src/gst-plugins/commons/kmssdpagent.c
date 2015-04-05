@@ -224,55 +224,6 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
   SDP_AGENT_UNLOCK (self);
 }
 
-static gboolean
-kms_sdp_agent_set_default_session_attributes (KmsSdpAgent * agent,
-    GstSDPMessage * offer, GError ** error)
-{
-  const gchar *addrtype;
-  const gchar *addr;
-  const gchar *err_attr;
-
-  SDP_AGENT_LOCK (agent);
-
-  addrtype =
-      (agent->
-      priv->use_ipv6) ? ORIGIN_ATTR_ADDR_TYPE_IP6 : ORIGIN_ATTR_ADDR_TYPE_IP4;
-  addr = (agent->priv->use_ipv6) ? DEFAULT_IP6_ADDR : DEFAULT_IP4_ADDR;
-
-  SDP_AGENT_UNLOCK (agent);
-
-  if (gst_sdp_message_set_version (offer, "0") != GST_SDP_OK) {
-    err_attr = "version";
-    goto error;
-  }
-
-  if (gst_sdp_message_set_origin (offer, "-", "0", "0", ORIGIN_ATTR_NETTYPE,
-          addrtype, addr) != GST_SDP_OK) {
-    err_attr = "origin";
-    goto error;
-  }
-
-  if (gst_sdp_message_set_session_name (offer,
-          "Kurento Media Server") != GST_SDP_OK) {
-    err_attr = "session";
-    goto error;
-  }
-
-  if (gst_sdp_message_set_connection (offer, ORIGIN_ATTR_NETTYPE, addrtype,
-          addr, 0, 0) != GST_SDP_OK) {
-    err_attr = "connection";
-    goto error;
-  }
-
-  return TRUE;
-
-error:
-  g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-      "Can not set attr: %s", err_attr);
-
-  return FALSE;
-}
-
 static gint
 kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
@@ -364,21 +315,24 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   struct sdp_offer_data data;
   SdpMessageContext *ctx;
   GstSDPMessage *offer;
+  SdpIPv ipv;
 
-  ctx = kms_sdp_context_new_message_context ();
+  SDP_AGENT_LOCK (agent);
+  ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
+
+  ctx = kms_sdp_context_new_message_context (ipv, error);
+  if (ctx == NULL) {
+    SDP_AGENT_UNLOCK (agent);
+    return NULL;
+  }
 
   data.ctx = ctx;
   data.agent = agent;
-//  if (!kms_sdp_agent_set_default_session_attributes (agent, ctx->msg, error)) {
-//    kms_sdp_context_destroy_message_context (ctx);
-//    return NULL;
-//  }
 
-  SDP_AGENT_LOCK (agent);
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
   SDP_AGENT_UNLOCK (agent);
 
-  offer = sdp_mesage_context_pack (ctx);
+  offer = sdp_mesage_context_pack (ctx, error);
   kms_sdp_context_destroy_message_context (ctx);
 
   return offer;
@@ -387,7 +341,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 struct sdp_answer_data
 {
   KmsSdpAgent *agent;
-  GstSDPMessage *answer;
+  SdpMessageContext *ctx;
 };
 
 static GstSDPMedia *
@@ -421,7 +375,6 @@ static gboolean
 create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
 {
   KmsSdpAgent *agent = data->agent;
-  GstSDPMessage *answer = data->answer;
   GHashTable *handlers;
   GstSDPMedia *answer_media = NULL;
   KmsSdpMediaHandler *handler;
@@ -457,8 +410,7 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
     answer_media = reject_media_answer (media);
   }
 
-  gst_sdp_message_add_media (answer, answer_media);
-  gst_sdp_media_free (answer_media);
+  kms_sdp_context_add_media (data->ctx, answer_media);
 
   return TRUE;
 }
@@ -509,15 +461,25 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 {
   GstSDPMessage *answer;
   struct sdp_answer_data data;
+  SdpMessageContext *ctx;
+  SdpIPv ipv;
 
-  gst_sdp_message_new (&answer);
-  data.answer = answer;
-  data.agent = agent;
+  SDP_AGENT_LOCK (agent);
+  ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
+  SDP_AGENT_UNLOCK (agent);
 
-  if (!kms_sdp_agent_set_default_session_attributes (agent, answer, error)) {
-    kms_sdp_agent_release_sdp (&answer);
+  ctx = kms_sdp_context_new_message_context (ipv, error);
+  if (ctx == NULL) {
     return NULL;
   }
+
+  if (!kms_sdp_context_set_common_session_attributes (ctx, offer, error)) {
+    kms_sdp_context_destroy_message_context (ctx);
+    return NULL;
+  }
+
+  data.agent = agent;
+  data.ctx = ctx;
 
   /* [rfc3264] The "t=" line in the answer MUST be equal to the ones in the */
   /* offer. The time of the session cannot be negotiated. */
@@ -528,9 +490,12 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
           &data)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         " create SDP response");
-    kms_sdp_agent_release_sdp (&answer);
+    kms_sdp_context_destroy_message_context (ctx);
     return NULL;
   }
+
+  answer = sdp_mesage_context_pack (ctx, error);
+  kms_sdp_context_destroy_message_context (ctx);
 
   return answer;
 }

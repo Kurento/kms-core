@@ -613,8 +613,8 @@ end:
 }
 
 static gboolean
-sdp_utils_add_setup_attribute (GstSDPMedia * answer,
-    const GstSDPAttribute * attr, GstSDPAttribute * new_attr)
+sdp_utils_add_setup_attribute (const GstSDPAttribute * attr,
+    GstSDPAttribute * new_attr)
 {
   const gchar *setup;
 
@@ -639,8 +639,8 @@ sdp_utils_add_setup_attribute (GstSDPMedia * answer,
 }
 
 static gboolean
-sdp_utils_set_direction_answer (GstSDPMedia * answer,
-    const GstSDPAttribute * attr, GstSDPAttribute * new_attr)
+sdp_utils_set_direction_answer (const GstSDPAttribute * attr,
+    GstSDPAttribute * new_attr)
 {
   const gchar *direction;
 
@@ -662,55 +662,86 @@ sdp_utils_set_direction_answer (GstSDPMedia * answer,
 }
 
 gboolean
-sdp_utils_intersect_media_attributes (const GstSDPMedia * offer,
-    GstSDPMedia * answer, GstSDPIntersectMediaFunc func, gpointer user_data)
+intersect_attribute (const GstSDPAttribute * attr,
+    GstSDPIntersectMediaFunc func, gpointer user_data)
 {
-  gboolean dir_set = FALSE;
+  const GstSDPAttribute *a;
+  GstSDPAttribute new_attr;
+
+  if (g_strcmp0 (attr->key, "setup") == 0) {
+    /* follow rules defined in RFC4145 */
+    if (!sdp_utils_add_setup_attribute (attr, &new_attr)) {
+      GST_WARNING ("Can not set attribute a=%s:%s", attr->key, attr->value);
+      return FALSE;
+    }
+    a = &new_attr;
+  } else if (g_strcmp0 (attr->key, "connection") == 0) {
+    /* TODO: Implment a mechanism that allows us to know if a */
+    /* new connection is gonna be required or an existing one */
+    /* can be used. By default we always create a new one. */
+    if (gst_sdp_attribute_set (&new_attr, "connection", "new") != GST_SDP_OK) {
+      GST_WARNING ("Can not add attribute a=connection:new");
+      return FALSE;
+    }
+    a = &new_attr;
+  } else if (sdp_utils_attribute_is_direction (attr, NULL)) {
+    if (!sdp_utils_set_direction_answer (attr, &new_attr)) {
+      GST_WARNING ("Can not set direction attribute");
+      return FALSE;
+    }
+
+    a = &new_attr;
+  } else {
+    a = attr;
+  }
+
+  /* No common media attribute. Filter using callback */
+  if (func != NULL) {
+    func (a, user_data);
+  }
+
+  if (a == &new_attr) {
+    gst_sdp_attribute_clear (&new_attr);
+  }
+
+  return TRUE;
+}
+
+gboolean
+sdp_utils_intersect_session_attributes (const GstSDPMessage * msg,
+    GstSDPIntersectMediaFunc func, gpointer user_data)
+{
+  guint i, len;
+
+  len = gst_sdp_message_attributes_len (msg);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_message_get_attribute (msg, i);
+
+    if (!intersect_attribute (attr, func, user_data))
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
+gboolean
+sdp_utils_intersect_media_attributes (const GstSDPMedia * offer,
+    GstSDPIntersectMediaFunc func, gpointer user_data)
+{
   guint i, len;
 
   len = gst_sdp_media_attributes_len (offer);
 
   for (i = 0; i < len; i++) {
-    const GstSDPAttribute *attr, *a;
-    GstSDPAttribute new_attr;
+    const GstSDPAttribute *attr;
 
     attr = gst_sdp_media_get_attribute (offer, i);
 
-    if (g_strcmp0 (attr->key, "setup") == 0) {
-      /* follow rules defined in RFC4145 */
-      if (!sdp_utils_add_setup_attribute (answer, attr, &new_attr)) {
-        GST_WARNING ("Can not set attribute a=%s:%s", attr->key, attr->value);
-        return FALSE;
-      }
-      a = &new_attr;
-    } else if (g_strcmp0 (attr->key, "connection") == 0) {
-      /* TODO: Implment a mechanism that allows us to know if a */
-      /* new connection is gonna be required or an existing one */
-      /* can be used. By default we always create a new one. */
-      if (gst_sdp_attribute_set (&new_attr, "connection", "new") != GST_SDP_OK) {
-        GST_WARNING ("Can not add attribute a=connection:new");
-        return FALSE;
-      }
-      a = &new_attr;
-    } else if (!dir_set && sdp_utils_attribute_is_direction (attr, NULL)) {
-      if (!sdp_utils_set_direction_answer (answer, attr, &new_attr)) {
-        GST_WARNING ("Can not set direction attribute");
-        return FALSE;
-      }
-
-      dir_set = TRUE;
-      a = &new_attr;
-    } else {
-      a = attr;
-    }
-
-    /* No common media attribute. Filter using callback */
-    if (func != NULL) {
-      func (a, answer, user_data);
-    }
-
-    if (a == &new_attr) {
-      gst_sdp_attribute_clear (&new_attr);
+    if (!intersect_attribute (attr, func, user_data)) {
+      return FALSE;
     }
   }
 
