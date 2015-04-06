@@ -801,6 +801,8 @@ update_sdp_media (const GstSDPMedia * media, gpointer user_data)
     if (!configure_bundle_connection (data, media_str)) {
       return FALSE;
     }
+
+    gst_sdp_media_add_attribute ((GstSDPMedia *) media, "mid", media_str);
   } else {
     KmsIRtpConnection *conn;
 
