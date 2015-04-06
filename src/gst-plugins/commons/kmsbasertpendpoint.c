@@ -700,6 +700,8 @@ kms_base_rtp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
       tmp = g_strconcat (bundle_mids, " ", media_str, NULL);
       g_free (bundle_mids);
       bundle_mids = tmp;
+
+      gst_sdp_media_add_attribute ((GstSDPMedia *) media, "mid", media_str);
     } else {
       KmsIRtpConnection *conn;
 
