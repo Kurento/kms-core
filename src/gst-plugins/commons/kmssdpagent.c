@@ -118,6 +118,7 @@ static void
 kms_sdp_context_destroy_sdp_handler (SdpHandler * handler)
 {
   g_free (handler->media);
+  g_clear_object (&handler->handler);
 
   g_slice_free (SdpHandler, handler);
 }
@@ -246,14 +247,14 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
 
   if (handlers == NULL) {
     /* create handlers map for this media */
-    handlers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-        (GDestroyNotify) g_object_unref);
+    handlers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
     g_hash_table_insert (agent->priv->medias, g_strdup (media), handlers);
   }
 
-  if (g_hash_table_insert (handlers, proto, handler)) {
-    id = agent->priv->hids++;
-    sdp_handler = kms_sdp_context_new_sdp_handler (id, media, handler);
+  id = agent->priv->hids++;
+  sdp_handler = kms_sdp_context_new_sdp_handler (id, media, handler);
+
+  if (g_hash_table_insert (handlers, proto, sdp_handler)) {
     agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
   }
 
@@ -377,7 +378,7 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
   KmsSdpAgent *agent = data->agent;
   GHashTable *handlers;
   GstSDPMedia *answer_media = NULL;
-  KmsSdpMediaHandler *handler;
+  SdpHandler *sdp_handler;
   GError *err = NULL;
 
   SDP_AGENT_LOCK (agent);
@@ -390,15 +391,17 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
     GST_WARNING_OBJECT (agent, "%s media not supported",
         gst_sdp_media_get_media (media));
   } else {
-    handler = g_hash_table_lookup (handlers, gst_sdp_media_get_proto (media));
-    if (handler == NULL) {
+    sdp_handler =
+        g_hash_table_lookup (handlers, gst_sdp_media_get_proto (media));
+    if (sdp_handler == NULL) {
       GST_WARNING_OBJECT (agent,
           "No handler for %s media found for protocol %s",
           gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
     } else {
-      answer_media = kms_sdp_media_handler_create_answer (handler, media, &err);
+      answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
+          media, &err);
       if (err != NULL) {
-        GST_ERROR_OBJECT (handler, "%s", err->message);
+        GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
         g_error_free (err);
       }
     }
