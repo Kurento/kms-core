@@ -447,7 +447,7 @@ kms_sdp_rtp_avp_media_handler_create_answer (KmsSdpMediaHandler * handler,
 {
   GstSDPMedia *m = NULL;
   gchar *proto = NULL;
-  guint i, len;
+  guint i, len, port;
 
   if (g_strcmp0 (gst_sdp_media_get_media (offer), SDP_AUDIO_MEDIA) != 0
       && g_strcmp0 (gst_sdp_media_get_media (offer), SDP_VIDEO_MEDIA) != 0) {
@@ -483,12 +483,6 @@ kms_sdp_rtp_avp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
-    goto error;
-  }
-
   len = gst_sdp_media_formats_len (offer);
 
   /* Set only supported media formats in answer */
@@ -506,6 +500,19 @@ kms_sdp_rtp_avp_media_handler_create_answer (KmsSdpMediaHandler * handler,
           "Can add format %s", fmt);
       goto error;
     }
+  }
+
+  if (gst_sdp_media_formats_len (m) > 0) {
+    port = 1;
+  } else {
+    /* Disable media */
+    port = 0;
+  }
+
+  if (gst_sdp_media_set_port_info (m, port, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
+    goto error;
   }
 
   if (!add_supported_rtpmap_attrs (offer, m, error)) {

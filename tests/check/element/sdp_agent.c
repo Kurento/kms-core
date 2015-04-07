@@ -29,6 +29,9 @@
 #include "kmssdprtpavpfmediahandler.h"
 #include "kmssdprtpsavpfmediahandler.h"
 
+typedef void (*CheckSdpNegotiationFunc) (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data);
+
 static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
 {
@@ -155,6 +158,94 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   g_object_unref (answerer);
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
+}
+
+GST_END_TEST;
+
+static const gchar *sdp_no_common_media_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=audio 30000 RTP/AVP 0\r\n"
+    "a=mid:1\r\n"
+    "m=audio 30002 RTP/AVP 8\r\n"
+    "a=mid:2\r\n" "m=audio 30004 RTP/AVP 3\r\n" "a=mid:3\r\n";
+
+static void
+test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
+    CheckSdpNegotiationFunc func, gpointer data)
+{
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gchar *sdp_str;
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          sdp_patter, -1, offer) == GST_SDP_OK);
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  if (func) {
+    func (offer, answer, data);
+  }
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+}
+
+static void
+check_unsupported_medias (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  guint i, len;
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  len = gst_sdp_message_medias_len (answer);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+
+    media = gst_sdp_message_get_media (answer, i);
+    if (i < 1) {
+      /* Only medias from 1 forward must be rejected */
+      continue;
+    }
+
+    fail_if (media->port != 0);
+  }
+}
+
+GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
+{
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  test_sdp_pattern_offer (sdp_no_common_media_str, answerer,
+      check_unsupported_medias, NULL);
+
+  g_object_unref (answerer);
 }
 
 GST_END_TEST;
@@ -613,6 +704,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_create_offer);
   tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
   tcase_add_test (tc_chain, sdp_agent_test_rejected_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_rejected_unsupported_media);
   tcase_add_test (tc_chain, sdp_agent_test_sctp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avpf_negotiation);
