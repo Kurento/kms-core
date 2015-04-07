@@ -639,14 +639,63 @@ static const gchar *sdp_no_bundle_group_str = "v=0\r\n"
     "a=rtpmap:98 OPUS/48000/2\r\n"
     "a=rtpmap:99 AMR/8000/1\r\n" "a=mid:audio0\r\n";
 
+static const gchar *sdp_bundle_group_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "a=group:BUNDLE 1 2 3\r\n"
+    "m=audio 30000 RTP/SAVPF 0\r\n"
+    "a=mid:1\r\n"
+    "m=audio 30002 RTP/SAVPF 8\r\n"
+    "a=mid:2\r\n" "m=audio 30004 RTP/SAVPF 3\r\n" "a=mid:3\r\n";
+
 static void
-test_no_bundle_group (void)
+check_no_group_attr (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
 {
-  GError *err = NULL;
-  GstSDPMessage *offer, *answer;
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  /* Only BUNDLE group is supported. Fail if any group */
+  /* attribute is found in the answer */
+  fail_unless (gst_sdp_message_get_attribute_val (answer, "group") == NULL);
+}
+
+static void
+check_fmt_group_attr (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  const gchar *val;
+  gchar **mids;
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  val = gst_sdp_message_get_attribute_val (answer, "group");
+
+  fail_if (val == NULL);
+  mids = g_strsplit (val, " ", 0);
+
+  /* only 1 media is supported for this group */
+  fail_if (g_strv_length (mids) > 2);
+
+  fail_if (g_strcmp0 (mids[0], "BUNDLE") != 0);
+
+  /* Only mid 1 is supported */
+  fail_if (g_strcmp0 (mids[1], "1") != 0);
+
+  g_strfreev (mids);
+}
+
+static void
+test_group_with_pattern (const gchar * sdp_pattern,
+    CheckSdpNegotiationFunc func, gpointer data)
+{
   KmsSdpMediaHandler *handler;
   KmsSdpAgent *answerer;
-  gchar *sdp_str;
   gint id;
 
   answerer = kms_sdp_agent_new ();
@@ -663,34 +712,16 @@ test_no_bundle_group (void)
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
-  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
-  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
-          sdp_no_bundle_group_str, -1, offer) == GST_SDP_OK);
+  test_sdp_pattern_offer (sdp_pattern, answerer, func, NULL);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
-  g_free (sdp_str);
-
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
-  fail_if (err != NULL);
-
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
-  g_free (sdp_str);
-
-  /* Only BUNDLE group is supported. Fail if any group */
-  /* attribute is found in the answer */
-  fail_unless (gst_sdp_message_get_attribute_val (answer, "group") == NULL);
-
-  gst_sdp_message_free (offer);
-  gst_sdp_message_free (answer);
   g_object_unref (answerer);
 }
 
 GST_START_TEST (sdp_agent_test_bundle_group)
 {
   test_bundle_group ();
-  test_no_bundle_group ();
+  test_group_with_pattern (sdp_no_bundle_group_str, check_no_group_attr, NULL);
+  test_group_with_pattern (sdp_bundle_group_str, check_fmt_group_attr, NULL);
 }
 
 GST_END_TEST static Suite *

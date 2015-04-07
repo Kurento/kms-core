@@ -326,11 +326,86 @@ add_group_to_sdp_message (SdpMediaGroup * group, GstSDPMessage * msg)
   g_free (val);
 }
 
+static SdpMediaConfig *
+sdp_mesage_context_get_media_by_id (SdpMessageContext * ctx, const gchar * mid)
+{
+  GSList *l;
+
+  for (l = ctx->medias; l != NULL; l = l->next) {
+    SdpMediaConfig *media;
+    const gchar *id;
+
+    media = l->data;
+    id = gst_sdp_media_get_attribute_val (media->media, "mid");
+
+    if (id == NULL) {
+      continue;
+    }
+
+    if (g_strcmp0 (id, mid) == 0) {
+      return media;
+    }
+  }
+
+  return NULL;
+}
+
+static void
+sdp_mesage_context_filter_media_groups (SdpMessageContext * ctx)
+{
+  guint i, len;
+
+  len = gst_sdp_message_attributes_len (ctx->msg);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+    GstSDPAttribute new_attr;
+    guint j, n_mids;
+    gchar **mids;
+    gchar *new_val;
+
+    attr = gst_sdp_message_get_attribute (ctx->msg, i);
+
+    if (g_strcmp0 (attr->key, "group") != 0) {
+      continue;
+    }
+
+    mids = g_strsplit (attr->value, " ", 0);
+    n_mids = g_strv_length (mids);
+    new_val = g_strdup ("BUNDLE");
+
+    for (j = 1; j < n_mids; j++) {
+      SdpMediaConfig *sdp_media;
+      gchar *tmp;
+
+      sdp_media = sdp_mesage_context_get_media_by_id (ctx, mids[j]);
+
+      if (sdp_media == NULL || gst_sdp_media_get_port (sdp_media->media) == 0) {
+        /* Move this media out the group */
+        continue;
+      }
+
+      tmp = new_val;
+      new_val = g_strdup_printf ("%s %s", tmp, mids[j]);
+      g_free (tmp);
+    }
+
+    gst_sdp_attribute_set (&new_attr, attr->key, new_val);
+    gst_sdp_message_replace_attribute (ctx->msg, i, &new_attr);
+
+    g_strfreev (mids);
+    g_free (new_val);
+  }
+
+}
+
 GstSDPMessage *
 sdp_mesage_context_pack (SdpMessageContext * ctx, GError ** error)
 {
   GstSDPMessage *msg;
   gchar *sdp_str;
+
+  sdp_mesage_context_filter_media_groups (ctx);
 
   gst_sdp_message_new (&msg);
 
@@ -352,7 +427,6 @@ sdp_mesage_context_pack (SdpMessageContext * ctx, GError ** error)
 
   /* Append medias to the message */
   g_slist_foreach (ctx->medias, (GFunc) add_media_to_sdp_message, msg);
-
   return msg;
 }
 
