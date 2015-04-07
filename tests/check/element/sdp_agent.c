@@ -457,8 +457,8 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   g_object_unref (answerer);
 }
 
-GST_END_TEST
-GST_START_TEST (sdp_agent_test_bundle_group)
+GST_END_TEST static void
+test_bundle_group (void)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
@@ -523,6 +523,83 @@ GST_START_TEST (sdp_agent_test_bundle_group)
   gst_sdp_message_free (answer);
   g_object_unref (offerer);
   g_object_unref (answerer);
+}
+
+static const gchar *sdp_no_bundle_group_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "a=group:LS video0 audio0\r\n"
+    "m=video 1 RTP/SAVPF 96 97 100 101\r\n"
+    "a=rtpmap:96 H263-1998/90000\r\n"
+    "a=rtpmap:97 VP8/90000\r\n"
+    "a=rtpmap:100 MP4V-ES/90000\r\n"
+    "a=rtpmap:101 H264/90000\r\n"
+    "a=rtcp-fb:97 nack\r\n"
+    "a=rtcp-fb:97 nack pli\r\n"
+    "a=rtcp-fb:97 ccm fir\r\n"
+    "a=rtcp-fb:97 goog-remb\r\n"
+    "a=rtcp-fb:101 nack\r\n"
+    "a=rtcp-fb:101 nack pli\r\n"
+    "a=rtcp-fb:101 ccm fir\r\n"
+    "a=mid:video0\r\n"
+    "m=audio 1 RTP/SAVPF 98 99 0\r\n"
+    "a=rtpmap:98 OPUS/48000/2\r\n"
+    "a=rtpmap:99 AMR/8000/1\r\n" "a=mid:audio0\r\n";
+
+static void
+test_no_bundle_group (void)
+{
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  KmsSdpMediaHandler *handler;
+  KmsSdpAgent *answerer;
+  gchar *sdp_str;
+  gint id;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          sdp_no_bundle_group_str, -1, offer) == GST_SDP_OK);
+
+  sdp_str = gst_sdp_message_as_text (offer);
+  GST_DEBUG ("Offer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  sdp_str = gst_sdp_message_as_text (answer);
+  GST_DEBUG ("Answer:\n%s", sdp_str);
+  g_free (sdp_str);
+
+  /* Only BUNDLE group is supported. Fail if any group */
+  /* attribute is found in the answer */
+  fail_unless (gst_sdp_message_get_attribute_val (answer, "group") == NULL);
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_bundle_group)
+{
+  test_bundle_group ();
+  test_no_bundle_group ();
 }
 
 GST_END_TEST static Suite *

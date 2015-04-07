@@ -193,6 +193,24 @@ intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
   SdpMessageContext *ctx = user_data;
   guint i, len;
 
+  if (g_strcmp0 (attr->key, "group") == 0) {
+    gchar **grp;
+    gboolean is_bundle;
+
+    grp = g_strsplit (attr->value, " ", 0);
+    is_bundle = g_strcmp0 (grp[0] /* group type */ , "BUNDLE") == 0;
+
+    if (!is_bundle) {
+      GST_WARNING ("Group \"%s\" is not supported", grp[0]);
+      g_strfreev (grp);
+      return FALSE;
+    }
+
+    g_strfreev (grp);
+  }
+
+  /* Check that this attribute is already in the message */
+
   len = gst_sdp_message_attributes_len (ctx->msg);
 
   for (i = 0; i < len; i++) {
