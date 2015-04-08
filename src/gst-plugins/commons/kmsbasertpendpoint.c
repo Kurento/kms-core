@@ -1888,6 +1888,7 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
 
     if (id == NULL) {
       assign_uuid (source);
+      id = g_object_get_data (source, KMS_KEY_ID);
     }
 
     g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
