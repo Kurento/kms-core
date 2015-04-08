@@ -28,8 +28,8 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
 
 #define parent_class kms_sdp_agent_parent_class
 
-#define USE_IPV6_DEFAULT FALSE
-#define BUNDLE_DEFAULT FALSE
+#define DEFAULT_USE_IPV6 FALSE
+#define DEFAULT_BUNDLE FALSE
 
 #define ORIGIN_ATTR_NETTYPE "IN"
 #define ORIGIN_ATTR_ADDR_TYPE_IP4 "IP4"
@@ -101,8 +101,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpAgent, kms_sdp_agent,
         0, "debug category for sdp agent"));
 
 static SdpHandler *
-kms_sdp_context_new_sdp_handler (guint id, const gchar * media,
-    KmsSdpMediaHandler * handler)
+sdp_handler_new (guint id, const gchar * media, KmsSdpMediaHandler * handler)
 {
   SdpHandler *sdp_handler;
 
@@ -115,7 +114,7 @@ kms_sdp_context_new_sdp_handler (guint id, const gchar * media,
 }
 
 static void
-kms_sdp_context_destroy_sdp_handler (SdpHandler * handler)
+sdp_handler_destroy (SdpHandler * handler)
 {
   g_free (handler->media);
   g_clear_object (&handler->handler);
@@ -124,7 +123,7 @@ kms_sdp_context_destroy_sdp_handler (SdpHandler * handler)
 }
 
 static SdpHandlerGroup *
-new_sdp_handler_group (guint id)
+sdp_handler_group_new (guint id)
 {
   SdpHandlerGroup *group;
 
@@ -135,7 +134,7 @@ new_sdp_handler_group (guint id)
 }
 
 static void
-destroy_sdp_handler_group (SdpHandlerGroup * group)
+sdp_handler_group_destroy (SdpHandlerGroup * group)
 {
   g_slist_free (group->handlers);
 
@@ -158,15 +157,15 @@ kms_sdp_agent_finalize (GObject * object)
 {
   KmsSdpAgent *self = KMS_SDP_AGENT (object);
 
-  GST_DEBUG_OBJECT (self, "Finalize");
+  GST_DEBUG_OBJECT (self, "finalize");
 
   kms_sdp_agent_release_sdp (&self->priv->local_description);
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
   g_hash_table_unref (self->priv->medias);
   g_slist_free_full (self->priv->handlers,
-      (GDestroyNotify) kms_sdp_context_destroy_sdp_handler);
+      (GDestroyNotify) sdp_handler_destroy);
   g_slist_free_full (self->priv->groups,
-      (GDestroyNotify) destroy_sdp_handler_group);
+      (GDestroyNotify) sdp_handler_group_destroy);
 
   g_mutex_clear (&self->priv->mutex);
 
@@ -252,7 +251,7 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   }
 
   id = agent->priv->hids++;
-  sdp_handler = kms_sdp_context_new_sdp_handler (id, media, handler);
+  sdp_handler = sdp_handler_new (id, media, handler);
 
   if (g_hash_table_insert (handlers, proto, sdp_handler)) {
     agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
@@ -263,14 +262,14 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   return id;
 }
 
-struct sdp_offer_data
+struct SdpOfferData
 {
   SdpMessageContext *ctx;
   KmsSdpAgent *agent;
 };
 
 static void
-create_media_offers (SdpHandler * sdp_handler, struct sdp_offer_data *data)
+create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 {
   SdpMediaConfig *m_conf;
   GstSDPMedia *media;
@@ -286,7 +285,7 @@ create_media_offers (SdpHandler * sdp_handler, struct sdp_offer_data *data)
     return;
   }
 
-  m_conf = kms_sdp_context_add_media (data->ctx, media);
+  m_conf = kms_sdp_message_context_add_media (data->ctx, media);
 
   for (l = data->agent->priv->groups; l != NULL; l = l->next) {
     SdpHandlerGroup *group = l->data;
@@ -300,12 +299,12 @@ create_media_offers (SdpHandler * sdp_handler, struct sdp_offer_data *data)
         continue;
       }
 
-      m_group = kms_sdp_context_get_group (data->ctx, group->id);
+      m_group = kms_sdp_message_context_get_group (data->ctx, group->id);
       if (m_group == NULL) {
-        m_group = kms_sdp_context_create_group (data->ctx, group->id);
+        m_group = kms_sdp_message_context_create_group (data->ctx, group->id);
       }
 
-      kms_sdp_context_add_media_to_group (m_group, m_conf);
+      kms_sdp_message_context_add_media_to_group (m_group, m_conf);
     }
   }
 }
@@ -313,7 +312,7 @@ create_media_offers (SdpHandler * sdp_handler, struct sdp_offer_data *data)
 static GstSDPMessage *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
-  struct sdp_offer_data data;
+  struct SdpOfferData data;
   SdpMessageContext *ctx;
   GstSDPMessage *offer;
   SdpIPv ipv;
@@ -321,7 +320,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   SDP_AGENT_LOCK (agent);
   ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
 
-  ctx = kms_sdp_context_new_message_context (ipv, error);
+  ctx = kms_sdp_message_context_new (ipv, error);
   if (ctx == NULL) {
     SDP_AGENT_UNLOCK (agent);
     return NULL;
@@ -333,13 +332,13 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
   SDP_AGENT_UNLOCK (agent);
 
-  offer = sdp_mesage_context_pack (ctx, error);
-  kms_sdp_context_destroy_message_context (ctx);
+  offer = kms_sdp_message_context_pack (ctx, error);
+  kms_sdp_message_context_destroy (ctx);
 
   return offer;
 }
 
-struct sdp_answer_data
+struct SdpAnswerData
 {
   KmsSdpAgent *agent;
   SdpMessageContext *ctx;
@@ -373,7 +372,7 @@ reject_media_answer (const GstSDPMedia * offered)
 }
 
 static gboolean
-create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
+create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
   GHashTable *handlers;
@@ -388,14 +387,14 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
       gst_sdp_media_get_media (media));
 
   if (handlers == NULL) {
-    GST_WARNING_OBJECT (agent, "%s media not supported",
+    GST_WARNING_OBJECT (agent, "'%s' media not supported",
         gst_sdp_media_get_media (media));
   } else {
     sdp_handler =
         g_hash_table_lookup (handlers, gst_sdp_media_get_proto (media));
     if (sdp_handler == NULL) {
       GST_WARNING_OBJECT (agent,
-          "No handler for %s media found for protocol %s",
+          "No handler for '%s' media found for protocol '%s'",
           gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
     } else {
       answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
@@ -413,7 +412,7 @@ create_media_answer (const GstSDPMedia * media, struct sdp_answer_data *data)
     answer_media = reject_media_answer (media);
   }
 
-  kms_sdp_context_add_media (data->ctx, answer_media);
+  kms_sdp_message_context_add_media (data->ctx, answer_media);
 
   return TRUE;
 }
@@ -463,7 +462,7 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
   GstSDPMessage *answer;
-  struct sdp_answer_data data;
+  struct SdpAnswerData data;
   SdpMessageContext *ctx;
   SdpIPv ipv;
 
@@ -471,13 +470,14 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
   ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
   SDP_AGENT_UNLOCK (agent);
 
-  ctx = kms_sdp_context_new_message_context (ipv, error);
+  ctx = kms_sdp_message_context_new (ipv, error);
   if (ctx == NULL) {
     return NULL;
   }
 
-  if (!kms_sdp_context_set_common_session_attributes (ctx, offer, error)) {
-    kms_sdp_context_destroy_message_context (ctx);
+  if (!kms_sdp_message_context_set_common_session_attributes (ctx, offer,
+          error)) {
+    kms_sdp_message_context_destroy (ctx);
     return NULL;
   }
 
@@ -486,19 +486,21 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 
   /* [rfc3264] The "t=" line in the answer MUST be equal to the ones in the */
   /* offer. The time of the session cannot be negotiated. */
-  if (FALSE)
+  if (FALSE) {
+    /* TODO: Fix timing copy and make tests for it */
     sdp_copy_timming_attrs (offer, answer);
+  }
 
   if (!sdp_utils_for_each_media (offer, (GstSDPMediaFunc) create_media_answer,
           &data)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        " create SDP response");
-    kms_sdp_context_destroy_message_context (ctx);
+        "can not create SDP response");
+    kms_sdp_message_context_destroy (ctx);
     return NULL;
   }
 
-  answer = sdp_mesage_context_pack (ctx, error);
-  kms_sdp_context_destroy_message_context (ctx);
+  answer = kms_sdp_message_context_pack (ctx, error);
+  kms_sdp_message_context_destroy (ctx);
 
   return answer;
 }
@@ -526,7 +528,7 @@ kms_sdp_agent_create_bundle_group_impl (KmsSdpAgent * agent)
   SDP_AGENT_LOCK (agent);
 
   id = agent->priv->gids++;
-  group = new_sdp_handler_group (id);
+  group = sdp_handler_group_new (id);
   agent->priv->groups = g_slist_append (agent->priv->groups, group);
 
   SDP_AGENT_UNLOCK (agent);
@@ -617,12 +619,12 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   obj_properties[PROP_BUNDLE] = g_param_spec_boolean ("bundle",
       "Use BUNDLE group in offers",
       "Bundle media in offers when possible",
-      BUNDLE_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+      DEFAULT_BUNDLE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_USE_IPV6] = g_param_spec_boolean ("use-ipv6",
       "Use ipv6 in SDPs",
       "Use ipv6 addresses in generated sdp offers and answers",
-      USE_IPV6_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+      DEFAULT_USE_IPV6, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_LOCAL_DESC] = g_param_spec_boxed ("local-description",
       "Local description", "The local SDP description", GST_TYPE_SDP_MESSAGE,
@@ -657,7 +659,7 @@ kms_sdp_agent_init (KmsSdpAgent * self)
 }
 
 KmsSdpAgent *
-kms_sdp_agent_new (void)
+kms_sdp_agent_new ()
 {
   KmsSdpAgent *agent;
 

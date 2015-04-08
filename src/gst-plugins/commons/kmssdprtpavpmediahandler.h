@@ -67,9 +67,9 @@ struct _KmsSdpRtpAvpMediaHandlerClass
   KmsSdpMediaHandlerClass parent_class;
 };
 
-GType kms_sdp_rtp_avp_media_handler_get_type (void);
+GType kms_sdp_rtp_avp_media_handler_get_type ();
 
-KmsSdpRtpAvpMediaHandler * kms_sdp_rtp_avp_media_handler_new (void);
+KmsSdpRtpAvpMediaHandler * kms_sdp_rtp_avp_media_handler_new ();
 
 G_END_DECLS
 

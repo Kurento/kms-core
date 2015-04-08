@@ -37,14 +37,12 @@ sdp_agent_create_offer (KmsSdpAgent * agent)
 {
   GError *err = NULL;
   GstSDPMessage *offer;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;;
 
   offer = kms_sdp_agent_create_offer (agent, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   gst_sdp_message_free (offer);
@@ -98,7 +96,7 @@ GST_START_TEST (sdp_agent_test_add_proto_handler)
 
 GST_END_TEST;
 
-static const gchar *pattern_sdp_str = "v=0\r\n"
+static const gchar *sdp_offer_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
@@ -113,7 +111,7 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   KmsSdpAgent *answerer;
   KmsSdpMediaHandler *handler;
   gint id;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;
   guint i, len;
 
   answerer = kms_sdp_agent_new ();
@@ -127,17 +125,15 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
-          pattern_sdp_str, -1, offer) == GST_SDP_OK);
+          sdp_offer_str, -1, offer) == GST_SDP_OK);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Same number of medias must be in answer */
@@ -156,13 +152,14 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
     fail_if (media->port != 0);
   }
   g_object_unref (answerer);
+
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 }
 
 GST_END_TEST;
 
-static const gchar *sdp_no_common_media_str = "v=0\r\n"
+static const gchar *sdp_offer_no_common_media_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=Kurento Media Server\r\n"
     "c=IN IP4 0.0.0.0\r\n"
@@ -178,21 +175,19 @@ test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
 {
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;;
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
           sdp_patter, -1, offer) == GST_SDP_OK);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   if (func) {
@@ -242,7 +237,7 @@ GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
-  test_sdp_pattern_offer (sdp_no_common_media_str, answerer,
+  test_sdp_pattern_offer (sdp_offer_no_common_media_str, answerer,
       check_unsupported_medias, NULL);
 
   g_object_unref (answerer);
@@ -250,7 +245,7 @@ GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
 
 GST_END_TEST;
 
-static const gchar *pattern_sdp_sctp_str = "v=0\r\n"
+static const gchar *sdp_offer_sctp_str = "v=0\r\n"
     "o=- 0 0 IN IP4 0.0.0.0\r\n"
     "s=TestSession\r\n"
     "c=IN IP4 0.0.0.0\r\n"
@@ -275,7 +270,7 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
   KmsSdpAgent *answerer;
   KmsSdpMediaHandler *handler;
   gint id;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;
   guint i, len;
 
   answerer = kms_sdp_agent_new ();
@@ -289,17 +284,15 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
-          pattern_sdp_sctp_str, -1, offer) == GST_SDP_OK);
+          sdp_offer_sctp_str, -1, offer) == GST_SDP_OK);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Same number of medias must be in answer */
@@ -326,6 +319,7 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
     fail_if (gst_sdp_media_attributes_len (media) != 5);
   }
   g_object_unref (answerer);
+
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
 }
@@ -366,7 +360,7 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint id;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;
   const GstSDPMedia *media;
 
   offerer = kms_sdp_agent_new ();
@@ -396,15 +390,13 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   fail_unless (sdp_utils_for_each_media (offer,
           (GstSDPMediaFunc) set_media_direction, (gpointer) direction));
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Check only audio media */
@@ -419,6 +411,7 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
 
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
+
   g_object_unref (offerer);
   g_object_unref (answerer);
 }
@@ -438,7 +431,7 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint id;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -468,15 +461,13 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
 
   offer = kms_sdp_agent_create_offer (offerer, &err);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Same number of medias must be in answer */
@@ -497,7 +488,7 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint id;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -527,15 +518,13 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
 
   offer = kms_sdp_agent_create_offer (offerer, &err);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Same number of medias must be in answer */
@@ -556,7 +545,7 @@ test_bundle_group (void)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint gid, hid;
-  gchar *sdp_str;
+  gchar *sdp_str = NULL;;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -595,15 +584,13 @@ test_bundle_group (void)
 
   offer = kms_sdp_agent_create_offer (offerer, &err);
 
-  sdp_str = gst_sdp_message_as_text (offer);
-  GST_DEBUG ("Offer:\n%s", sdp_str);
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   answer = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
 
-  sdp_str = gst_sdp_message_as_text (answer);
-  GST_DEBUG ("Answer:\n%s", sdp_str);
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Same number of medias must be in answer */

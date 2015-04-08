@@ -79,7 +79,7 @@ kms_sdp_rtp_savpf_media_handler_init (KmsSdpRtpSavpfMediaHandler * self)
 }
 
 KmsSdpRtpSavpfMediaHandler *
-kms_sdp_rtp_savpf_media_handler_new (void)
+kms_sdp_rtp_savpf_media_handler_new ()
 {
   KmsSdpRtpSavpfMediaHandler *handler;
 

@@ -169,7 +169,7 @@ error:
 }
 
 SdpMessageContext *
-kms_sdp_context_new_message_context (SdpIPv ipv, GError ** error)
+kms_sdp_message_context_new (SdpIPv ipv, GError ** error)
 {
   SdpMessageContext *ctx;
 
@@ -180,7 +180,7 @@ kms_sdp_context_new_message_context (SdpIPv ipv, GError ** error)
 
   if (!kms_sdp_message_context_set_default_session_attributes (ctx->msg, ipv,
           error)) {
-    kms_sdp_context_destroy_message_context (ctx);
+    kms_sdp_message_context_destroy (ctx);
     return NULL;
   }
 
@@ -201,7 +201,7 @@ intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
     is_bundle = g_strcmp0 (grp[0] /* group type */ , "BUNDLE") == 0;
 
     if (!is_bundle) {
-      GST_WARNING ("Group \"%s\" is not supported", grp[0]);
+      GST_WARNING ("Group '%s' is not supported", grp[0]);
       g_strfreev (grp);
       return FALSE;
     }
@@ -229,7 +229,7 @@ intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
 }
 
 gboolean
-kms_sdp_context_set_common_session_attributes (SdpMessageContext * ctx,
+kms_sdp_message_context_set_common_session_attributes (SdpMessageContext * ctx,
     const GstSDPMessage * msg, GError ** error)
 {
   if (!sdp_utils_intersect_session_attributes (msg, intersect_session_attr,
@@ -243,7 +243,7 @@ kms_sdp_context_set_common_session_attributes (SdpMessageContext * ctx,
 }
 
 void
-kms_sdp_context_destroy_message_context (SdpMessageContext * ctx)
+kms_sdp_message_context_destroy (SdpMessageContext * ctx)
 {
   if (ctx->msg != NULL) {
     gst_sdp_message_free (ctx->msg);
@@ -261,7 +261,7 @@ kms_sdp_context_destroy_message_context (SdpMessageContext * ctx)
 }
 
 SdpMediaConfig *
-kms_sdp_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
+kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
 {
   SdpMediaConfig *mconf;
   const gchar *media_type;
@@ -400,7 +400,7 @@ sdp_mesage_context_filter_media_groups (SdpMessageContext * ctx)
 }
 
 GstSDPMessage *
-sdp_mesage_context_pack (SdpMessageContext * ctx, GError ** error)
+kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
 {
   GstSDPMessage *msg;
   gchar *sdp_str;
@@ -431,7 +431,7 @@ sdp_mesage_context_pack (SdpMessageContext * ctx, GError ** error)
 }
 
 SdpMediaGroup *
-kms_sdp_context_create_group (SdpMessageContext * ctx, guint gid)
+kms_sdp_message_context_create_group (SdpMessageContext * ctx, guint gid)
 {
   SdpMediaGroup *group;
 
@@ -442,7 +442,7 @@ kms_sdp_context_create_group (SdpMessageContext * ctx, guint gid)
 }
 
 SdpMediaGroup *
-kms_sdp_context_get_group (SdpMessageContext * ctx, guint gid)
+kms_sdp_message_context_get_group (SdpMessageContext * ctx, guint gid)
 {
   GSList *l;
 
@@ -458,7 +458,7 @@ kms_sdp_context_get_group (SdpMessageContext * ctx, guint gid)
 }
 
 gboolean
-kms_sdp_context_add_media_to_group (SdpMediaGroup * group,
+kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
     SdpMediaConfig * media)
 {
   GSList *l;

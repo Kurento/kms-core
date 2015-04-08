@@ -25,34 +25,34 @@ G_BEGIN_DECLS
 #define KMS_TYPE_SDP_SCTP_MEDIA_HANDLER \
   (kms_sdp_sctp_media_handler_get_type())
 
-#define KMS_SDP_SCTP_MEDIA_HANDLER(obj) (    \
-  G_TYPE_CHECK_INSTANCE_CAST (          \
-    (obj),                              \
-    KMS_TYPE_SDP_SCTP_MEDIA_HANDLER,         \
-    KmsSdpSctpMediaHandler                  \
-  )                                     \
+#define KMS_SDP_SCTP_MEDIA_HANDLER(obj) (  \
+  G_TYPE_CHECK_INSTANCE_CAST (             \
+    (obj),                                 \
+    KMS_TYPE_SDP_SCTP_MEDIA_HANDLER,       \
+    KmsSdpSctpMediaHandler                 \
+  )                                        \
 )
 #define KMS_SDP_SCTP_MEDIA_HANDLER_CLASS(klass) (  \
-  G_TYPE_CHECK_CLASS_CAST (                   \
-    (klass),                                  \
+  G_TYPE_CHECK_CLASS_CAST (                        \
+    (klass),                                       \
     KMS_TYPE_SDP_SCTP_MEDIA_HANDLER,               \
-    KmsSdpSctpMediaHandlerClass                   \
-  )                                           \
+    KmsSdpSctpMediaHandlerClass                    \
+  )                                                \
 )
 #define KMS_IS_SDP_SCTP_MEDIA_HANDLER(obj) ( \
-  G_TYPE_CHECK_INSTANCE_TYPE (          \
-    (obj),                              \
+  G_TYPE_CHECK_INSTANCE_TYPE (               \
+    (obj),                                   \
     KMS_TYPE_SDP_SCTP_MEDIA_HANDLER          \
-  )                                     \
+  )                                          \
 )
 #define KMS_IS_SDP_SCTP_MEDIA_HANDLER_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SDP_SCTP_MEDIA_HANDLER))
 #define KMS_SDP_SCTP_MEDIA_HANDLER_GET_CLASS(obj) (  \
-  G_TYPE_INSTANCE_GET_CLASS (              \
-    (obj),                                 \
+  G_TYPE_INSTANCE_GET_CLASS (                        \
+    (obj),                                           \
     KMS_TYPE_SDP_SCTP_MEDIA_HANDLER,                 \
-    KmsSdpSctpMediaHandlerClass                    \
-  )                                        \
+    KmsSdpSctpMediaHandlerClass                      \
+  )                                                  \
 )
 
 typedef struct _KmsSdpSctpMediaHandler KmsSdpSctpMediaHandler;
@@ -68,9 +68,9 @@ struct _KmsSdpSctpMediaHandlerClass
   KmsSdpMediaHandlerClass parent_class;
 };
 
-GType kms_sdp_sctp_media_handler_get_type (void);
+GType kms_sdp_sctp_media_handler_get_type ();
 
-KmsSdpSctpMediaHandler * kms_sdp_sctp_media_handler_new (void);
+KmsSdpSctpMediaHandler * kms_sdp_sctp_media_handler_new ();
 
 G_END_DECLS
 

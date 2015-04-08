@@ -33,7 +33,9 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpfMediaHandler,
         OBJECT_NAME, 0, "debug category for sdp rtp avpf media_handler"));
 
 #define SDP_MEDIA_RTP_AVPF_PROTO "RTP/AVPF"
-#define SDP_MEDIA_RTP_AVPF_DEFAULT_NACK TRUE
+
+#define DEFAULT_SDP_MEDIA_RTP_AVPF_NACK TRUE
+
 #define SDP_MEDIA_RTCP_FB "rtcp-fb"
 #define SDP_MEDIA_RTCP_FB_NACK "nack"
 #define SDP_MEDIA_RTCP_FB_CCM "ccm"
@@ -127,7 +129,7 @@ kms_sdp_rtp_avpf_media_handler_rtcp_fb_attrs (KmsSdpMediaHandler * handler,
   if (gst_sdp_media_add_attribute (media, SDP_MEDIA_RTCP_FB,
           attr) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can add media attribute a=%s", attr);
+        "Cannot add media attribute 'a=%s'", attr);
     g_free (attr);
     return FALSE;
   }
@@ -153,7 +155,7 @@ no_nack:
   if (gst_sdp_media_add_attribute (media, SDP_MEDIA_RTCP_FB,
           attr) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can add media attribute a=%s", attr);
+        "Cannot add media attribute 'a=%s'", attr);
     g_free (attr);
     return FALSE;
   }
@@ -167,7 +169,7 @@ no_nack:
     if (gst_sdp_media_add_attribute (media, SDP_MEDIA_RTCP_FB,
             attr) != GST_SDP_OK) {
       g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can add media attribute a=%s", attr);
+          "Cannot add media attribute 'a=%s'", attr);
       g_free (attr);
       return FALSE;
     }
@@ -189,6 +191,7 @@ kms_sdp_rtp_avpf_media_handler_add_rtcp_fb_attrs (KmsSdpMediaHandler * handler,
 
   if (g_strcmp0 (media_str, "video") != 0) {
     /* Only nack video rtcp_fb attributes are supported */
+    /* [rfc4585] 4.2                                    */
     return TRUE;
   }
 
@@ -320,7 +323,7 @@ kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (KmsSdpMediaHandler *
     if (gst_sdp_media_add_attribute (answer, SDP_MEDIA_RTCP_FB,
             val) != GST_SDP_OK) {
       g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can add media attribute a=%s:%s", SDP_MEDIA_RTCP_FB, val);
+          "Cannot add media attribute 'a=%s:%s'", SDP_MEDIA_RTCP_FB, val);
       g_strfreev (opts);
       return FALSE;
     }
@@ -404,7 +407,7 @@ instersect_rtp_avpf_media_attr (const GstSDPAttribute * attr,
 
   if (gst_sdp_media_add_attribute (data->answer, attr->key,
           attr->value) != GST_SDP_OK) {
-    GST_WARNING ("Can not add attribute %s", attr->key);
+    GST_WARNING ("Cannot add attribute '%s'", attr->key);
     return FALSE;
   }
 
@@ -471,11 +474,12 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
   KmsSdpMediaHandlerClass *handler_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
-  handler_class = KMS_SDP_MEDIA_HANDLER_CLASS (klass);
 
   gobject_class->constructor = kms_sdp_rtp_avpf_media_handler_constructor;
   gobject_class->get_property = kms_sdp_rtp_avpf_media_handler_get_property;
   gobject_class->set_property = kms_sdp_rtp_avpf_media_handler_set_property;
+
+  handler_class = KMS_SDP_MEDIA_HANDLER_CLASS (klass);
 
   handler_class->create_offer = kms_sdp_rtp_avpf_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_rtp_avpf_media_handler_create_answer;
@@ -488,7 +492,7 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
   g_object_class_install_property (gobject_class, PROP_NACK,
       g_param_spec_boolean ("nack", "Nack",
           "Wheter rtcp-fb-nack-param if supproted or not",
-          SDP_MEDIA_RTP_AVPF_DEFAULT_NACK,
+          DEFAULT_SDP_MEDIA_RTP_AVPF_NACK,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (klass, sizeof (KmsSdpRtpAvpfMediaHandlerPrivate));
@@ -501,7 +505,7 @@ kms_sdp_rtp_avpf_media_handler_init (KmsSdpRtpAvpfMediaHandler * self)
 }
 
 KmsSdpRtpAvpfMediaHandler *
-kms_sdp_rtp_avpf_media_handler_new (void)
+kms_sdp_rtp_avpf_media_handler_new ()
 {
   KmsSdpRtpAvpfMediaHandler *handler;
 

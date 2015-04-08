@@ -40,12 +40,13 @@ enum
 };
 
 #define KMS_SDP_MEDIA_HANDLER_GET_PRIVATE(obj) (  \
-  G_TYPE_INSTANCE_GET_PRIVATE (           \
-    (obj),                                \
+  G_TYPE_INSTANCE_GET_PRIVATE (                   \
+    (obj),                                        \
     KMS_TYPE_SDP_MEDIA_HANDLER,                   \
-    KmsSdpMediaHandlerPrivate                    \
-  )                                       \
+    KmsSdpMediaHandlerPrivate                     \
+  )                                               \
 )
+
 struct _KmsSdpMediaHandlerPrivate
 {
   gchar *proto;
@@ -75,6 +76,7 @@ kms_sdp_media_handler_set_property (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_PROTO:
+      g_free (self->priv->proto);
       self->priv->proto = g_value_dup_string (value);
       break;
     default:
@@ -88,7 +90,7 @@ kms_sdp_media_handler_finalize (GObject * object)
 {
   KmsSdpMediaHandler *self = KMS_SDP_MEDIA_HANDLER (object);
 
-  GST_DEBUG ("Finalize");
+  GST_DEBUG_OBJECT (self, "finalize");
 
   g_free (self->priv->proto);
 
