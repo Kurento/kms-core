@@ -248,7 +248,7 @@ add_supported_subproto_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
         break;
       }
 
-      if (gst_sdp_media_add_attribute (answer, attrs[1], val) != GST_SDP_OK) {
+      if (gst_sdp_media_add_attribute (answer, attrs[1], attr) != GST_SDP_OK) {
         g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
             "Can add attribute '%s:%s'", attrs[1], val);
         g_strfreev (attrs);
