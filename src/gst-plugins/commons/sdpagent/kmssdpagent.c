@@ -41,7 +41,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
 enum
 {
   PROP_0,
-  PROP_BUNDLE,
   PROP_USE_IPV6,
   PROP_LOCAL_DESC,
   PROP_REMOTE_DESC,
@@ -181,9 +180,6 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
   SDP_AGENT_LOCK (self);
 
   switch (prop_id) {
-    case PROP_BUNDLE:
-      g_value_set_boolean (value, self->priv->bundle);
-      break;
     case PROP_LOCAL_DESC:
       g_value_set_boxed (value, self->priv->local_description);
       break;
@@ -210,9 +206,6 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
   SDP_AGENT_LOCK (self);
 
   switch (prop_id) {
-    case PROP_BUNDLE:
-      self->priv->bundle = g_value_get_boolean (value);
-      break;
     case PROP_USE_IPV6:
       self->priv->use_ipv6 = g_value_get_boolean (value);
       break;
@@ -615,11 +608,6 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   gobject_class->get_property = kms_sdp_agent_get_property;
   gobject_class->set_property = kms_sdp_agent_set_property;
   gobject_class->finalize = kms_sdp_agent_finalize;
-
-  obj_properties[PROP_BUNDLE] = g_param_spec_boolean ("bundle",
-      "Use BUNDLE group in offers",
-      "Bundle media in offers when possible",
-      DEFAULT_BUNDLE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_USE_IPV6] = g_param_spec_boolean ("use-ipv6",
       "Use ipv6 in SDPs",
