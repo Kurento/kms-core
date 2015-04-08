@@ -18,7 +18,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmssdpsctpmediahandler.h
 )
 
-add_library(kmssdpagent ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
+add_library(kmssdpagent SHARED ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
 
 add_dependencies(kmssdpagent kmsutils sdputils)
 
@@ -31,11 +31,14 @@ target_link_libraries(kmssdpagent
   ${gstreamer-base-1.0_LIBRARIES}
   ${gstreamer-sdp-1.0_LIBRARIES}
   ${gstreamer-pbutils-1.0_LIBRARIES}
+  kmsutils
+  sdputils
 )
 
 install(
   TARGETS kmssdpagent
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
