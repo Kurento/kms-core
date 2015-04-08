@@ -711,6 +711,160 @@ GST_START_TEST (sdp_agent_test_bundle_group)
   test_group_with_pattern (sdp_bundle_group_str, check_fmt_group_attr, NULL);
 }
 
+GST_END_TEST static gboolean
+is_rtcp_fb_in_media (const GstSDPMessage * msg, const gchar * type)
+{
+  guint i, len;
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+    guint j;
+
+    media = gst_sdp_message_get_media (msg, i);
+
+    for (j = 0;; j++) {
+      const gchar *val;
+      gchar **opts;
+
+      val = gst_sdp_media_get_attribute_val_n (media, "rtcp-fb", j);
+
+      if (val == NULL) {
+        return FALSE;
+      }
+
+      opts = g_strsplit (val, " ", 0);
+
+      if (g_strcmp0 (opts[1], type) == 0) {
+        g_strfreev (opts);
+        return TRUE;
+      }
+
+      g_strfreev (opts);
+    }
+  }
+
+  return FALSE;
+}
+
+static void
+fb_messages_disable_offer_prop (const gchar * prop)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id;
+  gchar *sdp_str = NULL;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  g_object_set (handler, prop, FALSE, NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (is_rtcp_fb_in_media (offer, prop));
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (is_rtcp_fb_in_media (answer, prop));
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+static void
+fb_messages_disable_answer_prop (const gchar * prop)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id;
+  gchar *sdp_str = NULL;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  g_object_set (handler, prop, FALSE, NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (is_rtcp_fb_in_media (answer, prop));
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_fb_messages)
+{
+  fb_messages_disable_offer_prop ("nack");
+  fb_messages_disable_answer_prop ("nack");
+  fb_messages_disable_offer_prop ("goog-remb");
+  fb_messages_disable_answer_prop ("goog-remb");
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -728,6 +882,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_savpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_bundle_group);
+  tcase_add_test (tc_chain, sdp_agent_test_fb_messages);
 
   return s;
 }

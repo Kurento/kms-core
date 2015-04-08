@@ -35,6 +35,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpfMediaHandler,
 #define SDP_MEDIA_RTP_AVPF_PROTO "RTP/AVPF"
 
 #define DEFAULT_SDP_MEDIA_RTP_AVPF_NACK TRUE
+#define DEFAULT_SDP_MEDIA_RTP_GOOG_REMB TRUE
 
 #define SDP_MEDIA_RTCP_FB "rtcp-fb"
 #define SDP_MEDIA_RTCP_FB_NACK "nack"
@@ -61,12 +62,14 @@ enum
 {
   PROP_0,
   PROP_NACK,
+  PROP_GOOG_REMB,
   N_PROPERTIES
 };
 
 struct _KmsSdpRtpAvpfMediaHandlerPrivate
 {
   gboolean nack;
+  gboolean remb;
 };
 
 static GObject *
@@ -149,18 +152,9 @@ kms_sdp_rtp_avpf_media_handler_rtcp_fb_attrs (KmsSdpMediaHandler * handler,
   g_free (attr);
 
 no_nack:
-  attr =
-      g_strdup_printf ("%s %s %s", fmt, SDP_MEDIA_RTCP_FB_CCM,
-      SDP_MEDIA_RTCP_FB_FIR);
-  if (gst_sdp_media_add_attribute (media, SDP_MEDIA_RTCP_FB,
-          attr) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Cannot add media attribute 'a=%s'", attr);
-    g_free (attr);
-    return FALSE;
+  if (!self->priv->remb) {
+    goto no_remb;
   }
-
-  g_free (attr);
 
   if (g_str_has_prefix (enc, "VP8")) {
     /* Chrome adds goog-remb attribute */
@@ -176,6 +170,20 @@ no_nack:
 
     g_free (attr);
   }
+
+no_remb:
+  attr =
+      g_strdup_printf ("%s %s %s", fmt, SDP_MEDIA_RTCP_FB_CCM,
+      SDP_MEDIA_RTCP_FB_FIR);
+  if (gst_sdp_media_add_attribute (media, SDP_MEDIA_RTCP_FB,
+          attr) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Cannot add media attribute 'a=%s'", attr);
+    g_free (attr);
+    return FALSE;
+  }
+
+  g_free (attr);
 
   return TRUE;
 }
@@ -314,6 +322,13 @@ kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (KmsSdpMediaHandler *
       continue;
     }
 
+    if (g_strcmp0 (opts[1] /* rtcp-fb-val */ , SDP_MEDIA_RTCP_FB_GOOG_REMB) == 0
+        && !self->priv->remb) {
+      /* ignore rtcp-fb goog-remb attribute */
+      g_strfreev (opts);
+      continue;
+    }
+
     if (!supported_rtcp_fb_val (opts[1] /* rtcp-fb-val */ )) {
       /* ignore unsupported rtcp-fb attribute */
       g_strfreev (opts);
@@ -444,6 +459,9 @@ kms_sdp_rtp_avpf_media_handler_get_property (GObject * object, guint prop_id,
     case PROP_NACK:
       g_value_set_boolean (value, self->priv->nack);
       break;
+    case PROP_GOOG_REMB:
+      g_value_set_boolean (value, self->priv->remb);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -459,6 +477,9 @@ kms_sdp_rtp_avpf_media_handler_set_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_NACK:
       self->priv->nack = g_value_get_boolean (value);
+      break;
+    case PROP_GOOG_REMB:
+      self->priv->remb = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -493,6 +514,12 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
       g_param_spec_boolean ("nack", "Nack",
           "Wheter rtcp-fb-nack-param if supproted or not",
           DEFAULT_SDP_MEDIA_RTP_AVPF_NACK,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_GOOG_REMB,
+      g_param_spec_boolean ("goog-remb", "goog-remb",
+          "Wheter receiver estimated maximum bitrate is supported",
+          DEFAULT_SDP_MEDIA_RTP_GOOG_REMB,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (klass, sizeof (KmsSdpRtpAvpfMediaHandlerPrivate));

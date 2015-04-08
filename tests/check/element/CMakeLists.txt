@@ -37,13 +37,15 @@ add_dependencies(test_sdp_agent kmsgstcommons sdputils)
 target_include_directories(test_sdp_agent PRIVATE
   ${gstreamer-1.0_INCLUDE_DIRS}
   ${gstreamer-check-1.0_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons
+  ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons/
+  ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons/sdpagent
 )
 
 target_link_libraries(test_sdp_agent
   ${gstreamer-1.0_LIBRARIES}
   ${gstreamer-check-1.0_LIBRARIES}
   kmsgstcommons
+  kmssdpagent
   sdputils
 )
 

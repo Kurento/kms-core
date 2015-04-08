@@ -74,13 +74,6 @@ set(KMS_COMMONS_SOURCES
   kmsuriendpoint.c
   kmsrefstruct.c
   kmsistats.c
-  kmssdpagent.c
-  kmssdpmediahandler.c
-  kmssdpsctpmediahandler.c
-  kmssdprtpavpmediahandler.c
-  kmssdprtpavpfmediahandler.c
-  kmssdprtpsavpfmediahandler.c
-  kmssdpcontext.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -101,13 +94,6 @@ set(KMS_COMMONS_HEADERS
   kmsuriendpoint.h
   kmsrefstruct.h
   kmsistats.h
-  kmssdpagent.h
-  kmssdpmediahandler.h
-  kmssdpsctpmediahandler.h
-  kmssdprtpavpmediahandler.h
-  kmssdprtpavpfmediahandler.h
-  kmssdprtpsavpfmediahandler.h
-  kmssdpcontext.h
 )
 
 set(ENUM_HEADERS
@@ -180,3 +166,5 @@ install(FILES
   ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
 )
+
+add_subdirectory(sdpagent)
