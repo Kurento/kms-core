@@ -297,7 +297,11 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
         m_group = kms_sdp_message_context_create_group (data->ctx, group->id);
       }
 
-      kms_sdp_message_context_add_media_to_group (m_group, m_conf);
+      if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, &err)) {
+        GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+        g_error_free (err);
+        return;
+      }
     }
   }
 }

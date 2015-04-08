@@ -459,7 +459,7 @@ kms_sdp_message_context_get_group (SdpMessageContext * ctx, guint gid)
 
 gboolean
 kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
-    SdpMediaConfig * media)
+    SdpMediaConfig * media, GError ** error)
 {
   GSList *l;
 
@@ -467,6 +467,8 @@ kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
     SdpMediaConfig *mconf = l->data;
 
     if (mconf->id == media->id) {
+      g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+          SDP_AGENT_UNEXPECTED_ERROR, "Media already belongs to another group");
       return FALSE;
     }
   }
