@@ -83,7 +83,6 @@ static gchar *rtpmaps[] = {
   "H263/90000",
 };
 
-#define RESERVED_PAYLOAD_TYPE()
 typedef struct _KmsSdpRtpMap KmsSdpRtpMap;
 struct _KmsSdpRtpMap
 {
