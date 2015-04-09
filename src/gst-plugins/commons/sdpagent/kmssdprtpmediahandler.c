@@ -1,0 +1,187 @@
+/*
+ * (C) Copyright 2015 Kurento (http://kurento.org/)
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the GNU Lesser General Public License
+ * (LGPL) version 2.1 which accompanies this distribution, and is available at
+ * http://www.gnu.org/licenses/lgpl-2.1.html
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "kmssdpagent.h"
+#include "sdp_utils.h"
+#include "kmssdprtpmediahandler.h"
+
+#define OBJECT_NAME "sdprtpmediahandler"
+
+GST_DEBUG_CATEGORY_STATIC (kms_sdp_rtp_media_handler_debug_category);
+#define GST_CAT_DEFAULT kms_sdp_rtp_media_handler_debug_category
+
+#define parent_class kms_sdp_rtp_media_handler_parent_class
+
+G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpMediaHandler, kms_sdp_rtp_media_handler,
+    KMS_TYPE_SDP_MEDIA_HANDLER,
+    GST_DEBUG_CATEGORY_INIT (kms_sdp_rtp_media_handler_debug_category,
+        OBJECT_NAME, 0, "debug category for sdp rtp media_handler"));
+
+#define DEFAULT_SDP_MEDIA_RTP_RTCP_MUX TRUE
+
+#define KMS_SDP_RTP_MEDIA_HANDLER_GET_PRIVATE(obj) (  \
+  G_TYPE_INSTANCE_GET_PRIVATE (                       \
+    (obj),                                            \
+    KMS_TYPE_SDP_RTP_MEDIA_HANDLER,                   \
+    KmsSdpRtpMediaHandlerPrivate                      \
+  )                                                   \
+)
+
+/* Object properties */
+enum
+{
+  PROP_0,
+  PROP_RTCP_MUX,
+  N_PROPERTIES
+};
+
+struct _KmsSdpRtpMediaHandlerPrivate
+{
+  gboolean rtcp_mux;
+};
+
+static void
+kms_sdp_rtp_media_handler_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec)
+{
+  KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (object);
+
+  switch (prop_id) {
+    case PROP_RTCP_MUX:
+      g_value_set_boolean (value, self->priv->rtcp_mux);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+kms_sdp_rtp_media_handler_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (object);
+
+  switch (prop_id) {
+    case PROP_RTCP_MUX:
+      self->priv->rtcp_mux = g_value_get_boolean (value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static gboolean
+kms_sdp_rtp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
+    GstSDPMedia * answer)
+{
+  KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
+
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
+      (handler, offer, attr, answer)) {
+    return FALSE;
+  }
+
+  if (g_strcmp0 (attr->key, "rtcp-mux") == 0 && !self->priv->rtcp_mux) {
+    /* Not allowed */
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+struct IntersectAttrData
+{
+  KmsSdpMediaHandler *handler;
+  const GstSDPMedia *offer;
+  GstSDPMedia *answer;
+};
+
+static gboolean
+instersect_rtp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
+{
+  struct IntersectAttrData *data = (struct IntersectAttrData *) user_data;
+
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+    return FALSE;
+  }
+
+  if (gst_sdp_media_add_attribute (data->answer, attr->key,
+          attr->value) != GST_SDP_OK) {
+    GST_WARNING ("Cannot add attribute '%s'", attr->key);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
+kms_sdp_rtp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  struct IntersectAttrData data = {
+    .handler = handler,
+    .offer = offer,
+    .answer = answer
+  };
+
+  if (!sdp_utils_intersect_media_attributes (offer,
+          instersect_rtp_media_attr, &data)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not intersect media attributes");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static void
+kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
+{
+  GObjectClass *gobject_class;
+  KmsSdpMediaHandlerClass *handler_class;
+
+  gobject_class = G_OBJECT_CLASS (klass);
+
+  gobject_class->get_property = kms_sdp_rtp_media_handler_get_property;
+  gobject_class->set_property = kms_sdp_rtp_media_handler_set_property;
+
+  handler_class = KMS_SDP_MEDIA_HANDLER_CLASS (klass);
+
+  handler_class->can_insert_attribute =
+      kms_sdp_rtp_media_handler_can_insert_attribute;
+  handler_class->intersect_sdp_medias =
+      kms_sdp_rtp_media_handler_intersect_sdp_medias;
+
+  g_object_class_install_property (gobject_class, PROP_RTCP_MUX,
+      g_param_spec_boolean ("rtcp-mux", "rtcp-mux",
+          "Wheter multiplexing RTP data and control packets on a single port is supported",
+          DEFAULT_SDP_MEDIA_RTP_RTCP_MUX,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_type_class_add_private (klass, sizeof (KmsSdpRtpMediaHandlerPrivate));
+}
+
+static void
+kms_sdp_rtp_media_handler_init (KmsSdpRtpMediaHandler * self)
+{
+  self->priv = KMS_SDP_RTP_MEDIA_HANDLER_GET_PRIVATE (self);
+}

@@ -30,7 +30,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_rtp_avp_media_handler_debug_category);
 #define parent_class kms_sdp_rtp_avp_media_handler_parent_class
 
 G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpMediaHandler,
-    kms_sdp_rtp_avp_media_handler, KMS_TYPE_SDP_MEDIA_HANDLER,
+    kms_sdp_rtp_avp_media_handler, KMS_TYPE_SDP_RTP_MEDIA_HANDLER,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_rtp_avp_media_handler_debug_category,
         OBJECT_NAME, 0, "debug category for sdp rtp avp media_handler"));
 

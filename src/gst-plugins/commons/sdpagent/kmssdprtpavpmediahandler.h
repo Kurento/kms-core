@@ -17,7 +17,7 @@
 
 #include <gst/gst.h>
 
-#include "kmssdpmediahandler.h"
+#include "kmssdprtpmediahandler.h"
 
 G_BEGIN_DECLS
 
@@ -59,12 +59,12 @@ typedef struct _KmsSdpRtpAvpMediaHandlerClass KmsSdpRtpAvpMediaHandlerClass;
 
 struct _KmsSdpRtpAvpMediaHandler
 {
-  KmsSdpMediaHandler parent;
+  KmsSdpRtpMediaHandler parent;
 };
 
 struct _KmsSdpRtpAvpMediaHandlerClass
 {
-  KmsSdpMediaHandlerClass parent_class;
+  KmsSdpRtpMediaHandlerClass parent_class;
 };
 
 GType kms_sdp_rtp_avp_media_handler_get_type ();

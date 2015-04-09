@@ -2,6 +2,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmssdpagent.c
   kmssdpcontext.c
   kmssdpmediahandler.c
+  kmssdprtpmediahandler.c
   kmssdprtpavpfmediahandler.c
   kmssdprtpavpmediahandler.c
   kmssdprtpsavpfmediahandler.c
@@ -12,6 +13,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmssdpagent.h
   kmssdpcontext.h
   kmssdpmediahandler.h
+  kmssdprtpmediahandler.h
   kmssdprtpavpfmediahandler.h
   kmssdprtpavpmediahandler.h
   kmssdprtpsavpfmediahandler.h
