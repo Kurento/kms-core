@@ -664,7 +664,7 @@ gint
 kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->add_proto_handler (agent, media,
       handler);
