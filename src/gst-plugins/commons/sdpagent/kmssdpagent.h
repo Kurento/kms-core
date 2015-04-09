@@ -102,6 +102,14 @@ void kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * 
 gint kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
 
+typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
+                                                   GstSDPMedia *media,
+                                                   gpointer user_data);
+void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
+                                             KmsSdpAgentConfigureMediaCallback callback,
+                                             gpointer user_data,
+                                             GDestroyNotify destroy);
+
 G_END_DECLS
 
 #endif /* __KMS_SDP_AGENT_H_ */

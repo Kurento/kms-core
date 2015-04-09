@@ -57,6 +57,47 @@ static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
   )                                       \
 )
 
+/* Configure media callback begin */
+typedef struct _KmsSdpAgentConfigureMediaCallbackData
+{
+  KmsSdpAgentConfigureMediaCallback callback;
+  gpointer user_data;
+  GDestroyNotify destroy;
+} KmsSdpAgentConfigureMediaCallbackData;
+
+static KmsSdpAgentConfigureMediaCallbackData
+    * kms_sdp_agent_configure_media_callback_data_new
+    (KmsSdpAgentConfigureMediaCallback callback, gpointer user_data,
+    GDestroyNotify destroy)
+{
+  KmsSdpAgentConfigureMediaCallbackData *data;
+
+  data = g_slice_new0 (KmsSdpAgentConfigureMediaCallbackData);
+  data->callback = callback;
+  data->user_data = user_data;
+  data->destroy = destroy;
+
+  return data;
+}
+
+static void
+    kms_sdp_agent_configure_media_callback_data_clear
+    (KmsSdpAgentConfigureMediaCallbackData ** data)
+{
+  if (*data == NULL) {
+    return;
+  }
+
+  if ((*data)->destroy) {
+    (*data)->destroy ((*data)->user_data);
+  }
+
+  g_slice_free (KmsSdpAgentConfigureMediaCallbackData, *data);
+  *data = NULL;
+}
+
+/* Configure media callback end */
+
 typedef struct _SdpHandlerGroup
 {
   guint id;
@@ -83,6 +124,8 @@ struct _KmsSdpAgentPrivate
 
   guint hids;                   /* handler ids */
   guint gids;                   /* group ids */
+
+  KmsSdpAgentConfigureMediaCallbackData *configure_media_callback_data;
 
   GMutex mutex;
 };
@@ -157,6 +200,9 @@ kms_sdp_agent_finalize (GObject * object)
   KmsSdpAgent *self = KMS_SDP_AGENT (object);
 
   GST_DEBUG_OBJECT (self, "finalize");
+
+  kms_sdp_agent_configure_media_callback_data_clear (&self->
+      priv->configure_media_callback_data);
 
   kms_sdp_agent_release_sdp (&self->priv->local_description);
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
@@ -304,6 +350,11 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
       }
     }
   }
+
+  if (data->agent->priv->configure_media_callback_data != NULL) {
+    data->agent->priv->configure_media_callback_data->callback (data->agent,
+        media, data->agent->priv->configure_media_callback_data->user_data);
+  }
 }
 
 static GstSDPMessage *
@@ -407,6 +458,10 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 
   if (answer_media == NULL) {
     answer_media = reject_media_answer (media);
+  } else if (data->agent->priv->configure_media_callback_data != NULL) {
+    data->agent->priv->configure_media_callback_data->callback (data->agent,
+        answer_media,
+        data->agent->priv->configure_media_callback_data->user_data);
   }
 
   kms_sdp_message_context_add_media (data->ctx, answer_media);
@@ -660,6 +715,7 @@ kms_sdp_agent_new ()
   return agent;
 }
 
+/* inmediate-TODO: rename to _add_media_handler */
 gint
 kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
@@ -720,4 +776,21 @@ kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid)
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->add_handler_to_group (agent, gid,
       hid);
+}
+
+void
+kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
+    KmsSdpAgentConfigureMediaCallback callback,
+    gpointer user_data, GDestroyNotify destroy)
+{
+  KmsSdpAgentConfigureMediaCallbackData *old_data;
+
+  SDP_AGENT_LOCK (agent);
+  old_data = agent->priv->configure_media_callback_data;
+  agent->priv->configure_media_callback_data =
+      kms_sdp_agent_configure_media_callback_data_new (callback, user_data,
+      destroy);
+  SDP_AGENT_UNLOCK (agent);
+
+  kms_sdp_agent_configure_media_callback_data_clear (&old_data);
 }
