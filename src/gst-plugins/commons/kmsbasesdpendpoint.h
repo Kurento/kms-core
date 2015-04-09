@@ -55,18 +55,16 @@ struct _KmsBaseSdpEndpointClass
 
   /* private */
   /* actions */
-  GstSDPMessage *(*generate_offer) (KmsBaseSdpEndpoint * base_stream);
-  GstSDPMessage *(*process_offer) (KmsBaseSdpEndpoint * base_stream,
-      GstSDPMessage * offer);
-  void (*process_answer) (KmsBaseSdpEndpoint * base_stream,
-      GstSDPMessage * answer);
+  GstSDPMessage *(*generate_offer) (KmsBaseSdpEndpoint * self);
+  GstSDPMessage *(*process_offer) (KmsBaseSdpEndpoint * self, GstSDPMessage * offer);
+  void (*process_answer) (KmsBaseSdpEndpoint * self, GstSDPMessage * answer);
+
   /* virtual methods */
-    gboolean (*set_transport_to_sdp) (KmsBaseSdpEndpoint * base_stream,
-      GstSDPMessage * msg);
-  void (*start_transport_send) (KmsBaseSdpEndpoint * base_stream,
+  gboolean (*set_transport_to_sdp) (KmsBaseSdpEndpoint * self, GstSDPMessage * msg);
+  void (*start_transport_send) (KmsBaseSdpEndpoint * self,
       const GstSDPMessage * offer, const GstSDPMessage * answer,
       gboolean local_offer);
-  void (*connect_input_elements) (KmsBaseSdpEndpoint * base_stream,
+  void (*connect_input_elements) (KmsBaseSdpEndpoint * self,
       const GstSDPMessage * answer);
 };
 
