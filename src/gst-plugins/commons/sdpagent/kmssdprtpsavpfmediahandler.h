@@ -15,8 +15,6 @@
 #ifndef _KMS_SDP_RTP_SAVPF_MEDIA_HANDLER_H_
 #define _KMS_SDP_RTP_SAVPF_MEDIA_HANDLER_H_
 
-#include <gst/gst.h>
-
 #include "kmssdprtpavpfmediahandler.h"
 
 G_BEGIN_DECLS
