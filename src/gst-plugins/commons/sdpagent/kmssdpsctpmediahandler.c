@@ -276,72 +276,22 @@ kms_sdp_sctp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, GError ** error)
 {
   GstSDPMedia *m = NULL;
-  gchar *proto = NULL;
-  guint i, len;
-
-  if (g_strcmp0 (gst_sdp_media_get_media (offer), "application") != 0) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Unsupported '%s' media", gst_sdp_media_get_media (offer));
-    goto error;
-  }
-
-  g_object_get (handler, "proto", &proto, NULL);
-
-  if (g_strcmp0 (proto, gst_sdp_media_get_proto (offer)) != 0) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PROTOCOL,
-        "Unexpected media protocol '%s'", gst_sdp_media_get_proto (offer));
-    goto error;
-  }
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to create '%s' media answer", gst_sdp_media_get_media (offer));
+        "Can not create '%s' media answer", gst_sdp_media_get_media (offer));
     goto error;
   }
 
-  if (gst_sdp_media_set_media (m,
-          gst_sdp_media_get_media (offer)) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "Can not set '%s' media ttribute", gst_sdp_media_get_media (offer));
+  /* Create m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->init_answer (handler, offer,
+          m, error)) {
     goto error;
   }
 
-  if (gst_sdp_media_set_proto (m, proto) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "Can not set proto '%s' attribute", proto);
-    goto error;
-  }
-
-  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
-    goto error;
-  }
-
-  len = gst_sdp_media_formats_len (offer);
-
-  /* Set only supported media formats in answer */
-  for (i = 0; i < len; i++) {
-    const gchar *fmt;
-
-    fmt = gst_sdp_media_get_format (offer, i);
-
-    if (!format_supported (offer, fmt)) {
-      continue;
-    }
-
-    if (gst_sdp_media_add_format (m, fmt) != GST_SDP_OK) {
-      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can not add format '%s'", fmt);
-      goto error;
-    }
-  }
-
-  if (!add_supported_sctmap_attrs (offer, m, error)) {
-    goto error;
-  }
-
-  if (!add_supported_subproto_attrs (offer, m, error)) {
+  /* Add attributes to m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_answer_attributes
+      (handler, offer, m, error)) {
     goto error;
   }
 
@@ -350,14 +300,9 @@ kms_sdp_sctp_media_handler_create_answer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  g_free (proto);
-
   return m;
 
 error:
-  if (proto != NULL) {
-    g_free (proto);
-  }
 
   if (m != NULL) {
     gst_sdp_media_free (m);
@@ -499,6 +444,94 @@ kms_sdp_sctp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
       offer, error);
 }
 
+static gboolean
+kms_sdp_sctp_media_handler_init_answer (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  gchar *proto = NULL;
+
+  if (g_strcmp0 (gst_sdp_media_get_media (offer), "application") != 0) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Unsupported '%s' media", gst_sdp_media_get_media (offer));
+    goto error;
+  }
+
+  g_object_get (handler, "proto", &proto, NULL);
+
+  if (g_strcmp0 (proto, gst_sdp_media_get_proto (offer)) != 0) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PROTOCOL,
+        "Unexpected media protocol '%s'", gst_sdp_media_get_proto (offer));
+    goto error;
+  }
+
+  if (gst_sdp_media_set_media (answer,
+          gst_sdp_media_get_media (offer)) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Can not set '%s' media ttribute", gst_sdp_media_get_media (offer));
+    goto error;
+  }
+
+  if (gst_sdp_media_set_proto (answer, proto) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Can not set proto '%s' attribute", proto);
+    goto error;
+  }
+
+  if (gst_sdp_media_set_port_info (answer, 1, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
+    goto error;
+  }
+
+  g_free (proto);
+
+  return TRUE;
+
+error:
+  if (proto != NULL) {
+    g_free (proto);
+  }
+
+  return FALSE;
+}
+
+static gboolean
+kms_sdp_sctp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
+    handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  guint i, len;
+
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_answer_attributes
+      (handler, offer, answer, error)) {
+    return FALSE;
+  }
+
+  len = gst_sdp_media_formats_len (offer);
+
+  /* Set only supported media formats in answer */
+  for (i = 0; i < len; i++) {
+    const gchar *fmt;
+
+    fmt = gst_sdp_media_get_format (offer, i);
+
+    if (!format_supported (offer, fmt)) {
+      continue;
+    }
+
+    if (gst_sdp_media_add_format (answer, fmt) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not add format '%s'", fmt);
+      return FALSE;
+    }
+  }
+
+  if (!add_supported_sctmap_attrs (offer, answer, error)) {
+    return FALSE;
+  }
+
+  return add_supported_subproto_attrs (offer, answer, error);
+}
+
 static void
 kms_sdp_sctp_media_handler_class_init (KmsSdpSctpMediaHandlerClass * klass)
 {
@@ -522,6 +555,10 @@ kms_sdp_sctp_media_handler_class_init (KmsSdpSctpMediaHandlerClass * klass)
   handler_class->init_offer = kms_sdp_sctp_media_handler_init_offer;
   handler_class->add_offer_attributes =
       kms_sdp_sctp_media_handler_add_offer_attributes;
+
+  handler_class->init_answer = kms_sdp_sctp_media_handler_init_answer;
+  handler_class->add_answer_attributes =
+      kms_sdp_sctp_media_handler_add_answer_attributes_impl;
 }
 
 static void

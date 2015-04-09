@@ -170,6 +170,24 @@ kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
   return TRUE;
 }
 
+static gboolean
+kms_sdp_media_handler_init_answer_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+      "Media answer initialization is not implemented");
+
+  return FALSE;
+}
+
+static gboolean
+kms_sdp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  /* Nothing to add at this level */
+  return TRUE;
+}
+
 static void
 kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 {
@@ -193,6 +211,10 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 
   klass->init_offer = kms_sdp_media_handler_init_offer_impl;
   klass->add_offer_attributes = kms_sdp_media_handler_add_offer_attributes_impl;
+
+  klass->init_answer = kms_sdp_media_handler_init_answer_impl;
+  klass->add_answer_attributes =
+      kms_sdp_media_handler_add_answer_attributes_impl;
 
   g_type_class_add_private (klass, sizeof (KmsSdpMediaHandlerPrivate));
 }

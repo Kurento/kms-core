@@ -79,6 +79,9 @@ struct _KmsSdpMediaHandlerClass
 
   gboolean (*init_offer) (KmsSdpMediaHandler *handler, const gchar * media, GstSDPMedia * offer, GError **error);
   gboolean (*add_offer_attributes) (KmsSdpMediaHandler *handler, GstSDPMedia * offer, GError **error);
+
+  gboolean (*init_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
+  gboolean (*add_answer_attributes) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
 };
 
 GType kms_sdp_media_handler_get_type ();
