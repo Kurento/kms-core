@@ -41,6 +41,7 @@ struct _SdpMediaConfig
 {
   guint id;
   gchar *mid;
+  SdpMediaGroup *group;
   GstSDPMedia *media;
 };
 
@@ -287,6 +288,30 @@ kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
   return mconf;
 }
 
+gint
+kms_sdp_media_config_get_id (SdpMediaConfig * mconf)
+{
+  return mconf->id;
+}
+
+gboolean
+kms_sdp_media_config_is_rtcp_mux (SdpMediaConfig * mconf)
+{
+  return gst_sdp_media_get_attribute_val (mconf->media, "rtcp-mux") != NULL;
+}
+
+SdpMediaGroup *
+kms_sdp_media_config_get_group (SdpMediaConfig * mconf)
+{
+  return mconf->group;
+}
+
+GstSDPMedia *
+kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf)
+{
+  return mconf->media;
+}
+
 static void
 add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
 {
@@ -441,6 +466,12 @@ kms_sdp_message_context_create_group (SdpMessageContext * ctx, guint gid)
   return group;
 }
 
+gint
+kms_sdp_media_group_get_id (SdpMediaGroup * group)
+{
+  return group->id;
+}
+
 SdpMediaGroup *
 kms_sdp_message_context_get_group (SdpMessageContext * ctx, guint gid)
 {
@@ -461,19 +492,14 @@ gboolean
 kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
     SdpMediaConfig * media, GError ** error)
 {
-  GSList *l;
-
-  for (l = group->medias; l != NULL; l = l->next) {
-    SdpMediaConfig *mconf = l->data;
-
-    if (mconf->id == media->id) {
-      g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-          SDP_AGENT_UNEXPECTED_ERROR, "Media already belongs to another group");
-      return FALSE;
-    }
+  if (media->group != NULL) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Media already belongs to group (%d)", group->id);
+    return FALSE;
   }
 
   group->medias = g_slist_append (group->medias, media);
+  media->group = group;
 
   return TRUE;
 }

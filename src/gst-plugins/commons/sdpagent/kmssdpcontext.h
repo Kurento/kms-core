@@ -30,8 +30,13 @@ SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, GError **error);
 gboolean kms_sdp_message_context_set_common_session_attributes (SdpMessageContext *ctx, const GstSDPMessage *msg, GError **error);
 void kms_sdp_message_context_destroy (SdpMessageContext *ctx);
 SdpMediaConfig * kms_sdp_message_context_add_media (SdpMessageContext *ctx, GstSDPMedia *media);
+gint kms_sdp_media_config_get_id (SdpMediaConfig * mconf);
+gboolean kms_sdp_media_config_is_rtcp_mux (SdpMediaConfig * mconf);
+SdpMediaGroup * kms_sdp_media_config_get_group (SdpMediaConfig * mconf);
+GstSDPMedia * kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf);
 GstSDPMessage * kms_sdp_message_context_pack (SdpMessageContext *ctx, GError **error);
 SdpMediaGroup * kms_sdp_message_context_create_group (SdpMessageContext *ctx, guint gid);
+gint kms_sdp_media_group_get_id (SdpMediaGroup *group);
 SdpMediaGroup * kms_sdp_message_context_get_group (SdpMessageContext *ctx, guint gid);
 gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMediaConfig *media, GError **error);
 
