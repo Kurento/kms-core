@@ -158,7 +158,11 @@ static gboolean
 kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
     GstSDPMedia * offer, GError ** error)
 {
-  /* TODO: Add rtcp-mux attribute */
+  KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
+
+  if (self->priv->rtcp_mux) {
+    gst_sdp_media_add_attribute (offer, "rtcp-mux", NULL);
+  }
 
   return
       KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,

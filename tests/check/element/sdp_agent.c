@@ -865,6 +865,205 @@ GST_START_TEST (sdp_agent_test_fb_messages)
   fb_messages_disable_answer_prop ("goog-remb");
 }
 
+GST_END_TEST static void
+test_handler_offer (KmsSdpAgent * offerer, KmsSdpAgent * answerer,
+    CheckSdpNegotiationFunc func, gpointer data)
+{
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gchar *sdp_str = NULL;;
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  if (func) {
+    func (offer, answer, data);
+  }
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+}
+
+static gboolean
+is_rtcp_mux_in_media (const GstSDPMessage * msg)
+{
+  guint i, len;
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+    guint j;
+
+    media = gst_sdp_message_get_media (msg, i);
+
+    for (j = 0;; j++) {
+      const gchar *val;
+
+      val = gst_sdp_media_get_attribute_val_n (media, "rtcp-mux", j);
+
+      if (val == NULL) {
+        /* Check more medias */
+        break;
+      }
+
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static void
+check_rtcp_mux_enabled (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  fail_unless (!is_rtcp_mux_in_media (offer));
+  fail_unless (!is_rtcp_mux_in_media (answer));
+}
+
+static void
+test_rtcp_mux_offer_enabled ()
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  test_handler_offer (offerer, answerer, check_rtcp_mux_enabled, NULL);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+static void
+check_rtcp_mux_offer_disabled (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  fail_if (is_rtcp_mux_in_media (offer));
+  fail_if (is_rtcp_mux_in_media (answer));
+}
+
+static void
+check_rtcp_mux_answer_disabled (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  fail_unless (!is_rtcp_mux_in_media (offer));
+  fail_if (is_rtcp_mux_in_media (answer));
+}
+
+static void
+test_rtcp_mux_offer_disabled ()
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  /* Offerer can not manage rtcp-mux */
+  g_object_set (handler, "rtcp-mux", FALSE, NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  test_handler_offer (offerer, answerer, check_rtcp_mux_offer_disabled, NULL);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+static void
+test_rtcp_mux_answer_disabled ()
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  /* Answerer can not manage rtcp-mux */
+  g_object_set (handler, "rtcp-mux", FALSE, NULL);
+
+  test_handler_offer (offerer, answerer, check_rtcp_mux_answer_disabled, NULL);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_rtcp_mux)
+{
+  test_rtcp_mux_offer_enabled ();
+  test_rtcp_mux_offer_disabled ();
+  test_rtcp_mux_answer_disabled ();
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -883,6 +1082,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_rtp_savpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_bundle_group);
   tcase_add_test (tc_chain, sdp_agent_test_fb_messages);
+  tcase_add_test (tc_chain, sdp_agent_test_rtcp_mux);
 
   return s;
 }
