@@ -851,11 +851,6 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -it js
-    )
-
-    execute_code_generator (
-      EXEC_PARAMS
         -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/js/src
     )
 
