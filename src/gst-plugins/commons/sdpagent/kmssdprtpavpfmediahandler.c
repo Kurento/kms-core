@@ -236,18 +236,23 @@ static GstSDPMedia *
 kms_sdp_rtp_avpf_media_handler_create_offer (KmsSdpMediaHandler * handler,
     const gchar * media, GError ** error)
 {
-  GError *tmp_error = NULL;
   GstSDPMedia *m;
 
-  m = KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->create_offer (handler, media,
-      &tmp_error);
-
-  if (tmp_error != NULL) {
-    g_propagate_error (error, tmp_error);
+  if (gst_sdp_media_new (&m) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not create '%s' media", media);
     goto error;
   }
 
-  if (!kms_sdp_rtp_avpf_media_handler_add_rtcp_fb_attrs (handler, m, error)) {
+  /* Create m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->init_offer (handler, media,
+          m, error)) {
+    goto error;
+  }
+
+  /* Add attributes to m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_offer_attributes (handler,
+          m, error)) {
     goto error;
   }
 
@@ -449,6 +454,20 @@ kms_sdp_rtp_avpf_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
   return TRUE;
 }
 
+static gboolean
+kms_sdp_rtp_avpf_media_handler_add_offer_attributes (KmsSdpMediaHandler *
+    handler, GstSDPMedia * offer, GError ** error)
+{
+  /* We depend of payloads supported by parent class */
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes
+      (handler, offer, error)) {
+    return FALSE;
+  }
+
+  return kms_sdp_rtp_avpf_media_handler_add_rtcp_fb_attrs (handler, offer,
+      error);
+}
+
 static void
 kms_sdp_rtp_avpf_media_handler_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
@@ -509,6 +528,8 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
       kms_sdp_rtp_avpf_media_handler_can_insert_attribute;
   handler_class->intersect_sdp_medias =
       kms_sdp_rtp_avpf_media_handler_intersect_sdp_medias;
+  handler_class->add_offer_attributes =
+      kms_sdp_rtp_avpf_media_handler_add_offer_attributes;
 
   g_object_class_install_property (gobject_class, PROP_NACK,
       g_param_spec_boolean ("nack", "Nack",

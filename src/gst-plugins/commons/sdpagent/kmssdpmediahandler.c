@@ -152,6 +152,24 @@ kms_sdp_media_handler_intersect_sdp_medias_impl (KmsSdpMediaHandler * handler,
   return FALSE;
 }
 
+static gboolean
+kms_sdp_media_handler_init_offer_impl (KmsSdpMediaHandler * handler,
+    const gchar * media, GstSDPMedia * offer, GError ** error)
+{
+  g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+      "Media offert initialization is not implemented");
+
+  return FALSE;
+}
+
+static gboolean
+kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
+    GstSDPMedia * offer, GError ** error)
+{
+  /* Nothing to add at this level */
+  return TRUE;
+}
+
 static void
 kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 {
@@ -172,6 +190,9 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 
   klass->can_insert_attribute = kms_sdp_media_handler_can_insert_attribute_impl;
   klass->intersect_sdp_medias = kms_sdp_media_handler_intersect_sdp_medias_impl;
+
+  klass->init_offer = kms_sdp_media_handler_init_offer_impl;
+  klass->add_offer_attributes = kms_sdp_media_handler_add_offer_attributes_impl;
 
   g_type_class_add_private (klass, sizeof (KmsSdpMediaHandlerPrivate));
 }

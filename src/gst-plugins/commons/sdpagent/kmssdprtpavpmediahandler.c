@@ -265,14 +265,6 @@ kms_sdp_rtp_avp_media_handler_create_offer (KmsSdpMediaHandler * handler,
     const gchar * media, GError ** error)
 {
   GstSDPMedia *m = NULL;
-  gchar *proto = NULL;
-
-  if (g_strcmp0 (media, SDP_AUDIO_MEDIA) != 0
-      && g_strcmp0 (media, SDP_VIDEO_MEDIA) != 0) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Unsupported '%s' media", media);
-    goto error;
-  }
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
@@ -280,35 +272,17 @@ kms_sdp_rtp_avp_media_handler_create_offer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (gst_sdp_media_set_media (m, media) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not set '%s' media", media);
+  /* Create m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->init_offer (handler, media, m,
+          error)) {
     goto error;
   }
 
-  g_object_get (handler, "proto", &proto, NULL);
-
-  if (gst_sdp_media_set_proto (m, proto) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not set '%s' protocol", SDP_MEDIA_RTP_AVP_PROTO);
+  /* Add attributes to m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_offer_attributes (handler,
+          m, error)) {
     goto error;
   }
-
-  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not set port");
-    goto error;
-  }
-
-  if (!kms_sdp_rtp_avp_media_handler_add_supported_fmts (m, error)) {
-    goto error;
-  }
-
-  if (!kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (m, error)) {
-    goto error;
-  }
-
-  g_free (proto);
 
   return m;
 
@@ -316,8 +290,6 @@ error:
   if (m != NULL) {
     gst_sdp_media_free (m);
   }
-
-  g_free (proto);
 
   return NULL;
 }
@@ -551,9 +523,8 @@ instersect_rtp_avp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
-          handler)->can_insert_attribute (data->handler, data->offer, attr,
-          data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
     return FALSE;
   }
 
@@ -586,6 +557,67 @@ kms_sdp_rtp_avp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
   return TRUE;
 }
 
+static gboolean
+kms_sdp_rtp_avp_media_handler_init_offer (KmsSdpMediaHandler * handler,
+    const gchar * media, GstSDPMedia * offer, GError ** error)
+{
+  gchar *proto = NULL;
+  gboolean ret = TRUE;
+
+  if (g_strcmp0 (media, SDP_AUDIO_MEDIA) != 0
+      && g_strcmp0 (media, SDP_VIDEO_MEDIA) != 0) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Unsupported '%s' media", media);
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_set_media (offer, media) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not set '%s' media", media);
+    ret = FALSE;
+    goto end;
+  }
+
+  g_object_get (handler, "proto", &proto, NULL);
+
+  if (gst_sdp_media_set_proto (offer, proto) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not set '%s' protocol", SDP_MEDIA_RTP_AVP_PROTO);
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_set_port_info (offer, 1, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not set port");
+    ret = FALSE;
+  }
+
+end:
+  g_free (proto);
+
+  return ret;
+}
+
+static gboolean
+kms_sdp_rtp_avp_media_handler_add_offer_attributes (KmsSdpMediaHandler *
+    handler, GstSDPMedia * offer, GError ** error)
+{
+  if (!kms_sdp_rtp_avp_media_handler_add_supported_fmts (offer, error)) {
+    return FALSE;
+  }
+
+  if (!kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (offer, error)) {
+    return FALSE;
+  }
+
+  /* Chain up */
+  return
+      KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,
+      offer, error);
+}
+
 static void
 kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
 {
@@ -606,6 +638,9 @@ kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
   handler_class->intersect_sdp_medias =
       kms_sdp_rtp_avp_media_handler_intersect_sdp_medias;
 
+  handler_class->init_offer = kms_sdp_rtp_avp_media_handler_init_offer;
+  handler_class->add_offer_attributes =
+      kms_sdp_rtp_avp_media_handler_add_offer_attributes;
 }
 
 static void

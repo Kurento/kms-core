@@ -72,13 +72,6 @@ kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
     const gchar * media, GError ** error)
 {
   GstSDPMedia *m = NULL;
-  guint i, len;
-
-  if (g_strcmp0 (media, "application") != 0) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Unsupported '%s' media", media);
-    goto error;
-  }
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
@@ -86,57 +79,16 @@ kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
     goto error;
   }
 
-  if (gst_sdp_media_set_media (m, media) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set '%s' media", media);
+  /* Create m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->init_offer (handler, media, m,
+          error)) {
     goto error;
   }
 
-  if (gst_sdp_media_set_proto (m, SDP_MEDIA_DTLS_SCTP_PROTO) != GST_SDP_OK) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set '%s' protocol", SDP_MEDIA_DTLS_SCTP_PROTO);
+  /* Add attributes to m-line */
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_offer_attributes (handler,
+          m, error)) {
     goto error;
-  }
-
-  if (gst_sdp_media_set_port_info (m, 1, 1) != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set port");
-    goto error;
-  }
-
-  if (gst_sdp_media_add_format (m, SDP_MEDIA_DTLS_SCTP_FMT) != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set format");
-    goto error;
-  }
-
-  if (gst_sdp_media_add_attribute (m, "setup", "actpass") != GST_SDP_OK) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set attribute 'setup:actpass'");
-    goto error;
-  }
-
-  /* Format parameters when protocol is DTLS/SCTP carries the SCTP port  */
-  /* number and the mandatory "a=sctpmap:" attribute contains the actual */
-  /* media format within the protocol parameter.                         */
-  /* draft: https://tools.ietf.org/html/draft-ietf-mmusic-sctp-sdp-03    */
-  len = gst_sdp_media_formats_len (m);
-  for (i = 0; i < len; i++) {
-    const gchar *sctp_port;
-    gchar *attr;
-
-    sctp_port = gst_sdp_media_get_format (m, i);
-    attr = g_strdup_printf ("%s webrtc-datachannel %d",
-        sctp_port, DEFAULT_STREAMS_N);
-
-    if (gst_sdp_media_add_attribute (m, "sctpmap", attr) != GST_SDP_OK) {
-      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can not to set attribute 'sctpman:%s'", attr);
-      g_free (attr);
-      goto error;
-    }
-
-    g_free (attr);
   }
 
   return m;
@@ -426,8 +378,9 @@ instersect_sctp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
+          handler)->can_insert_attribute (data->handler, data->offer, attr,
+          data->answer)) {
     return FALSE;
   }
 
@@ -460,6 +413,92 @@ kms_sdp_sctp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
   return TRUE;
 }
 
+static gboolean
+kms_sdp_sctp_media_handler_init_offer (KmsSdpMediaHandler * handler,
+    const gchar * media, GstSDPMedia * offer, GError ** error)
+{
+  gboolean ret = TRUE;
+
+  if (g_strcmp0 (media, "application") != 0) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Unsupported '%s' media", media);
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_set_media (offer, media) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not to set '%s' media", media);
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_set_proto (offer, SDP_MEDIA_DTLS_SCTP_PROTO) != GST_SDP_OK) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not to set '%s' protocol", SDP_MEDIA_DTLS_SCTP_PROTO);
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_set_port_info (offer, 1, 1) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not to set port");
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_add_format (offer, SDP_MEDIA_DTLS_SCTP_FMT) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not to set format");
+    ret = FALSE;
+    goto end;
+  }
+
+  if (gst_sdp_media_add_attribute (offer, "setup", "actpass") != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not to set attribute 'setup:actpass'");
+    ret = FALSE;
+  }
+
+end:
+  return ret;
+}
+
+static gboolean
+kms_sdp_sctp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
+    GstSDPMedia * offer, GError ** error)
+{
+  guint i, len;
+
+  /* Format parameters when protocol is DTLS/SCTP carries the SCTP port  */
+  /* number and the mandatory "a=sctpmap:" attribute contains the actual */
+  /* media format within the protocol parameter.                         */
+  /* draft: https://tools.ietf.org/html/draft-ietf-mmusic-sctp-sdp-03    */
+  len = gst_sdp_media_formats_len (offer);
+  for (i = 0; i < len; i++) {
+    const gchar *sctp_port;
+    gchar *attr;
+
+    sctp_port = gst_sdp_media_get_format (offer, i);
+    attr = g_strdup_printf ("%s webrtc-datachannel %d",
+        sctp_port, DEFAULT_STREAMS_N);
+
+    if (gst_sdp_media_add_attribute (offer, "sctpmap", attr) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not to set attribute 'sctpman:%s'", attr);
+      g_free (attr);
+      return FALSE;
+    }
+
+    g_free (attr);
+  }
+
+  /* Chain up */
+  return
+      KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,
+      offer, error);
+}
+
 static void
 kms_sdp_sctp_media_handler_class_init (KmsSdpSctpMediaHandlerClass * klass)
 {
@@ -479,6 +518,10 @@ kms_sdp_sctp_media_handler_class_init (KmsSdpSctpMediaHandlerClass * klass)
       kms_sdp_sctp_media_handler_can_insert_attribute;
   handler_class->intersect_sdp_medias =
       kms_sdp_sctp_media_handler_intersect_sdp_medias;
+
+  handler_class->init_offer = kms_sdp_sctp_media_handler_init_offer;
+  handler_class->add_offer_attributes =
+      kms_sdp_sctp_media_handler_add_offer_attributes;
 }
 
 static void

@@ -119,8 +119,9 @@ instersect_rtp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct IntersectAttrData *data = (struct IntersectAttrData *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
+          handler)->can_insert_attribute (data->handler, data->offer, attr,
+          data->answer)) {
     return FALSE;
   }
 
@@ -153,6 +154,17 @@ kms_sdp_rtp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler * handler,
   return TRUE;
 }
 
+static gboolean
+kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
+    GstSDPMedia * offer, GError ** error)
+{
+  /* TODO: Add rtcp-mux attribute */
+
+  return
+      KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,
+      offer, error);
+}
+
 static void
 kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
 {
@@ -170,6 +182,8 @@ kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
       kms_sdp_rtp_media_handler_can_insert_attribute;
   handler_class->intersect_sdp_medias =
       kms_sdp_rtp_media_handler_intersect_sdp_medias;
+  handler_class->add_offer_attributes =
+      kms_sdp_rtp_media_handler_add_offer_attributes;
 
   g_object_class_install_property (gobject_class, PROP_RTCP_MUX,
       g_param_spec_boolean ("rtcp-mux", "rtcp-mux",
