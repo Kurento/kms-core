@@ -94,17 +94,16 @@ kms_sdp_rtp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
-  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
-      (handler, offer, attr, answer)) {
+  if (g_strcmp0 (attr->key, "rtcp-mux") != 0) {
+    return KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
+        (handler, offer, attr, answer);
+  }
+
+  if (!self->priv->rtcp_mux) {
     return FALSE;
   }
 
-  if (g_strcmp0 (attr->key, "rtcp-mux") == 0 && !self->priv->rtcp_mux) {
-    /* Not allowed */
-    return FALSE;
-  }
-
-  return TRUE;
+  return !sdp_utils_is_attribute_in_media (answer, attr);
 }
 
 struct IntersectAttrData

@@ -16,6 +16,7 @@
 #include "config.h"
 #endif
 
+#include "sdp_utils.h"
 #include "kmssdpagent.h"
 #include "kmssdpmediahandler.h"
 
@@ -30,6 +31,11 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpMediaHandler, kms_sdp_media_handler,
     G_TYPE_OBJECT,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_media_handler_debug_category, OBJECT_NAME,
         0, "debug category for sdp media_handler"));
+
+static gchar *attributes[] = {
+  "setup",
+  "mid"
+};
 
 /* Object properties */
 enum
@@ -124,22 +130,23 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
 {
   guint i, len;
 
-  /* Returns TRUE only if this attribute is not already in media */
+  if (sdp_utils_is_attribute_in_media (media, attr)) {
+    return FALSE;
+  }
 
-  len = gst_sdp_media_attributes_len (media);
+  if (sdp_utils_attribute_is_direction (attr, NULL)) {
+    return TRUE;
+  }
+
+  len = G_N_ELEMENTS (attributes);
 
   for (i = 0; i < len; i++) {
-    const GstSDPAttribute *a;
-
-    a = gst_sdp_media_get_attribute (media, i);
-
-    if (g_strcmp0 (attr->key, a->key) == 0 &&
-        g_strcmp0 (attr->value, a->value) == 0) {
-      return FALSE;
+    if (g_strcmp0 (attr->key, attributes[i]) == 0) {
+      return TRUE;
     }
   }
 
-  return TRUE;
+  return FALSE;
 }
 
 static gboolean

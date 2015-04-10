@@ -821,3 +821,25 @@ sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func,
 
   return TRUE;
 }
+
+gboolean
+sdp_utils_is_attribute_in_media (const GstSDPMedia * media,
+    const GstSDPAttribute * attr)
+{
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_media_get_attribute (media, i);
+
+    if (g_strcmp0 (attr->key, a->key) == 0 &&
+        g_strcmp0 (attr->value, a->value) == 0) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}

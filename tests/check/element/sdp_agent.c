@@ -1140,6 +1140,67 @@ GST_START_TEST (sdp_agent_test_multi_m_lines)
   g_object_unref (answerer);
 }
 
+GST_END_TEST
+    static const gchar *sdp_offer_unknown_attrs_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=audio 30000 RTP/AVP 0\r\n"
+    "a=mid:1\r\n"
+    "a=audiotestattr1:1\r\n"
+    "a=audiotestattr2:1\r\n"
+    "m=video 30002 RTP/AVP 8\r\n"
+    "a=mid:2\r\n" "m=audio 30004 RTP/AVP 3\r\n" "a=mid:3\r\n"
+    "a=videotestattr1:1\r\n";
+
+static gboolean
+check_media_attrs (const GstSDPMedia * media, gpointer user_data)
+{
+  if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") == 0) {
+    fail_if (gst_sdp_media_get_attribute_val (media, "audiotestattr1"));
+    fail_if (gst_sdp_media_get_attribute_val (media, "audiotestattr2"));
+  } else if (g_strcmp0 (gst_sdp_media_get_media (media), "video") == 0) {
+    fail_if (gst_sdp_media_get_attribute_val (media, "videotestattr1"));
+  } else {
+    fail ("Media not included in offer");
+  }
+
+  return TRUE;
+}
+
+static void
+check_unsupported_attrs (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  sdp_utils_for_each_media (answer, check_media_attrs, NULL);
+}
+
+GST_START_TEST (sdp_agent_test_filter_unknown_attr)
+{
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  test_sdp_pattern_offer (sdp_offer_unknown_attrs_str, answerer,
+      check_unsupported_attrs, NULL);
+
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -1160,6 +1221,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_fb_messages);
   tcase_add_test (tc_chain, sdp_agent_test_rtcp_mux);
   tcase_add_test (tc_chain, sdp_agent_test_multi_m_lines);
+  tcase_add_test (tc_chain, sdp_agent_test_filter_unknown_attr);
 
   return s;
 }
