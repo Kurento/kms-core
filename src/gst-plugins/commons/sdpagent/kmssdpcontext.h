@@ -39,5 +39,6 @@ SdpMediaGroup * kms_sdp_message_context_create_group (SdpMessageContext *ctx, gu
 gint kms_sdp_media_group_get_id (SdpMediaGroup *group);
 SdpMediaGroup * kms_sdp_message_context_get_group (SdpMessageContext *ctx, guint gid);
 gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMediaConfig *media, GError **error);
+gboolean kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext *ctx, const GstSDPMessage *offer, GError **error);
 
 #endif /* _KMS_SDP_CONTEXT_ */

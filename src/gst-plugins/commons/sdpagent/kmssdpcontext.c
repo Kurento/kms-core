@@ -195,19 +195,8 @@ intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
   guint i, len;
 
   if (g_strcmp0 (attr->key, "group") == 0) {
-    gchar **grp;
-    gboolean is_bundle;
-
-    grp = g_strsplit (attr->value, " ", 0);
-    is_bundle = g_strcmp0 (grp[0] /* group type */ , "BUNDLE") == 0;
-
-    if (!is_bundle) {
-      GST_WARNING ("Group '%s' is not supported", grp[0]);
-      g_strfreev (grp);
-      return FALSE;
-    }
-
-    g_strfreev (grp);
+    /* Exclude group attributes so they are managed indepently */
+    return TRUE;
   }
 
   /* Check that this attribute is already in the message */
@@ -261,6 +250,45 @@ kms_sdp_message_context_destroy (SdpMessageContext * ctx)
   g_slice_free (SdpMessageContext, ctx);
 }
 
+static gboolean
+configure_pending_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
+    SdpMediaConfig ** mconf)
+{
+  const gchar *val;
+  GSList *l;
+
+  val = gst_sdp_media_get_attribute_val (media, "mid");
+
+  if (val == NULL) {
+    /* No grouped */
+    return FALSE;
+  }
+
+  for (l = ctx->groups; l != NULL; l = l->next) {
+    SdpMediaGroup *group = l->data;
+    GSList *ll;
+
+    for (ll = group->medias; ll != NULL; ll = ll->next) {
+      SdpMediaConfig *m;
+
+      m = ll->data;
+
+      if (m->media != NULL) {
+        continue;
+      }
+
+      if (g_strcmp0 (m->mid, val) == 0) {
+        m->media = media;
+        m->group = group;
+        *mconf = m;
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
 SdpMediaConfig *
 kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
 {
@@ -268,6 +296,10 @@ kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
   const gchar *media_type;
   gchar *mid;
   guint *counter;
+
+  if (configure_pending_mediaconfig (ctx, media, &mconf)) {
+    return mconf;
+  }
 
   media_type = gst_sdp_media_get_media (media);
   counter = g_hash_table_lookup (ctx->mids, media_type);
@@ -342,6 +374,11 @@ add_group_to_sdp_message (SdpMediaGroup * group, GstSDPMessage * msg)
     SdpMediaConfig *mconf = l->data;
     gchar *tmp;
 
+    if (mconf->media == NULL || gst_sdp_media_get_port (mconf->media) == 0) {
+      /* Move this media out the group */
+      continue;
+    }
+
     tmp = val;
     val = g_strdup_printf ("%s %s", tmp, mconf->mid);
     g_free (tmp);
@@ -351,86 +388,11 @@ add_group_to_sdp_message (SdpMediaGroup * group, GstSDPMessage * msg)
   g_free (val);
 }
 
-static SdpMediaConfig *
-sdp_mesage_context_get_media_by_id (SdpMessageContext * ctx, const gchar * mid)
-{
-  GSList *l;
-
-  for (l = ctx->medias; l != NULL; l = l->next) {
-    SdpMediaConfig *media;
-    const gchar *id;
-
-    media = l->data;
-    id = gst_sdp_media_get_attribute_val (media->media, "mid");
-
-    if (id == NULL) {
-      continue;
-    }
-
-    if (g_strcmp0 (id, mid) == 0) {
-      return media;
-    }
-  }
-
-  return NULL;
-}
-
-static void
-sdp_mesage_context_filter_media_groups (SdpMessageContext * ctx)
-{
-  guint i, len;
-
-  len = gst_sdp_message_attributes_len (ctx->msg);
-
-  for (i = 0; i < len; i++) {
-    const GstSDPAttribute *attr;
-    GstSDPAttribute new_attr;
-    guint j, n_mids;
-    gchar **mids;
-    gchar *new_val;
-
-    attr = gst_sdp_message_get_attribute (ctx->msg, i);
-
-    if (g_strcmp0 (attr->key, "group") != 0) {
-      continue;
-    }
-
-    mids = g_strsplit (attr->value, " ", 0);
-    n_mids = g_strv_length (mids);
-    new_val = g_strdup ("BUNDLE");
-
-    for (j = 1; j < n_mids; j++) {
-      SdpMediaConfig *sdp_media;
-      gchar *tmp;
-
-      sdp_media = sdp_mesage_context_get_media_by_id (ctx, mids[j]);
-
-      if (sdp_media == NULL || gst_sdp_media_get_port (sdp_media->media) == 0) {
-        /* Move this media out the group */
-        continue;
-      }
-
-      tmp = new_val;
-      new_val = g_strdup_printf ("%s %s", tmp, mids[j]);
-      g_free (tmp);
-    }
-
-    gst_sdp_attribute_set (&new_attr, attr->key, new_val);
-    gst_sdp_message_replace_attribute (ctx->msg, i, &new_attr);
-
-    g_strfreev (mids);
-    g_free (new_val);
-  }
-
-}
-
 GstSDPMessage *
 kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
 {
   GstSDPMessage *msg;
   gchar *sdp_str;
-
-  sdp_mesage_context_filter_media_groups (ctx);
 
   gst_sdp_message_new (&msg);
 
@@ -452,6 +414,7 @@ kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
 
   /* Append medias to the message */
   g_slist_foreach (ctx->medias, (GFunc) add_media_to_sdp_message, msg);
+
   return msg;
 }
 
@@ -502,6 +465,52 @@ kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
   media->group = group;
 
   return TRUE;
+}
+
+gboolean
+kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
+    const GstSDPMessage * offer, GError ** error)
+{
+  guint i, gid = 0;
+
+  for (i = 0;; i++) {
+    SdpMediaGroup *mgroup;
+    gboolean is_bundle;
+    const gchar *val;
+    gchar **grp;
+    guint j;
+
+    val = gst_sdp_message_get_attribute_val_n (offer, "group", i);
+
+    if (val == NULL) {
+      return TRUE;
+    }
+
+    grp = g_strsplit (val, " ", 0);
+    is_bundle = g_strcmp0 (grp[0] /* group type */ , "BUNDLE") == 0;
+
+    if (!is_bundle) {
+      GST_WARNING ("Group '%s' is not supported", grp[0]);
+      g_strfreev (grp);
+      continue;
+    }
+
+    mgroup = kms_sdp_message_context_create_group (ctx, gid++);
+    for (j = 1; grp[j] != NULL; j++) {
+      SdpMediaConfig *mconf;
+
+      mconf = kms_sdp_context_new_media_config (g_slist_length (ctx->medias),
+          g_strdup (grp[j]), NULL);
+
+      ctx->medias = g_slist_append (ctx->medias, mconf);
+      if (!kms_sdp_message_context_add_media_to_group (mgroup, mconf, error)) {
+        g_strfreev (grp);
+        return FALSE;
+      }
+    }
+
+    g_strfreev (grp);
+  }
 }
 
 static void init_debug (void) __attribute__ ((constructor));

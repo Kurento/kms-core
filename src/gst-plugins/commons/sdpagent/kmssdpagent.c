@@ -527,10 +527,13 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     return NULL;
   }
 
+  if (!kms_sdp_message_context_parse_groups_from_offer (ctx, offer, error)) {
+    goto error;
+  }
+
   if (!kms_sdp_message_context_set_common_session_attributes (ctx, offer,
           error)) {
-    kms_sdp_message_context_destroy (ctx);
-    return NULL;
+    goto error;
   }
 
   data.agent = agent;
@@ -547,14 +550,17 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
           &data)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "can not create SDP response");
-    kms_sdp_message_context_destroy (ctx);
-    return NULL;
+    goto error;
   }
 
   answer = kms_sdp_message_context_pack (ctx, error);
   kms_sdp_message_context_destroy (ctx);
 
   return answer;
+
+error:
+  kms_sdp_message_context_destroy (ctx);
+  return NULL;
 }
 
 static void
