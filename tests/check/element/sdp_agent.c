@@ -1064,6 +1064,82 @@ GST_START_TEST (sdp_agent_test_rtcp_mux)
   test_rtcp_mux_answer_disabled ();
 }
 
+GST_END_TEST static void
+check_multi_m_lines (const GstSDPMessage * offer, const GstSDPMessage * answer,
+    gpointer data)
+{
+  guint i, len;
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  len = gst_sdp_message_medias_len (offer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *offer_m, *answer_m;
+
+    offer_m = gst_sdp_message_get_media (offer, i);
+    answer_m = gst_sdp_message_get_media (answer, i);
+
+    fail_unless (g_strcmp0 (gst_sdp_media_get_media (offer_m),
+            gst_sdp_media_get_media (answer_m)) == 0);
+
+    fail_unless (g_strcmp0 (gst_sdp_media_get_proto (offer_m),
+            gst_sdp_media_get_proto (answer_m)) == 0);
+  }
+}
+
+GST_START_TEST (sdp_agent_test_multi_m_lines)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  /* First video entry */
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  /* Re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  /* Re-use handler for video again */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  /* Re-use handler for audio again */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  /* Re-use handler for video in answers */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  /* Re-use handler for audio in answers */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  test_handler_offer (offerer, answerer, check_multi_m_lines, NULL);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -1083,6 +1159,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_bundle_group);
   tcase_add_test (tc_chain, sdp_agent_test_fb_messages);
   tcase_add_test (tc_chain, sdp_agent_test_rtcp_mux);
+  tcase_add_test (tc_chain, sdp_agent_test_multi_m_lines);
 
   return s;
 }

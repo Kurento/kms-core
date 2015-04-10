@@ -118,7 +118,6 @@ struct _KmsSdpAgentPrivate
   gboolean use_ipv6;
   gboolean bundle;
 
-  GHashTable *medias;
   GSList *handlers;
   GSList *groups;
 
@@ -201,12 +200,12 @@ kms_sdp_agent_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  kms_sdp_agent_configure_media_callback_data_clear (&self->
-      priv->configure_media_callback_data);
+  kms_sdp_agent_configure_media_callback_data_clear (&self->priv->
+      configure_media_callback_data);
 
   kms_sdp_agent_release_sdp (&self->priv->local_description);
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
-  g_hash_table_unref (self->priv->medias);
+
   g_slist_free_full (self->priv->handlers,
       (GDestroyNotify) sdp_handler_destroy);
   g_slist_free_full (self->priv->groups,
@@ -268,7 +267,6 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
   SdpHandler *sdp_handler;
-  GHashTable *handlers;
   gchar *proto;
   gint id = -1;
 
@@ -279,22 +277,14 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     return -1;
   }
 
+  g_free (proto);
+
   SDP_AGENT_LOCK (agent);
-
-  handlers = g_hash_table_lookup (agent->priv->medias, media);
-
-  if (handlers == NULL) {
-    /* create handlers map for this media */
-    handlers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-    g_hash_table_insert (agent->priv->medias, g_strdup (media), handlers);
-  }
 
   id = agent->priv->hids++;
   sdp_handler = sdp_handler_new (id, media, handler);
 
-  if (g_hash_table_insert (handlers, proto, sdp_handler)) {
-    agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
-  }
+  agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
 
   SDP_AGENT_UNLOCK (agent);
 
@@ -419,43 +409,68 @@ reject_media_answer (const GstSDPMedia * offered)
   return media;
 }
 
+static SdpHandler *
+kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
+    const GstSDPMedia * media)
+{
+  GSList *l;
+
+  for (l = agent->priv->handlers; l != NULL; l = l->next) {
+    SdpHandler *sdp_handler;
+    gchar *proto;
+
+    sdp_handler = l->data;
+
+    if (g_strcmp0 (sdp_handler->media, gst_sdp_media_get_media (media)) != 0) {
+      /* This handler can not manage this media */
+      continue;
+    }
+
+    g_object_get (sdp_handler->handler, "proto", &proto, NULL);
+    if (g_strcmp0 (proto, gst_sdp_media_get_proto (media)) != 0) {
+      /* This handler can not manage this protocol */
+      g_free (proto);
+      continue;
+    }
+
+    g_free (proto);
+
+    return sdp_handler;
+  }
+
+  return NULL;
+}
+
 static gboolean
 create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
-  GHashTable *handlers;
   GstSDPMedia *answer_media = NULL;
   SdpHandler *sdp_handler;
   GError *err = NULL;
 
   SDP_AGENT_LOCK (agent);
 
-  handlers =
-      g_hash_table_lookup (agent->priv->medias,
-      gst_sdp_media_get_media (media));
-
-  if (handlers == NULL) {
-    GST_WARNING_OBJECT (agent, "'%s' media not supported",
-        gst_sdp_media_get_media (media));
-  } else {
-    sdp_handler =
-        g_hash_table_lookup (handlers, gst_sdp_media_get_proto (media));
-    if (sdp_handler == NULL) {
-      GST_WARNING_OBJECT (agent,
-          "No handler for '%s' media found for protocol '%s'",
-          gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
-    } else {
-      answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
-          media, &err);
-      if (err != NULL) {
-        GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
-        g_error_free (err);
-      }
-    }
-  }
+  sdp_handler = kms_sdp_agent_get_handler_for_media (agent, media);
 
   SDP_AGENT_UNLOCK (agent);
 
+  if (sdp_handler == NULL) {
+    GST_WARNING_OBJECT (agent,
+        "No handler for '%s' media proto '%s' found",
+        gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
+    goto answer;
+  }
+
+  answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
+      media, &err);
+
+  if (err != NULL) {
+    GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+    g_error_free (err);
+  }
+
+answer:
   if (answer_media == NULL) {
     answer_media = reject_media_answer (media);
   } else if (data->agent->priv->configure_media_callback_data != NULL) {
@@ -707,8 +722,6 @@ kms_sdp_agent_init (KmsSdpAgent * self)
   self->priv = KMS_SDP_AGENT_GET_PRIVATE (self);
 
   g_mutex_init (&self->priv->mutex);
-  self->priv->medias = g_hash_table_new_full (g_str_hash, g_str_equal,
-      g_free, (GDestroyNotify) g_hash_table_unref);
 }
 
 KmsSdpAgent *
