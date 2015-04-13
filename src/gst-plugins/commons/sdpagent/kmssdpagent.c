@@ -347,12 +347,11 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
   }
 }
 
-static GstSDPMessage *
+static SdpMessageContext *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
   struct SdpOfferData data;
   SdpMessageContext *ctx;
-  GstSDPMessage *offer;
   SdpIPv ipv;
 
   SDP_AGENT_LOCK (agent);
@@ -370,10 +369,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
   SDP_AGENT_UNLOCK (agent);
 
-  offer = kms_sdp_message_context_pack (ctx, error);
-  kms_sdp_message_context_destroy (ctx);
-
-  return offer;
+  return ctx;
 }
 
 struct SdpAnswerData
@@ -484,11 +480,10 @@ answer:
   return TRUE;
 }
 
-static GstSDPMessage *
+static SdpMessageContext *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
-  GstSDPMessage *answer;
   struct SdpAnswerData data;
   SdpMessageContext *ctx;
   SdpIPv ipv;
@@ -521,10 +516,7 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     goto error;
   }
 
-  answer = kms_sdp_message_context_pack (ctx, error);
-  kms_sdp_message_context_destroy (ctx);
-
-  return answer;
+  return ctx;
 
 error:
   kms_sdp_message_context_destroy (ctx);
@@ -698,7 +690,7 @@ kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
       handler);
 }
 
-GstSDPMessage *
+SdpMessageContext *
 kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
@@ -706,7 +698,7 @@ kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
   return KMS_SDP_AGENT_GET_CLASS (agent)->create_offer (agent, error);
 }
 
-GstSDPMessage *
+SdpMessageContext *
 kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
     GError ** error)
 {

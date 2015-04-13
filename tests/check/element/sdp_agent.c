@@ -37,15 +37,20 @@ sdp_agent_create_offer (KmsSdpAgent * agent)
 {
   GError *err = NULL;
   GstSDPMessage *offer;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
-  offer = kms_sdp_agent_create_offer (agent, &err);
+  ctx = kms_sdp_agent_create_offer (agent, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
   fail_if (err != NULL);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   gst_sdp_message_free (offer);
+  kms_sdp_message_context_destroy (ctx);
 }
 
 GST_START_TEST (sdp_agent_test_create_offer)
@@ -113,6 +118,7 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   gint id;
   gchar *sdp_str = NULL;
   guint i, len;
+  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -130,8 +136,12 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -175,7 +185,8 @@ test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
 {
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
@@ -184,8 +195,12 @@ test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -272,6 +287,7 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
   gint id;
   gchar *sdp_str = NULL;
   guint i, len;
+  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -289,8 +305,12 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -362,6 +382,7 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   gint id;
   gchar *sdp_str = NULL;
   const GstSDPMedia *media;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -385,7 +406,12 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   fail_unless (sdp_utils_for_each_media (offer,
           (GstSDPMediaFunc) set_media_direction, (gpointer) direction));
@@ -393,8 +419,12 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -431,7 +461,8 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint id;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -459,13 +490,22 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -488,7 +528,8 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint id;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -516,13 +557,22 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -545,7 +595,8 @@ test_bundle_group (void)
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gint gid, hid;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -582,13 +633,22 @@ test_bundle_group (void)
   hid = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (hid < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -756,6 +816,7 @@ fb_messages_disable_offer_prop (const gchar * prop)
   GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -777,15 +838,24 @@ fb_messages_disable_offer_prop (const gchar * prop)
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   fail_if (is_rtcp_fb_in_media (offer, prop));
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -812,6 +882,7 @@ fb_messages_disable_answer_prop (const gchar * prop)
   GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -833,13 +904,22 @@ fb_messages_disable_answer_prop (const gchar * prop)
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -871,16 +951,25 @@ test_handler_offer (KmsSdpAgent * offerer, KmsSdpAgent * answerer,
 {
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
-  gchar *sdp_str = NULL;;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
 
-  offer = kms_sdp_agent_create_offer (offerer, &err);
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
-  answer = kms_sdp_agent_create_answer (answerer, offer, &err);
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
   fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
