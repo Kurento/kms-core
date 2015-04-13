@@ -27,6 +27,7 @@ typedef struct _SdpMediaConfig SdpMediaConfig;
 typedef struct _SdpMessageContext SdpMessageContext;
 
 SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, GError **error);
+SdpMessageContext *kms_sdp_message_context_new_from_sdp (GstSDPMessage *sdp, GError **error);
 gboolean kms_sdp_message_context_set_common_session_attributes (SdpMessageContext *ctx, const GstSDPMessage *msg, GError **error);
 void kms_sdp_message_context_destroy (SdpMessageContext *ctx);
 SdpMediaConfig * kms_sdp_message_context_add_media (SdpMessageContext *ctx, GstSDPMedia *media);

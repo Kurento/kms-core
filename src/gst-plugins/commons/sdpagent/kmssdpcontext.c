@@ -513,6 +513,54 @@ kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
   }
 }
 
+static gboolean
+add_media_context (const GstSDPMedia * media, SdpMessageContext * ctx)
+{
+  GstSDPMedia *cpy;
+
+  gst_sdp_media_new (&cpy);
+
+  if (gst_sdp_media_copy (media, &cpy) != GST_SDP_OK) {
+    gst_sdp_media_free (cpy);
+    return FALSE;
+  }
+
+  kms_sdp_message_context_add_media (ctx, cpy);
+
+  return TRUE;
+}
+
+SdpMessageContext *
+kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
+{
+  SdpMessageContext *ctx;
+
+  ctx = kms_sdp_message_context_new (IPV4, error);
+  if (ctx == NULL) {
+    return NULL;
+  }
+
+  if (!kms_sdp_message_context_parse_groups_from_offer (ctx, sdp, error)) {
+    goto error;
+  }
+
+  if (!kms_sdp_message_context_set_common_session_attributes (ctx, sdp, error)) {
+    goto error;
+  }
+
+  if (!sdp_utils_for_each_media (sdp, (GstSDPMediaFunc) add_media_context, ctx)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "can not create SDP context");
+    goto error;
+  }
+
+  return ctx;
+
+error:
+  kms_sdp_message_context_destroy (ctx);
+  return NULL;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
