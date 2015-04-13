@@ -123,11 +123,18 @@ get_default_ipv_addr (SdpIPv ipv)
   }
 }
 
+static guint64
+get_ntp_time ()
+{
+  return time (NULL) + G_GUINT64_CONSTANT (2208988800);
+}
+
 static gboolean
 kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
     SdpIPv ipv, GError ** error)
 {
   const gchar *addrtype, *addr, *err_attr;
+  gchar *ntp;
 
   addrtype = get_attr_addr_type (ipv);
   if (addrtype == NULL) {
@@ -142,11 +149,19 @@ kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
     goto error;
   }
 
-  if (gst_sdp_message_set_origin (msg, "-", "0", "0", ORIGIN_ATTR_NETTYPE,
+  /* The method of generating <sess-id> and <sess-version> is up to the    */
+  /* creating tool, but it has been suggested that a Network Time Protocol */
+  /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
+  ntp = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+
+  if (gst_sdp_message_set_origin (msg, "-", ntp, ntp, ORIGIN_ATTR_NETTYPE,
           addrtype, addr) != GST_SDP_OK) {
     err_attr = "origin";
+    g_free (ntp);
     goto error;
   }
+
+  g_free (ntp);
 
   if (gst_sdp_message_set_session_name (msg,
           "Kurento Media Server") != GST_SDP_OK) {
