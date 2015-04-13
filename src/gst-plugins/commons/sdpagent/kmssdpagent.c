@@ -484,46 +484,6 @@ answer:
   return TRUE;
 }
 
-static gchar **
-array_to_strvector (const GArray * array)
-{
-  gchar **str_array;
-  guint i, n;
-
-  n = array->len + 1;
-
-  str_array = g_new (gchar *, n);
-  str_array[n] = NULL;
-
-  for (i = 0; i < array->len; i++) {
-    gchar *val;
-
-    val = &g_array_index (array, gchar, i);
-    str_array[i] = g_strdup (val);
-  }
-
-  return str_array;
-}
-
-static void
-sdp_copy_timming_attrs (const GstSDPMessage * src, GstSDPMessage * dest)
-{
-  guint i, n;
-
-  n = gst_sdp_message_times_len (src);
-
-  for (i = 0; i < n; i++) {
-    const GstSDPTime *time;
-    gchar **repeat;
-
-    time = gst_sdp_message_get_time (src, i);
-    repeat = array_to_strvector (time->repeat);
-    gst_sdp_message_add_time (dest, time->start, time->stop,
-        (const gchar **) repeat);
-    g_strfreev (repeat);
-  }
-}
-
 static GstSDPMessage *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
@@ -553,13 +513,6 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 
   data.agent = agent;
   data.ctx = ctx;
-
-  /* [rfc3264] The "t=" line in the answer MUST be equal to the ones in the */
-  /* offer. The time of the session cannot be negotiated. */
-  if (FALSE) {
-    /* TODO: Fix timing copy and make tests for it */
-    sdp_copy_timming_attrs (offer, answer);
-  }
 
   if (!sdp_utils_for_each_media (offer, (GstSDPMediaFunc) create_media_answer,
           &data)) {
