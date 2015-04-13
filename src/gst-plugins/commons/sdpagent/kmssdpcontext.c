@@ -47,6 +47,7 @@ struct _SdpMediaConfig
 
 struct _SdpMessageContext
 {
+  KmsSdpMessageType type;
   GstSDPMessage *msg;
   GSList *medias;               /* list of SdpMediaConfigs */
   GHashTable *mids;
@@ -587,6 +588,21 @@ kms_sdp_message_context_get_medias (SdpMessageContext * ctx)
 {
   return ctx->medias;
 }
+
+void
+kms_sdp_message_context_set_type (SdpMessageContext * ctx,
+    KmsSdpMessageType type)
+{
+  ctx->type = type;
+}
+
+KmsSdpMessageType
+kms_sdp_message_context_get_type (SdpMessageContext * ctx)
+{
+  return ctx->type;
+}
+
+KmsSdpMessageType kms_sdp_message_context_get_type (SdpMessageContext * ctx);
 
 static void init_debug (void) __attribute__ ((constructor));
 

@@ -26,6 +26,12 @@ typedef struct _SdpMediaGroup SdpMediaGroup;
 typedef struct _SdpMediaConfig SdpMediaConfig;
 typedef struct _SdpMessageContext SdpMessageContext;
 
+typedef enum  {
+  KMS_SDP_UNDEFINED,
+  KMS_SDP_OFFER,
+  KMS_SDP_ANSWER
+} KmsSdpMessageType;
+
 SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, GError **error);
 SdpMessageContext *kms_sdp_message_context_new_from_sdp (GstSDPMessage *sdp, GError **error);
 gboolean kms_sdp_message_context_set_common_session_attributes (SdpMessageContext *ctx, const GstSDPMessage *msg, GError **error);
@@ -43,5 +49,7 @@ gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMe
 gboolean kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext *ctx, const GstSDPMessage *offer, GError **error);
 GstSDPMessage * kms_sdp_message_context_get_sdp_message (SdpMessageContext *ctx);
 const GSList * kms_sdp_message_context_get_medias (SdpMessageContext *ctx);
+void kms_sdp_message_context_set_type (SdpMessageContext *ctx, KmsSdpMessageType type);
+KmsSdpMessageType kms_sdp_message_context_get_type (SdpMessageContext *ctx);
 
 #endif /* _KMS_SDP_CONTEXT_ */

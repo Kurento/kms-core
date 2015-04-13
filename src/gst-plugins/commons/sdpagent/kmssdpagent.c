@@ -369,6 +369,8 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
   SDP_AGENT_UNLOCK (agent);
 
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+
   return ctx;
 }
 
@@ -515,6 +517,8 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
         "can not create SDP response");
     goto error;
   }
+
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
 
   return ctx;
 
