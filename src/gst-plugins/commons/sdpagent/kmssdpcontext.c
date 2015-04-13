@@ -561,6 +561,18 @@ error:
   return NULL;
 }
 
+GstSDPMessage *
+kms_sdp_message_context_get_sdp_message (SdpMessageContext * ctx)
+{
+  return ctx->msg;
+}
+
+const GSList *
+kms_sdp_message_context_get_medias (SdpMessageContext * ctx)
+{
+  return ctx->medias;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
