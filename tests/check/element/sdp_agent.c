@@ -1201,6 +1201,89 @@ GST_START_TEST (sdp_agent_test_filter_unknown_attr)
   g_object_unref (answerer);
 }
 
+GST_END_TEST
+    static const gchar *sdp_offer_supported_attrs_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 1 RTP/AVPF 96 97 100 101\r\n"
+    "a=rtpmap:96 H265/90000\r\n"
+    "a=rtpmap:97 VP8/90000\r\n"
+    "a=rtpmap:100 MP4V-ES/90000\r\n"
+    "a=rtpmap:101 H264/90000\r\n"
+    "a=rtcp-fb:97 nack\r\n"
+    "a=rtcp-fb:97 nack pli\r\n"
+    "a=rtcp-fb:97 goog-remb\r\n"
+    "a=rtcp-fb:97 ccm fir\r\n"
+    "a=rtcp-fb:101 nack\r\n"
+    "a=rtcp-fb:101 nack pli\r\n"
+    "a=rtcp-fb:101 ccm fir\r\n"
+    "a=fmtp:96 minptime=10; useinbandfec=1\r\n"
+    "a=fmtp:97 minptime=10; useinbandfec=1\r\n"
+    "a=fmtp:111 minptime=10; useinbandfec=1\r\n"
+    "a=rtcp-mux\r\n"
+    "a=quality:10\r\n" "a=maxptime:60\r\n" "a=setup:actpass\r\n";
+
+static gboolean
+check_supported_media_attrs (const GstSDPMedia * media, gpointer user_data)
+{
+  guint i;
+
+  for (i = 0;; i++) {
+    const gchar *val;
+
+    val = gst_sdp_media_get_attribute_val_n (media, "fmtp", i);
+    if (val == NULL) {
+      /* no more fmtp attributes */
+      break;
+    }
+
+    /* Only fmtp:97 must be in answer */
+    fail_unless (g_str_has_prefix (val, "97"));
+  }
+
+  /* Only one fmtp lines should have been processed */
+  fail_unless (i == 1);
+
+  fail_if (gst_sdp_media_get_attribute_val (media, "quality") == NULL);
+  fail_if (gst_sdp_media_get_attribute_val (media, "maxptime") == NULL);
+
+  return TRUE;
+}
+
+static void
+check_supported_attrs (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  sdp_utils_for_each_media (answer, check_supported_media_attrs, NULL);
+}
+
+GST_START_TEST (sdp_agent_test_supported_attrs)
+{
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  test_sdp_pattern_offer (sdp_offer_supported_attrs_str, answerer,
+      check_supported_attrs, NULL);
+
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -1222,6 +1305,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_rtcp_mux);
   tcase_add_test (tc_chain, sdp_agent_test_multi_m_lines);
   tcase_add_test (tc_chain, sdp_agent_test_filter_unknown_attr);
+  tcase_add_test (tc_chain, sdp_agent_test_supported_attrs);
 
   return s;
 }

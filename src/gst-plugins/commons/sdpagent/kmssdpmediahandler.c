@@ -32,9 +32,60 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpMediaHandler, kms_sdp_media_handler,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_media_handler_debug_category, OBJECT_NAME,
         0, "debug category for sdp media_handler"));
 
-static gchar *attributes[] = {
-  "setup",
-  "mid"
+typedef gboolean (*KmsSdpAcceptAttributeFunc) (const GstSDPMedia * offer,
+    const GstSDPAttribute * attr, GstSDPMedia * media);
+
+static gboolean
+default_accept_attribute (const GstSDPMedia * offer,
+    const GstSDPAttribute * attr, GstSDPMedia * media)
+{
+  return TRUE;
+}
+
+static gboolean
+accept_fmtp_attribute (const GstSDPMedia * offer,
+    const GstSDPAttribute * attr, GstSDPMedia * media)
+{
+  guint i, len;
+  gchar **fmtp;
+  gboolean ret = FALSE;
+
+  fmtp = g_strsplit (attr->value, " ", 0);
+
+  /* Check that answer supports this format */
+  len = gst_sdp_media_formats_len (media);
+
+  for (i = 0; i < len; i++) {
+    const gchar *fmt;
+
+    fmt = gst_sdp_media_get_format (media, i);
+    if (g_strcmp0 (fmt, fmtp[0] /* format */ ) == 0) {
+      ret = TRUE;
+      break;
+    }
+  }
+
+  g_strfreev (fmtp);
+
+  return ret;
+}
+
+typedef struct _KmsSdpSupportedAttrType
+{
+  const gchar *name;
+  KmsSdpAcceptAttributeFunc accept;
+} KmsSdpSupportedAttrType;
+
+/* Supported media session attributes */
+static KmsSdpSupportedAttrType attributes[] = {
+  {"framerate", default_accept_attribute},
+  {"fmtp", accept_fmtp_attribute},
+  {"lang", default_accept_attribute},
+  {"maxptime", default_accept_attribute},
+  {"mid", default_accept_attribute},
+  {"ptime", default_accept_attribute},
+  {"quality", default_accept_attribute},
+  {"setup", default_accept_attribute}
 };
 
 /* Object properties */
@@ -141,8 +192,8 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
   len = G_N_ELEMENTS (attributes);
 
   for (i = 0; i < len; i++) {
-    if (g_strcmp0 (attr->key, attributes[i]) == 0) {
-      return TRUE;
+    if (g_strcmp0 (attr->key, attributes[i].name) == 0) {
+      return attributes[i].accept (offer, attr, media);
     }
   }
 
