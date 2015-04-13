@@ -20,6 +20,7 @@
 
 #include "kmssdpcontext.h"
 #include "kmssdpmediahandler.h"
+#include "kmssdpcontext.h"
 
 G_BEGIN_DECLS
 
@@ -104,7 +105,7 @@ gint kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
 
 typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
-                                                   GstSDPMedia *media,
+                                                   SdpMediaConfig *mconf,
                                                    gpointer user_data);
 void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
                                              KmsSdpAgentConfigureMediaCallback callback,

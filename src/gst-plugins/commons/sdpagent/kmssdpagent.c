@@ -343,7 +343,7 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 
   if (data->agent->priv->configure_media_callback_data != NULL) {
     data->agent->priv->configure_media_callback_data->callback (data->agent,
-        media, data->agent->priv->configure_media_callback_data->user_data);
+        m_conf, data->agent->priv->configure_media_callback_data->user_data);
   }
 }
 
@@ -471,13 +471,16 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 answer:
   if (answer_media == NULL) {
     answer_media = reject_media_answer (media);
-  } else if (data->agent->priv->configure_media_callback_data != NULL) {
-    data->agent->priv->configure_media_callback_data->callback (data->agent,
-        answer_media,
-        data->agent->priv->configure_media_callback_data->user_data);
-  }
+    kms_sdp_message_context_add_media (data->ctx, answer_media);
+  } else {
+    SdpMediaConfig *mconf;
 
-  kms_sdp_message_context_add_media (data->ctx, answer_media);
+    mconf = kms_sdp_message_context_add_media (data->ctx, answer_media);
+    if (data->agent->priv->configure_media_callback_data != NULL) {
+      data->agent->priv->configure_media_callback_data->callback (data->agent,
+          mconf, data->agent->priv->configure_media_callback_data->user_data);
+    }
+  }
 
   return TRUE;
 }
