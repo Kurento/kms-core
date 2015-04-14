@@ -381,25 +381,6 @@ change_input_cb (gpointer pipeline)
   return FALSE;
 }
 
-static GstFlowReturn
-appsink_handle (GstElement * appsink, gpointer data)
-{
-  static int count = 0;
-  GstSample *sample;
-
-  count++;
-
-  g_signal_emit_by_name (appsink, "pull-sample", &sample);
-  gst_sample_unref (sample);
-
-  if (count == 40) {
-    GST_DEBUG ("Terminatig");
-    g_idle_add (quit_main_loop_idle, loop);
-  }
-
-  return GST_FLOW_OK;
-}
-
 static gboolean
 check_pipeline_termination (gpointer data)
 {
@@ -434,30 +415,6 @@ appsink_handle_many (GstElement * appsink, gpointer data)
   }
 
   return GST_FLOW_OK;
-}
-
-static gboolean
-connect_appsink (gpointer pipeline)
-{
-  GstElement *appsink = gst_element_factory_make ("appsink", NULL);
-  GstElement *valve = gst_bin_get_by_name (GST_BIN (pipeline), "valve");
-  GstCaps *caps = gst_caps_from_string ("audio/x-vorbis");
-
-  gst_bin_add (GST_BIN (pipeline), appsink);
-  gst_element_sync_state_with_parent (appsink);
-  g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "caps", caps, "sync",
-      TRUE, "async", FALSE, NULL);
-  gst_caps_unref (caps);
-
-  g_signal_connect (G_OBJECT (appsink), "new-sample",
-      G_CALLBACK (appsink_handle), NULL);
-
-  gst_element_link (valve, appsink);
-
-  g_object_set (G_OBJECT (valve), "drop", FALSE, NULL);
-
-  g_object_unref (valve);
-  return FALSE;
 }
 
 static gboolean
@@ -822,52 +779,6 @@ GST_START_TEST (encoded_input_n_encoded_output)
 }
 
 GST_END_TEST
-GST_START_TEST (encoded_input_to_valve)
-{
-  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
-  GstElement *audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
-  GstElement *encoder = gst_element_factory_make ("alawenc", NULL);
-  GstElement *valve = gst_element_factory_make ("valve", "valve");
-  GstElement *agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
-  gboolean ret;
-
-  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-
-  loop = g_main_loop_new (NULL, TRUE);
-
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
-  g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
-
-  gst_bus_add_signal_watch (bus);
-  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
-
-  g_object_set (G_OBJECT (valve), "drop", TRUE, NULL);
-
-  mark_point ();
-  gst_bin_add_many (GST_BIN (pipeline), audiotestsrc, encoder, agnosticbin,
-      valve, NULL);
-  mark_point ();
-  ret = gst_element_link_many (audiotestsrc, encoder, agnosticbin, valve, NULL);
-  fail_unless (ret);
-  mark_point ();
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
-
-  mark_point ();
-  g_timeout_add_seconds (6, timeout_check, pipeline);
-  g_timeout_add (700, connect_appsink, pipeline);
-
-  mark_point ();
-  g_main_loop_run (loop);
-  mark_point ();
-
-  gst_element_set_state (pipeline, GST_STATE_NULL);
-  gst_bus_remove_signal_watch (bus);
-  g_object_unref (bus);
-  g_object_unref (pipeline);
-  g_main_loop_unref (loop);
-}
-
-GST_END_TEST
 GST_START_TEST (encoded_input_link)
 {
   GMainLoop *loop = g_main_loop_new (NULL, TRUE);
@@ -997,7 +908,6 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, create_test);
   tcase_add_test (tc_chain, simple_link);
   tcase_add_test (tc_chain, encoded_input_link);
-  tcase_add_test (tc_chain, encoded_input_to_valve);
   tcase_add_test (tc_chain, static_link);
   tcase_add_test (tc_chain, reconnect_test);
   if (FALSE) {

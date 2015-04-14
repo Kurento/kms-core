@@ -33,10 +33,10 @@ set_target_properties(kmssdpagent PROPERTIES PUBLIC_HEADER "${KMS_SDP_AGENT_HEAD
 set_target_properties(kmssdpagent PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
 target_link_libraries(kmssdpagent
-  ${gstreamer-1.0_LIBRARIES}
-  ${gstreamer-base-1.0_LIBRARIES}
-  ${gstreamer-sdp-1.0_LIBRARIES}
-  ${gstreamer-pbutils-1.0_LIBRARIES}
+  ${gstreamer-1.5_LIBRARIES}
+  ${gstreamer-base-1.5_LIBRARIES}
+  ${gstreamer-sdp-1.5_LIBRARIES}
+  ${gstreamer-pbutils-1.5_LIBRARIES}
   kmsutils
   sdputils
 )

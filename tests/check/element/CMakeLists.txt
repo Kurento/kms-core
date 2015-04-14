@@ -20,13 +20,13 @@ foreach(test ${ALL_TESTS})
   add_dependencies(test_${test} ${LIBRARY_NAME}plugins)
 
   target_include_directories(test_${test} PRIVATE
-    ${gstreamer-1.0_INCLUDE_DIRS}
-    ${gstreamer-check-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-check-1.5_INCLUDE_DIRS}
   )
 
   target_link_libraries(test_${test}
-    ${gstreamer-1.0_LIBRARIES}
-    ${gstreamer-check-1.0_LIBRARIES}
+    ${gstreamer-1.5_LIBRARIES}
+    ${gstreamer-check-1.5_LIBRARIES}
   )
 
 endforeach(test)
@@ -35,15 +35,15 @@ endforeach(test)
 add_test_program (test_sdp_agent sdp_agent.c)
 add_dependencies(test_sdp_agent kmsgstcommons sdputils)
 target_include_directories(test_sdp_agent PRIVATE
-  ${gstreamer-1.0_INCLUDE_DIRS}
-  ${gstreamer-check-1.0_INCLUDE_DIRS}
+  ${gstreamer-1.5_INCLUDE_DIRS}
+  ${gstreamer-check-1.5_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons/
   ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons/sdpagent
 )
 
 target_link_libraries(test_sdp_agent
-  ${gstreamer-1.0_LIBRARIES}
-  ${gstreamer-check-1.0_LIBRARIES}
+  ${gstreamer-1.5_LIBRARIES}
+  ${gstreamer-check-1.5_LIBRARIES}
   kmsgstcommons
   kmssdpagent
   sdputils

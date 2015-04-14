@@ -16,7 +16,7 @@ get_values_from_model(PREFIX VALUE MODELS ${CMAKE_SOURCE_DIR}/src/server/interfa
 get_git_version (PROJECT_VERSION ${VALUE_VERSION})
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
-set (GST_REQUIRED ~1.4.4)
+set (GST_REQUIRED ~1.5.0)
 set (GLIB_REQUIRED ^2.42)
 set (JSON_RPC_REQUIRED ^0.3.0)
 set (SIGCPP_REQUIRED ^2.0.10)
@@ -27,13 +27,13 @@ include (GenericFind)
 generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework)
 
 #gst-plugins dependencies
-generic_find (LIBNAME gstreamer-1.0 VERSION ${GST_REQUIRED} REQUIRED)
-generic_find (LIBNAME gstreamer-base-1.0 VERSION ${GST_REQUIRED} REQUIRED)
-generic_find (LIBNAME gstreamer-video-1.0 VERSION ${GST_REQUIRED} REQUIRED)
-generic_find (LIBNAME gstreamer-check-1.0 VERSION ${GST_REQUIRED})
-generic_find (LIBNAME gstreamer-sdp-1.0 VERSION ${GST_REQUIRED} REQUIRED)
-generic_find (LIBNAME gstreamer-pbutils-1.0 VERSION ${GST_REQUIRED} REQUIRED)
-generic_find (LIBNAME gstreamer-rtp-1.0 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-1.5 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-base-1.5 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-video-1.5 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-check-1.5 VERSION ${GST_REQUIRED})
+generic_find (LIBNAME gstreamer-sdp-1.5 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-pbutils-1.5 VERSION ${GST_REQUIRED} REQUIRED)
+generic_find (LIBNAME gstreamer-rtp-1.5 VERSION ${GST_REQUIRED} REQUIRED)
 
 generic_find (LIBNAME KmsJsonRpc VERSION ${JSON_RPC_REQUIRED} REQUIRED)
 generic_find (LIBNAME sigc++-2.0 VERSION ${SIGCPP_REQUIRED} REQUIRED)
@@ -50,7 +50,7 @@ set (ENABLE_DEBUGGING_TESTS OFF CACHE BOOL "Enable test that are not yet stable"
 
 include(GNUInstallDirs)
 
-set (CMAKE_INSTALL_GST_PLUGINS_DIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0)
+set (CMAKE_INSTALL_GST_PLUGINS_DIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.5)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 

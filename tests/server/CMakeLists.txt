@@ -21,7 +21,7 @@ set_property (TARGET test_module_manager
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
 )
 target_link_libraries(test_module_manager
   ${LIBRARY_NAME}impl
@@ -41,7 +41,7 @@ set_property (TARGET test_media_set
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_set
   ${LIBRARY_NAME}impl
@@ -60,7 +60,7 @@ set_property (TARGET test_media_element
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
     ${Boot_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_element
@@ -82,7 +82,7 @@ set_property (TARGET test_sdp_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
     ${Boot_INCLUDE_DIRS}
 )
 target_link_libraries(test_sdp_endpoint
@@ -103,7 +103,7 @@ set_property (TARGET test_media_object
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
     ${Boot_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_object
@@ -124,7 +124,7 @@ set_property (TARGET test_complex_type
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
     ${Boot_INCLUDE_DIRS}
 )
 target_link_libraries(test_complex_type
