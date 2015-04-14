@@ -39,6 +39,10 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
   g_object_interface_install_property (iface, g_param_spec_boolean ("connected",
           "Connected", "Indicates if connection is already connected", FALSE,
           G_PARAM_READWRITE));
+
+  g_object_interface_install_property (iface, g_param_spec_boolean ("added",
+          "Added", "Indicates if connection is already added", FALSE,
+          G_PARAM_READWRITE));
 }
 
 void
@@ -48,6 +52,7 @@ kms_i_rtp_connection_add (KmsIRtpConnection * self, GstBin * bin,
   g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
 
   KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->add (self, bin, local_offer);
+  g_object_set (G_OBJECT (self), "added", TRUE, NULL);
 }
 
 GstPad *
