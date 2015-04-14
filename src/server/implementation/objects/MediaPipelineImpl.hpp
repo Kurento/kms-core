@@ -47,7 +47,8 @@ private:
 
   GstElement *pipeline;
 
-  std::function<void (GstMessage *) > busMessagePointer;
+  gulong busMessageHandler;
+
   void busMessage (GstMessage *message);
 
   class StaticConstructor
