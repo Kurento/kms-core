@@ -12,13 +12,52 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+class MessageAdaptorAux;
+
+class MessageAdaptorAux
+{
+public:
+  MessageAdaptorAux (std::function <void (GstMessage *) > func) : func (func)
+  {
+
+  }
+
+  std::function <void (GstMessage *) > func;
+};
+
 static void
 bus_message_adaptor (GstBus *bus, GstMessage *message, gpointer data)
 {
-  auto func = reinterpret_cast<std::function<void (GstMessage *message) >*>
-              (data);
+  MessageAdaptorAux *adaptor = (MessageAdaptorAux *) data;
 
-  (*func) (message);
+  adaptor->func (message);
+}
+
+static void
+message_adaptor_destroy (gpointer d, GClosure *closure)
+{
+  MessageAdaptorAux *data = (MessageAdaptorAux *) d;
+
+  delete data;
+}
+
+static gulong
+register_bus_messages (GstBus *bus,
+                       std::function <void (GstMessage *message) > func)
+{
+  gulong id;
+
+  MessageAdaptorAux *data = new MessageAdaptorAux (func);
+
+  id = g_signal_connect_data (bus, "message", G_CALLBACK (bus_message_adaptor),
+                              (gpointer) data, message_adaptor_destroy, (GConnectFlags) 0);
+  return id;
+}
+
+static void
+unregister_bus_messages (GstBus *bus, gulong id)
+{
+  g_signal_handler_disconnect (bus, id);
 }
 
 void
@@ -78,13 +117,11 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
-  busMessagePointer = std::bind (&MediaPipelineImpl::busMessage, this,
-                                 std::placeholders::_1);
-
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
   gst_bus_add_signal_watch (bus);
-  g_signal_connect (bus, "message", G_CALLBACK (bus_message_adaptor),
-                    &busMessagePointer);
+  busMessageHandler = register_bus_messages (bus,
+                      std::bind (&MediaPipelineImpl::busMessage, this,
+                                 std::placeholders::_1) );
   g_object_unref (bus);
 }
 
@@ -92,6 +129,7 @@ MediaPipelineImpl::~MediaPipelineImpl ()
 {
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
 
+  unregister_bus_messages (bus, busMessageHandler);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
