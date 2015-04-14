@@ -145,7 +145,6 @@ enum
   PROP_TARGET_BITRATE,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
-  PROP_STATS,
   PROP_STATE,
   PROP_LAST
 };
@@ -1933,9 +1932,6 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_MAX_VIDEO_SEND_BW:
       g_value_set_uint (value, self->priv->max_video_send_bw);
       break;
-    case PROP_STATS:
-      g_value_take_boxed (value, kms_base_rtp_endpoint_create_stats (self));
-      break;
     case PROP_STATE:
       g_value_set_enum (value, self->priv->state);
       break;
@@ -1988,6 +1984,17 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   g_hash_table_destroy (self->priv->stats);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
+}
+
+GstStructure *
+kms_base_rtp_endpoint_stats_action (KmsIStats * obj)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
+  GstStructure *stats;
+
+  stats = kms_base_rtp_endpoint_create_stats (self);
+
+  return stats;
 }
 
 static void
@@ -2071,8 +2078,6 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Maximum video bandwidth for sending. Unit: kbps(kilobits per second). 0: unlimited",
           0, G_MAXUINT32, MAX_VIDEO_SEND_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_override_property (object_class, PROP_STATS, "stats");
 
   /* set signals */
   obj_signals[MEDIA_STATE_CHANGED] =
@@ -2328,5 +2333,5 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 static void
 kms_istats_interface_init (KmsIStatsInterface * iface)
 {
-  /* Nothing to do here */
+  iface->stats = kms_base_rtp_endpoint_stats_action;
 }

@@ -14,15 +14,25 @@
  */
 
 #include "kmsistats.h"
+#include "kms-core-marshal.h"
+
+enum
+{
+  SIGNAL_STATS,
+  LAST_SIGNAL
+};
+
+static guint kms_i_stats_signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_INTERFACE (KmsIStats, kms_istats, 0);
 
 static void
 kms_istats_default_init (KmsIStatsInterface * iface)
 {
-  /* set properties */
-  g_object_interface_install_property (iface,
-      g_param_spec_boxed ("stats", "Statistics",
-          "Various statistics", GST_TYPE_STRUCTURE,
-          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+  /* set actions */
+  kms_i_stats_signals[SIGNAL_STATS] =
+      g_signal_new ("stats", G_TYPE_FROM_CLASS (iface),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+      G_STRUCT_OFFSET (KmsIStatsInterface, stats),
+      NULL, NULL, __kms_core_marshal_BOXED__VOID, GST_TYPE_STRUCTURE, 0);
 }

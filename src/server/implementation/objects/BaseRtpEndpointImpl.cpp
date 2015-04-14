@@ -117,7 +117,7 @@ std::map <std::string, std::shared_ptr<RTCStats>>
   std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
   GstStructure *stats;
 
-  g_object_get (getGstreamerElement(), "stats", &stats, NULL);
+  g_signal_emit_by_name (getGstreamerElement(), "stats", &stats);
 
   rtcStatsReport = stats::createRTCStatsReport (time (NULL), stats);
 

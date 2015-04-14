@@ -33,6 +33,9 @@ typedef struct _KmsIStatsInterface      KmsIStatsInterface;
 struct _KmsIStatsInterface
 {
   GTypeInterface parent;
+
+  /* actions */
+  GstStructure * (*stats) (KmsIStats * self);
 };
 
 GType kms_istats_get_type (void);
