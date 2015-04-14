@@ -363,6 +363,8 @@ kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf)
 static void
 add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
 {
+  GstSDPMedia *cpy;
+
   if (gst_sdp_message_get_attribute_val (msg, "group") != NULL &&
       gst_sdp_media_get_attribute_val (mconf->media, "mid") == NULL) {
     /* When group attribute is present, the mid attribute */
@@ -370,7 +372,14 @@ add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
     gst_sdp_media_add_attribute (mconf->media, "mid", mconf->mid);
   }
 
-  gst_sdp_message_add_media (msg, mconf->media);
+  gst_sdp_media_new (&cpy);
+  if (gst_sdp_media_copy (mconf->media, &cpy) != GST_SDP_OK) {
+    gst_sdp_media_free (cpy);
+    GST_ERROR ("Cannot create media copy");
+    return;
+  }
+
+  gst_sdp_message_add_media (msg, cpy);
 }
 
 static void
