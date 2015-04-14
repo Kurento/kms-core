@@ -358,6 +358,12 @@
           "name": "maxVideoSendBandwidth",
           "doc": "Maximum video bandwidth for sending.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
           "type": "int"
+        },
+        {
+          "name": "mediaState",
+          "doc": "State of the media",
+          "type": "MediaState",
+          "readOnly": true
         }
       ],
       "methods": [
@@ -370,6 +376,9 @@
             "type": "RTCStats<>"
           }
         }
+      ],
+      "events": [
+        "MediaStateChanged"
       ]
     },
     {
@@ -590,6 +599,15 @@
           "doc": "Module available factories",
           "type": "String[]"
         }
+      ]
+    },
+    {
+      "name": "MediaState",
+      "typeFormat": "ENUM",
+      "doc": "State of the media.",
+      "values": [
+        "DISCONNECTED",
+        "CONNECTED"
       ]
     },
     {
@@ -1390,6 +1408,23 @@
           "name": "objectId",
           "doc": "The id of the object that has been destroyed",
           "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "MediaStateChanged",
+      "extends": "Media",
+      "doc": "Indicates that the state of the media has changed",
+      "properties": [
+        {
+          "name": "oldState",
+          "doc": "The previous state",
+          "type": "MediaState"
+        },
+        {
+          "name": "newState",
+          "doc": "The new state",
+          "type": "MediaState"
         }
       ]
     }

@@ -42,6 +42,8 @@ public:
 
   virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
 
+  sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
