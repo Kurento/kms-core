@@ -53,8 +53,7 @@ configure_encoder (GstElement * encoder, const gchar * factory_name,
         "target-bitrate", target_bitrate, "end-usage", /* cbr */ 1, NULL);
   } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
     g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "tune", 4 /* zerolatency */ , "threads", (guint) 1, "bitrate",
-        target_bitrate / 1000, NULL);
+        "threads", (guint) 1, "bitrate", target_bitrate / 1000, NULL);
   }
 }
 
