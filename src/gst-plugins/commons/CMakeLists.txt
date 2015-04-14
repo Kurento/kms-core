@@ -116,6 +116,7 @@ add_dependencies(kmsgstcommons kmsutils sdputils)
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
+  kmssdpagent
   ${gstreamer-1.0_LIBRARIES}
   ${gstreamer-base-1.0_LIBRARIES}
   ${gstreamer-sdp-1.0_LIBRARIES}

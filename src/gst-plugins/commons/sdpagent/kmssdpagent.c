@@ -18,7 +18,6 @@
 
 #include "kmssdpcontext.h"
 #include "kmssdpagent.h"
-#include "kms-core-marshal.h"
 #include "sdp_utils.h"
 
 #define PLUGIN_NAME "sdpagent"
