@@ -107,6 +107,7 @@ enum
 struct _KmsSdpMediaHandlerPrivate
 {
   gchar *proto;
+  GArray *bwtypes;
 };
 
 static void
@@ -150,6 +151,7 @@ kms_sdp_media_handler_finalize (GObject * object)
   GST_DEBUG_OBJECT (self, "finalize");
 
   g_free (self->priv->proto);
+  g_array_free (self->priv->bwtypes, TRUE);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -172,6 +174,16 @@ kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
       "Not implemented");
 
   return NULL;
+}
+
+static void
+kms_sdp_media_handler_add_bandwidth_impl (KmsSdpMediaHandler * handler,
+    const gchar * bwtype, guint bandwidth)
+{
+  GstSDPBandwidth bw;
+
+  gst_sdp_bandwidth_set (&bw, bwtype, bandwidth);
+  g_array_append_val (handler->priv->bwtypes, bw);
 }
 
 static gboolean
@@ -224,7 +236,16 @@ static gboolean
 kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
     GstSDPMedia * offer, GError ** error)
 {
-  /* Nothing to add at this level */
+  gint i;
+
+  /* Add bandwidth attributes */
+  for (i = 0; i < handler->priv->bwtypes->len; i++) {
+    GstSDPBandwidth *bw;
+
+    bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, i);
+    gst_sdp_media_add_bandwidth (offer, bw->bwtype, bw->bandwidth);
+  }
+
   return TRUE;
 }
 
@@ -242,7 +263,35 @@ static gboolean
 kms_sdp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
-  /* Nothing to add at this level */
+  guint i, len;
+
+  /* Add bandwidth attributes */
+  len = gst_sdp_media_bandwidths_len (offer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPBandwidth *offered_bw;
+    guint j;
+
+    offered_bw = gst_sdp_media_get_bandwidth (offer, i);
+
+    /* look up an appropriate bandwidth attribute to intersect this one */
+    for (j = 0; j < handler->priv->bwtypes->len; j++) {
+      GstSDPBandwidth *bw;
+      guint val;
+
+      bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, j);
+
+      if (g_strcmp0 (offered_bw->bwtype, bw->bwtype) != 0) {
+        continue;
+      }
+
+      val = (offered_bw->bandwidth < bw->bandwidth) ? offered_bw->bandwidth :
+          bw->bandwidth;
+
+      gst_sdp_media_add_bandwidth (answer, bw->bwtype, val);
+    }
+  }
+
   return TRUE;
 }
 
@@ -263,6 +312,7 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;
+  klass->add_bandwidth = kms_sdp_media_handler_add_bandwidth_impl;
 
   klass->can_insert_attribute = kms_sdp_media_handler_can_insert_attribute_impl;
   klass->intersect_sdp_medias = kms_sdp_media_handler_intersect_sdp_medias_impl;
@@ -281,6 +331,9 @@ static void
 kms_sdp_media_handler_init (KmsSdpMediaHandler * self)
 {
   self->priv = KMS_SDP_MEDIA_HANDLER_GET_PRIVATE (self);
+  self->priv->bwtypes = g_array_new (FALSE, TRUE, sizeof (GstSDPBandwidth));
+  g_array_set_clear_func (self->priv->bwtypes,
+      (GDestroyNotify) gst_sdp_bandwidth_clear);
 }
 
 GstSDPMedia *
@@ -301,4 +354,14 @@ kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
       offer, error);
+}
+
+void
+kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler * handler,
+    const gchar * bwtype, guint bandwidth)
+{
+  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), FALSE);
+
+  return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_bandwidth (handler,
+      bwtype, bandwidth);
 }

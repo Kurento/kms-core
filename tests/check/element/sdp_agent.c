@@ -1373,7 +1373,82 @@ GST_START_TEST (sdp_agent_test_supported_attrs)
   g_object_unref (answerer);
 }
 
-GST_END_TEST static Suite *
+GST_END_TEST static void
+check_bandwidth_medias_attrs (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  const GstSDPBandwidth *offer_bw, *answer_bw;
+  const GstSDPMedia *offered, *answered;
+  guint answer_max = *((guint *) data);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  offered = gst_sdp_message_get_media (offer, 0);
+  fail_if (offered == NULL);
+
+  answered = gst_sdp_message_get_media (answer, 0);
+  fail_if (answered == NULL);
+
+  offer_bw = gst_sdp_media_get_bandwidth (offered, 0);
+  fail_if (offer == NULL);
+
+  answer_bw = gst_sdp_media_get_bandwidth (answered, 0);
+  fail_if (answer_bw == NULL);
+
+  if (offer_bw->bandwidth < answer_max) {
+    fail_if (answer_bw->bandwidth != offer_bw->bandwidth);
+  } else {
+    fail_if (answer_bw->bandwidth != answer_max);
+  }
+}
+
+static void
+test_agents_bandwidth (guint offer, guint answer)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler1, *handler2;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  handler1 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler1 == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler1);
+  fail_if (id < 0);
+
+  kms_sdp_media_handler_add_bandwidth (handler1, "AS", offer);
+
+  handler2 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler2 == NULL);
+
+  kms_sdp_media_handler_add_bandwidth (handler2, "AS", answer);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler2);
+  fail_if (id < 0);
+
+  test_handler_offer (offerer, answerer, check_bandwidth_medias_attrs, &answer);
+
+  g_object_unref (answerer);
+  g_object_unref (offerer);
+}
+
+GST_START_TEST (sdp_agent_test_bandwidtth_attrs)
+{
+  test_agents_bandwidth (120, 15);
+  test_agents_bandwidth (16, 16);
+  test_agents_bandwidth (130, 140);
+}
+
+GST_END_TEST;
+
+static Suite *
 sdp_agent_suite (void)
 {
   Suite *s = suite_create ("kmssdpagent");
@@ -1395,6 +1470,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_multi_m_lines);
   tcase_add_test (tc_chain, sdp_agent_test_filter_unknown_attr);
   tcase_add_test (tc_chain, sdp_agent_test_supported_attrs);
+  tcase_add_test (tc_chain, sdp_agent_test_bandwidtth_attrs);
 
   return s;
 }
