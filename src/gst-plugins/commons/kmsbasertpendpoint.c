@@ -80,6 +80,9 @@ struct _KmsRTPSessionStats
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
+  KmsMediaState state;
+  gboolean audio_actived;
+  gboolean video_actived;
 
   gchar *proto;
   gboolean bundle;              /* Implies rtcp-mux */
@@ -125,6 +128,7 @@ enum
 {
   MEDIA_START,
   MEDIA_STOP,
+  MEDIA_STATE_CHANGED,
   SIGNAL_REQUEST_LOCAL_KEY_FRAME,
   LAST_SIGNAL
 };
@@ -156,6 +160,7 @@ enum
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
   PROP_STATS,
+  PROP_STATE,
   PROP_LAST
 };
 
@@ -2042,6 +2047,9 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_STATS:
       g_value_take_boxed (value, kms_base_rtp_endpoint_create_stats (self));
       break;
+    case PROP_STATE:
+      g_value_set_enum (value, self->priv->state);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -2134,6 +2142,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   base_endpoint_class->connect_input_elements =
       kms_base_rtp_endpoint_connect_input_elements;
 
+  g_object_class_install_property (object_class, PROP_STATE,
+      g_param_spec_enum ("state", "Media state", "Media state",
+          KMS_TYPE_MEDIA_STATE, KMS_MEDIA_STATE_DISCONNECTED,
+          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_PROTO,
       g_param_spec_string ("proto", "RTP/RTCP protocol",
           "RTP/RTCP protocol", DEFAULT_PROTO,
@@ -2191,6 +2204,14 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   g_object_class_override_property (object_class, PROP_STATS, "stats");
 
   /* set signals */
+  obj_signals[MEDIA_STATE_CHANGED] =
+      g_signal_new ("media-state-changed",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, media_state_changed), NULL,
+      NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE, 1,
+      KMS_TYPE_MEDIA_STATE);
+
   obj_signals[MEDIA_START] =
       g_signal_new ("media-start",
       G_TYPE_FROM_CLASS (klass),
@@ -2248,19 +2269,69 @@ kms_base_rtp_endpoint_rtpbin_on_new_ssrc (GstElement * rtpbin, guint session,
 }
 
 static void
+kms_base_rtp_endpoint_set_media_state (KmsBaseRtpEndpoint * self, guint session,
+    KmsMediaState state)
+{
+  gboolean actived = FALSE, emit = FALSE;
+  KmsMediaState new_state;
+
+  KMS_ELEMENT_LOCK (self);
+
+  actived = state == KMS_MEDIA_STATE_CONNECTED;
+
+  switch (session) {
+    case AUDIO_RTP_SESSION:
+      self->priv->audio_actived = actived;
+      break;
+    case VIDEO_RTP_SESSION:
+      self->priv->video_actived = actived;
+      break;
+    default:
+      GST_WARNING_OBJECT (self, "No media supported for session %u", session);
+  }
+
+  if (self->priv->audio_actived || self->priv->video_actived) {
+    /* There is still a media connection alive */
+    new_state = KMS_MEDIA_STATE_CONNECTED;
+  } else {
+    new_state = KMS_MEDIA_STATE_DISCONNECTED;
+  }
+
+  if (self->priv->state != new_state) {
+    self->priv->state = new_state;
+    emit = TRUE;
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  if (emit) {
+    g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STATE_CHANGED], 0,
+        new_state);
+  }
+}
+
+static void
 kms_base_rtp_endpoint_rtpbin_on_bye_ssrc (GstElement * rtpbin, guint session,
     guint ssrc, gpointer user_data)
 {
-  kms_base_rtp_endpoint_stop_signal (KMS_BASE_RTP_ENDPOINT (user_data),
-      session, ssrc);
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_set_media_state (self, session,
+      KMS_MEDIA_STATE_DISCONNECTED);
+
+  kms_base_rtp_endpoint_stop_signal (self, session, ssrc);
 }
 
 static void
 kms_base_rtp_endpoint_rtpbin_on_bye_timeout (GstElement * rtpbin,
     guint session, guint ssrc, gpointer user_data)
 {
-  kms_base_rtp_endpoint_stop_signal (KMS_BASE_RTP_ENDPOINT (user_data),
-      session, ssrc);
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_set_media_state (self, session,
+      KMS_MEDIA_STATE_DISCONNECTED);
+
+  kms_base_rtp_endpoint_stop_signal (self, session, ssrc);
 }
 
 static void
@@ -2299,8 +2370,32 @@ static void
 kms_base_rtp_endpoint_rtpbin_on_sender_timeout (GstElement * rtpbin,
     guint session, guint ssrc, gpointer user_data)
 {
-  kms_base_rtp_endpoint_stop_signal (KMS_BASE_RTP_ENDPOINT (user_data),
-      session, ssrc);
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_set_media_state (self, session,
+      KMS_MEDIA_STATE_DISCONNECTED);
+
+  kms_base_rtp_endpoint_stop_signal (self, session, ssrc);
+}
+
+static void
+kms_base_rtp_endpoint_rtpbin_on_timeout (GstElement * rtpbin,
+    guint session, guint ssrc, gpointer user_data)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_set_media_state (self, session,
+      KMS_MEDIA_STATE_DISCONNECTED);
+}
+
+static void
+kms_base_rtp_endpoint_rtpbin_on_ssrc_active (GstElement * rtpbin,
+    guint session, guint ssrc, gpointer user_data)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_set_media_state (self, session,
+      KMS_MEDIA_STATE_CONNECTED);
 }
 
 static void
@@ -2338,6 +2433,12 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   g_signal_connect (self->priv->rtpbin, "new-jitterbuffer",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer), self);
+
+  g_signal_connect (self->priv->rtpbin, "on-timeout",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_timeout), self);
+
+  g_signal_connect (self->priv->rtpbin, "on-ssrc-active",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_active), self);
 
   g_object_set (self, "accept-eos", FALSE, "do-synchronization", TRUE, NULL);
 
