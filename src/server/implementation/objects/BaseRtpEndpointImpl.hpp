@@ -32,13 +32,15 @@ public:
                        std::shared_ptr< MediaObjectImpl > parent,
                        const std::string &factoryName);
 
-  virtual ~BaseRtpEndpointImpl () {};
+  virtual ~BaseRtpEndpointImpl ();
 
   virtual int getMinVideoSendBandwidth ();
   virtual void setMinVideoSendBandwidth (int minVideoSendBandwidth);
 
   virtual int getMaxVideoSendBandwidth ();
   virtual void setMaxVideoSendBandwidth (int maxVideoSendBandwidth);
+
+  virtual std::shared_ptr<MediaState> getMediaState ();
 
   virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
 
@@ -56,6 +58,10 @@ public:
 private:
 
   std::string formatGstStructure (const GstStructure *stats);
+  std::shared_ptr<MediaState> current_state;
+  gulong stateChangedHandlerId;
+
+  void updateState (guint new_state);
 
   class StaticConstructor
   {

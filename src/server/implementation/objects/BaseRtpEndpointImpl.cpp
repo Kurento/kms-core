@@ -4,6 +4,7 @@
 #include "BaseRtpEndpointImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
+#include <MediaState.hpp>
 #include <time.h>
 
 #include "Statistics.hpp"
@@ -12,8 +13,61 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoBaseRtpEndpointImpl"
 
+#define KMS_MEDIA_DISCONNECTED 0
+#define KMS_MEDIA_CONNECTED 1
+
 namespace kurento
 {
+
+class AdaptorObjAux;
+
+class AdaptorObjAux
+{
+public:
+  AdaptorObjAux (std::function <void (guint) > func) : func (func)
+  {
+
+  }
+
+  std::function <void (guint) > func;
+};
+
+static void
+state_changed_adaptor_function (GstElement *e, guint new_state, gpointer data)
+{
+  AdaptorObjAux *adaptor = (AdaptorObjAux *) data;
+
+  adaptor->func (new_state);
+}
+
+static void
+adaptor_obj_destroy (gpointer d, GClosure *closure)
+{
+  AdaptorObjAux *data = (AdaptorObjAux *) d;
+
+  delete data;
+}
+
+static gulong
+register_state_change_signal (GstElement *e, std::function <void (guint) > func)
+{
+  gulong id;
+
+  AdaptorObjAux *data = new AdaptorObjAux (func);
+
+  id = g_signal_connect_data (e, "media-state-changed",
+                              G_CALLBACK (state_changed_adaptor_function), (gpointer) data,
+                              adaptor_obj_destroy,
+                              (GConnectFlags) 0);
+
+  return id;
+}
+
+static void
+unregister_state_change_signal (GstElement *e, gulong id)
+{
+  g_signal_handler_disconnect (e, id);
+}
 
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     &config,
@@ -21,7 +75,46 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     const std::string &factoryName) :
   SdpEndpointImpl (config, parent, factoryName)
 {
-  /* Nothing to do */
+
+  current_state = std::make_shared <MediaState>
+                  (MediaState::DISCONNECTED);
+
+  stateChangedHandlerId = register_state_change_signal (element,
+                          std::bind (&BaseRtpEndpointImpl::updateState, this, std::placeholders::_1) );
+}
+
+BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
+{
+  unregister_state_change_signal (element, stateChangedHandlerId);
+}
+
+void
+BaseRtpEndpointImpl::updateState (guint new_state)
+{
+  std::shared_ptr<MediaState> old_state;
+
+  old_state = current_state;
+
+  switch (new_state) {
+  case KMS_MEDIA_DISCONNECTED:
+    current_state = std::make_shared <MediaState>
+                    (MediaState::DISCONNECTED);
+    break;
+
+  case KMS_MEDIA_CONNECTED:
+    current_state = std::make_shared <MediaState>
+                    (MediaState::CONNECTED);
+    break;
+
+  default:
+    GST_ERROR ("Invalid media state %u", new_state);
+    return;
+  }
+
+  MediaStateChanged event (shared_from_this(),
+                           MediaStateChanged::getName (), old_state, current_state);
+
+  this->signalMediaStateChanged (event);
 }
 
 int BaseRtpEndpointImpl::getMinVideoSendBandwidth ()
@@ -67,6 +160,12 @@ std::map <std::string, std::shared_ptr<RTCStats>>
   gst_structure_free (stats);
 
   return rtcStatsReport;
+}
+
+std::shared_ptr<MediaState>
+BaseRtpEndpointImpl::getMediaState ()
+{
+  return current_state;
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;
