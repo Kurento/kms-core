@@ -372,14 +372,13 @@ add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
     gst_sdp_media_add_attribute (mconf->media, "mid", mconf->mid);
   }
 
-  gst_sdp_media_new (&cpy);
   if (gst_sdp_media_copy (mconf->media, &cpy) != GST_SDP_OK) {
-    gst_sdp_media_free (cpy);
     GST_ERROR ("Cannot create media copy");
     return;
   }
 
   gst_sdp_message_add_media (msg, cpy);
+  gst_sdp_media_free (cpy);
 }
 
 static void
