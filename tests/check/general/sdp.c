@@ -119,6 +119,73 @@ GST_START_TEST (intersect)
 }
 
 GST_END_TEST
+    static gchar *offer_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 127.0.0.1\r\n"
+    "s=-\r\n"
+    "t=0 0\r\n"
+    "m=video 1 RTP/SAVPF 103 100\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "a=sendrecv\r\n" "a=rtpmap:103 H264/90000\r\n" "a=rtpmap:100 VP8/90000\r\n";
+
+static gchar *answer_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "m=video 1 RTP/SAVPF 97\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "a=rtpmap:97 VP8/90000\r\n" "a=rtcp:1 IN IP4 0.0.0.0\r\n";
+
+static gchar *expected_offer2 = "v=0\r\n"
+    "o=- 0 0 IN IP4 127.0.0.1\r\n"
+    "s=-\r\n"
+    "t=0 0\r\n"
+    "m=video 1 RTP/SAVPF 100\r\n"
+    "c=IN IP4 0.0.0.0\r\n" "a=rtpmap:100 VP8/90000\r\n" "a=sendrecv\r\n";
+
+GST_START_TEST (intersect_fail)
+{
+  GstSDPMessage *offer, *answer;
+  GstSDPMessage *offer_result, *answer_result;
+  gchar *tmp = NULL;
+
+  gst_sdp_message_new (&offer);
+  gst_sdp_message_parse_buffer ((guint8 *) offer_str, -1, offer);
+  GST_DEBUG ("%s", offer_sdp);
+  GST_DEBUG ("SDP offer: \n%s", tmp = gst_sdp_message_as_text (offer));
+  if (tmp != NULL) {
+    g_free (tmp);
+    tmp = NULL;
+  }
+
+  gst_sdp_message_new (&answer);
+  gst_sdp_message_parse_buffer ((guint8 *) answer_str, -1, answer);
+  GST_DEBUG ("SDP answer: \n%s", tmp = gst_sdp_message_as_text (answer));
+  if (tmp != NULL) {
+    g_free (tmp);
+    tmp = NULL;
+  }
+
+  sdp_utils_intersect_sdp_messages (offer, answer, &offer_result,
+      &answer_result);
+
+  tmp = gst_sdp_message_as_text (offer_result);
+  GST_DEBUG ("SDP offer result: \n%s", tmp);
+  fail_if (g_strcmp0 (tmp, expected_offer2) != 0);
+  g_free (tmp);
+
+  tmp = gst_sdp_message_as_text (answer_result);
+  GST_DEBUG ("SDP asnwer result: \n%s", tmp);
+//   fail_if (g_strcmp0 (tmp, expected_answer) != 0);
+  g_free (tmp);
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  gst_sdp_message_free (offer_result);
+  gst_sdp_message_free (answer_result);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -130,6 +197,7 @@ sdp_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, intersect);
+  tcase_add_test (tc_chain, intersect_fail);
 
   return s;
 }
