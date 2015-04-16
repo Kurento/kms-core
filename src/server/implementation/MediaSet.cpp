@@ -338,6 +338,16 @@ MediaSet::unref (const std::string &sessionId,
     it->second.erase (it2);
   }
 
+  auto childrenIt = childrenMap.find (mediaObject->getId() );
+
+  if (childrenIt != childrenMap.end() ) {
+    auto childMap = childrenIt->second;
+
+    for (auto child : childMap) {
+      unref (sessionId, child.second);
+    }
+  }
+
   auto it3 = reverseSessionMap.find (mediaObject->getId() );
 
   if (it3 != reverseSessionMap.end() ) {
@@ -353,16 +363,6 @@ MediaSet::unref (const std::string &sessionId,
 
         if (parent) {
           childrenMap[parent->getId()].erase (mediaObject->getId() );
-        }
-
-        auto childrenIt = childrenMap.find (mediaObject->getId() );
-
-        if (childrenIt != childrenMap.end() ) {
-          auto childMap = childrenIt->second;
-
-          for (auto child : childMap) {
-            unref (sessionId, child.second);
-          }
         }
 
         childrenMap.erase (mediaObject->getId() );
