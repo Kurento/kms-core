@@ -141,6 +141,10 @@ std::string MediaObjectImpl::getTag (const std::string &key)
                           "Tag key not found");
 }
 
+void MediaObjectImpl::postConstructor()
+{
+}
+
 std::vector<std::shared_ptr<Tag>> MediaObjectImpl::getTags ()
 {
   std::vector<std::shared_ptr<Tag>> ret;

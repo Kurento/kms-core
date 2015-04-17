@@ -85,6 +85,12 @@ protected:
                           + dynamic_cast <C *> (this)->getType() + "." + key, defaultValue);
   }
 
+  /*
+   * This method is intented to perform initialization actions that require
+   * a call to shared_from_this ()
+   */
+  virtual void postConstructor ();
+
   boost::property_tree::ptree config;
 
 private:
@@ -108,6 +114,7 @@ private:
 
   static StaticConstructor staticConstructor;
 
+  friend Factory;
 };
 
 } /* kurento */
