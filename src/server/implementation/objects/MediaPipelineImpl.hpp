@@ -42,7 +42,8 @@ public:
                        Json::Value &response);
 
   virtual void Serialize (JsonSerializer &serializer);
-
+protected:
+  virtual void postConstructor ();
 private:
 
   GstElement *pipeline;

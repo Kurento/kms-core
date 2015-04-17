@@ -6,6 +6,7 @@
 #include <gst/gst.h>
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
+#include <SignalHandler.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -13,55 +14,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
-
-class MessageAdaptorAux;
-
-class MessageAdaptorAux
-{
-public:
-  MessageAdaptorAux (std::function <void (GstMessage *) > func) : func (func)
-  {
-
-  }
-
-  std::function <void (GstMessage *) > func;
-};
-
-static void
-bus_message_adaptor (GstBus *bus, GstMessage *message, gpointer data)
-{
-  MessageAdaptorAux *adaptor = (MessageAdaptorAux *) data;
-
-  adaptor->func (message);
-}
-
-static void
-message_adaptor_destroy (gpointer d, GClosure *closure)
-{
-  MessageAdaptorAux *data = (MessageAdaptorAux *) d;
-
-  delete data;
-}
-
-static gulong
-register_bus_messages (GstBus *bus,
-                       std::function <void (GstMessage *message) > func)
-{
-  gulong id;
-
-  MessageAdaptorAux *data = new MessageAdaptorAux (func);
-
-  id = g_signal_connect_data (bus, "message", G_CALLBACK (bus_message_adaptor),
-                              (gpointer) data, message_adaptor_destroy, (GConnectFlags) 0);
-  return id;
-}
-
-static void
-unregister_bus_messages (GstBus *bus, gulong id)
-{
-  g_signal_handler_disconnect (bus, id);
-}
-
 void
 MediaPipelineImpl::busMessage (GstMessage *message)
 {
@@ -98,10 +50,26 @@ MediaPipelineImpl::busMessage (GstMessage *message)
   }
 }
 
+void MediaPipelineImpl::postConstructor ()
+{
+  GstBus *bus;
+
+  MediaObjectImpl::postConstructor ();
+
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
+  gst_bus_add_signal_watch (bus);
+  busMessageHandler = register_signal_handler (G_OBJECT (bus), "message",
+                      std::function <void (GstBus *, GstMessage *) > (std::bind (
+                            &MediaPipelineImpl::busMessage, this,
+                            std::placeholders::_2) ),
+                      std::dynamic_pointer_cast<MediaPipelineImpl>
+                      (shared_from_this() ) );
+  g_object_unref (bus);
+}
+
 MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   : MediaObjectImpl (config)
 {
-  GstBus *bus;
   GstClock *clock;
 
   pipeline = gst_pipeline_new (NULL);
@@ -118,20 +86,13 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   g_object_unref (clock);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-
-  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
-  gst_bus_add_signal_watch (bus);
-  busMessageHandler = register_bus_messages (bus,
-                      std::bind (&MediaPipelineImpl::busMessage, this,
-                                 std::placeholders::_1) );
-  g_object_unref (bus);
 }
 
 MediaPipelineImpl::~MediaPipelineImpl ()
 {
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
 
-  unregister_bus_messages (bus, busMessageHandler);
+  unregister_signal_handler (bus, busMessageHandler);
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
