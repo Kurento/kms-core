@@ -539,6 +539,7 @@ kms_base_rtp_endpoint_process_hdrext_attrs (KmsBaseRtpEndpoint * self,
     /* FIXME: it can be not available for some media entry */
     if (g_strcmp0 (attr, aux) == 0) {
       self->priv->hdr_ext_abs_send_time = TRUE;
+      g_free (aux);
       return;
     }
     g_free (aux);
