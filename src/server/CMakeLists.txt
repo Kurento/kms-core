@@ -33,6 +33,7 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/RegisterParent.hpp
   implementation/Statistics.hpp
   implementation/DotGraph.hpp
+  implementation/SignalHandler.hpp
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
