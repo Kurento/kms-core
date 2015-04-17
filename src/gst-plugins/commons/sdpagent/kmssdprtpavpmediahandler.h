@@ -56,10 +56,13 @@ G_BEGIN_DECLS
 
 typedef struct _KmsSdpRtpAvpMediaHandler KmsSdpRtpAvpMediaHandler;
 typedef struct _KmsSdpRtpAvpMediaHandlerClass KmsSdpRtpAvpMediaHandlerClass;
+typedef struct _KmsSdpRtpAvpMediaHandlerPrivate KmsSdpRtpAvpMediaHandlerPrivate;
 
 struct _KmsSdpRtpAvpMediaHandler
 {
   KmsSdpRtpMediaHandler parent;
+
+  KmsSdpRtpAvpMediaHandlerPrivate *priv;
 };
 
 struct _KmsSdpRtpAvpMediaHandlerClass
@@ -70,6 +73,8 @@ struct _KmsSdpRtpAvpMediaHandlerClass
 GType kms_sdp_rtp_avp_media_handler_get_type ();
 
 KmsSdpRtpAvpMediaHandler * kms_sdp_rtp_avp_media_handler_new ();
+
+gboolean kms_sdp_rtp_avp_media_handler_add_extmap (KmsSdpRtpAvpMediaHandler *self, guint8 id, const gchar *uri, GError **error);
 
 G_END_DECLS
 

@@ -34,6 +34,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpMediaHandler,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_rtp_avp_media_handler_debug_category,
         OBJECT_NAME, 0, "debug category for sdp rtp avp media_handler"));
 
+#define KMS_SDP_RTP_AVP_MEDIA_HANDLER_GET_PRIVATE(obj) (  \
+  G_TYPE_INSTANCE_GET_PRIVATE (                           \
+    (obj),                                                \
+    KMS_TYPE_SDP_RTP_AVP_MEDIA_HANDLER,                   \
+    KmsSdpRtpAvpMediaHandlerPrivate                       \
+  )                                                       \
+)
+
 #define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_AUDIO_MEDIA "audio"
 #define SDP_VIDEO_MEDIA "video"
@@ -102,6 +110,11 @@ static KmsSdpRtpMap video_fmts[] = {
   {97, "VP8/90000"},
   {100, "MP4V-ES/90000"},
   {101, "H264/90000"}
+};
+
+struct _KmsSdpRtpAvpMediaHandlerPrivate
+{
+  GHashTable *extmaps;
 };
 
 static GObject *
@@ -651,17 +664,30 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
 }
 
 static void
+kms_sdp_rtp_avp_media_handler_finalize (GObject * object)
+{
+  KmsSdpRtpAvpMediaHandler *self = KMS_SDP_RTP_AVP_MEDIA_HANDLER (object);
+
+  GST_DEBUG_OBJECT (self, "finalize");
+
+  g_hash_table_unref (self->priv->extmaps);
+
+  /* chain up */
+  G_OBJECT_CLASS (kms_sdp_rtp_avp_media_handler_parent_class)->finalize
+      (object);
+}
+
+static void
 kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
 {
   GObjectClass *gobject_class;
   KmsSdpMediaHandlerClass *handler_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
-
   gobject_class->constructor = kms_sdp_rtp_avp_media_handler_constructor;
+  gobject_class->finalize = kms_sdp_rtp_avp_media_handler_finalize;
 
   handler_class = KMS_SDP_MEDIA_HANDLER_CLASS (klass);
-
   handler_class->create_offer = kms_sdp_rtp_avp_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_rtp_avp_media_handler_create_answer;
 
@@ -677,12 +703,17 @@ kms_sdp_rtp_avp_media_handler_class_init (KmsSdpRtpAvpMediaHandlerClass * klass)
   handler_class->init_answer = kms_sdp_rtp_avp_media_handler_init_answer;
   handler_class->add_answer_attributes =
       kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl;
+
+  g_type_class_add_private (klass, sizeof (KmsSdpRtpAvpMediaHandlerPrivate));
 }
 
 static void
 kms_sdp_rtp_avp_media_handler_init (KmsSdpRtpAvpMediaHandler * self)
 {
-  /* Nothing to do here */
+  self->priv = KMS_SDP_RTP_AVP_MEDIA_HANDLER_GET_PRIVATE (self);
+
+  self->priv->extmaps =
+      g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
 }
 
 KmsSdpRtpAvpMediaHandler *
@@ -695,4 +726,21 @@ kms_sdp_rtp_avp_media_handler_new ()
       (KMS_TYPE_SDP_RTP_AVP_MEDIA_HANDLER, NULL));
 
   return handler;
+}
+
+gboolean
+kms_sdp_rtp_avp_media_handler_add_extmap (KmsSdpRtpAvpMediaHandler * self,
+    guint8 id, const gchar * uri, GError ** error)
+{
+
+  if (g_hash_table_contains (self->priv->extmaps, GUINT_TO_POINTER (id))) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Trying to add existing extmap id '%" G_GUINT32_FORMAT "'", id);
+    return FALSE;
+  }
+
+  g_hash_table_insert (self->priv->extmaps, GUINT_TO_POINTER (id),
+      g_strdup (uri));
+
+  return TRUE;
 }
