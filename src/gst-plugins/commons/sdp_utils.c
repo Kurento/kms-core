@@ -479,11 +479,6 @@ intersect_sdp_medias (const GstSDPMedia * offer,
       intersect_rtcp_fb_attrs (offer, answer, offer_format, answer_format,
           *offer_result, *answer_result);
     }
-
-    /* FIXME: not only use the first codec that matches.
-     * Now, this is useful to support WebRTC video with Firefox 34.0
-     * adding only VP8 to the SDP anwer */
-    break;
   }
 
   if (gst_sdp_media_formats_len (*answer_result) == 0

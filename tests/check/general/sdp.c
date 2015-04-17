@@ -16,9 +16,6 @@
 #include "sdp_utils.h"
 #include <gst/check/gstcheck.h>
 
-/* TODO: reenable old expected SDPs when not using only
- * the first codec that matches per media entry */
-
 static gchar *offer_sdp = "v=0\r\n"
     "o=- 123456 0 IN IP4 127.0.0.1\r\n"
     "s=TestSession\r\n"
@@ -44,12 +41,14 @@ static gchar *answer_sdp = "v=0\r\n"
     "a=sendrecv\r\n"
     "m=audio 6767 RTP/AVP 14\r\n" "a=rtpmap:14 MPA/90000\r\n" "a=sendonly\r\n";
 
-static gchar *expected_offer = "v=0\r\n"
+static gchar *spected_offer = "v=0\r\n"
     "o=- 123456 0 IN IP4 127.0.0.1\r\n"
-    "s=TestSession\r\n" "c=IN IP4 127.0.0.1\r\n" "t=0 0\r\n"
-//    "m=video 3434 RTP/AVP 96 99\r\n"
-    "m=video 3434 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n"
-//    "a=rtpmap:99 H263/90000\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 127.0.0.1\r\n"
+    "t=0 0\r\n"
+    "m=video 3434 RTP/AVP 96 99\r\n"
+    "a=rtpmap:96 MP4V-ES/90000\r\n"
+    "a=rtpmap:99 H263/90000\r\n"
     "a=sendrecv\r\n"
     "m=video 0 RTP/AVP 98\r\n"
     "a=rtpmap:98 VP8/90000\r\n"
@@ -58,12 +57,14 @@ static gchar *expected_offer = "v=0\r\n"
     "a=recvonly\r\n" "m=audio 0 TCP 14\r\n" "a=rtpmap:14 MPA/90000\r\n"
     "a=inactive\r\n";
 
-static gchar *expected_answer = "v=0\r\n"
+static gchar *spected_answer = "v=0\r\n"
     "o=- 123456 0 IN IP4 127.0.0.1\r\n"
-    "s=TestSession\r\n" "c=IN IP4 127.0.0.1\r\n" "t=0 0\r\n"
-//    "m=video 5656 RTP/AVP 96 99\r\n"
-    "m=video 5656 RTP/AVP 96\r\n" "a=rtpmap:96 MP4V-ES/90000\r\n"
-//    "a=rtpmap:99 H263/90000\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 127.0.0.1\r\n"
+    "t=0 0\r\n"
+    "m=video 5656 RTP/AVP 96 99\r\n"
+    "a=rtpmap:96 MP4V-ES/90000\r\n"
+    "a=rtpmap:99 H263/90000\r\n"
     "a=sendrecv\r\n"
     "m=video 0 RTP/AVP 98\r\n"
     "a=rtpmap:98 VP8/90000\r\n"
@@ -103,12 +104,12 @@ GST_START_TEST (intersect)
 
   tmp = gst_sdp_message_as_text (offer_result);
   GST_DEBUG ("SDP offer result: \n%s", tmp);
-  fail_if (g_strcmp0 (tmp, expected_offer) != 0);
+  fail_if (g_strcmp0 (tmp, spected_offer) != 0);
   g_free (tmp);
 
   tmp = gst_sdp_message_as_text (answer_result);
   GST_DEBUG ("SDP asnwer result: \n%s", tmp);
-  fail_if (g_strcmp0 (tmp, expected_answer) != 0);
+  fail_if (g_strcmp0 (tmp, spected_answer) != 0);
   g_free (tmp);
 
   gst_sdp_message_free (offer);
