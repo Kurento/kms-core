@@ -35,6 +35,33 @@ typedef void (*CheckSdpNegotiationFunc) (const GstSDPMessage * offer,
     const GstSDPMessage * answer, gpointer data);
 
 static void
+set_default_codecs (KmsSdpRtpAvpMediaHandler * handler)
+{
+  KmsSdpPayloadManager *ptmanager;
+  GError *err = NULL;
+
+  ptmanager = kms_sdp_payload_manager_new ();
+  kms_sdp_rtp_avp_media_handler_use_payload_manager (handler,
+      KMS_I_SDP_PAYLOAD_MANAGER (ptmanager), &err);
+
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec (handler,
+          "PCMU/8000/1", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec (handler,
+          "opus/48000/2", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec (handler,
+          "AMR/8000/1", &err));
+
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "H263-1998/90000", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "VP8/90000", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "MP4V-ES/90000", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "H264/90000", &err));
+}
+
+static void
 sdp_agent_create_offer (KmsSdpAgent * agent)
 {
   GError *err = NULL;
@@ -251,6 +278,8 @@ GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
@@ -395,6 +424,8 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
 
@@ -475,6 +506,8 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
 
@@ -541,6 +574,8 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
@@ -611,6 +646,8 @@ test_bundle_group (void)
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   hid = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (hid < 0);
@@ -753,6 +790,8 @@ test_group_with_pattern (const gchar * sdp_pattern,
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 
@@ -829,6 +868,8 @@ fb_messages_disable_offer_prop (const gchar * prop)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   g_object_set (handler, prop, FALSE, NULL);
 
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
@@ -836,6 +877,8 @@ fb_messages_disable_offer_prop (const gchar * prop)
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
@@ -895,11 +938,15 @@ fb_messages_disable_answer_prop (const gchar * prop)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   g_object_set (handler, prop, FALSE, NULL);
 
@@ -1041,11 +1088,15 @@ test_rtcp_mux_offer_enabled ()
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
@@ -1096,6 +1147,8 @@ test_rtcp_mux_offer_disabled ()
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   /* Offerer can not manage rtcp-mux */
   g_object_set (handler, "rtcp-mux", FALSE, NULL);
 
@@ -1104,6 +1157,8 @@ test_rtcp_mux_offer_disabled ()
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
@@ -1130,11 +1185,15 @@ test_rtcp_mux_answer_disabled ()
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id < 0);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
@@ -1195,6 +1254,8 @@ GST_START_TEST (sdp_agent_test_multi_m_lines)
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
 
   /* First video entry */
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
@@ -1283,6 +1344,8 @@ GST_START_TEST (sdp_agent_test_filter_unknown_attr)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
@@ -1366,6 +1429,8 @@ GST_START_TEST (sdp_agent_test_supported_attrs)
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
   fail_if (handler == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 
@@ -1422,6 +1487,8 @@ test_agents_bandwidth (guint offer, guint answer)
   handler1 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler1 == NULL);
 
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler1));
+
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler1);
   fail_if (id < 0);
 
@@ -1429,6 +1496,8 @@ test_agents_bandwidth (guint offer, guint answer)
 
   handler2 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler2 == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler2));
 
   kms_sdp_media_handler_add_bandwidth (handler2, "AS", answer);
 
