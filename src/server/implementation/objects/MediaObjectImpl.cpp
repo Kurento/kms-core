@@ -16,18 +16,16 @@ namespace kurento
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
 {
+  creationTime = time (NULL);
   initialId = createId();
   this->config = config;
   this->sendTagsInEvents = false;
 }
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
-                                  std::shared_ptr< MediaObject > parent)
+                                  std::shared_ptr< MediaObject > parent) : MediaObjectImpl (config)
 {
   this->parent = parent;
-  initialId = createId();
-  this->config = config;
-  this->sendTagsInEvents = false;
 }
 
 std::shared_ptr<MediaPipeline>
@@ -155,6 +153,11 @@ std::vector<std::shared_ptr<Tag>> MediaObjectImpl::getTags ()
   }
 
   return ret;
+}
+
+int  MediaObjectImpl::getCreationTime ()
+{
+  return (int) creationTime;
 }
 
 MediaObjectImpl::StaticConstructor MediaObjectImpl::staticConstructor;

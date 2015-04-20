@@ -52,6 +52,8 @@ public:
   virtual bool getSendTagsInEvents ();
   virtual void setSendTagsInEvents (bool sendTagsInEvents);
 
+  virtual int getCreationTime ();
+
   virtual void release ()
   {
 
@@ -100,6 +102,7 @@ private:
   std::string name;
   std::recursive_mutex mutex;
   std::shared_ptr<MediaObject> parent;
+  int64_t creationTime;
 
   std::string createId();
 

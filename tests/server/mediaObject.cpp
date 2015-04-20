@@ -130,3 +130,17 @@ BOOST_AUTO_TEST_CASE (get_tags)
 
   mediaElement.reset ();
 }
+
+BOOST_AUTO_TEST_CASE (creation_time)
+{
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  std::shared_ptr <MediaElementImpl> mediaElement (new  MediaElementImpl (
+        boost::property_tree::ptree(), pipe, "dummyduplex") );
+
+  time_t now = time (NULL);
+
+  BOOST_CHECK (pipe->getCreationTime() <= mediaElement->getCreationTime() );
+  BOOST_CHECK (pipe->getCreationTime() <= now);
+  BOOST_CHECK (mediaElement->getCreationTime() <= now);
+}

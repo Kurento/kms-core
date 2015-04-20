@@ -64,6 +64,12 @@
           "doc": "This property allows activate/deactivate sending the element tags in all its events.",
           "type": "boolean",
           "defaultValue": false
+        },
+        {
+          "name": "creationTime",
+          "doc": "Number of seconds since Epoch when the element was created",
+          "type": "int",
+          "final": true
         }
       ],
       "methods": [
