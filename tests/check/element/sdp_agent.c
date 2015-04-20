@@ -23,7 +23,9 @@
 
 #include "sdp_utils.h"
 #include "kmssdpagent.h"
+#include "kmsisdppayloadmanager.h"
 #include "kmssdpmediahandler.h"
+#include "kmssdppayloadmanager.h"
 #include "kmssdpsctpmediahandler.h"
 #include "kmssdprtpavpmediahandler.h"
 #include "kmssdprtpavpfmediahandler.h"
@@ -1596,6 +1598,56 @@ GST_START_TEST (sdp_agent_test_extmap_attrs)
 
 GST_END_TEST;
 
+static void
+test_sdp_dynamic_pts (KmsSdpRtpAvpMediaHandler * handler)
+{
+  KmsSdpPayloadManager *ptmanager;
+  GError *err = NULL;
+
+  /* Try to assign a dynamic pt to an static codec. Expected to fail */
+  fail_if (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "H263-1998/90000", &err));
+  GST_DEBUG ("Expected error: %s", err->message);
+  g_clear_error (&err);
+
+  ptmanager = kms_sdp_payload_manager_new ();
+  kms_sdp_rtp_avp_media_handler_use_payload_manager (handler,
+      KMS_I_SDP_PAYLOAD_MANAGER (ptmanager), &err);
+
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "VP8/90000", &err));
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "MP4V-ES/90000", &err));
+
+  /* Try to add and already added codec. Expected to fail */
+  fail_if (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
+          "VP8/90000", &err));
+  GST_DEBUG ("Expected error: %s", err->message);
+  g_clear_error (&err);
+}
+
+GST_START_TEST (sdp_agent_test_dynamic_pts)
+{
+  KmsSdpMediaHandler *handler;
+  KmsSdpAgent *agent;
+  gint id;
+
+  agent = kms_sdp_agent_new ();
+  fail_if (agent == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (agent, "audio", handler);
+  fail_if (id < 0);
+
+  test_sdp_dynamic_pts (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
+  g_object_unref (agent);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -1620,6 +1672,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_supported_attrs);
   tcase_add_test (tc_chain, sdp_agent_test_bandwidtth_attrs);
   tcase_add_test (tc_chain, sdp_agent_test_extmap_attrs);
+  tcase_add_test (tc_chain, sdp_agent_test_dynamic_pts);
 
   return s;
 }

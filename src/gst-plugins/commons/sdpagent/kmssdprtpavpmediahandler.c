@@ -42,6 +42,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpMediaHandler,
   )                                                       \
 )
 
+struct _KmsSdpRtpAvpMediaHandlerPrivate
+{
+  GHashTable *extmaps;
+  KmsISdpPayloadManager *ptmanager;
+  GSList *audio_fmts;
+  GSList *video_fmts;
+};
+
 #define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_AUDIO_MEDIA "audio"
 #define SDP_VIDEO_MEDIA "video"
@@ -98,6 +106,76 @@ struct _KmsSdpRtpMap
   gchar *name;
 };
 
+static KmsSdpRtpMap *
+kms_sdp_rtp_map_new (guint payload, const gchar * name)
+{
+  KmsSdpRtpMap *rtpmap;
+
+  rtpmap = g_slice_new0 (KmsSdpRtpMap);
+  rtpmap->payload = payload;
+  rtpmap->name = g_strdup (name);
+
+  return rtpmap;
+}
+
+static void
+kms_sdp_rtp_map_destroy (KmsSdpRtpMap * rtpmap)
+{
+  g_free (rtpmap->name);
+  g_slice_free (KmsSdpRtpMap, rtpmap);
+}
+
+static void
+kms_sdp_rtp_map_destroy_pointer (gpointer rtpmap)
+{
+  kms_sdp_rtp_map_destroy ((KmsSdpRtpMap *) rtpmap);
+}
+
+static gint
+get_static_payload_for_codec_name (const gchar * name)
+{
+  guint i;
+
+  for (i = 0; i < G_N_ELEMENTS (rtpmaps); i++) {
+    const gchar *rtpmap = rtpmaps[i];
+
+    if (rtpmap != NULL && g_ascii_strcasecmp (name, rtpmap) == 0) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+static KmsSdpRtpMap *
+kms_sdp_rtp_map_create_for_codec (KmsSdpRtpAvpMediaHandler * self,
+    const gchar * name, GError ** error)
+{
+  KmsSdpRtpMap *rtpmap = NULL;
+  gint payload;
+
+  payload = get_static_payload_for_codec_name (name);
+  if (payload >= 0) {
+    return kms_sdp_rtp_map_new (payload, name);
+  }
+
+  if (self->priv->ptmanager == NULL) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR,
+        "Media handler not configured to assign dynamic payload types");
+    return NULL;
+  }
+
+  payload = kms_i_sdp_payload_manager_get_dynamic_pt (self->priv->ptmanager,
+      error);
+
+  if (payload >= 0) {
+    rtpmap = kms_sdp_rtp_map_new (payload, name);
+  }
+
+  return rtpmap;
+}
+
 /* TODO: Make these lists configurable */
 static KmsSdpRtpMap audio_fmts[] = {
   {98, "OPUS/48000/2"},
@@ -110,12 +188,6 @@ static KmsSdpRtpMap video_fmts[] = {
   {97, "VP8/90000"},
   {100, "MP4V-ES/90000"},
   {101, "H264/90000"}
-};
-
-struct _KmsSdpRtpAvpMediaHandlerPrivate
-{
-  GHashTable *extmaps;
-  KmsISdpPayloadManager *ptmanager;
 };
 
 static GObject *
@@ -762,6 +834,9 @@ kms_sdp_rtp_avp_media_handler_finalize (GObject * object)
 
   g_clear_object (&self->priv->ptmanager);
 
+  g_slist_free_full (self->priv->audio_fmts, kms_sdp_rtp_map_destroy_pointer);
+  g_slist_free_full (self->priv->video_fmts, kms_sdp_rtp_map_destroy_pointer);
+
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
@@ -848,5 +923,65 @@ kms_sdp_rtp_avp_media_handler_use_payload_manager (KmsSdpRtpAvpMediaHandler *
   /* take ownership */
   self->priv->ptmanager = manager;
 
+  return TRUE;
+}
+
+static gboolean
+is_codec_used (GSList * rtpmaps, const gchar * name)
+{
+  GSList *l;
+
+  for (l = rtpmaps; l != NULL; l = l->next) {
+    KmsSdpRtpMap *rtpmap = l->data;
+
+    if (g_strcmp0 (rtpmap->name, name) == 0) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+gboolean
+kms_sdp_rtp_avp_media_handler_add_audio_codec (KmsSdpRtpAvpMediaHandler * self,
+    const gchar * name, GError ** error)
+{
+  KmsSdpRtpMap *rtpmap;
+
+  if (is_codec_used (self->priv->audio_fmts, name)) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Codec %s is already used", name);
+    return FALSE;
+  }
+
+  rtpmap = kms_sdp_rtp_map_create_for_codec (self, name, error);
+
+  if (rtpmap == NULL) {
+    return FALSE;
+  }
+
+  self->priv->audio_fmts = g_slist_append (self->priv->audio_fmts, rtpmap);
+  return TRUE;
+}
+
+gboolean
+kms_sdp_rtp_avp_media_handler_add_video_codec (KmsSdpRtpAvpMediaHandler * self,
+    const gchar * name, GError ** error)
+{
+  KmsSdpRtpMap *rtpmap;
+
+  if (is_codec_used (self->priv->video_fmts, name)) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Codec %s is already used", name);
+    return FALSE;
+  }
+
+  rtpmap = kms_sdp_rtp_map_create_for_codec (self, name, error);
+
+  if (rtpmap == NULL) {
+    return FALSE;
+  }
+
+  self->priv->video_fmts = g_slist_append (self->priv->video_fmts, rtpmap);
   return TRUE;
 }

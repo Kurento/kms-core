@@ -78,6 +78,8 @@ KmsSdpRtpAvpMediaHandler * kms_sdp_rtp_avp_media_handler_new ();
 
 gboolean kms_sdp_rtp_avp_media_handler_add_extmap (KmsSdpRtpAvpMediaHandler *self, guint8 id, const gchar *uri, GError **error);
 gboolean kms_sdp_rtp_avp_media_handler_use_payload_manager (KmsSdpRtpAvpMediaHandler *self, KmsISdpPayloadManager *manager, GError **error);
+gboolean kms_sdp_rtp_avp_media_handler_add_video_codec (KmsSdpRtpAvpMediaHandler * self, const gchar * name, GError ** error);
+gboolean kms_sdp_rtp_avp_media_handler_add_audio_codec (KmsSdpRtpAvpMediaHandler * self, const gchar * name, GError ** error);
 
 G_END_DECLS
 
