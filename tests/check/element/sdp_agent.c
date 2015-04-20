@@ -1448,6 +1448,154 @@ GST_START_TEST (sdp_agent_test_bandwidtth_attrs)
 
 GST_END_TEST;
 
+static void
+check_extmap_attrs_add_twice ()
+{
+  KmsSdpRtpAvpMediaHandler *handler;
+  GError *err = NULL;
+  gboolean ret;
+
+  handler = kms_sdp_rtp_avp_media_handler_new ();
+  fail_if (handler == NULL);
+
+  ret = kms_sdp_rtp_avp_media_handler_add_extmap (handler, 1, "URI-A", &err);
+  fail_if (ret == FALSE);
+  fail_if (err != NULL);
+
+  ret = kms_sdp_rtp_avp_media_handler_add_extmap (handler, 2, "URI-B", &err);
+  fail_if (ret == FALSE);
+  fail_if (err != NULL);
+
+  ret = kms_sdp_rtp_avp_media_handler_add_extmap (handler, 1, "URI-A", &err);
+  fail_if (ret == TRUE);
+  fail_if (err == NULL);
+  g_error_free (err);
+
+  g_object_unref (handler);
+}
+
+static void
+check_extmap_attrs_into_offer ()
+{
+  KmsSdpAgent *agent;
+  KmsSdpMediaHandler *handler1;
+  gchar *sdp_str = NULL;
+  GstSDPMessage *offer;
+  const GstSDPMedia *media;
+  SdpMessageContext *ctx;
+  const gchar *extmap;
+  GError *err = NULL;
+  gint id;
+
+  agent = kms_sdp_agent_new ();
+  fail_if (agent == NULL);
+
+  handler1 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler1 == NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_extmap (KMS_SDP_RTP_AVP_MEDIA_HANDLER
+      (handler1), 1, "URI-A", &err);
+  fail_if (err != NULL);
+
+  id = kms_sdp_agent_add_proto_handler (agent, "video", handler1);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (agent, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  kms_sdp_message_context_destroy (ctx);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  media = gst_sdp_message_get_media (offer, 0);
+  extmap = gst_sdp_media_get_attribute_val (media, "extmap");
+  fail_if (g_strcmp0 (extmap, "1 URI-A") != 0);
+
+  gst_sdp_message_free (offer);
+  g_object_unref (agent);
+}
+
+static void
+check_extmap_attrs_negotiation ()
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler1, *handler2;
+  gchar *sdp_str = NULL;
+  GstSDPMessage *offer, *answer;
+  const GstSDPMedia *media;
+  SdpMessageContext *ctx;
+  const gchar *extmap;
+  GError *err = NULL;
+  gint id;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  handler1 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler1 == NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_extmap (KMS_SDP_RTP_AVP_MEDIA_HANDLER
+      (handler1), 1, "URI-A", &err);
+  fail_if (err != NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler1);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  kms_sdp_message_context_destroy (ctx);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler2 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler2 == NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_extmap (KMS_SDP_RTP_AVP_MEDIA_HANDLER
+      (handler2), 2, "URI-A", &err);
+  fail_if (err != NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler2);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  gst_sdp_message_free (offer);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  kms_sdp_message_context_destroy (ctx);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  media = gst_sdp_message_get_media (answer, 0);
+  extmap = gst_sdp_media_get_attribute_val (media, "extmap");
+  fail_if (g_strcmp0 (extmap, "1 URI-A") != 0);
+
+  gst_sdp_message_free (answer);
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_extmap_attrs)
+{
+  check_extmap_attrs_add_twice ();
+  check_extmap_attrs_into_offer ();
+  check_extmap_attrs_negotiation ();
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -1471,6 +1619,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_filter_unknown_attr);
   tcase_add_test (tc_chain, sdp_agent_test_supported_attrs);
   tcase_add_test (tc_chain, sdp_agent_test_bandwidtth_attrs);
+  tcase_add_test (tc_chain, sdp_agent_test_extmap_attrs);
 
   return s;
 }

@@ -221,6 +221,32 @@ kms_sdp_rtp_avp_media_handler_add_supported_fmts (GstSDPMedia * media,
 }
 
 static gboolean
+kms_sdp_rtp_avp_media_handler_add_extmaps (KmsSdpRtpAvpMediaHandler *
+    self, GstSDPMedia * media, GError ** error)
+{
+  GHashTableIter iter;
+  gpointer key, value;
+
+  g_hash_table_iter_init (&iter, self->priv->extmaps);
+  while (g_hash_table_iter_next (&iter, &key, &value)) {
+    guint8 id = GPOINTER_TO_UINT (key);
+    const gchar *uri = (const gchar *) value;
+    gchar *attr;
+
+    attr = g_strdup_printf ("%" G_GUINT32_FORMAT " %s", id, uri);
+    if (gst_sdp_media_add_attribute (media, "extmap", attr) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not to set attribute 'rtpmap:%s'", attr);
+      g_free (attr);
+      return FALSE;
+    }
+    g_free (attr);
+  }
+
+  return TRUE;
+}
+
+static gboolean
 kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (GstSDPMedia * media,
     GError ** error)
 {
@@ -363,6 +389,54 @@ format_supported (const GstSDPMedia * media, const gchar * fmt)
 }
 
 static gboolean
+    kms_sdp_rtp_avp_media_handler_add_supported_extmaps
+    (KmsSdpRtpAvpMediaHandler * self, const GstSDPMedia * offer,
+    GstSDPMedia * answer, GError ** error)
+{
+  guint a;
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+    GHashTableIter iter;
+    gpointer key, value;
+    gchar **tokens;
+    const gchar *offer_uri;
+
+    attr = gst_sdp_media_get_attribute_val_n (offer, "extmap", a);
+    if (attr == NULL) {
+      return TRUE;
+    }
+
+    tokens = g_strsplit (attr, " ", 0);
+    offer_uri = tokens[1];
+    if (offer_uri == NULL) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Offer with wrong extmap '%s'", attr);
+      g_strfreev (tokens);
+      return FALSE;
+    }
+
+    g_hash_table_iter_init (&iter, self->priv->extmaps);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+      const gchar *uri = (const gchar *) value;
+
+      if (g_strcmp0 (offer_uri, uri) != 0) {
+        continue;
+      }
+
+      if (gst_sdp_media_add_attribute (answer, "extmap", attr) != GST_SDP_OK) {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+            "Can not to set attribute 'rtpmap:%s'", attr);
+        g_strfreev (tokens);
+        return FALSE;
+      }
+    }
+
+    g_strfreev (tokens);
+  }
+}
+
+static gboolean
 add_supported_rtpmap_attrs (const GstSDPMedia * offer, GstSDPMedia * answer,
     GError ** error)
 {
@@ -412,7 +486,8 @@ kms_sdp_rtp_avp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
     handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
     GstSDPMedia * answer)
 {
-  if (g_strcmp0 (attr->key, "rtpmap") == 0) {
+  if (g_strcmp0 (attr->key, "rtpmap") == 0 ||
+      g_strcmp0 (attr->key, "extmap") == 0) {
     /* ignore */
     return FALSE;
   }
@@ -557,7 +632,13 @@ static gboolean
 kms_sdp_rtp_avp_media_handler_add_offer_attributes (KmsSdpMediaHandler *
     handler, GstSDPMedia * offer, GError ** error)
 {
+  KmsSdpRtpAvpMediaHandler *self = KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler);
+
   if (!kms_sdp_rtp_avp_media_handler_add_supported_fmts (offer, error)) {
+    return FALSE;
+  }
+
+  if (!kms_sdp_rtp_avp_media_handler_add_extmaps (self, offer, error)) {
     return FALSE;
   }
 
@@ -621,6 +702,7 @@ static gboolean
 kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
     handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
+  KmsSdpRtpAvpMediaHandler *self = KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler);
   guint i, len, port;
 
   len = gst_sdp_media_formats_len (offer);
@@ -657,6 +739,11 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
   if (gst_sdp_media_set_port_info (answer, port, 1) != GST_SDP_OK) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
         SDP_AGENT_INVALID_PARAMETER, "Can not set port attribute");
+    return FALSE;
+  }
+
+  if (!kms_sdp_rtp_avp_media_handler_add_supported_extmaps (self, offer,
+          answer, error)) {
     return FALSE;
   }
 
