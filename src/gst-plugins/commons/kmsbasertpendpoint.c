@@ -85,7 +85,6 @@ struct _KmsBaseRtpEndpointPrivate
   gboolean audio_actived;
   gboolean video_actived;
 
-  gchar *proto;
   gboolean rtcp_mux;
   gboolean rtcp_nack;
   gboolean rtcp_remb;
@@ -130,7 +129,6 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
-#define DEFAULT_PROTO    NULL
 #define DEFAULT_RTCP_MUX    FALSE
 #define DEFAULT_RTCP_NACK    FALSE
 #define DEFAULT_RTCP_REMB    FALSE
@@ -141,7 +139,6 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
-  PROP_PROTO,                   /* inmediate-TODO: check if needed */
   PROP_RTCP_MUX,
   PROP_RTCP_NACK,
   PROP_RTCP_REMB,
@@ -1289,18 +1286,12 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 {
   GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
-  const gchar *proto_str = gst_sdp_media_get_proto (media);
   GstElement *payloader;
   GstCaps *caps = NULL;
   guint j, f_len;
   const gchar *rtpbin_pad_name;
   KmsElementPadType type;
   gboolean *connected_flag;
-
-  if (g_strcmp0 (proto_str, self->priv->proto)) {
-    GST_WARNING_OBJECT (self, "Proto '%s' not supported", proto_str);
-    return TRUE;
-  }
 
   f_len = gst_sdp_media_formats_len (media);
   for (j = 0; j < f_len && caps == NULL; j++) {
@@ -1583,7 +1574,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GST_ERROR_OBJECT (self, "Session %u exists for SSRC %u", session, ssrc);
   }
 
-  if (ssrc == self->priv->video_ssrc) {
+  if (session == VIDEO_RTP_SESSION) {
     gboolean rtcp_nack = kms_base_rtp_endpoint_is_video_rtcp_nack (self);
 
     g_object_set (jitterbuffer, "do-lost", TRUE,
@@ -1754,13 +1745,6 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
-    case PROP_PROTO:{
-      const gchar *str = g_value_get_string (value);
-
-      g_free (self->priv->proto);
-      self->priv->proto = g_strdup (str);
-      break;
-    }
     case PROP_RTCP_MUX:
       self->priv->rtcp_mux = g_value_get_boolean (value);
       break;
@@ -1814,9 +1798,6 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (property_id) {
-    case PROP_PROTO:
-      g_value_set_string (value, self->priv->proto);
-      break;
     case PROP_RTCP_MUX:
       g_value_set_boolean (value, self->priv->rtcp_mux);
       break;
@@ -1885,7 +1866,6 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
 
   kms_remb_local_destroy (self->priv->rl);
   kms_remb_remote_destroy (self->priv->rm);
-  g_free (self->priv->proto);
 
   g_hash_table_destroy (self->priv->conns);
   g_hash_table_destroy (self->priv->stats);
@@ -1940,11 +1920,6 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_enum ("state", "Media state", "Media state",
           KMS_TYPE_MEDIA_STATE, KMS_MEDIA_STATE_DISCONNECTED,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_PROTO,
-      g_param_spec_string ("proto", "RTP/RTCP protocol",
-          "RTP/RTCP protocol", DEFAULT_PROTO,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_RTCP_MUX,
       g_param_spec_boolean ("rtcp-mux", "RTCP mux",
@@ -2181,7 +2156,6 @@ static void
 kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 {
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
-  self->priv->proto = DEFAULT_PROTO;
   self->priv->rtcp_mux = DEFAULT_RTCP_MUX;
   self->priv->rtcp_nack = DEFAULT_RTCP_NACK;
   self->priv->rtcp_remb = DEFAULT_RTCP_REMB;
