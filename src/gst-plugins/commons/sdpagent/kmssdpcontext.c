@@ -619,7 +619,7 @@ kms_sdp_message_context_get_sdp_message (SdpMessageContext * ctx)
   return ctx->msg;
 }
 
-const GSList *
+GSList *
 kms_sdp_message_context_get_medias (SdpMessageContext * ctx)
 {
   return ctx->medias;

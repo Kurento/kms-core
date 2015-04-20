@@ -48,7 +48,7 @@ SdpMediaGroup * kms_sdp_message_context_get_group (SdpMessageContext *ctx, guint
 gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMediaConfig *media, GError **error);
 gboolean kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext *ctx, const GstSDPMessage *offer, GError **error);
 GstSDPMessage * kms_sdp_message_context_get_sdp_message (SdpMessageContext *ctx);
-const GSList * kms_sdp_message_context_get_medias (SdpMessageContext *ctx);
+GSList * kms_sdp_message_context_get_medias (SdpMessageContext *ctx);
 void kms_sdp_message_context_set_type (SdpMessageContext *ctx, KmsSdpMessageType type);
 KmsSdpMessageType kms_sdp_message_context_get_type (SdpMessageContext *ctx);
 
