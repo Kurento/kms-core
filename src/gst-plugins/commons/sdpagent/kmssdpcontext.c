@@ -360,8 +360,9 @@ kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf)
   return mconf->media;
 }
 
-static void
-add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
+static gboolean
+add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg,
+    GError ** error)
 {
   GstSDPMedia *cpy;
 
@@ -373,12 +374,15 @@ add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg)
   }
 
   if (gst_sdp_media_copy (mconf->media, &cpy) != GST_SDP_OK) {
-    GST_ERROR ("Cannot create media copy");
-    return;
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "can not create media entry");
+    return FALSE;
   }
 
   gst_sdp_message_add_media (msg, cpy);
   gst_sdp_media_free (cpy);
+
+  return TRUE;
 }
 
 static void
@@ -417,6 +421,7 @@ kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
 {
   GstSDPMessage *msg;
   gchar *sdp_str;
+  GSList *l;
 
   gst_sdp_message_new (&msg);
 
@@ -437,7 +442,12 @@ kms_sdp_message_context_pack (SdpMessageContext * ctx, GError ** error)
   g_slist_foreach (ctx->groups, (GFunc) add_group_to_sdp_message, msg);
 
   /* Append medias to the message */
-  g_slist_foreach (ctx->medias, (GFunc) add_media_to_sdp_message, msg);
+  for (l = ctx->medias; l != NULL; l = g_slist_next (l)) {
+    if (!add_media_to_sdp_message (l->data, msg, error)) {
+      gst_sdp_message_free (msg);
+      return NULL;
+    }
+  }
 
   return msg;
 }
