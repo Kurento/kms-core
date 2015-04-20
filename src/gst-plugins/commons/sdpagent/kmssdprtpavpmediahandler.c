@@ -115,6 +115,7 @@ static KmsSdpRtpMap video_fmts[] = {
 struct _KmsSdpRtpAvpMediaHandlerPrivate
 {
   GHashTable *extmaps;
+  KmsISdpPayloadManager *ptmanager;
 };
 
 static GObject *
@@ -759,9 +760,9 @@ kms_sdp_rtp_avp_media_handler_finalize (GObject * object)
 
   g_hash_table_unref (self->priv->extmaps);
 
-  /* chain up */
-  G_OBJECT_CLASS (kms_sdp_rtp_avp_media_handler_parent_class)->finalize
-      (object);
+  g_clear_object (&self->priv->ptmanager);
+
+  G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 static void
@@ -828,6 +829,24 @@ kms_sdp_rtp_avp_media_handler_add_extmap (KmsSdpRtpAvpMediaHandler * self,
 
   g_hash_table_insert (self->priv->extmaps, GUINT_TO_POINTER (id),
       g_strdup (uri));
+
+  return TRUE;
+}
+
+gboolean
+kms_sdp_rtp_avp_media_handler_use_payload_manager (KmsSdpRtpAvpMediaHandler *
+    self, KmsISdpPayloadManager * manager, GError ** error)
+{
+  if (!KMS_IS_I_SDP_PAYLOAD_MANAGER (manager)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Object provided is not an payload manager");
+    return FALSE;
+  }
+
+  g_clear_object (&self->priv->ptmanager);
+
+  /* take ownership */
+  self->priv->ptmanager = manager;
 
   return TRUE;
 }
