@@ -18,6 +18,8 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 #include "kmselement.h"
+#include "sdpagent/kmssdpagent.h"
+#include "sdpagent/kmssdpcontext.h"
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
@@ -60,23 +62,30 @@ struct _KmsBaseSdpEndpointClass
   void (*process_answer) (KmsBaseSdpEndpoint * self, GstSDPMessage * answer);
 
   /* virtual methods */
-  gboolean (*set_transport_to_sdp) (KmsBaseSdpEndpoint * self, GstSDPMessage * msg);
-  void (*start_transport_send) (KmsBaseSdpEndpoint * self,
-      const GstSDPMessage * offer, const GstSDPMessage * answer,
-      gboolean local_offer);
-  void (*connect_input_elements) (KmsBaseSdpEndpoint * self,
-      const GstSDPMessage * answer);
+  void (*start_transport_send) (KmsBaseSdpEndpoint * self, SdpMessageContext * remote_ctx);
+  void (*connect_input_elements) (KmsBaseSdpEndpoint * self, SdpMessageContext * negotiated_ctx);
+
+  gboolean (*configure_media) (KmsBaseSdpEndpoint * self, SdpMediaConfig * mconf);
+
+  /* Virtual handler factory methods */
+  void (*create_media_handler) (KmsBaseSdpEndpoint * self, KmsSdpMediaHandler **handler);
 };
 
 GType kms_base_sdp_endpoint_get_type (void);
 
+SdpMessageContext *kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint * self);
 GstSDPMessage *kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self);
 void kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
     self, GstSDPMessage * local_sdp);
 
+SdpMessageContext *kms_base_sdp_endpoint_get_remote_sdp_ctx (KmsBaseSdpEndpoint * self);
 GstSDPMessage *kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self);
 void kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
     self, GstSDPMessage * remote_sdp);
+
+SdpMessageContext *kms_base_sdp_endpoint_get_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self);
+
+void kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self, KmsSdpMediaHandler **handler);
 
 G_END_DECLS
 #endif /* __KMS_BASE_SDP_ENDPOINT_H__ */

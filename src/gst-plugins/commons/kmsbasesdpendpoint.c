@@ -20,6 +20,8 @@
 #include "kmsagnosticcaps.h"
 #include "kms-core-marshal.h"
 #include "sdp_utils.h"
+#include "sdpagent/kmssdprtpavpmediahandler.h"
+#include "sdpagent/kmssdppayloadmanager.h"
 
 #define PLUGIN_NAME "base_sdp_endpoint"
 
@@ -40,6 +42,8 @@ G_DEFINE_TYPE (KmsBaseSdpEndpoint, kms_base_sdp_endpoint, KMS_TYPE_ELEMENT);
 #define USE_IPV6_DEFAULT FALSE
 #define MAX_VIDEO_RECV_BW_DEFAULT 500
 
+#define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
+
 /* Signals and args */
 enum
 {
@@ -51,38 +55,183 @@ enum
 
 static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_BUNDLE    FALSE
+#define DEFAULT_NUM_AUDIO_MEDIAS    0
+#define DEFAULT_NUM_VIDEO_MEDIAS    0
+
 enum
 {
   PROP_0,
+  PROP_BUNDLE,
   PROP_USE_IPV6,
-  PROP_PATTERN_SDP,
   PROP_LOCAL_SDP,
   PROP_REMOTE_SDP,
+  PROP_NUM_AUDIO_MEDIAS,
+  PROP_NUM_VIDEO_MEDIAS,
+  PROP_AUDIO_CODECS,
+  PROP_VIDEO_CODECS,
   PROP_MAX_VIDEO_RECV_BW,
   N_PROPERTIES
 };
 
 struct _KmsBaseSdpEndpointPrivate
 {
-  GstSDPMessage *pattern_sdp;
+  KmsSdpAgent *agent;
+  KmsSdpPayloadManager *ptmanager;
+
+  gboolean bundle;
+
   GstSDPMessage *local_sdp;
   GstSDPMessage *remote_sdp;
 
-  gboolean use_ipv6;
+  SdpMessageContext *local_ctx;
+  SdpMessageContext *remote_ctx;
+  SdpMessageContext *negotiated_ctx;
 
   guint max_video_recv_bw;
+
+  guint num_audio_medias;
+  guint num_video_medias;
+  GArray *audio_codecs;
+  GArray *video_codecs;
 };
 
+/* Media handler management begin */
+
 static void
-kms_base_sdp_endpoint_release_pattern_sdp (KmsBaseSdpEndpoint * self)
+kms_base_sdp_endpoint_create_media_handler_impl (KmsBaseSdpEndpoint * self,
+    KmsSdpMediaHandler ** handler)
 {
-  if (self->priv->pattern_sdp == NULL) {
-    return;
+  KmsBaseSdpEndpointClass *klass =
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_media_handler ==
+      kms_base_sdp_endpoint_create_media_handler_impl) {
+    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_media_handler'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+}
+
+void
+kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self,
+    KmsSdpMediaHandler ** handler)
+{
+  KmsBaseSdpEndpointClass *klass =
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  klass->create_media_handler (self, handler);
+
+  if (KMS_IS_SDP_RTP_AVP_MEDIA_HANDLER (*handler)) {
+    KmsSdpRtpAvpMediaHandler *h = KMS_SDP_RTP_AVP_MEDIA_HANDLER (*handler);
+    GError *err = NULL;
+
+    kms_sdp_rtp_avp_media_handler_use_payload_manager (h,
+        KMS_I_SDP_PAYLOAD_MANAGER (g_object_ref (self->priv->ptmanager)), &err);
+
+    if (self->priv->audio_codecs != NULL) {
+      int i;
+
+      for (i = 0; i < self->priv->audio_codecs->len; i++) {
+        GValue *v = &g_array_index (self->priv->audio_codecs, GValue, i);
+        const GstStructure *s;
+
+        if (!GST_VALUE_HOLDS_STRUCTURE (v)) {
+          GST_WARNING_OBJECT (self, "Value into array is not a GstStructure");
+          continue;
+        }
+
+        s = gst_value_get_structure (v);
+        kms_sdp_rtp_avp_media_handler_add_audio_codec (h,
+            gst_structure_get_name (s), &err);
+      }
+    }
+
+    if (self->priv->video_codecs != NULL) {
+      int i;
+
+      for (i = 0; i < self->priv->video_codecs->len; i++) {
+        GValue *v = &g_array_index (self->priv->video_codecs, GValue, i);
+        const GstStructure *s;
+
+        if (!GST_VALUE_HOLDS_STRUCTURE (v)) {
+          GST_WARNING_OBJECT (self, "Value into array is not a GstStructure");
+          continue;
+        }
+
+        s = gst_value_get_structure (v);
+        kms_sdp_rtp_avp_media_handler_add_video_codec (h,
+            gst_structure_get_name (s), &err);
+      }
+    }
+  }
+}
+
+static gboolean
+kms_base_sdp_endpoint_add_handler (KmsBaseSdpEndpoint * self,
+    const gchar * media, gint bundle_group_id, guint max_recv_bw)
+{
+  KmsSdpMediaHandler *handler = NULL;
+  gint hid;
+
+  kms_base_sdp_endpoint_create_media_handler (self, &handler);
+  if (handler == NULL) {
+    GST_ERROR_OBJECT (self, "Cannot create media handler.");
+    return FALSE;
   }
 
-  gst_sdp_message_free (self->priv->pattern_sdp);
-  self->priv->pattern_sdp = NULL;
+  hid = kms_sdp_agent_add_proto_handler (self->priv->agent, media, handler);
+  if (hid < 0) {
+    GST_ERROR_OBJECT (self, "Cannot add media handler.");
+    g_object_unref (handler);
+    return FALSE;
+  }
+
+  if (bundle_group_id != -1) {
+    if (!kms_sdp_agent_add_handler_to_group (self->priv->agent, bundle_group_id,
+            hid)) {
+      GST_ERROR_OBJECT (self, "Cannot add handler to bundle group.");
+      return FALSE;
+    }
+  }
+
+  if (max_recv_bw > 0) {
+    kms_sdp_media_handler_add_bandwidth (handler, "AS", max_recv_bw);
+  }
+
+  return TRUE;
 }
+
+static gboolean
+kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self)
+{
+  gint gid;
+  int i;
+
+  gid = -1;
+  if (self->priv->bundle) {
+    gid = kms_sdp_agent_crate_bundle_group (self->priv->agent);
+    if (gid < 0) {
+      GST_ERROR_OBJECT (self, "Cannot create bundle group.");
+      return FALSE;
+    }
+  }
+
+  for (i = 0; i < self->priv->num_audio_medias; i++) {
+    if (!kms_base_sdp_endpoint_add_handler (self, "audio", gid, 0)) {
+      return FALSE;
+    }
+  }
+
+  for (i = 0; i < self->priv->num_video_medias; i++) {
+    if (!kms_base_sdp_endpoint_add_handler (self, "video", gid,
+            self->priv->max_video_recv_bw)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+/* Media handler management end */
 
 static void
 kms_base_sdp_endpoint_release_sdp (GstSDPMessage ** sdp)
@@ -93,6 +242,12 @@ kms_base_sdp_endpoint_release_sdp (GstSDPMessage ** sdp)
 
   gst_sdp_message_free (*sdp);
   *sdp = NULL;
+}
+
+SdpMessageContext *
+kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->local_ctx;
 }
 
 GstSDPMessage *
@@ -112,6 +267,12 @@ kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
   g_object_notify (G_OBJECT (self), "local-sdp");
 }
 
+SdpMessageContext *
+kms_base_sdp_endpoint_get_remote_sdp_ctx (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->remote_ctx;
+}
+
 GstSDPMessage *
 kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self)
 {
@@ -129,15 +290,20 @@ kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
   g_object_notify (G_OBJECT (self), "remote-sdp");
 }
 
+SdpMessageContext *
+kms_base_sdp_endpoint_get_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->negotiated_ctx;
+}
+
 static void
-kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
-    self, const GstSDPMessage * offer,
-    const GstSDPMessage * answer, gboolean local_offer)
+kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint * self,
+    SdpMessageContext * remote_ctx)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  /* Defalut function, do nothing */
+  /* Default function, do nothing */
   if (base_sdp_endpoint_class->start_transport_send ==
       kms_base_sdp_endpoint_start_transport_send) {
     GST_WARNING_OBJECT (self,
@@ -147,13 +313,13 @@ kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 }
 
 static void
-kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
-    self, const GstSDPMessage * answer)
+kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint * self,
+    SdpMessageContext * negotiated_ctx)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  /* Defalut function, do nothing */
+  /* Default function, do nothing */
   if (base_sdp_endpoint_class->connect_input_elements ==
       kms_base_sdp_endpoint_connect_input_elements) {
     GST_WARNING_OBJECT (self,
@@ -163,65 +329,67 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 }
 
 static void
-kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self,
-    const GstSDPMessage * offer, const GstSDPMessage * answer,
-    gboolean local_offer)
+kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   GST_DEBUG_OBJECT (self, "Start media");
 
-  base_sdp_endpoint_class->start_transport_send (self, offer,
-      answer, local_offer);
-
-  base_sdp_endpoint_class->connect_input_elements (self, answer);
+  base_sdp_endpoint_class->start_transport_send (self, self->priv->remote_ctx);
+  base_sdp_endpoint_class->connect_input_elements (self,
+      self->priv->negotiated_ctx);
 }
 
 static gboolean
-kms_base_sdp_endpoint_set_transport_to_sdp (KmsBaseSdpEndpoint *
-    self, GstSDPMessage * msg)
+kms_base_sdp_endpoint_configure_media_impl (KmsBaseSdpEndpoint *
+    self, SdpMediaConfig * mconf)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
-  if (base_sdp_endpoint_class->set_transport_to_sdp ==
-      kms_base_sdp_endpoint_set_transport_to_sdp) {
+  if (base_sdp_endpoint_class->configure_media ==
+      kms_base_sdp_endpoint_configure_media_impl) {
     GST_WARNING_OBJECT (self,
-        "%s does not reimplement \"set_transport_to_sdp\"",
+        "%s does not reimplement 'configure_media'",
         G_OBJECT_CLASS_NAME (base_sdp_endpoint_class));
   }
 
-  /* Defalut function, do nothing */
+  /* Default function, do nothing */
   return TRUE;
 }
 
 static GstSDPMessage *
 kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
 {
+  SdpMessageContext *ctx = NULL;
   GstSDPMessage *offer = NULL;
-  KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "generate_offer");
 
   KMS_ELEMENT_LOCK (self);
 
-  if (self->priv->pattern_sdp != NULL) {
-    gst_sdp_message_copy (self->priv->pattern_sdp, &offer);
-  }
-
-  if (offer == NULL) {
+  if (!kms_base_sdp_endpoint_init_sdp_handlers (self)) {
     goto end;
   }
 
-  if (!base_sdp_endpoint_class->set_transport_to_sdp (self, offer)) {
-    gst_sdp_message_free (offer);
-    offer = NULL;
+  ctx = kms_sdp_agent_create_offer (self->priv->agent, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error generating offer", err->message);
+    g_error_free (err);
     goto end;
   }
 
-  sdp_utils_set_max_video_recv_bw (offer, self->priv->max_video_recv_bw);
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error generating offer", err->message);
+    g_error_free (err);
+    goto end;
+  }
+
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+  self->priv->local_ctx = ctx;
   kms_base_sdp_endpoint_set_local_sdp (self, offer);
 
 end:
@@ -234,69 +402,99 @@ static GstSDPMessage *
 kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * offer)
 {
-  GstSDPMessage *answer = NULL, *intersec_offer, *intersect_answer = NULL;
-  KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  SdpMessageContext *ctx = NULL;
+  GstSDPMessage *answer = NULL;
+  GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "process_offer");
 
   KMS_ELEMENT_LOCK (self);
 
+  if (!kms_base_sdp_endpoint_init_sdp_handlers (self)) {
+    goto end;
+  }
+
   kms_base_sdp_endpoint_set_remote_sdp (self, offer);
 
-  if (self->priv->pattern_sdp != NULL) {
-    gst_sdp_message_copy (self->priv->pattern_sdp, &answer);
+  ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error processing offer", err->message);
+    g_error_free (err);
+    goto end;
   }
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+  self->priv->remote_ctx = ctx;
 
-  if (answer == NULL) {
+  ctx = kms_sdp_agent_create_answer (self->priv->agent, offer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error processing offer", err->message);
+    g_error_free (err);
     goto end;
   }
 
-  if (!base_sdp_endpoint_class->set_transport_to_sdp (self, answer)) {
-    gst_sdp_message_free (answer);
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error processing offer", err->message);
+    g_error_free (err);
+    kms_sdp_message_context_destroy (ctx);
     goto end;
   }
 
-  if (sdp_utils_intersect_sdp_messages (offer, answer, &intersec_offer,
-          &intersect_answer) != GST_SDP_OK) {
-    gst_sdp_message_free (answer);
-    intersect_answer = NULL;
-    goto end;
-  }
-  gst_sdp_message_free (intersec_offer);
-  gst_sdp_message_free (answer);
-
-  kms_base_sdp_endpoint_start_media (self, offer, intersect_answer, FALSE);
-
-  sdp_utils_set_max_video_recv_bw (intersect_answer,
-      self->priv->max_video_recv_bw);
-  kms_base_sdp_endpoint_set_local_sdp (self, intersect_answer);
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
+  self->priv->local_ctx = ctx;
+  self->priv->negotiated_ctx = ctx;
+  kms_base_sdp_endpoint_set_local_sdp (self, answer);
+  kms_base_sdp_endpoint_start_media (self);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
 
-  return intersect_answer;
+  return answer;
 }
 
 static void
 kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     GstSDPMessage * answer)
 {
+  SdpMessageContext *ctx;
+  GError *err = NULL;
+
   GST_DEBUG_OBJECT (self, "process_answer");
 
   KMS_ELEMENT_LOCK (self);
 
-  if (self->priv->local_sdp == NULL) {
+  if (self->priv->local_ctx == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
     goto end;
   }
 
+  ctx = kms_sdp_message_context_new_from_sdp (answer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "%s (%s)", "Error processing answer", err->message);
+    g_error_free (err);
+    goto end;
+  }
+
   kms_base_sdp_endpoint_set_remote_sdp (self, answer);
-  kms_base_sdp_endpoint_start_media (self, self->priv->local_sdp, answer, TRUE);
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
+  self->priv->remote_ctx = ctx;
+  self->priv->negotiated_ctx = ctx;
+  kms_base_sdp_endpoint_start_media (self);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
+}
+
+static gboolean
+kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
+    SdpMediaConfig * mconf, gpointer user_data)
+{
+  KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (user_data);
+  KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+
+  return base_sdp_endpoint_class->configure_media (self, mconf);
 }
 
 static void
@@ -308,16 +506,60 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
-    case PROP_PATTERN_SDP:
-      kms_base_sdp_endpoint_release_pattern_sdp (self);
-      self->priv->pattern_sdp = g_value_dup_boxed (value);
+    case PROP_BUNDLE:
+      self->priv->bundle = g_value_get_boolean (value);
       break;
-    case PROP_USE_IPV6:
-      self->priv->use_ipv6 = g_value_get_boolean (value);
+    case PROP_USE_IPV6:{
+      guint v = g_value_get_boolean (value);
+
+      g_object_set (G_OBJECT (self->priv->agent), "use-ipv6", v, NULL);
       break;
+    }
     case PROP_MAX_VIDEO_RECV_BW:
       self->priv->max_video_recv_bw = g_value_get_uint (value);
       break;
+    case PROP_NUM_AUDIO_MEDIAS:{
+      guint n = g_value_get_uint (value);
+
+      if (n > 1) {
+        GST_WARNING_OBJECT (self, "Only 1 audio media is supported");
+        n = 1;
+      }
+
+      self->priv->num_audio_medias = n;
+      break;
+    }
+    case PROP_NUM_VIDEO_MEDIAS:{
+      guint n = g_value_get_uint (value);
+
+      if (n > 1) {
+        GST_WARNING_OBJECT (self, "Only 1 video media is supported");
+        n = 1;
+      }
+
+      self->priv->num_video_medias = n;
+      break;
+    }
+    case PROP_AUDIO_CODECS:{
+      if (self->priv->audio_codecs != NULL) {
+        g_array_free (self->priv->audio_codecs, TRUE);
+      }
+
+      self->priv->audio_codecs = g_value_get_boxed (value);
+      g_array_set_clear_func (self->priv->audio_codecs,
+          (GDestroyNotify) g_value_unset);
+      break;
+    }
+    case PROP_VIDEO_CODECS:{
+      if (self->priv->video_codecs != NULL) {
+        g_array_free (self->priv->video_codecs, TRUE);
+      }
+
+      self->priv->video_codecs = g_value_get_boxed (value);
+      g_array_set_clear_func (self->priv->video_codecs,
+          (GDestroyNotify) g_value_unset);
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -335,20 +577,36 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
-    case PROP_USE_IPV6:
-      g_value_set_boolean (value, self->priv->use_ipv6);
+    case PROP_BUNDLE:
+      g_value_set_boolean (value, self->priv->bundle);
       break;
-    case PROP_PATTERN_SDP:
-      g_value_set_boxed (value, self->priv->pattern_sdp);
+    case PROP_USE_IPV6:{
+      guint ret;
+
+      g_object_get (G_OBJECT (self->priv->agent), "use-ipv6", &ret, NULL);
+      g_value_set_boolean (value, ret);
       break;
+    }
     case PROP_MAX_VIDEO_RECV_BW:
       g_value_set_uint (value, self->priv->max_video_recv_bw);
+      break;
+    case PROP_NUM_AUDIO_MEDIAS:
+      g_value_set_uint (value, self->priv->num_audio_medias);
+      break;
+    case PROP_NUM_VIDEO_MEDIAS:
+      g_value_set_uint (value, self->priv->num_video_medias);
       break;
     case PROP_LOCAL_SDP:
       g_value_set_boxed (value, self->priv->local_sdp);
       break;
     case PROP_REMOTE_SDP:
       g_value_set_boxed (value, self->priv->remote_sdp);
+      break;
+    case PROP_AUDIO_CODECS:
+      g_value_set_boxed (value, self->priv->audio_codecs);
+      break;
+    case PROP_VIDEO_CODECS:
+      g_value_set_boxed (value, self->priv->video_codecs);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -363,9 +621,27 @@ kms_base_sdp_endpoint_finalize (GObject * object)
 {
   KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
-  kms_base_sdp_endpoint_release_sdp (&self->priv->pattern_sdp);
   kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
   kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
+
+  if (self->priv->local_ctx != NULL) {
+    kms_sdp_message_context_destroy (self->priv->local_ctx);
+  }
+
+  if (self->priv->remote_ctx != NULL) {
+    kms_sdp_message_context_destroy (self->priv->remote_ctx);
+  }
+
+  g_clear_object (&self->priv->ptmanager);
+  g_clear_object (&self->priv->agent);
+
+  if (self->priv->audio_codecs != NULL) {
+    g_array_free (self->priv->audio_codecs, TRUE);
+  }
+
+  if (self->priv->video_codecs != NULL) {
+    g_array_free (self->priv->video_codecs, TRUE);
+  }
 
   /* chain up */
   G_OBJECT_CLASS (kms_base_sdp_endpoint_parent_class)->finalize (object);
@@ -392,9 +668,13 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       "Base class for sdpEndpoints",
       "José Antonio Santos Cadenas <santoscadenas@kurento.com>");
 
-  klass->set_transport_to_sdp = kms_base_sdp_endpoint_set_transport_to_sdp;
+  /* Media handler management */
+  klass->create_media_handler = kms_base_sdp_endpoint_create_media_handler_impl;
+
   klass->start_transport_send = kms_base_sdp_endpoint_start_transport_send;
   klass->connect_input_elements = kms_base_sdp_endpoint_connect_input_elements;
+
+  klass->configure_media = kms_base_sdp_endpoint_configure_media_impl;
 
   klass->generate_offer = kms_base_sdp_endpoint_generate_offer;
   klass->process_offer = kms_base_sdp_endpoint_process_offer;
@@ -424,17 +704,35 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       __kms_core_marshal_VOID__BOXED, G_TYPE_NONE, 1, GST_TYPE_SDP_MESSAGE);
 
   /* Properties initialization */
+  g_object_class_install_property (gobject_class, PROP_BUNDLE,
+      g_param_spec_boolean ("bundle", "Bundle media",
+          "Bundle media", DEFAULT_BUNDLE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_NUM_AUDIO_MEDIAS,
+      g_param_spec_uint ("num-audio-medias", "Number of audio medias",
+          "Number of audio medias to be negotiated",
+          0, G_MAXUINT32, DEFAULT_NUM_AUDIO_MEDIAS,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_NUM_VIDEO_MEDIAS,
+      g_param_spec_uint ("num-video-medias", "Number of video medias",
+          "Number of video medias to be negotiated",
+          0, G_MAXUINT32, DEFAULT_NUM_VIDEO_MEDIAS,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_AUDIO_CODECS,
+      g_param_spec_boxed ("audio-codecs", "Audio codecs", "Audio codecs",
+          G_TYPE_ARRAY, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_VIDEO_CODECS,
+      g_param_spec_boxed ("video-codecs", "Video codecs", "Video codecs",
+          G_TYPE_ARRAY, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (gobject_class, PROP_USE_IPV6,
       g_param_spec_boolean ("use-ipv6", "Use ipv6 in SDPs",
           "Use ipv6 addresses in generated sdp offers and answers",
           USE_IPV6_DEFAULT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (gobject_class, PROP_PATTERN_SDP,
-      g_param_spec_boxed ("pattern-sdp", "Pattern to create local SDPs",
-          "Pattern to create local SDP",
-          GST_TYPE_SDP_MESSAGE,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
-          GST_PARAM_MUTABLE_READY));
 
   g_object_class_install_property (gobject_class, PROP_LOCAL_SDP,
       g_param_spec_boxed ("local-sdp", "Local SDP",
@@ -461,6 +759,12 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
 {
   self->priv = KMS_BASE_SDP_ENDPOINT_GET_PRIVATE (self);
 
-  self->priv->use_ipv6 = USE_IPV6_DEFAULT;
+  self->priv->bundle = DEFAULT_BUNDLE;
+
+  self->priv->agent = kms_sdp_agent_new ();
+  self->priv->ptmanager = kms_sdp_payload_manager_new ();
+  kms_sdp_agent_set_configure_media_callback (self->priv->agent,
+      kms_base_sdp_endpoint_configure_media, self, NULL);
+
   self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }
