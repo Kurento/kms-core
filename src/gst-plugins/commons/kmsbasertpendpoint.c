@@ -24,7 +24,7 @@
 #include "kms-core-enumtypes.h"
 #include "kms-core-marshal.h"
 #include "sdp_utils.h"
-#include "sdpagent/kmssdprtpavpmediahandler.h"
+#include "sdpagent/kmssdprtpavpfmediahandler.h"
 #include "kmsremb.h"
 #include "kmsistats.h"
 
@@ -155,7 +155,8 @@ static void
 kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
     KmsSdpMediaHandler ** handler)
 {
-  KmsSdpRtpAvpMediaHandler *h;
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp);
+  KmsSdpRtpAvpMediaHandler *h_avp;
   GError *err = NULL;
 
   if (!KMS_IS_SDP_RTP_AVP_MEDIA_HANDLER (*handler)) {
@@ -163,8 +164,15 @@ kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
     return;
   }
 
-  h = KMS_SDP_RTP_AVP_MEDIA_HANDLER (*handler);
-  kms_sdp_rtp_avp_media_handler_add_extmap (h, RTP_HDR_EXT_ABS_SEND_TIME_ID,
+  g_object_set (G_OBJECT (*handler), "rtcp-mux", self->priv->rtcp_mux, NULL);
+
+  if (KMS_IS_SDP_RTP_AVPF_MEDIA_HANDLER (*handler)) {
+    g_object_set (G_OBJECT (*handler), "nack", self->priv->rtcp_nack,
+        "goog-remb", self->priv->rtcp_remb, NULL);
+  }
+
+  h_avp = KMS_SDP_RTP_AVP_MEDIA_HANDLER (*handler);
+  kms_sdp_rtp_avp_media_handler_add_extmap (h_avp, RTP_HDR_EXT_ABS_SEND_TIME_ID,
       RTP_HDR_EXT_ABS_SEND_TIME_URI, &err);
   if (err != NULL) {
     GST_WARNING_OBJECT (base_sdp, "Cannot add extmap '%s'", err->message);
