@@ -6,6 +6,7 @@
 #include <KurentoException.hpp>
 #include <MediaState.hpp>
 #include <time.h>
+#include <SignalHandler.hpp>
 
 #include "Statistics.hpp"
 
@@ -18,55 +19,17 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
-
-class AdaptorObjAux;
-
-class AdaptorObjAux
+void BaseRtpEndpointImpl::postConstructor ()
 {
-public:
-  AdaptorObjAux (std::function <void (guint) > func) : func (func)
-  {
+  SdpEndpointImpl::postConstructor ();
 
-  }
-
-  std::function <void (guint) > func;
-};
-
-static void
-state_changed_adaptor_function (GstElement *e, guint new_state, gpointer data)
-{
-  AdaptorObjAux *adaptor = (AdaptorObjAux *) data;
-
-  adaptor->func (new_state);
-}
-
-static void
-adaptor_obj_destroy (gpointer d, GClosure *closure)
-{
-  AdaptorObjAux *data = (AdaptorObjAux *) d;
-
-  delete data;
-}
-
-static gulong
-register_state_change_signal (GstElement *e, std::function <void (guint) > func)
-{
-  gulong id;
-
-  AdaptorObjAux *data = new AdaptorObjAux (func);
-
-  id = g_signal_connect_data (e, "media-state-changed",
-                              G_CALLBACK (state_changed_adaptor_function), (gpointer) data,
-                              adaptor_obj_destroy,
-                              (GConnectFlags) 0);
-
-  return id;
-}
-
-static void
-unregister_state_change_signal (GstElement *e, gulong id)
-{
-  g_signal_handler_disconnect (e, id);
+  stateChangedHandlerId = register_signal_handler (G_OBJECT (element),
+                          "media-state-changed",
+                          std::function <void (GstElement *, guint) > (std::bind (
+                                &BaseRtpEndpointImpl::updateState, this,
+                                std::placeholders::_2) ),
+                          std::dynamic_pointer_cast<BaseRtpEndpointImpl>
+                          (shared_from_this() ) );
 }
 
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
@@ -78,14 +41,11 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
 
   current_state = std::make_shared <MediaState>
                   (MediaState::DISCONNECTED);
-
-  stateChangedHandlerId = register_state_change_signal (element,
-                          std::bind (&BaseRtpEndpointImpl::updateState, this, std::placeholders::_1) );
 }
 
 BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
 {
-  unregister_state_change_signal (element, stateChangedHandlerId);
+  unregister_signal_handler (element, stateChangedHandlerId);
 }
 
 void

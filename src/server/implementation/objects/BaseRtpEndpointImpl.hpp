@@ -55,6 +55,8 @@ public:
 
   virtual void Serialize (JsonSerializer &serializer);
 
+protected:
+  virtual void postConstructor ();
 private:
 
   std::string formatGstStructure (const GstStructure *stats);
