@@ -46,7 +46,6 @@ signal_handler_adaptor (Args... args, gpointer data)
   std::shared_ptr <MediaObjectImpl> aux (adaptor->object.lock() );
 
   if (!aux) {
-    std::cout << "Callback function for signal has been removed" << std::endl;
     return;
   }
 
