@@ -32,6 +32,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpMediaHandler, kms_sdp_media_handler,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_media_handler_debug_category, OBJECT_NAME,
         0, "debug category for sdp media_handler"));
 
+#define DEFAULT_ADDR_TYPE "IP4"
+
 typedef gboolean (*KmsSdpAcceptAttributeFunc) (const GstSDPMedia * offer,
     const GstSDPAttribute * attr, GstSDPMedia * media);
 
@@ -93,6 +95,8 @@ enum
 {
   PROP_0,
   PROP_PROTO,
+  PROP_ADDR,
+  PROP_ADDR_TYPE,
   N_PROPERTIES
 };
 
@@ -107,6 +111,8 @@ enum
 struct _KmsSdpMediaHandlerPrivate
 {
   gchar *proto;
+  gchar *addr;
+  gchar *addr_type;
   GArray *bwtypes;
 };
 
@@ -119,6 +125,12 @@ kms_sdp_media_handler_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_PROTO:
       g_value_set_string (value, self->priv->proto);
+      break;
+    case PROP_ADDR:
+      g_value_set_string (value, self->priv->addr);
+      break;
+    case PROP_ADDR_TYPE:
+      g_value_set_string (value, self->priv->addr_type);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -137,6 +149,14 @@ kms_sdp_media_handler_set_property (GObject * object, guint prop_id,
       g_free (self->priv->proto);
       self->priv->proto = g_value_dup_string (value);
       break;
+    case PROP_ADDR:
+      g_free (self->priv->addr);
+      self->priv->addr = g_value_dup_string (value);
+      break;
+    case PROP_ADDR_TYPE:
+      g_free (self->priv->addr_type);
+      self->priv->addr_type = g_value_dup_string (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -151,6 +171,9 @@ kms_sdp_media_handler_finalize (GObject * object)
   GST_DEBUG_OBJECT (self, "finalize");
 
   g_free (self->priv->proto);
+  g_free (self->priv->addr);
+  g_free (self->priv->addr_type);
+
   g_array_free (self->priv->bwtypes, TRUE);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
@@ -309,6 +332,15 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
       g_param_spec_string ("proto", "Protocol",
           "Media protocol", NULL,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_ADDR,
+      g_param_spec_string ("addr", "Address", "Address", NULL,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_ADDR_TYPE,
+      g_param_spec_string ("addr-type",
+          "Address type", "Address type either IP4 or IP6", DEFAULT_ADDR_TYPE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;

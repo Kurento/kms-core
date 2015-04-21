@@ -33,6 +33,9 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpMediaHandler, kms_sdp_rtp_media_handler,
         OBJECT_NAME, 0, "debug category for sdp rtp media_handler"));
 
 #define DEFAULT_SDP_MEDIA_RTP_RTCP_MUX TRUE
+#define DEFAULT_SDP_MEDIA_RTP_RTCP_ENTRY TRUE
+
+#define DEFAULT_RTCP_ENTRY_PORT 9
 
 #define KMS_SDP_RTP_MEDIA_HANDLER_GET_PRIVATE(obj) (  \
   G_TYPE_INSTANCE_GET_PRIVATE (                       \
@@ -47,12 +50,14 @@ enum
 {
   PROP_0,
   PROP_RTCP_MUX,
+  PROP_RTCP_ENTRY,
   N_PROPERTIES
 };
 
 struct _KmsSdpRtpMediaHandlerPrivate
 {
   gboolean rtcp_mux;
+  gboolean rtcp_entry;
 };
 
 static void
@@ -64,6 +69,9 @@ kms_sdp_rtp_media_handler_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_RTCP_MUX:
       g_value_set_boolean (value, self->priv->rtcp_mux);
+      break;
+    case PROP_RTCP_ENTRY:
+      g_value_set_boolean (value, self->priv->rtcp_entry);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -81,6 +89,9 @@ kms_sdp_rtp_media_handler_set_property (GObject * object, guint prop_id,
     case PROP_RTCP_MUX:
       self->priv->rtcp_mux = g_value_get_boolean (value);
       break;
+    case PROP_RTCP_ENTRY:
+      self->priv->rtcp_entry = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -94,12 +105,17 @@ kms_sdp_rtp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
-  if (g_strcmp0 (attr->key, "rtcp-mux") != 0) {
+  if (g_strcmp0 (attr->key, "rtcp-mux") != 0 &&
+      g_strcmp0 (attr->key, "rtcp") != 0) {
     return KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
         (handler, offer, attr, answer);
   }
 
   if (!self->priv->rtcp_mux) {
+    return FALSE;
+  }
+
+  if (!self->priv->rtcp_entry) {
     return FALSE;
   }
 
@@ -159,6 +175,25 @@ kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
+  if (self->priv->rtcp_entry) {
+    gchar *val, *addr, *addr_type;
+
+    g_object_get (self, "addr", &addr, "addr_type", &addr_type, NULL);
+
+    if (addr != NULL) {
+      val = g_strdup_printf ("%d IN %s %s", DEFAULT_RTCP_ENTRY_PORT, addr_type,
+          addr);
+    } else {
+      val = g_strdup_printf ("%d", DEFAULT_RTCP_ENTRY_PORT);
+    }
+
+    gst_sdp_media_add_attribute (offer, "rtcp", val);
+
+    g_free (addr_type);
+    g_free (addr);
+    g_free (val);
+  }
+
   if (self->priv->rtcp_mux) {
     gst_sdp_media_add_attribute (offer, "rtcp-mux", NULL);
   }
@@ -192,6 +227,12 @@ kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
       g_param_spec_boolean ("rtcp-mux", "rtcp-mux",
           "Wheter multiplexing RTP data and control packets on a single port is supported",
           DEFAULT_SDP_MEDIA_RTP_RTCP_MUX,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_RTCP_ENTRY,
+      g_param_spec_boolean ("rtcp-entry", "rtcp-entry",
+          "When TRUE an rtcp entry [rfc3605] will be added",
+          DEFAULT_SDP_MEDIA_RTP_RTCP_ENTRY,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (klass, sizeof (KmsSdpRtpMediaHandlerPrivate));

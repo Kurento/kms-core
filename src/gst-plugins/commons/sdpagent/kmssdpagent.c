@@ -285,6 +285,14 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
 
   agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
 
+  if (agent->priv->use_ipv6) {
+    g_object_set (handler, "addr-type", ORIGIN_ATTR_ADDR_TYPE_IP6, "addr",
+        DEFAULT_IP6_ADDR, NULL);
+  } else {
+    g_object_set (handler, "addr-type", ORIGIN_ATTR_ADDR_TYPE_IP4, "addr",
+        DEFAULT_IP4_ADDR, NULL);
+  }
+
   SDP_AGENT_UNLOCK (agent);
 
   return id;
