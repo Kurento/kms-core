@@ -41,11 +41,15 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
 
   current_state = std::make_shared <MediaState>
                   (MediaState::DISCONNECTED);
+
+  stateChangedHandlerId = 0;
 }
 
 BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
 {
-  unregister_signal_handler (element, stateChangedHandlerId);
+  if (stateChangedHandlerId > 0) {
+    unregister_signal_handler (element, stateChangedHandlerId);
+  }
 }
 
 void

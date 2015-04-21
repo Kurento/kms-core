@@ -86,13 +86,18 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   g_object_unref (clock);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  busMessageHandler = 0;
 }
 
 MediaPipelineImpl::~MediaPipelineImpl ()
 {
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
 
-  unregister_signal_handler (bus, busMessageHandler);
+  if (busMessageHandler > 0) {
+    unregister_signal_handler (bus, busMessageHandler);
+  }
+
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
