@@ -14,18 +14,20 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config)
+MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config) :
+  MediaObjectImpl (config, std::shared_ptr<MediaObject> () )
 {
+}
+
+MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
+                                  std::shared_ptr< MediaObject > parent)
+{
+  this->parent = parent;
+
   creationTime = time (NULL);
   initialId = createId();
   this->config = config;
   this->sendTagsInEvents = false;
-}
-
-MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
-                                  std::shared_ptr< MediaObject > parent) : MediaObjectImpl (config)
-{
-  this->parent = parent;
 }
 
 std::shared_ptr<MediaPipeline>
