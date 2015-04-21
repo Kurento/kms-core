@@ -570,10 +570,7 @@ add_media_context (const GstSDPMedia * media, SdpMessageContext * ctx)
 {
   GstSDPMedia *cpy;
 
-  gst_sdp_media_new (&cpy);
-
   if (gst_sdp_media_copy (media, &cpy) != GST_SDP_OK) {
-    gst_sdp_media_free (cpy);
     return FALSE;
   }
 
