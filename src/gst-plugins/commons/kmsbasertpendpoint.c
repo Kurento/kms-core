@@ -1026,6 +1026,7 @@ kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer)
     GST_WARNING_OBJECT (pad, "RTP hdrext abs-send-time not added");
   }
 
+  g_free (data);
   gst_rtp_buffer_unmap (&rtp);
 }
 
