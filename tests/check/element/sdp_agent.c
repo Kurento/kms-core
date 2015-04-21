@@ -1717,6 +1717,84 @@ GST_START_TEST (sdp_agent_test_dynamic_pts)
 
 GST_END_TEST;
 
+static const gchar *sdp_offer_str1 = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n"
+    "m=audio 9 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendonly\r\n";
+
+static const gchar *sdp_offer_str2 = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n"
+    "m=audio 9 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000/1\r\n" "a=sendonly\r\n";
+
+static const gchar *sdp_offer_str3 = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n" "m=audio 9 RTP/AVP 0\r\n" "a=sendonly\r\n";
+
+static void
+check_pcmu_without_number_of_channels (const GstSDPMessage * offer,
+    const GstSDPMessage * answer, gpointer data)
+{
+  const GstSDPMedia *media;
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  fail_if (gst_sdp_message_medias_len (answer) != 1);
+
+  media = gst_sdp_message_get_media (answer, 0);
+
+  fail_if (gst_sdp_media_get_port (media) == 0);
+  fail_if (gst_sdp_media_formats_len (media) != 1);
+
+  fail_unless (g_strcmp0 (gst_sdp_media_get_format (media, 0), "0") == 0);
+}
+
+static void
+check_optional_number_of_channels (const gchar * offer, const gchar * codec)
+{
+  GError *err = NULL;
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  gint id;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), codec, &err));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  test_sdp_pattern_offer (offer, answerer,
+      check_pcmu_without_number_of_channels, NULL);
+
+  g_object_unref (answerer);
+}
+
+GST_START_TEST (sdp_agent_test_optional_enc_parameters)
+{
+  check_optional_number_of_channels (sdp_offer_str1, "PCMU/8000/1");
+  check_optional_number_of_channels (sdp_offer_str1, "PCMU/8000");
+  check_optional_number_of_channels (sdp_offer_str2, "PCMU/8000/1");
+  check_optional_number_of_channels (sdp_offer_str2, "PCMU/8000");
+  check_optional_number_of_channels (sdp_offer_str3, "PCMU/8000/1");
+  check_optional_number_of_channels (sdp_offer_str3, "PCMU/8000");
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -1742,6 +1820,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_bandwidtth_attrs);
   tcase_add_test (tc_chain, sdp_agent_test_extmap_attrs);
   tcase_add_test (tc_chain, sdp_agent_test_dynamic_pts);
+  tcase_add_test (tc_chain, sdp_agent_test_optional_enc_parameters);
 
   return s;
 }

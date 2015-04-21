@@ -17,6 +17,7 @@
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "kmssdpagent.h"
 #include "sdp_utils.h"
@@ -60,25 +61,25 @@ struct _KmsSdpRtpAvpMediaHandlerPrivate
 /* Table extracted from rfc3551 [6] */
 static gchar *rtpmaps[] = {
   /* Payload types (PT) for audio encodings */
-  "PCMU/8000/1",
+  "PCMU/8000",
   NULL,                         /* reserved */
   NULL,                         /* reserved */
-  "GSM/8000/1",
-  "G723/8000/1",
-  "DVI4/8000/1",
-  "DVI4/16000/1",
-  "LPC/8000/1",
-  "PCMA/8000/1",
-  "G722/8000/1",
+  "GSM/8000",
+  "G723/8000",
+  "DVI4/8000",
+  "DVI4/16000",
+  "LPC/8000",
+  "PCMA/8000",
+  "G722/8000",
   "L16/44100/2",
-  "L16/44100/1",
-  "QCELP/8000/1",
-  "CN/8000/1",
+  "L16/44100",
+  "QCELP/8000",
+  "CN/8000",
   "MPA/90000",
-  "G728/8000/1",
-  "DVI4/11025/1",
-  "DVI4/22050/1",
-  "G729/8000/1",
+  "G728/8000",
+  "DVI4/11025",
+  "DVI4/22050",
+  "G729/8000",
   NULL,                         /* reserved */
   NULL,                         /* unasigned */
   NULL,                         /* unasigned */
@@ -131,15 +132,42 @@ kms_sdp_rtp_map_destroy_pointer (gpointer rtpmap)
   kms_sdp_rtp_map_destroy ((KmsSdpRtpMap *) rtpmap);
 }
 
+static gboolean
+cmp_static_payload (const gchar * enc, const gchar * static_pt)
+{
+  const gchar *cmp;
+  gchar *substr = NULL;
+  gboolean ret;
+
+  if (static_pt == NULL || !g_str_has_prefix (enc, static_pt)) {
+    return FALSE;
+  }
+
+  /* For audio streams, <encoding parameters> indicates the number */
+  /* of audio channels.  This parameter is OPTIONAL and may be     */
+  /* omitted if the number of channels is one, provided that no    */
+  /* additional parameters are needed. [rfc4566] section 6.        */
+
+  if (g_str_has_suffix (enc, "/1")) {
+    substr = g_strndup (enc, strlen (enc) - 2);
+    cmp = substr;
+  } else {
+    cmp = enc;
+  }
+
+  ret = g_strcmp0 (cmp, static_pt) == 0;
+  g_free (substr);
+
+  return ret;
+}
+
 static gint
 get_static_payload_for_codec_name (const gchar * name)
 {
   guint i;
 
   for (i = 0; i < G_N_ELEMENTS (rtpmaps); i++) {
-    const gchar *rtpmap = rtpmaps[i];
-
-    if (rtpmap != NULL && g_ascii_strcasecmp (name, rtpmap) == 0) {
+    if (cmp_static_payload (name, rtpmaps[i])) {
       return i;
     }
   }
@@ -155,6 +183,7 @@ kms_sdp_rtp_map_create_for_codec (KmsSdpRtpAvpMediaHandler * self,
   gint payload;
 
   payload = get_static_payload_for_codec_name (name);
+
   if (payload >= 0) {
     return kms_sdp_rtp_map_new (payload, name);
   }
@@ -405,12 +434,22 @@ kms_sdp_rtp_avp_media_handler_encoding_supported (KmsSdpRtpAvpMediaHandler *
 
   while (item != NULL) {
     KmsSdpRtpMap *rtpmap = item->data;
+    gboolean supported = FALSE;
 
-    if (g_str_has_prefix (enc, rtpmap->name)) {
-      return TRUE;
+    if (rtpmap->payload >= DEFAULT_RTP_AUDIO_BASE_PAYLOAD &&
+        rtpmap->payload <= G_N_ELEMENTS (rtpmaps)) {
+      /* Check static payload type */
+      supported = cmp_static_payload (enc, rtpmaps[rtpmap->payload]);
+    } else {
+      /* Check dynamic pt */
+      supported = g_strcmp0 (rtpmap->name, enc) == 0;
     }
 
-    item = g_slist_next (item);
+    if (supported) {
+      return TRUE;
+    } else {
+      item = g_slist_next (item);
+    }
   }
 
   return FALSE;
@@ -615,8 +654,9 @@ instersect_rtp_avp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
+          handler)->can_insert_attribute (data->handler, data->offer, attr,
+          data->answer)) {
     return FALSE;
   }
 
