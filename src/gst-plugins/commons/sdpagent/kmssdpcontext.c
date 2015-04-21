@@ -238,6 +238,24 @@ gboolean
 kms_sdp_message_context_set_common_session_attributes (SdpMessageContext * ctx,
     const GstSDPMessage * msg, GError ** error)
 {
+  const GstSDPOrigin *o;
+  const gchar *s;
+
+  o = gst_sdp_message_get_origin (msg);
+  if (gst_sdp_message_set_origin (ctx->msg, o->username, o->sess_id,
+          o->sess_version, o->nettype, o->addrtype, o->addr) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set origin");
+    return FALSE;
+  }
+
+  s = gst_sdp_message_get_session_name (msg);
+  if (gst_sdp_message_set_session_name (ctx->msg, s) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set session name");
+    return FALSE;
+  }
+
   if (!sdp_utils_intersect_session_attributes (msg, intersect_session_attr,
           ctx)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
