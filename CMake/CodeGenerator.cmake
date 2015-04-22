@@ -5,6 +5,7 @@ include (GenericFind)
 generic_find(LIBNAME KurentoModuleCreator VERSION ^4.0.0 REQUIRED)
 
 include (GNUInstallDirs)
+include (KurentoGitHelpers)
 
 set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client library")
 set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
@@ -18,6 +19,9 @@ mark_as_advanced(KURENTO_MODULES_DIR)
 
 set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
+
+set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "Url of kurento-client-js git repository to get templates from")
+set (KURENTO_CLIENT_JS_BRANCH master CACHE STRING "Branch of kurento-client-js repository to get templates from")
 
 set (CMAKE_MODULES_INSTALL_DIR
   ${CMAKE_INSTALL_DATAROOTDIR}/cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}/Modules
@@ -844,9 +848,29 @@ function (generate_kurento_libraries)
 
     file(WRITE ${CMAKE_BINARY_DIR}/js_project_name "${VALUE_CODE_API_JS_NODENAME}")
 
+    #Download kurento-client-js
+    set (KURENTO_CLIENT_JS_DIR ${CMAKE_BINARY_DIR}/kurento-client-js)
+    file(REMOVE_RECURSE ${KURENTO_CLIENT_JS_DIR})
+    file(MAKE_DIRECTORY ${KURENTO_CLIENT_JS_DIR})
+
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} clone ${KURENTO_CLIENT_JS_GIT} ${KURENTO_CLIENT_JS_DIR}
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} checkout ${KURENTO_CLIENT_JS_BRANCH}
+      WORKING_DIRECTORY ${KURENTO_CLIENT_JS_DIR}
+    )
+
     execute_code_generator (
       EXEC_PARAMS
         -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
+    )
+
+    execute_code_generator (
+      EXEC_PARAMS
+        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -t ${KURENTO_CLIENT_JS_DIR}/templates
     )
 
     execute_code_generator (
