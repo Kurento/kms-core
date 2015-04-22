@@ -37,6 +37,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpfMediaHandler,
 #define DEFAULT_SDP_MEDIA_RTP_AVPF_NACK TRUE
 #define DEFAULT_SDP_MEDIA_RTP_GOOG_REMB TRUE
 
+/* inmediate-TODO: into a RTP/RTCP constants file */
 #define SDP_MEDIA_RTCP_FB "rtcp-fb"
 #define SDP_MEDIA_RTCP_FB_NACK "nack"
 #define SDP_MEDIA_RTCP_FB_CCM "ccm"

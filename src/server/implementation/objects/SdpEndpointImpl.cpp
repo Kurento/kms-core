@@ -10,6 +10,12 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoSdpEndpointImpl"
 
+#define PARAM_NUM_AUDIO_MEDIAS "numAudioMedias"
+#define PARAM_NUM_VIDEO_MEDIAS "numVideoMedias"
+#define PARAM_CODEC_NAME "name"
+#define PARAM_AUDIO_CODECS "audioCodecs"
+#define PARAM_VIDEO_CODECS "videoCodecs"
+
 namespace kurento
 {
 
@@ -49,77 +55,17 @@ sdp_to_str (std::string &_return, const GstSDPMessage *sdp)
   free (sdpGchar);
 }
 
-static std::string
-readEntireFile (const std::string &file_name)
+static void
+append_codec_to_array (GArray *array, const char *codec)
 {
-  std::ifstream t (file_name);
-  std::string ret ( (std::istreambuf_iterator<char> (t) ),
-                    std::istreambuf_iterator<char>() );
+  GValue v = G_VALUE_INIT;
+  GstStructure *s;
 
-  if (ret.empty() ) {
-    GST_ERROR ("Cannot read sdp pattern from: %s", file_name.c_str() );
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
-                                     "Error reading SDP pattern from configuration, please contact the administrator");
-  }
-
-  return ret;
-}
-
-static std::shared_ptr <GstSDPMessage> pattern;
-
-std::mutex SdpEndpointImpl::sdpMutex;
-
-GstSDPMessage *
-SdpEndpointImpl::getSdpPattern ()
-{
-  GstSDPMessage *sdp;
-  GstSDPResult result;
-  boost::filesystem::path sdp_pattern_file;
-  std::unique_lock<std::mutex> lock (sdpMutex);
-
-  if (pattern) {
-    return pattern.get();
-  }
-
-  try {
-    sdp_pattern_file = boost::filesystem::path (
-                         getConfigValue<std::string, SdpEndpoint> ("sdpPattern") );
-  } catch (boost::property_tree::ptree_error &e) {
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
-                                     "Error reading SDP pattern from configuration, please contact the administrator: "
-                                     + std::string (e.what() ) );
-  }
-
-  if (!sdp_pattern_file.is_absolute() ) {
-    try {
-      sdp_pattern_file = boost::filesystem::path (
-                           getConfigValue<std::string, SdpEndpoint> ("configPath") ) / sdp_pattern_file;
-    } catch (boost::property_tree::ptree_error &e) {
-
-    }
-  }
-
-  result = gst_sdp_message_new (&sdp);
-
-  if (result != GST_SDP_OK) {
-    GST_ERROR ("Error creating sdp message");
-    throw kurento::KurentoException (SDP_CREATE_ERROR,
-                                     "Error creating SDP pattern");
-  }
-
-  pattern = std::shared_ptr<GstSDPMessage> (sdp, gst_sdp_message_free);
-
-  result = gst_sdp_message_parse_buffer ( (const guint8 *) readEntireFile (
-      sdp_pattern_file.string() ).c_str(), -1, sdp);
-
-  if (result != GST_SDP_OK) {
-    GST_ERROR ("Error parsing SDP config pattern");
-    pattern.reset();
-    throw kurento::KurentoException (SDP_CONFIGURATION_ERROR,
-                                     "Error reading SDP pattern from configuration, please contact the administrator");
-  }
-
-  return pattern.get();
+  g_value_init (&v, GST_TYPE_STRUCTURE);
+  s = gst_structure_new_empty (codec);
+  gst_value_set_structure (&v, s);
+  gst_structure_free (s);
+  g_array_append_val (array, v);
 }
 
 SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
@@ -127,10 +73,40 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
                                   const std::string &factoryName) :
   SessionEndpointImpl (config, parent, factoryName)
 {
+  GArray *audio_codecs, *video_codecs;
+  guint audio_medias, video_medias;
+
+  audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
+  video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
+
   //   TODO: Add support for this events
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
-  g_object_set (element, "pattern-sdp", getSdpPattern (), NULL);
+
+  audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 1);
+  video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 1);
+
+  /* TODO: adapt loading complex types */
+  for (auto & audio : config.get_child ("modules.kurento." + this->getType()
+                                        + "." + PARAM_AUDIO_CODECS) ) {
+    std::string codec = audio.second.get<std::string> (PARAM_CODEC_NAME);
+
+    append_codec_to_array (audio_codecs, codec.c_str() );
+  }
+
+  /* TODO: adapt loading complex types */
+  for (auto & video : config.get_child ("modules.kurento." + this->getType()
+                                        + "." + PARAM_VIDEO_CODECS) ) {
+    std::string codec = video.second.get<std::string> (PARAM_CODEC_NAME);
+
+    append_codec_to_array (video_codecs, codec.c_str() );
+  }
+
+  g_object_set (element, "num-audio-medias", audio_medias, "audio-codecs",
+                audio_codecs, NULL);
+  g_object_set (element, "num-video-medias", video_medias, "video-codecs",
+                video_codecs, NULL);
+
   offerInProcess = false;
   waitingAnswer = false;
   answerProcessed = false;

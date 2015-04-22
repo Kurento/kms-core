@@ -34,7 +34,10 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
   std::string offer;
 
   config.add ("modules.kurento.SdpEndpoint.configPath", "../../../tests" );
-  config.add ("modules.kurento.SdpEndpoint.sdpPattern", "sdp_pattern.txt");
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
@@ -62,7 +65,10 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
   std::string answer;
 
   config.add ("configPath", "../../../tests" );
-  config.add ("modules.kurento.SdpEndpoint.sdpPattern", "sdp_pattern.txt");
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
@@ -88,7 +94,10 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
   std::string answer;
 
   config.add ("configPath", "../../../tests" );
-  config.add ("modules.kurento.SdpEndpoint.sdpPattern", "sdp_pattern.txt");
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
