@@ -111,19 +111,6 @@ get_attr_addr_type (SdpIPv ipv)
   }
 }
 
-static const gchar *
-get_default_ipv_addr (SdpIPv ipv)
-{
-  switch (ipv) {
-    case IPV4:
-      return DEFAULT_IP4_ADDR;
-    case IPV6:
-      return DEFAULT_IP6_ADDR;
-    default:
-      return NULL;
-  }
-}
-
 static guint64
 get_ntp_time ()
 {
@@ -132,9 +119,9 @@ get_ntp_time ()
 
 static gboolean
 kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
-    SdpIPv ipv, GError ** error)
+    SdpIPv ipv, const gchar * addr, GError ** error)
 {
-  const gchar *addrtype, *addr, *err_attr;
+  const gchar *addrtype, *err_attr;
   gchar *ntp;
 
   addrtype = get_attr_addr_type (ipv);
@@ -142,8 +129,6 @@ kms_sdp_message_context_set_default_session_attributes (GstSDPMessage * msg,
     err_attr = "ip version";
     goto error;
   }
-
-  addr = get_default_ipv_addr (ipv);
 
   if (gst_sdp_message_set_version (msg, "0") != GST_SDP_OK) {
     err_attr = "version";
@@ -186,7 +171,7 @@ error:
 }
 
 SdpMessageContext *
-kms_sdp_message_context_new (SdpIPv ipv, GError ** error)
+kms_sdp_message_context_new (SdpIPv ipv, const gchar * addr, GError ** error)
 {
   SdpMessageContext *ctx;
 
@@ -196,7 +181,7 @@ kms_sdp_message_context_new (SdpIPv ipv, GError ** error)
       (GDestroyNotify) kms_utils_destroy_guint);
 
   if (!kms_sdp_message_context_set_default_session_attributes (ctx->msg, ipv,
-          error)) {
+          addr, error)) {
     kms_sdp_message_context_destroy (ctx);
     return NULL;
   }
@@ -238,16 +223,28 @@ gboolean
 kms_sdp_message_context_set_common_session_attributes (SdpMessageContext * ctx,
     const GstSDPMessage * msg, GError ** error)
 {
-  const GstSDPOrigin *o;
+  const GstSDPOrigin *o1, *o2;
+  gchar *addr, *addrtype;
   const gchar *s;
 
-  o = gst_sdp_message_get_origin (msg);
-  if (gst_sdp_message_set_origin (ctx->msg, o->username, o->sess_id,
-          o->sess_version, o->nettype, o->addrtype, o->addr) != GST_SDP_OK) {
+  o1 = gst_sdp_message_get_origin (msg);
+  o2 = gst_sdp_message_get_origin (ctx->msg);
+
+  addr = g_strdup (o2->addr);
+  addrtype = g_strdup (o2->addrtype);
+
+  if (gst_sdp_message_set_origin (ctx->msg, o1->username, o1->sess_id,
+          o1->sess_version, o1->nettype, addrtype, addr) != GST_SDP_OK) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
         SDP_AGENT_INVALID_PARAMETER, "Can not set origin");
+    g_free (addrtype);
+    g_free (addr);
+
     return FALSE;
   }
+
+  g_free (addrtype);
+  g_free (addr);
 
   s = gst_sdp_message_get_session_name (msg);
   if (gst_sdp_message_set_session_name (ctx->msg, s) != GST_SDP_OK) {
@@ -583,8 +580,22 @@ SdpMessageContext *
 kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
 {
   SdpMessageContext *ctx;
+  const GstSDPOrigin *o;
+  SdpIPv ipv;
 
-  ctx = kms_sdp_message_context_new (IPV4, error);
+  o = gst_sdp_message_get_origin (sdp);
+
+  if (g_strcmp0 (o->addrtype, ORIGIN_ATTR_ADDR_TYPE_IP4) == 0) {
+    ipv = IPV4;
+  } else if (g_strcmp0 (o->addrtype, ORIGIN_ATTR_ADDR_TYPE_IP4) == 0) {
+    ipv = IPV6;
+  } else {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Invalid IP version '%s'", o->addrtype);
+    return NULL;
+  }
+
+  ctx = kms_sdp_message_context_new (ipv, o->addr, error);
   if (ctx == NULL) {
     return NULL;
   }

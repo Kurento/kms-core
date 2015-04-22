@@ -41,6 +41,7 @@ enum
 {
   PROP_0,
   PROP_USE_IPV6,
+  PROP_ADDR,
   PROP_LOCAL_DESC,
   PROP_REMOTE_DESC,
   N_PROPERTIES
@@ -116,6 +117,7 @@ struct _KmsSdpAgentPrivate
   GstSDPMessage *remote_description;
   gboolean use_ipv6;
   gboolean bundle;
+  gchar *addr;
 
   GSList *handlers;
   GSList *groups;
@@ -199,8 +201,8 @@ kms_sdp_agent_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  kms_sdp_agent_configure_media_callback_data_clear (&self->priv->
-      configure_media_callback_data);
+  kms_sdp_agent_configure_media_callback_data_clear (&self->
+      priv->configure_media_callback_data);
 
   kms_sdp_agent_release_sdp (&self->priv->local_description);
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
@@ -211,6 +213,7 @@ kms_sdp_agent_finalize (GObject * object)
       (GDestroyNotify) sdp_handler_group_destroy);
 
   g_mutex_clear (&self->priv->mutex);
+  g_free (self->priv->addr);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -233,6 +236,9 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
     case PROP_USE_IPV6:
       g_value_set_boolean (value, self->priv->use_ipv6);
       break;
+    case PROP_ADDR:
+      g_value_set_string (value, self->priv->addr);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -253,6 +259,10 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
     case PROP_USE_IPV6:
       self->priv->use_ipv6 = g_value_get_boolean (value);
       break;
+    case PROP_ADDR:
+      g_free (self->priv->addr);
+      self->priv->addr = g_value_dup_string (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -266,6 +276,7 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
   SdpHandler *sdp_handler;
+  const gchar *addr_type;
   gchar *proto;
   gint id = -1;
 
@@ -286,12 +297,13 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
 
   if (agent->priv->use_ipv6) {
-    g_object_set (handler, "addr-type", ORIGIN_ATTR_ADDR_TYPE_IP6, "addr",
-        DEFAULT_IP6_ADDR, NULL);
+    addr_type = ORIGIN_ATTR_ADDR_TYPE_IP6;
   } else {
-    g_object_set (handler, "addr-type", ORIGIN_ATTR_ADDR_TYPE_IP4, "addr",
-        DEFAULT_IP4_ADDR, NULL);
+    addr_type = ORIGIN_ATTR_ADDR_TYPE_IP4;
   }
+
+  g_object_set (handler, "addr-type", addr_type, "addr", agent->priv->addr,
+      NULL);
 
   SDP_AGENT_UNLOCK (agent);
 
@@ -364,7 +376,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   SDP_AGENT_LOCK (agent);
   ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
 
-  ctx = kms_sdp_message_context_new (ipv, error);
+  ctx = kms_sdp_message_context_new (ipv, agent->priv->addr, error);
   if (ctx == NULL) {
     SDP_AGENT_UNLOCK (agent);
     return NULL;
@@ -504,7 +516,7 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
   ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
   SDP_AGENT_UNLOCK (agent);
 
-  ctx = kms_sdp_message_context_new (ipv, error);
+  ctx = kms_sdp_message_context_new (ipv, agent->priv->addr, error);
   if (ctx == NULL) {
     return NULL;
   }
@@ -652,6 +664,10 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
       "Use ipv6 in SDPs",
       "Use ipv6 addresses in generated sdp offers and answers",
       DEFAULT_USE_IPV6, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+  obj_properties[PROP_ADDR] = g_param_spec_string ("addr", "Address",
+      "The IP address used to negotiate SDPs", DEFAULT_IP4_ADDR,
+      G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_LOCAL_DESC] = g_param_spec_boxed ("local-description",
       "Local description", "The local SDP description", GST_TYPE_SDP_MESSAGE,

@@ -32,7 +32,7 @@ typedef enum  {
   KMS_SDP_ANSWER
 } KmsSdpMessageType;
 
-SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, GError **error);
+SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, const gchar *addr, GError **error);
 SdpMessageContext *kms_sdp_message_context_new_from_sdp (GstSDPMessage *sdp, GError **error);
 gboolean kms_sdp_message_context_set_common_session_attributes (SdpMessageContext *ctx, const GstSDPMessage *msg, GError **error);
 void kms_sdp_message_context_destroy (SdpMessageContext *ctx);

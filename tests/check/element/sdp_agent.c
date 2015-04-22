@@ -31,6 +31,9 @@
 #include "kmssdprtpavpfmediahandler.h"
 #include "kmssdprtpsavpfmediahandler.h"
 
+#define OFFERER_ADDR "222.222.222.222"
+#define ANSWERER_ADDR "111.111.111.111"
+
 typedef void (*CheckSdpNegotiationFunc) (const GstSDPMessage * offer,
     const GstSDPMessage * answer, gpointer data);
 
@@ -89,9 +92,12 @@ GST_START_TEST (sdp_agent_test_create_offer)
   agent = kms_sdp_agent_new ();
   fail_if (agent == NULL);
 
+  g_object_set (agent, "addr", OFFERER_ADDR, NULL);
+
   sdp_agent_create_offer (agent);
 
-  g_object_set (agent, "use-ipv6", TRUE, NULL);
+  g_object_set (agent, "use-ipv6", TRUE, "addr",
+      "0:0:0:0:0:ffff:d4d4:d4d4", NULL);
   sdp_agent_create_offer (agent);
 
   g_object_unref (agent);
@@ -418,8 +424,12 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
@@ -434,8 +444,11 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
   fail_if (id < 0);
 
-  /* re-use handler for video in answerer */
-  g_object_ref (handler);
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id < 0);
 
@@ -500,8 +513,12 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
   fail_if (handler == NULL);
@@ -516,8 +533,11 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
   fail_if (id < 0);
 
-  /* re-use handler for video in answerer */
-  g_object_ref (handler);
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 
@@ -569,8 +589,12 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
@@ -585,8 +609,11 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
   fail_if (id < 0);
 
-  /* re-use handler for video in answerer */
-  g_object_ref (handler);
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id < 0);
 

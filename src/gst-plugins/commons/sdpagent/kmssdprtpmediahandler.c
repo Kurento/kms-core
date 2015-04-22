@@ -105,8 +105,7 @@ kms_sdp_rtp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
-  if (g_strcmp0 (attr->key, "rtcp-mux") != 0 &&
-      g_strcmp0 (attr->key, "rtcp") != 0) {
+  if (g_strcmp0 (attr->key, "rtcp-mux") != 0) {
     return KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
         (handler, offer, attr, answer);
   }
@@ -134,9 +133,8 @@ instersect_rtp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct IntersectAttrData *data = (struct IntersectAttrData *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
-          handler)->can_insert_attribute (data->handler, data->offer, attr,
-          data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
+      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
     return FALSE;
   }
 
@@ -203,6 +201,39 @@ kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
       offer, error);
 }
 
+static gboolean
+kms_sdp_rtp_media_handler_add_answer_attributes (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+{
+  KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
+
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_answer_attributes
+      (handler, offer, answer, error)) {
+    return FALSE;
+  }
+
+  if (self->priv->rtcp_entry) {
+    gchar *val, *addr, *addr_type;
+
+    g_object_get (self, "addr", &addr, "addr_type", &addr_type, NULL);
+
+    if (addr != NULL) {
+      val = g_strdup_printf ("%d IN %s %s", DEFAULT_RTCP_ENTRY_PORT, addr_type,
+          addr);
+    } else {
+      val = g_strdup_printf ("%d", DEFAULT_RTCP_ENTRY_PORT);
+    }
+
+    gst_sdp_media_add_attribute (answer, "rtcp", val);
+
+    g_free (addr_type);
+    g_free (addr);
+    g_free (val);
+  }
+
+  return TRUE;
+}
+
 static void
 kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
 {
@@ -222,6 +253,8 @@ kms_sdp_rtp_media_handler_class_init (KmsSdpRtpMediaHandlerClass * klass)
       kms_sdp_rtp_media_handler_intersect_sdp_medias;
   handler_class->add_offer_attributes =
       kms_sdp_rtp_media_handler_add_offer_attributes;
+  handler_class->add_answer_attributes =
+      kms_sdp_rtp_media_handler_add_answer_attributes;
 
   g_object_class_install_property (gobject_class, PROP_RTCP_MUX,
       g_param_spec_boolean ("rtcp-mux", "rtcp-mux",
