@@ -661,6 +661,8 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
       self->priv->min_video_send_bw, self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
   g_object_unref (rtpsession);
+
+  GST_DEBUG_OBJECT (self, "REMB managers added");
 }
 
 static gboolean
