@@ -397,12 +397,14 @@ struct SdpAnswerData
 {
   KmsSdpAgent *agent;
   SdpMessageContext *ctx;
+  GError **err;
 };
 
 static GstSDPMedia *
 reject_media_answer (const GstSDPMedia * offered)
 {
   GstSDPMedia *media;
+  const gchar *mid;
   guint i, len;
 
   gst_sdp_media_new (&media);
@@ -422,6 +424,14 @@ reject_media_answer (const GstSDPMedia * offered)
     format = gst_sdp_media_get_format (offered, i);
     gst_sdp_media_insert_format (media, i, format);
   }
+
+  /* [rfc5888] mid attribute must be present in answer as well */
+  mid = gst_sdp_media_get_attribute_val (offered, "mid");
+  if (mid == NULL) {
+    return media;
+  }
+
+  gst_sdp_media_add_attribute (media, "mid", mid);
 
   return media;
 }
@@ -464,9 +474,22 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   KmsSdpAgent *agent = data->agent;
   GstSDPMedia *answer_media = NULL;
   SdpHandler *sdp_handler;
-  GError *err = NULL;
+  GError **err = data->err;
 
   SDP_AGENT_LOCK (agent);
+
+  if (g_slist_length (agent->priv->groups) > 0) {
+    const gchar *mid;
+
+    /* Attribute mid must be in offer */
+    mid = gst_sdp_media_get_attribute_val (media, "mid");
+    if (mid == NULL) {
+      SDP_AGENT_UNLOCK (agent);
+      g_set_error_literal (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "mid attribute is not present in offer");
+      return FALSE;
+    }
+  }
 
   sdp_handler = kms_sdp_agent_get_handler_for_media (agent, media);
 
@@ -480,11 +503,10 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   }
 
   answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
-      media, &err);
+      media, err);
 
-  if (err != NULL) {
-    GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
-    g_error_free (err);
+  if (answer_media == NULL) {
+    return FALSE;
   }
 
 answer:
@@ -532,11 +554,10 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 
   data.agent = agent;
   data.ctx = ctx;
+  data.err = error;
 
   if (!sdp_utils_for_each_media (offer, (GstSDPMediaFunc) create_media_answer,
           &data)) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "can not create SDP response");
     goto error;
   }
 

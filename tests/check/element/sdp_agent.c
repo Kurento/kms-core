@@ -832,11 +832,102 @@ test_group_with_pattern (const gchar * sdp_pattern,
   g_object_unref (answerer);
 }
 
+static void
+check_valid_bundle_answer (GstSDPMessage * answer)
+{
+  const gchar *val;
+  gchar **mids;
+
+  val = gst_sdp_message_get_attribute_val (answer, "group");
+
+  fail_if (val == NULL);
+  mids = g_strsplit (val, " ", 0);
+
+  /* BUNDLE group must be empty */
+  fail_if (g_strv_length (mids) > 1);
+
+  fail_if (g_strcmp0 (mids[0], "BUNDLE") != 0);
+
+  g_strfreev (mids);
+}
+
+static void
+sdp_agent_test_bundle_group_without_answerer_handlers ()
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id, gid;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+  gid = kms_sdp_agent_crate_bundle_group (offerer);
+  fail_if (gid < 0);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+  gid = kms_sdp_agent_crate_bundle_group (answerer);
+  fail_if (gid < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler));
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+  fail_unless (kms_sdp_agent_add_handler_to_group (offerer, gid, id));
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+  fail_unless (kms_sdp_agent_add_handler_to_group (offerer, gid, id));
+
+  /* Not adding any handler to answerer */
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  check_valid_bundle_answer (answer);
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
 GST_START_TEST (sdp_agent_test_bundle_group)
 {
   test_bundle_group ();
   test_group_with_pattern (sdp_no_bundle_group_str, check_no_group_attr, NULL);
   test_group_with_pattern (sdp_bundle_group_str, check_fmt_group_attr, NULL);
+  sdp_agent_test_bundle_group_without_answerer_handlers ();
 }
 
 GST_END_TEST static gboolean
