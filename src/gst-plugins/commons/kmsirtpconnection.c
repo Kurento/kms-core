@@ -47,11 +47,11 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
 
 void
 kms_i_rtp_connection_add (KmsIRtpConnection * self, GstBin * bin,
-    gboolean local_offer)
+    gboolean active)
 {
   g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
 
-  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->add (self, bin, local_offer);
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->add (self, bin, active);
   g_object_set (G_OBJECT (self), "added", TRUE, NULL);
 }
 

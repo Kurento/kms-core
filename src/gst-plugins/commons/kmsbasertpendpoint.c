@@ -714,7 +714,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
 
 static void
 kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
-    KmsIRtpConnection * conn, gboolean offerer)
+    KmsIRtpConnection * conn, gboolean active)
 {
   gboolean connected;
   GstElement *ssrcdemux;
@@ -735,7 +735,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   g_signal_connect (ssrcdemux, "new-ssrc-pad",
       G_CALLBACK (rtp_ssrc_demux_new_ssrc_pad), self);
 
-  kms_i_rtp_connection_add (conn, GST_BIN (self), offerer);
+  kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
   src = kms_i_rtp_connection_request_rtp_src (conn);
@@ -892,14 +892,14 @@ kms_base_rtp_endpoint_add_connection_src (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
-    KmsIRtpConnection * conn, gboolean offerer, const gchar * rtp_session,
+    KmsIRtpConnection * conn, gboolean active, const gchar * rtp_session,
     gint abs_send_time_id)
 {
   GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
   GstPad *src, *sink;
   gchar *str;
 
-  kms_i_rtp_connection_add (conn, GST_BIN (self), offerer);
+  kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   gst_bin_add (GST_BIN (self), rtcpdemux);
 
   src = kms_i_rtp_connection_request_rtp_src (conn);
@@ -923,10 +923,10 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
-    KmsIRtpConnection * conn, gboolean offerer, const gchar * rtp_session,
+    KmsIRtpConnection * conn, gboolean active, const gchar * rtp_session,
     gint abs_send_time_id)
 {
-  kms_i_rtp_connection_add (conn, GST_BIN (self), offerer);
+  kms_i_rtp_connection_add (conn, GST_BIN (self), active);
 
   kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
       abs_send_time_id);
@@ -964,7 +964,7 @@ get_abs_send_time_id (SdpMediaConfig * mconf)
 
 static gboolean
 kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
-    const gchar * rtp_session, SdpMediaConfig * mconf, gboolean offerer)
+    const gchar * rtp_session, SdpMediaConfig * mconf, gboolean active)
 {
   KmsIRtpConnection *conn;
   SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
@@ -978,18 +978,47 @@ kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
   abs_send_time_id = get_abs_send_time_id (mconf);
 
   if (group != NULL) {          /* bundle */
-    kms_base_rtp_endpoint_add_bundle_connection (self, conn, offerer);
+    kms_base_rtp_endpoint_add_bundle_connection (self, conn, active);
     kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
         abs_send_time_id);
   } else if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
-    kms_base_rtp_endpoint_add_rtcp_mux_connection (self, conn, offerer,
+    kms_base_rtp_endpoint_add_rtcp_mux_connection (self, conn, active,
         rtp_session, abs_send_time_id);
   } else {
-    kms_base_rtp_endpoint_add_connection (self, conn, offerer, rtp_session,
+    kms_base_rtp_endpoint_add_connection (self, conn, active, rtp_session,
         abs_send_time_id);
   }
 
   return TRUE;
+}
+
+static gboolean
+kms_base_rtp_endpoint_sdp_media_is_active (KmsBaseRtpEndpoint * self,
+    GstSDPMedia * media, gboolean offerer)
+{
+  const gchar *attr;
+
+  attr = gst_sdp_media_get_attribute_val_n (media, "setup", 0);
+  if (attr == NULL) {
+    goto _default;
+  }
+
+  /* HACK: we are checking remote SDP, so inverse logic */
+  if (g_strcmp0 (attr, "active") == 0) {
+    GST_DEBUG_OBJECT (self, "Remote SDP is 'active', so we are 'passive'");
+    return FALSE;
+  } else if (g_strcmp0 (attr, "passive") == 0) {
+    GST_DEBUG_OBJECT (self, "Remote SDP is 'passive', so we are 'active'");
+    return TRUE;
+  } else {
+    GST_DEBUG_OBJECT (self, "Remote SDP is '%s'", attr);
+  }
+
+_default:
+  GST_DEBUG_OBJECT (self, "%s",
+      offerer ? "Local offerer, so 'passive'" : "Remote offerer, so 'active'");
+
+  return !offerer;
 }
 
 static gboolean
@@ -1000,6 +1029,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
   const gchar *proto_str = gst_sdp_media_get_proto (media);
   const gchar *media_str = gst_sdp_media_get_media (media);
   const gchar *rtp_session_str;
+  gboolean active;
 
   if (!g_str_has_prefix (proto_str, "RTP")) {
     GST_DEBUG_OBJECT (self, "'%s' protocol not need RTP connection", proto_str);
@@ -1032,8 +1062,11 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
     return TRUE;
   }
 
+  /* FIXME: we should use medias from netotiated ctx */
+  active = kms_base_rtp_endpoint_sdp_media_is_active (self, media, offerer);
+
   return kms_base_rtp_endpoint_add_connection_for_session (self,
-      rtp_session_str, mconf, offerer);
+      rtp_session_str, mconf, active);
 }
 
 static void
@@ -1044,8 +1077,6 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
   gboolean offerer =
       kms_sdp_message_context_get_type (remote_ctx) == KMS_SDP_ANSWER;
   const GSList *item = kms_sdp_message_context_get_medias (remote_ctx);
-
-  /* inmediate-TODO: use stup role instead offerer flag */
 
   /* FIXME: we should use negotiated ctx for some configuration */
   for (; item != NULL; item = g_slist_next (item)) {
