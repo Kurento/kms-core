@@ -752,7 +752,8 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 }
 
 static void
-kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer)
+kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer,
+    gint id)
 {
   GstRTPBuffer rtp = { NULL, };
   guint8 *data;
@@ -775,7 +776,7 @@ kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer)
 
   /* TODO: check if header exists and in this case replace the value */
   if (!gst_rtp_buffer_add_extension_onebyte_header (&rtp,
-          RTP_HDR_EXT_ABS_SEND_TIME_ID, data, RTP_HDR_EXT_ABS_SEND_TIME_SIZE)) {
+          id, data, RTP_HDR_EXT_ABS_SEND_TIME_SIZE)) {
     GST_WARNING_OBJECT (pad, "RTP hdrext abs-send-time not added");
   }
 
@@ -783,12 +784,19 @@ kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer)
   gst_rtp_buffer_unmap (&rtp);
 }
 
+typedef struct _HdrExtData
+{
+  GstPad *pad;
+  gint abs_send_time_id;
+} HdrExtData;
+
 static gboolean
 kms_base_rtp_endpoint_write_rtp_hdr_ext_bufflist (GstBuffer ** buf, guint idx,
-    GstPad * pad)
+    HdrExtData * data)
 {
   *buf = gst_buffer_make_writable (*buf);
-  kms_base_rtp_endpoint_write_rtp_hdr_ext (pad, *buf);
+  kms_base_rtp_endpoint_write_rtp_hdr_ext (data->pad, *buf,
+      data->abs_send_time_id);
 
   return TRUE;
 }
@@ -797,19 +805,26 @@ static GstPadProbeReturn
 kms_base_rtp_endpoint_write_rtp_hdr_ext_probe (GstPad * pad,
     GstPadProbeInfo * info, gpointer gp)
 {
+  gint id = GPOINTER_TO_INT (gp);
+
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
     GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
     buffer = gst_buffer_make_writable (buffer);
-    kms_base_rtp_endpoint_write_rtp_hdr_ext (pad, buffer);
+    kms_base_rtp_endpoint_write_rtp_hdr_ext (pad, buffer, id);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
     GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    HdrExtData data;
+
+    data.pad = pad;
+    data.abs_send_time_id = id;
 
     bufflist = gst_buffer_list_make_writable (bufflist);
     gst_buffer_list_foreach (bufflist,
         (GstBufferListFunc) kms_base_rtp_endpoint_write_rtp_hdr_ext_bufflist,
-        pad);
+        &data);
+
     GST_PAD_PROBE_INFO_DATA (info) = bufflist;
   }
 
@@ -830,13 +845,13 @@ kms_base_rtp_endpoint_add_connection_sink (KmsBaseRtpEndpoint * self,
   gst_pad_link (src, sink);
 
   if (abs_send_time_id > -1) {
-    /* inmediate-TODO: pass id to the probe to use it */
     GST_DEBUG_OBJECT (self,
         "Add probe for abs-send-time management (id: %d, %" GST_PTR_FORMAT ").",
         abs_send_time_id, src);
     gst_pad_add_probe (src,
         GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        kms_base_rtp_endpoint_write_rtp_hdr_ext_probe, NULL, NULL);
+        kms_base_rtp_endpoint_write_rtp_hdr_ext_probe,
+        GINT_TO_POINTER (abs_send_time_id), NULL);
   }
 
   g_object_unref (src);
@@ -1032,6 +1047,7 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 
   /* inmediate-TODO: use stup role instead offerer flag */
 
+  /* FIXME: we should use negotiated ctx for some configuration */
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
 
