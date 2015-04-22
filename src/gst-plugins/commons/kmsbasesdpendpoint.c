@@ -230,6 +230,12 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self)
 
 /* Media handler management end */
 
+KmsSdpAgent *
+kms_base_sdp_endpoint_get_sdp_agent (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->agent;
+}
+
 SdpMessageContext *
 kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint * self)
 {
