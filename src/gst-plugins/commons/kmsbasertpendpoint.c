@@ -1463,13 +1463,20 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
-    base_endpoint, SdpMessageContext * ctx)
+    base_endpoint, SdpMessageContext * negotiated_ctx)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
-  const GSList *item = kms_sdp_message_context_get_medias (ctx);
+  const GSList *item = kms_sdp_message_context_get_medias (negotiated_ctx);
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
+
+    if (kms_sdp_media_config_is_inactive (mconf)) {
+      gint mid = kms_sdp_media_config_get_id (mconf);
+
+      GST_DEBUG_OBJECT (self, "Media (id=%d) inactive", mid);
+      continue;
+    }
 
     /* TODO: connect only if is configured for sending */
     if (!kms_base_rtp_endpoint_set_media_payloader (self, mconf)) {
