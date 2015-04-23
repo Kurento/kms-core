@@ -642,6 +642,12 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
   GstPad *pad;
   int max_recv_bw;
 
+  if (self->priv->rl != NULL) {
+    /* TODO: support more than one media with REMB */
+    GST_WARNING_OBJECT (self, "Only support for one media with REMB");
+    return;
+  }
+
   g_signal_emit_by_name (rtpbin, "get-internal-session", VIDEO_RTP_SESSION,
       &rtpsession);
   if (rtpsession == NULL) {
@@ -1091,7 +1097,6 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
   }
 
   if (media_has_remb (neg_media)) {
-    /* FIXME: not support more than one media with REMB */
     kms_base_rtp_endpoint_create_remb_managers (self);
   }
 
