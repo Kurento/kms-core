@@ -333,7 +333,12 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
     return;
   }
 
-  m_conf = kms_sdp_message_context_add_media (data->ctx, media);
+  m_conf = kms_sdp_message_context_add_media (data->ctx, media, &err);
+  if (m_conf == NULL) {
+    GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+    g_error_free (err);
+    return;
+  }
 
   for (l = data->agent->priv->groups; l != NULL; l = l->next) {
     SdpHandlerGroup *group = l->data;
@@ -382,13 +387,13 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
     return NULL;
   }
 
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+
   data.ctx = ctx;
   data.agent = agent;
 
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
   SDP_AGENT_UNLOCK (agent);
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
 
   return ctx;
 }
@@ -478,19 +483,6 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 
   SDP_AGENT_LOCK (agent);
 
-  if (g_slist_length (agent->priv->groups) > 0) {
-    const gchar *mid;
-
-    /* Attribute mid must be in offer */
-    mid = gst_sdp_media_get_attribute_val (media, "mid");
-    if (mid == NULL) {
-      SDP_AGENT_UNLOCK (agent);
-      g_set_error_literal (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "mid attribute is not present in offer");
-      return FALSE;
-    }
-  }
-
   sdp_handler = kms_sdp_agent_get_handler_for_media (agent, media);
 
   SDP_AGENT_UNLOCK (agent);
@@ -510,20 +502,27 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   }
 
 answer:
-  if (answer_media == NULL) {
-    answer_media = reject_media_answer (media);
-    kms_sdp_message_context_add_media (data->ctx, answer_media);
-  } else {
+  {
     SdpMediaConfig *mconf;
+    gboolean do_call = TRUE;
 
-    mconf = kms_sdp_message_context_add_media (data->ctx, answer_media);
-    if (data->agent->priv->configure_media_callback_data != NULL) {
+    if (answer_media == NULL) {
+      answer_media = reject_media_answer (media);
+      do_call = FALSE;
+    }
+
+    mconf = kms_sdp_message_context_add_media (data->ctx, answer_media, err);
+    if (mconf == NULL) {
+      return FALSE;
+    }
+
+    if (do_call && data->agent->priv->configure_media_callback_data != NULL) {
       data->agent->priv->configure_media_callback_data->callback (data->agent,
           mconf, data->agent->priv->configure_media_callback_data->user_data);
     }
-  }
 
-  return TRUE;
+    return TRUE;
+  }
 }
 
 static SdpMessageContext *
@@ -543,6 +542,8 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     return NULL;
   }
 
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
+
   if (!kms_sdp_message_context_parse_groups_from_offer (ctx, offer, error)) {
     goto error;
   }
@@ -560,8 +561,6 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
           &data)) {
     goto error;
   }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
 
   return ctx;
 

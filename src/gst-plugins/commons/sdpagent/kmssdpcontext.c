@@ -321,12 +321,20 @@ configure_pending_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
 }
 
 SdpMediaConfig *
-kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media)
+kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media,
+    GError ** error)
 {
   SdpMediaConfig *mconf;
   const gchar *media_type;
   gchar *mid;
   guint *counter;
+
+  if (ctx->type == KMS_SDP_ANSWER && g_slist_length (ctx->groups) > 0 &&
+      gst_sdp_media_get_attribute_val (media, "mid") == NULL) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Missing mid attribute for media");
+    return NULL;
+  }
 
   if (configure_pending_mediaconfig (ctx, media, &mconf)) {
     return mconf;
@@ -562,16 +570,27 @@ kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
   }
 }
 
-static gboolean
-add_media_context (const GstSDPMedia * media, SdpMessageContext * ctx)
+struct SdpMediaContextData
 {
+  SdpMessageContext *ctx;
+  GError **err;
+};
+
+static gboolean
+add_media_context (const GstSDPMedia * media, struct SdpMediaContextData *data)
+{
+  SdpMessageContext *ctx = data->ctx;
   GstSDPMedia *cpy;
 
   if (gst_sdp_media_copy (media, &cpy) != GST_SDP_OK) {
+    g_set_error_literal (data->err, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_UNEXPECTED_ERROR, "Can not copy media entry");
     return FALSE;
   }
 
-  kms_sdp_message_context_add_media (ctx, cpy);
+  if (kms_sdp_message_context_add_media (ctx, cpy, data->err) == NULL) {
+    return FALSE;
+  }
 
   return TRUE;
 }
@@ -579,6 +598,7 @@ add_media_context (const GstSDPMedia * media, SdpMessageContext * ctx)
 SdpMessageContext *
 kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
 {
+  struct SdpMediaContextData data;
   SdpMessageContext *ctx;
   const GstSDPOrigin *o;
   SdpIPv ipv;
@@ -608,7 +628,11 @@ kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
     goto error;
   }
 
-  if (!sdp_utils_for_each_media (sdp, (GstSDPMediaFunc) add_media_context, ctx)) {
+  data.ctx = ctx;
+  data.err = error;
+
+  if (!sdp_utils_for_each_media (sdp, (GstSDPMediaFunc) add_media_context,
+          &data)) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "can not create SDP context");
     goto error;
