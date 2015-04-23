@@ -1003,13 +1003,12 @@ kms_base_rtp_endpoint_sdp_media_is_active (KmsBaseRtpEndpoint * self,
     goto _default;
   }
 
-  /* HACK: we are checking remote SDP, so inverse logic */
   if (g_strcmp0 (attr, "active") == 0) {
     GST_DEBUG_OBJECT (self, "Remote SDP is 'active', so we are 'passive'");
-    return FALSE;
+    return TRUE;
   } else if (g_strcmp0 (attr, "passive") == 0) {
     GST_DEBUG_OBJECT (self, "Remote SDP is 'passive', so we are 'active'");
-    return TRUE;
+    return FALSE;
   } else {
     GST_DEBUG_OBJECT (self, "Remote SDP is '%s'", attr);
   }
@@ -1021,20 +1020,11 @@ _default:
   return !offerer;
 }
 
-static gboolean
-kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf, gboolean offerer)
+static const gchar *
+kms_base_rtp_endpoint_process_remote_ssrc (KmsBaseRtpEndpoint * self,
+    GstSDPMedia * remote_media)
 {
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
-  const gchar *proto_str = gst_sdp_media_get_proto (media);
-  const gchar *media_str = gst_sdp_media_get_media (media);
-  const gchar *rtp_session_str;
-  gboolean active;
-
-  if (!g_str_has_prefix (proto_str, "RTP")) {
-    GST_DEBUG_OBJECT (self, "'%s' protocol not need RTP connection", proto_str);
-    return TRUE;
-  }
+  const gchar *media_str = gst_sdp_media_get_media (remote_media);
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
     /* TODO: support more than one in the future */
@@ -1042,31 +1032,73 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
       GST_WARNING_OBJECT (self,
           "Overwriting remote audio ssrc. This can cause some problem");
     }
-    self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (media);
-    rtp_session_str = AUDIO_RTP_SESSION_STR;
+    self->priv->remote_audio_ssrc = sdp_utils_media_get_ssrc (remote_media);
+    return AUDIO_RTP_SESSION_STR;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
     /* TODO: support more than one in the future */
     if (self->priv->remote_video_ssrc != 0) {
       GST_WARNING_OBJECT (self,
           "Overwriting remote video ssrc. This can cause some problem");
     }
-    self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (media);
-    rtp_session_str = VIDEO_RTP_SESSION_STR;
-
-    /* FIXME: get from negotiated SDP context */
-    if (media_has_remb (media)) {
-      kms_base_rtp_endpoint_create_remb_managers (self);
-    }
-  } else {
-    GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
-    return TRUE;
+    self->priv->remote_video_ssrc = sdp_utils_media_get_ssrc (remote_media);
+    return VIDEO_RTP_SESSION_STR;
   }
 
-  /* FIXME: we should use medias from netotiated ctx */
-  active = kms_base_rtp_endpoint_sdp_media_is_active (self, media, offerer);
+  GST_WARNING_OBJECT (self, "Media '%s' not supported", media_str);
+
+  return NULL;
+}
+
+static gboolean
+kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
+    SdpMediaConfig * neg_mconf, SdpMediaConfig * remote_mconf, gboolean offerer)
+{
+  GstSDPMedia *neg_media = kms_sdp_media_config_get_sdp_media (neg_mconf);
+  const gchar *neg_proto_str = gst_sdp_media_get_proto (neg_media);
+  const gchar *neg_media_str = gst_sdp_media_get_media (neg_media);
+
+  GstSDPMedia *remote_media = kms_sdp_media_config_get_sdp_media (remote_mconf);
+  const gchar *remote_proto_str = gst_sdp_media_get_proto (remote_media);
+  const gchar *remote_media_str = gst_sdp_media_get_media (remote_media);
+
+  const gchar *rtp_session_str;
+  gboolean active;
+
+  if (g_strcmp0 (neg_proto_str, remote_proto_str) != 0) {
+    GST_WARNING_OBJECT (self,
+        "Negotiated proto ('%s') not matching with remote proto ('%s')",
+        neg_proto_str, remote_proto_str);
+    return FALSE;
+  }
+
+  if (!g_str_has_prefix (neg_proto_str, "RTP")) {
+    GST_DEBUG_OBJECT (self, "'%s' protocol not need RTP connection",
+        neg_proto_str);
+    return TRUE;                /* It cannot be managed here but could be managed by the child class */
+  }
+
+  if (g_strcmp0 (neg_media_str, remote_media_str) != 0) {
+    GST_WARNING_OBJECT (self,
+        "Negotiated media ('%s') not matching with remote media ('%s')",
+        neg_media_str, remote_media_str);
+    return FALSE;
+  }
+
+  rtp_session_str =
+      kms_base_rtp_endpoint_process_remote_ssrc (self, remote_media);
+  if (rtp_session_str == NULL) {
+    return TRUE;                /* It cannot be managed here but could be managed by the child class */
+  }
+
+  if (media_has_remb (neg_media)) {
+    /* FIXME: not support more than one media with REMB */
+    kms_base_rtp_endpoint_create_remb_managers (self);
+  }
+
+  active = kms_base_rtp_endpoint_sdp_media_is_active (self, neg_media, offerer);
 
   return kms_base_rtp_endpoint_add_connection_for_session (self,
-      rtp_session_str, mconf, active);
+      rtp_session_str, neg_mconf, active);
 }
 
 static void
@@ -1074,14 +1106,31 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, gboolean offerer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
+  SdpMessageContext *neg_ctx =
+      kms_base_sdp_endpoint_get_negotiated_sdp_ctx (base_sdp_endpoint);
   SdpMessageContext *remote_ctx =
       kms_base_sdp_endpoint_get_remote_sdp_ctx (base_sdp_endpoint);
-  const GSList *item = kms_sdp_message_context_get_medias (remote_ctx);
+  GSList *item = kms_sdp_message_context_get_medias (neg_ctx);
+  GSList *remote_media_list = kms_sdp_message_context_get_medias (remote_ctx);
 
   for (; item != NULL; item = g_slist_next (item)) {
-    SdpMediaConfig *mconf = item->data;
+    SdpMediaConfig *neg_mconf = item->data;
+    gint mid = kms_sdp_media_config_get_id (neg_mconf);
+    SdpMediaConfig *remote_mconf;
 
-    if (!kms_base_rtp_endpoint_configure_connection (self, mconf, offerer)) {
+    if (kms_sdp_media_config_is_inactive (neg_mconf)) {
+      GST_DEBUG_OBJECT (self, "Media (id=%d) inactive", mid);
+      continue;
+    }
+
+    remote_mconf = g_slist_nth_data (remote_media_list, mid);
+    if (remote_mconf == NULL) {
+      GST_WARNING_OBJECT (self, "Media (id=%d) is not in the remote SDP", mid);
+      continue;
+    }
+
+    if (!kms_base_rtp_endpoint_configure_connection (self, neg_mconf,
+            remote_mconf, offerer)) {
       GST_WARNING_OBJECT (self, "Cannot configure connection.");
     }
   }
