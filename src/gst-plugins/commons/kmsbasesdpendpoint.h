@@ -62,7 +62,7 @@ struct _KmsBaseSdpEndpointClass
   void (*process_answer) (KmsBaseSdpEndpoint * self, GstSDPMessage * answer);
 
   /* virtual methods */
-  void (*start_transport_send) (KmsBaseSdpEndpoint * self, SdpMessageContext * remote_ctx);
+  void (*start_transport_send) (KmsBaseSdpEndpoint * self, gboolean offerer);
   void (*connect_input_elements) (KmsBaseSdpEndpoint * self, SdpMessageContext * negotiated_ctx);
 
   gboolean (*configure_media) (KmsBaseSdpEndpoint * self, SdpMediaConfig * mconf);

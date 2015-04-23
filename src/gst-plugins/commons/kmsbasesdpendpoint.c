@@ -256,7 +256,7 @@ kms_base_sdp_endpoint_get_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self)
 
 static void
 kms_base_sdp_endpoint_start_transport_send (KmsBaseSdpEndpoint * self,
-    SdpMessageContext * remote_ctx)
+    gboolean offerer)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -287,14 +287,14 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint * self,
 }
 
 static void
-kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self)
+kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self, gboolean offerer)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
 
   GST_DEBUG_OBJECT (self, "Start media");
 
-  base_sdp_endpoint_class->start_transport_send (self, self->priv->remote_ctx);
+  base_sdp_endpoint_class->start_transport_send (self, offerer);
   base_sdp_endpoint_class->connect_input_elements (self,
       self->priv->negotiated_ctx);
 }
@@ -398,7 +398,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->priv->local_ctx = ctx;
   self->priv->negotiated_ctx = ctx;
-  kms_base_sdp_endpoint_start_media (self);
+  kms_base_sdp_endpoint_start_media (self, FALSE);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -433,7 +433,7 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->priv->remote_ctx = ctx;
   self->priv->negotiated_ctx = ctx;
-  kms_base_sdp_endpoint_start_media (self);
+  kms_base_sdp_endpoint_start_media (self, TRUE);
 
 end:
   KMS_ELEMENT_UNLOCK (self);

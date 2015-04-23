@@ -1071,14 +1071,13 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, SdpMessageContext * remote_ctx)
+    base_sdp_endpoint, gboolean offerer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  gboolean offerer =
-      kms_sdp_message_context_get_type (remote_ctx) == KMS_SDP_ANSWER;
+  SdpMessageContext *remote_ctx =
+      kms_base_sdp_endpoint_get_remote_sdp_ctx (base_sdp_endpoint);
   const GSList *item = kms_sdp_message_context_get_medias (remote_ctx);
 
-  /* FIXME: we should use negotiated ctx for some configuration */
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
 
