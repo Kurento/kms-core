@@ -353,6 +353,12 @@ kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf)
   return mconf->media;
 }
 
+gboolean
+kms_sdp_media_config_is_inactive (SdpMediaConfig * mconf)
+{
+  return gst_sdp_media_get_port (mconf->media) == 0;
+}
+
 static gboolean
 add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg,
     GError ** error)
