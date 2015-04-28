@@ -532,6 +532,17 @@
             "doc": "The dot graph",
             "type": "String"
           }
+        },
+        {
+          "name": "setOutputBitrate",
+          "doc": "Allows change the target bitrate for the media output, if the media is encoded using VP8 or H264. This method only works if it is called before the media starts to flow.",
+          "params": [
+            {
+              "name": "bitrate",
+              "doc": "Configure the enconding media bitrate in kbps",
+              "type": "int"
+            }
+          ]
         }
       ]
     }

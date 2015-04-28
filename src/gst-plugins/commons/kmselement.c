@@ -27,6 +27,7 @@
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
 #define DEFAULT_DO_SYNCHRONIZATION FALSE
+#define DEFAULT_BITRATE_ "default-bitrate"
 
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
 #define GST_CAT_DEFAULT kms_element_debug_category
@@ -82,6 +83,8 @@ struct _KmsElementPrivate
   gboolean do_synchronization;
 
   GHashTable *pendingpads;
+
+  gint target_bitrate;
 };
 
 /* Signals and args */
@@ -102,6 +105,7 @@ enum
   PROP_AUDIO_CAPS,
   PROP_VIDEO_CAPS,
   PROP_DO_SYNCHRONIZATION,
+  PROP_TARGET_BITRATE,
   PROP_LAST
 };
 
@@ -777,6 +781,13 @@ kms_element_set_property (GObject * object, guint property_id,
     case PROP_DO_SYNCHRONIZATION:
       self->priv->do_synchronization = g_value_get_boolean (value);
       break;
+    case PROP_TARGET_BITRATE:
+      KMS_ELEMENT_LOCK (self);
+      self->priv->target_bitrate = g_value_get_int (value);
+      g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
+          DEFAULT_BITRATE_, self->priv->target_bitrate, NULL);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -805,6 +816,11 @@ kms_element_get_property (GObject * object, guint property_id,
       break;
     case PROP_DO_SYNCHRONIZATION:
       g_value_set_boolean (value, self->priv->do_synchronization);
+      break;
+    case PROP_TARGET_BITRATE:
+      KMS_ELEMENT_LOCK (self);
+      g_value_set_int (value, self->priv->target_bitrate);
+      KMS_ELEMENT_UNLOCK (self);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -1000,6 +1016,11 @@ kms_element_class_init (KmsElementClass * klass)
       g_param_spec_boxed ("video-caps", "Video capabilities",
           "The allowed caps for video", GST_TYPE_CAPS,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_TARGET_BITRATE,
+      g_param_spec_int ("output-bitrate", "output bitrate",
+          "Configure the bitrate to media encoding",
+          0, G_MAXINT, 0, G_PARAM_READWRITE));
 
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
 

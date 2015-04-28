@@ -89,6 +89,8 @@ public:
   virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>
                                        details);
 
+  virtual void setOutputBitrate (int bitrate);
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);

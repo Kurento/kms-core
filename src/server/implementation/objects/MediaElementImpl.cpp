@@ -20,6 +20,8 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaElementImpl"
 
+#define TARGET_BITRATE "output-bitrate"
+
 namespace kurento
 {
 
@@ -766,6 +768,11 @@ std::string MediaElementImpl::getGstreamerDot (
 std::string MediaElementImpl::getGstreamerDot()
 {
   return generateDotGraph (GST_BIN (element), GST_DEBUG_GRAPH_SHOW_ALL);
+}
+
+void MediaElementImpl::setOutputBitrate (int bitrate)
+{
+  g_object_set (G_OBJECT (element), TARGET_BITRATE, bitrate, NULL);
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;
