@@ -1782,7 +1782,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     g_object_set (jitterbuffer, "do-lost", TRUE,
         "do-retransmission", self->priv->rtcp_nack,
         "rtx-next-seqnum", FALSE,
-        "rtx-max-retries", 0, "rtp-max-dropout", -1, NULL);
+        "rtx-max-retries", 0, /*"rtp-max-dropout", -1, */ NULL);
   }
 
   KMS_ELEMENT_UNLOCK (self);
