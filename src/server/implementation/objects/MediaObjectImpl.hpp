@@ -5,9 +5,13 @@
 #include "MediaObject.hpp"
 #include <EventHandler.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <jsonrpc/JsonSerializer.hpp>
+#include <KurentoException.hpp>
 #include <mutex>
 #include <map>
 #include "Tag.hpp"
+#include <gst/gst.h>
 
 namespace kurento
 {
@@ -76,15 +80,42 @@ protected:
   template <class T, class C>
   T getConfigValue (const std::string &key)
   {
-    return config.get<T> ("modules." + dynamic_cast <C *> (this)->getModule() + "."
-                          + dynamic_cast <C *> (this)->getType() + "." + key );
+    auto child = config.get_child ("modules." + dynamic_cast <C *>
+                                   (this)->getModule() + "."
+                                   + dynamic_cast <C *> (this)->getType() + "." + key);
+    std::stringstream ss;
+    Json::Value val;
+    Json::Reader reader;
+    kurento::JsonSerializer serializer (false);
+    boost::property_tree::ptree array;
+
+    array.push_back (std::make_pair ("val", child) );
+    boost::property_tree::write_json (ss, array);
+
+    reader.parse (ss.str(), val);
+
+    T ret {};
+
+    serializer.JsonValue = val;
+    serializer.Serialize ("val", ret);
+
+    return ret;
   }
 
   template <class T, class C>
   T getConfigValue (const std::string &key, T defaultValue)
   {
-    return config.get<T> ("modules." + dynamic_cast <C *> (this)->getModule() + "."
-                          + dynamic_cast <C *> (this)->getType() + "." + key, defaultValue);
+    try {
+      return getConfigValue<T, C> (key);
+    } catch (boost::property_tree::ptree_bad_path &e) {
+      /* This case is expected, the config does not have the requested key */
+    } catch (KurentoException &e) {
+      GST_WARNING ("Posible error deserializing %s from config", key.c_str() );
+    } catch (std::exception &e) {
+      GST_WARNING ("Unknown error getting%s from config", key.c_str() );
+    }
+
+    return defaultValue;
   }
 
   /*
