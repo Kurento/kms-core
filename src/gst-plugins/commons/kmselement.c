@@ -302,6 +302,11 @@ kms_element_set_target_on_linked (GstPad * pad, GstPad * peer,
 
   target = gst_element_get_request_pad (element, "src_%u");
 
+  if (GST_PAD_IS_FLUSHING (peer)) {
+    gst_pad_send_event (peer, gst_event_new_flush_start ());
+    gst_pad_send_event (peer, gst_event_new_flush_stop (FALSE));
+  }
+
   GST_DEBUG_OBJECT (pad, "Setting target %" GST_PTR_FORMAT, target);
 
   if (!gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target)) {
