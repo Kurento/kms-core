@@ -39,21 +39,10 @@ typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, gpoin
 
 gboolean sdp_utils_is_attribute_in_media (const GstSDPMedia * media, const GstSDPAttribute * attr);
 gboolean sdp_utils_attribute_is_direction (const GstSDPAttribute * attr, GstSDPDirection * direction);
-GstSDPDirection sdp_utils_media_get_direction (const GstSDPMedia * media);
-const gchar *sdp_utils_get_direction_str (GstSDPDirection direction);
 guint sdp_utils_media_get_ssrc (const GstSDPMedia * media);
-
-GstSDPResult sdp_utils_intersect_sdp_messages (const GstSDPMessage * offer,
-    const GstSDPMessage * answer, GstSDPMessage ** offer_result,
-    GstSDPMessage ** answer_result);
 
 const gchar *sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media,
     const gchar * format);
-
-gchar *gst_sdp_media_format_get_encoding_name (const GstSDPMedia * media,
-    const gchar * format);
-
-void sdp_utils_set_max_video_recv_bw (GstSDPMessage * msg, gint max_video_recv_bw);
 
 gboolean sdp_utils_intersect_session_attributes (const GstSDPMessage * msg, GstSDPIntersectMediaFunc func, gpointer user_data);
 gboolean sdp_utils_intersect_media_attributes (const GstSDPMedia * offer, GstSDPIntersectMediaFunc func, gpointer user_data);
