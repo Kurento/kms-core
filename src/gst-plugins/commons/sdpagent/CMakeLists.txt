@@ -41,6 +41,9 @@ target_link_libraries(kmssdpagent
   sdputils
 )
 
+set(CUSTOM_PREFIX "kurento")
+set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/sdpagent")
+
 install(
   TARGETS kmssdpagent
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
