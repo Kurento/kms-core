@@ -55,6 +55,7 @@ enum
 
 static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_USE_DATA_CHANNELS FALSE
 #define DEFAULT_BUNDLE    FALSE
 #define DEFAULT_NUM_AUDIO_MEDIAS    0
 #define DEFAULT_NUM_VIDEO_MEDIAS    0
@@ -71,6 +72,7 @@ enum
   PROP_AUDIO_CODECS,
   PROP_VIDEO_CODECS,
   PROP_MAX_VIDEO_RECV_BW,
+  PROP_USE_DATA_CHANNELS,
   N_PROPERTIES
 };
 
@@ -80,6 +82,7 @@ struct _KmsBaseSdpEndpointPrivate
   KmsSdpPayloadManager *ptmanager;
 
   gboolean bundle;
+  gboolean use_data_channels;
 
   SdpMessageContext *local_ctx;
   SdpMessageContext *remote_ctx;
@@ -226,6 +229,12 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self)
   for (i = 0; i < self->priv->num_video_medias; i++) {
     if (!kms_base_sdp_endpoint_add_handler (self, "video", gid,
             self->priv->max_video_recv_bw)) {
+      return FALSE;
+    }
+  }
+
+  if (self->priv->use_data_channels) {
+    if (!kms_base_sdp_endpoint_add_handler (self, "application", gid, 0)) {
       return FALSE;
     }
   }
@@ -518,6 +527,9 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
           (GDestroyNotify) g_value_unset);
       break;
     }
+    case PROP_USE_DATA_CHANNELS:
+      self->priv->use_data_channels = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -596,6 +608,9 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
       break;
     case PROP_VIDEO_CODECS:
       g_value_set_boxed (value, self->priv->video_codecs);
+      break;
+    case PROP_USE_DATA_CHANNELS:
+      g_value_set_boolean (value, self->priv->use_data_channels);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -736,6 +751,12 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
           "Maximum video bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
           0, G_MAXUINT32, MAX_VIDEO_RECV_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_USE_DATA_CHANNELS,
+      g_param_spec_boolean ("use-data-channels", "Use data channels",
+          "Negotiate data channels when this property is true",
+          DEFAULT_USE_DATA_CHANNELS,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (klass, sizeof (KmsBaseSdpEndpointPrivate));
 }

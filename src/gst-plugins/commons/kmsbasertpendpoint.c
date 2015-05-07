@@ -477,7 +477,7 @@ kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
 
   conn = kms_base_rtp_endpoint_get_connection_by_name (self, name);
   if (conn != NULL) {
-    GST_WARNING_OBJECT (self, "Connection '%s' already created", name);
+    GST_DEBUG_OBJECT (self, "Re-using connection '%s'", name);
     goto end;
   }
 
@@ -1232,7 +1232,7 @@ kms_base_rtp_endpoint_get_caps_from_rtpmap (const gchar * media,
   gchar **tokens;
 
   if (rtpmap == NULL) {
-    GST_WARNING ("rtpmap is NULL");
+    GST_WARNING ("rtpmap is NULL for media '%s'", media);
     return NULL;
   }
 
@@ -1506,6 +1506,8 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
+    GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
+    const gchar *media_str = gst_sdp_media_get_media (media);
 
     if (kms_sdp_media_config_is_inactive (mconf)) {
       gint mid = kms_sdp_media_config_get_id (mconf);
@@ -1514,9 +1516,9 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
       continue;
     }
 
-    /* TODO: connect only if is configured for sending */
-    if (!kms_base_rtp_endpoint_set_media_payloader (self, mconf)) {
-      GST_WARNING_OBJECT (self, "Cannot configure payloader.");
+    if (g_strcmp0 (media_str, AUDIO_STREAM_NAME) == 0 ||
+        g_strcmp0 (media_str, VIDEO_STREAM_NAME) == 0) {
+      kms_base_rtp_endpoint_set_media_payloader (self, mconf);
     }
   }
 }
