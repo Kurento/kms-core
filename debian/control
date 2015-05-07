@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 8.0.0),
  pkg-config,
  kms-cmake-utils (>= 1.1.2),
  libgstreamer1.5-dev (>= 1.5.0~0),
- kms-jsonrpc-dev (>= 0.2.2),
+ kms-jsonrpc-1.0-dev,
  libsigc++-2.0-dev,
  libglibmm-2.4-dev,
  libglib2.0-dev (>= 2.42),
@@ -40,7 +40,7 @@ Depends:
  gstreamer1.5-plugins-bad (>= 1.5.0~0),
  gstreamer1.5-plugins-good (>= 1.5.0~0),
  gstreamer1.5-plugins-ugly,
- kms-jsonrpc (>= 0.2.0)
+ kms-jsonrpc-1.0
 Breaks:
  kms-core
 Replaces:
@@ -53,7 +53,7 @@ Architecture: any
 Depends: kms-core-6.0 (= ${binary:Version}),
  kms-cmake-utils (>= 1.1.2),
  libgstreamer1.5-dev (>= 1.5.0~0),
- kms-jsonrpc-dev (>> 0.2.2),
+ kms-jsonrpc-1.0-dev (>> 0.2.2),
  libsigc++-2.0-dev,
  libglibmm-2.4-dev,
  libgstreamer-plugins-base1.5-dev (>= 1.5.0~0),
