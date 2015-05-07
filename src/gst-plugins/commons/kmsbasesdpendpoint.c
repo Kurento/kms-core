@@ -81,9 +81,6 @@ struct _KmsBaseSdpEndpointPrivate
 
   gboolean bundle;
 
-  GstSDPMessage *local_sdp;
-  GstSDPMessage *remote_sdp;
-
   SdpMessageContext *local_ctx;
   SdpMessageContext *remote_ctx;
   SdpMessageContext *negotiated_ctx;
@@ -233,61 +230,16 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self)
 
 /* Media handler management end */
 
-static void
-kms_base_sdp_endpoint_release_sdp (GstSDPMessage ** sdp)
-{
-  if (*sdp == NULL) {
-    return;
-  }
-
-  gst_sdp_message_free (*sdp);
-  *sdp = NULL;
-}
-
 SdpMessageContext *
 kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint * self)
 {
   return self->priv->local_ctx;
 }
 
-GstSDPMessage *
-kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self)
-{
-  return self->priv->local_sdp;
-}
-
-void
-kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
-    self, GstSDPMessage * local_sdp)
-{
-  KMS_ELEMENT_LOCK (self);
-  kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
-  gst_sdp_message_copy (local_sdp, &self->priv->local_sdp);
-  KMS_ELEMENT_UNLOCK (self);
-  g_object_notify (G_OBJECT (self), "local-sdp");
-}
-
 SdpMessageContext *
 kms_base_sdp_endpoint_get_remote_sdp_ctx (KmsBaseSdpEndpoint * self)
 {
   return self->priv->remote_ctx;
-}
-
-GstSDPMessage *
-kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self)
-{
-  return self->priv->remote_sdp;
-}
-
-void
-kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
-    self, GstSDPMessage * remote_sdp)
-{
-  KMS_ELEMENT_LOCK (self);
-  kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
-  gst_sdp_message_copy (remote_sdp, &self->priv->remote_sdp);
-  KMS_ELEMENT_UNLOCK (self);
-  g_object_notify (G_OBJECT (self), "remote-sdp");
 }
 
 SdpMessageContext *
@@ -390,7 +342,6 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self)
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
   self->priv->local_ctx = ctx;
-  kms_base_sdp_endpoint_set_local_sdp (self, offer);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -413,8 +364,6 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   if (!kms_base_sdp_endpoint_init_sdp_handlers (self)) {
     goto end;
   }
-
-  kms_base_sdp_endpoint_set_remote_sdp (self, offer);
 
   ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
   if (err != NULL) {
@@ -443,7 +392,6 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->priv->local_ctx = ctx;
   self->priv->negotiated_ctx = ctx;
-  kms_base_sdp_endpoint_set_local_sdp (self, answer);
   kms_base_sdp_endpoint_start_media (self);
 
 end:
@@ -476,7 +424,6 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  kms_base_sdp_endpoint_set_remote_sdp (self, answer);
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->priv->remote_ctx = ctx;
   self->priv->negotiated_ctx = ctx;
@@ -596,12 +543,43 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
     case PROP_NUM_VIDEO_MEDIAS:
       g_value_set_uint (value, self->priv->num_video_medias);
       break;
-    case PROP_LOCAL_SDP:
-      g_value_set_boxed (value, self->priv->local_sdp);
+    case PROP_LOCAL_SDP:{
+      GstSDPMessage *sdp = NULL;
+      GError *err = NULL;
+
+      if (self->priv->local_ctx != NULL) {
+        sdp = kms_sdp_message_context_pack (self->priv->local_ctx, &err);
+        if (err != NULL) {
+          GST_ERROR_OBJECT (self, "Error packing local SDP (%s)", err->message);
+          g_error_free (err);
+        }
+      }
+
+      g_value_set_boxed (value, sdp);
+      if (sdp != NULL) {
+        gst_sdp_message_free (sdp);
+      }
       break;
-    case PROP_REMOTE_SDP:
-      g_value_set_boxed (value, self->priv->remote_sdp);
+    }
+    case PROP_REMOTE_SDP:{
+      GstSDPMessage *sdp = NULL;
+      GError *err = NULL;
+
+      if (self->priv->remote_ctx != NULL) {
+        sdp = kms_sdp_message_context_pack (self->priv->remote_ctx, &err);
+        if (err != NULL) {
+          GST_ERROR_OBJECT (self, "Error packing remote SDP (%s)",
+              err->message);
+          g_error_free (err);
+        }
+      }
+
+      g_value_set_boxed (value, sdp);
+      if (sdp != NULL) {
+        gst_sdp_message_free (sdp);
+      }
       break;
+    }
     case PROP_AUDIO_CODECS:
       g_value_set_boxed (value, self->priv->audio_codecs);
       break;
@@ -620,9 +598,6 @@ static void
 kms_base_sdp_endpoint_finalize (GObject * object)
 {
   KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
-
-  kms_base_sdp_endpoint_release_sdp (&self->priv->local_sdp);
-  kms_base_sdp_endpoint_release_sdp (&self->priv->remote_sdp);
 
   if (self->priv->local_ctx != NULL) {
     kms_sdp_message_context_destroy (self->priv->local_ctx);

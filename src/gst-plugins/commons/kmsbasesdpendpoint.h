@@ -74,15 +74,7 @@ struct _KmsBaseSdpEndpointClass
 GType kms_base_sdp_endpoint_get_type (void);
 
 SdpMessageContext *kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint * self);
-GstSDPMessage *kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self);
-void kms_base_sdp_endpoint_set_local_sdp (KmsBaseSdpEndpoint *
-    self, GstSDPMessage * local_sdp);
-
 SdpMessageContext *kms_base_sdp_endpoint_get_remote_sdp_ctx (KmsBaseSdpEndpoint * self);
-GstSDPMessage *kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self);
-void kms_base_sdp_endpoint_set_remote_sdp (KmsBaseSdpEndpoint *
-    self, GstSDPMessage * remote_sdp);
-
 SdpMessageContext *kms_base_sdp_endpoint_get_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self);
 
 void kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self, KmsSdpMediaHandler **handler);
