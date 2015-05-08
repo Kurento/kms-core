@@ -116,3 +116,36 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
 
   sdpEndpoint.reset ();
 }
+
+BOOST_AUTO_TEST_CASE (codec_parsing)
+{
+  boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
+
+  gst_init (NULL, NULL);
+
+  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
+        boost::property_tree::ptree() ) );
+  boost::property_tree::ptree config;
+  std::string offer;
+
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 1);
+  config.add ("configPath", "../../../tests" );
+
+  ac.put ("name", "opus/48000/2");
+  audioCodecs.push_back (std::make_pair ("", ac) );
+  ac.put ("name", "PCMU/8000");
+  audioCodecs.push_back (std::make_pair ("", ac) );
+  config.add_child ("modules.kurento.SdpEndpoint.audioCodecs", audioCodecs);
+
+  vc.put ("name", "VP8/90000");
+  videoCodecs.push_back (std::make_pair ("", vc) );
+  vc.put ("name", "H264/90000");
+  videoCodecs.push_back (std::make_pair ("", vc) );
+  config.add_child ("modules.kurento.SdpEndpoint.videoCodecs", videoCodecs);
+
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
+      (config, pipe, "dummysdp") );
+
+  sdpEndpoint.reset ();
+}

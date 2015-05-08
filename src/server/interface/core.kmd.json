@@ -1334,6 +1334,24 @@
           "type": "String"
         }
       ]
+    },
+    {
+      "name": "CodecConfiguration",
+      "doc": "Defines specific configuration for codecs",
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "name",
+          "doc": "Name of the codec defined as <encoding name>/<clock rate>[/<encoding parameters>]",
+          "type": "String"
+        },
+        {
+          "name": "properties",
+          "doc": "String used for tuning codec properties",
+          "type": "String<>",
+          "optional": true
+        }
+      ]
     }
   ],
   "events": [

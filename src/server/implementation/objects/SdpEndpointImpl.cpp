@@ -5,6 +5,7 @@
 #include <gst/gst.h>
 #include <boost/filesystem.hpp>
 #include <fstream>
+#include <CodecConfiguration.hpp>
 
 #define GST_CAT_DEFAULT kurento_sdp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -86,20 +87,26 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 1);
   video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 1);
 
-  /* TODO: adapt loading complex types */
-  for (auto & audio : config.get_child ("modules.kurento." + this->getType()
-                                        + "." + PARAM_AUDIO_CODECS) ) {
-    std::string codec = audio.second.get<std::string> (PARAM_CODEC_NAME);
+  {
+    std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
+        <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
+        (PARAM_AUDIO_CODECS);
 
-    append_codec_to_array (audio_codecs, codec.c_str() );
+    for (std::shared_ptr<CodecConfiguration> conf : list) {
+
+      append_codec_to_array (audio_codecs, conf->getName().c_str() );
+    }
   }
 
-  /* TODO: adapt loading complex types */
-  for (auto & video : config.get_child ("modules.kurento." + this->getType()
-                                        + "." + PARAM_VIDEO_CODECS) ) {
-    std::string codec = video.second.get<std::string> (PARAM_CODEC_NAME);
+  {
+    std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
+        <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
+        (PARAM_VIDEO_CODECS);
 
-    append_codec_to_array (video_codecs, codec.c_str() );
+    for (std::shared_ptr<CodecConfiguration> conf : list) {
+
+      append_codec_to_array (video_codecs, conf->getName().c_str() );
+    }
   }
 
   g_object_set (element, "num-audio-medias", audio_medias, "audio-codecs",
