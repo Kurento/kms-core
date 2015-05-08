@@ -578,8 +578,8 @@ MediaElementImpl::performConnection (std::shared_ptr
   src = data->getSourcePad ();
 
   if (!src) {
-    GST_TRACE ("Still waiting for src pad %s:%s", getName().c_str(),
-               data->getSourcePadName () );
+    GST_LOG ("Still waiting for src pad %s:%s", getName().c_str(),
+             data->getSourcePadName () );
     return;
   }
 
@@ -588,9 +588,9 @@ MediaElementImpl::performConnection (std::shared_ptr
   if (sink) {
     GstPadLinkReturn ret;
 
-    GST_TRACE ("Linking %s:%s -> %s:%s", getName().c_str(),
-               data->getSourcePadName (), data->getSink()->getName().c_str(),
-               data->getSinkPadName ().c_str() );
+    GST_LOG ("Linking %s:%s -> %s:%s", getName().c_str(),
+             data->getSourcePadName (), data->getSink()->getName().c_str(),
+             data->getSinkPadName ().c_str() );
 
     ret = gst_pad_link_full (src, sink, GST_PAD_LINK_CHECK_NOTHING);
 
@@ -598,14 +598,14 @@ MediaElementImpl::performConnection (std::shared_ptr
       GST_WARNING ("Cannot link pads: %" GST_PTR_FORMAT " and %" GST_PTR_FORMAT
                    " reason: %s", src, sink, gst_pad_link_get_name (ret) );
     } else {
-      GST_TRACE ("Link done");
+      GST_LOG ("Link done");
     }
 
     g_object_unref (sink);
   } else {
-    GST_TRACE ("Still waiting for sink pad %s:%s",
-               data->getSink()->getName().c_str(),
-               data->getSinkPadName ().c_str() );
+    GST_LOG ("Still waiting for sink pad %s:%s",
+             data->getSink()->getName().c_str(),
+             data->getSinkPadName ().c_str() );
   }
 
   g_object_unref (src);
