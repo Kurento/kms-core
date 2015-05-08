@@ -78,7 +78,5 @@ SdpMessageContext * kms_base_sdp_endpoint_get_local_sdp_ctx (KmsBaseSdpEndpoint 
 SdpMessageContext * kms_base_sdp_endpoint_get_remote_sdp_ctx (KmsBaseSdpEndpoint * self);
 SdpMessageContext * kms_base_sdp_endpoint_get_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self);
 
-void kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self, KmsSdpMediaHandler **handler);
-
 G_END_DECLS
 #endif /* __KMS_BASE_SDP_ENDPOINT_H__ */
