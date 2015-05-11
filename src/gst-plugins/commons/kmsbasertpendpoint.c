@@ -1008,18 +1008,26 @@ kms_base_rtp_endpoint_sdp_media_is_active (KmsBaseRtpEndpoint * self,
     goto _default;
   }
 
-  if (g_strcmp0 (attr, "active") == 0) {
-    GST_DEBUG_OBJECT (self, "Remote SDP is 'active', so we are 'passive'");
-    return TRUE;
-  } else if (g_strcmp0 (attr, "passive") == 0) {
-    GST_DEBUG_OBJECT (self, "Remote SDP is 'passive', so we are 'active'");
-    return FALSE;
+  if (offerer) {
+    if (g_strcmp0 (attr, "active") == 0) {
+      GST_DEBUG_OBJECT (self, "Remote is 'active', so we are 'passive'");
+      return FALSE;
+    } else if (g_strcmp0 (attr, "passive") == 0) {
+      GST_DEBUG_OBJECT (self, "Remote is 'passive', so we are 'active'");
+      return TRUE;
+    }
   } else {
-    GST_DEBUG_OBJECT (self, "Remote SDP is '%s'", attr);
+    if (g_strcmp0 (attr, "active") == 0) {
+      GST_DEBUG_OBJECT (self, "We are 'active'");
+      return TRUE;
+    } else if (g_strcmp0 (attr, "passive") == 0) {
+      GST_DEBUG_OBJECT (self, "We are 'passive'");
+      return FALSE;
+    }
   }
 
 _default:
-  GST_DEBUG_OBJECT (self, "%s",
+  GST_DEBUG_OBJECT (self, "Negotiated SDP is '%s'. %s", attr,
       offerer ? "Local offerer, so 'passive'" : "Remote offerer, so 'active'");
 
   return !offerer;
