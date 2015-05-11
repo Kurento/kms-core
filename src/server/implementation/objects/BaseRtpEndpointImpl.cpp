@@ -55,6 +55,7 @@ BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
 void
 BaseRtpEndpointImpl::updateState (guint new_state)
 {
+  std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaState> old_state;
 
   old_state = current_state;
@@ -75,10 +76,13 @@ BaseRtpEndpointImpl::updateState (guint new_state)
     return;
   }
 
-  MediaStateChanged event (shared_from_this(),
-                           MediaStateChanged::getName (), old_state, current_state);
+  if (old_state->getValue() != current_state->getValue() ) {
+    /* Emit state change signal */
+    MediaStateChanged event (shared_from_this(),
+                             MediaStateChanged::getName (), old_state, current_state);
 
-  this->signalMediaStateChanged (event);
+    this->signalMediaStateChanged (event);
+  }
 }
 
 int BaseRtpEndpointImpl::getMinVideoSendBandwidth ()

@@ -62,6 +62,7 @@ private:
   std::string formatGstStructure (const GstStructure *stats);
   std::shared_ptr<MediaState> current_state;
   gulong stateChangedHandlerId;
+  std::recursive_mutex mutex;
 
   void updateState (guint new_state);
 
