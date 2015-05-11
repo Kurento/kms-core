@@ -210,6 +210,25 @@ kms_sdp_media_handler_add_bandwidth_impl (KmsSdpMediaHandler * handler,
 }
 
 static gboolean
+is_direction_attr_present (const GstSDPMedia * media)
+{
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_media_get_attribute (media, i);
+    if (sdp_utils_attribute_is_direction (attr, NULL)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static gboolean
 kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
     GstSDPMedia * media)
@@ -221,7 +240,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
   }
 
   if (sdp_utils_attribute_is_direction (attr, NULL)) {
-    return TRUE;
+    return !is_direction_attr_present (media);
   }
 
   len = G_N_ELEMENTS (attributes);
