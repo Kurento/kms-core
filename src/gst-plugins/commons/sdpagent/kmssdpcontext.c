@@ -335,6 +335,12 @@ kms_sdp_media_config_get_id (SdpMediaConfig * mconf)
   return mconf->id;
 }
 
+const gchar *
+kms_sdp_media_config_get_mid (SdpMediaConfig * mconf)
+{
+  return mconf->mid;
+}
+
 gboolean
 kms_sdp_media_config_is_rtcp_mux (SdpMediaConfig * mconf)
 {
