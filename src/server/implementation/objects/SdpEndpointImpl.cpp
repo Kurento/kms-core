@@ -6,6 +6,7 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
 #include <CodecConfiguration.hpp>
+#include <gst/sdp/gstsdpmessage.h>
 
 #define GST_CAT_DEFAULT kurento_sdp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
