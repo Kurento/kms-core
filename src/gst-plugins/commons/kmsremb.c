@@ -43,7 +43,7 @@ get_video_recv_info (KmsRembLocal * rl,
   guint i;
   gboolean ret = FALSE;
 
-  g_object_get (rl->rtpsess, "sources", &arr, NULL);
+  g_object_get (KMS_REMB_BASE (rl)->rtpsess, "sources", &arr, NULL);
 
   for (i = 0; i < arr->n_values; i++) {
     GObject *source;
@@ -55,7 +55,8 @@ get_video_recv_info (KmsRembLocal * rl,
     g_object_get (source, "ssrc", &ssrc, "stats", &s, NULL);
 
     GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
-    GST_TRACE_OBJECT (rl->rtpsess, "stats: %" GST_PTR_FORMAT, s);
+    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "stats: %" GST_PTR_FORMAT,
+        s);
 
     if (ssrc == rl->remote_ssrc) {
       GstClockTime current_time;
@@ -79,7 +80,7 @@ get_video_recv_info (KmsRembLocal * rl,
 
         *bitrate =
             gst_util_uint64_scale (bytes_handled, 8 * GST_SECOND, elapsed);
-        GST_TRACE_OBJECT (rl->rtpsess,
+        GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
             "Elapsed %" G_GUINT64_FORMAT " bytes %" G_GUINT64_FORMAT ", rate %"
             G_GUINT64_FORMAT, elapsed, bytes_handled, *bitrate);
       }
@@ -135,25 +136,25 @@ kms_remb_local_update (KmsRembLocal * rl)
     remb_base = MIN (rl->remb, rl->max_br);
 
     if (remb_base < rl->threshold) {
-      GST_TRACE_OBJECT (rl->rtpsess, "A.1) Exponential (%f)",
+      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "A.1) Exponential (%f)",
           REMB_EXPONENTIAL_FACTOR);
       remb_new = remb_base * (1 + REMB_EXPONENTIAL_FACTOR);
     } else {
-      GST_TRACE_OBJECT (rl->rtpsess, "A.2) Lineal (%" G_GUINT32_FORMAT ")",
-          rl->lineal_factor);
+      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
+          "A.2) Lineal (%" G_GUINT32_FORMAT ")", rl->lineal_factor);
       remb_new = remb_base + rl->lineal_factor;
     }
 
     rl->remb = MAX (rl->remb, remb_new);
   } else if (fraction_lost < REMB_UP_LOSSES) {
-    GST_TRACE_OBJECT (rl->rtpsess, "B) Assumable losses");
+    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
 
     rl->remb = MIN (rl->remb, rl->max_br);
     rl->threshold = rl->remb * REMB_THRESHOLD_FACTOR;
   } else {
     gint remb_base, lineal_factor_new;
 
-    GST_TRACE_OBJECT (rl->rtpsess, "C) Too losses");
+    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "C) Too losses");
 
     remb_base = MAX (rl->remb, rl->avg_br);
     rl->remb = remb_base * REMB_DECREMENT_FACTOR;
@@ -168,7 +169,7 @@ kms_remb_local_update (KmsRembLocal * rl)
     rl->remb = MIN (rl->remb, rl->max_bw * 1000);
   }
 
-  GST_TRACE_OBJECT (rl->rtpsess,
+  GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
       "REMB: %" G_GUINT32_FORMAT ", TH: %" G_GUINT32_FORMAT
       ", fraction_lost: %d, bitrate: %" G_GUINT64_FORMAT "," " max_br: %"
       G_GUINT32_FORMAT ", avg_br: %" G_GUINT32_FORMAT, rl->remb,
@@ -243,7 +244,7 @@ kms_remb_local_destroy (KmsRembLocal * rl)
     kms_utils_remb_event_manager_destroy (rl->event_manager);
   }
 
-  g_object_unref (rl->rtpsess);
+  g_object_unref (KMS_REMB_BASE (rl)->rtpsess);
   g_slice_free (KmsRembLocal, rl);
 }
 
@@ -255,7 +256,9 @@ kms_remb_local_create (GObject * rtpsess, guint remote_ssrc, guint max_bw)
   g_object_set_data (rtpsess, KMS_REMB_LOCAL, rl);
   g_signal_connect (rtpsess, "on-sending-rtcp",
       G_CALLBACK (on_sending_rtcp), NULL);
-  rl->rtpsess = g_object_ref (rtpsess);
+
+  KMS_REMB_BASE (rl)->rtpsess = g_object_ref (rtpsess);
+
   rl->remote_ssrc = remote_ssrc;
   rl->max_bw = max_bw;
 
@@ -298,7 +301,7 @@ send_remb_event (KmsRembRemote * rm, guint bitrate, guint ssrc)
     br = MIN (br, max);
   }
 
-  GST_TRACE_OBJECT (rm->rtpsess,
+  GST_TRACE_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
       "bitrate: %" G_GUINT32_FORMAT ", ssrc: %" G_GUINT32_FORMAT
       ", range [%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT
       "], event bitrate: %" G_GUINT32_FORMAT, bitrate, ssrc, min, max, br);
@@ -327,10 +330,11 @@ kms_remb_remote_update (KmsRembRemote * rm,
     KmsRTCPPSFBAFBREMBPacket * remb_packet)
 {
   if (remb_packet->n_ssrcs == 0) {
-    GST_WARNING_OBJECT (rm->rtpsess, "REMB packet without any SSRC");
+    GST_WARNING_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
+        "REMB packet without any SSRC");
     return;
   } else if (remb_packet->n_ssrcs > 1) {
-    GST_WARNING_OBJECT (rm->rtpsess,
+    GST_WARNING_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
         "REMB packet with %" G_GUINT32_FORMAT " SSRCs."
         " A inconsistent management could take place", remb_packet->n_ssrcs);
   }
@@ -417,7 +421,7 @@ kms_remb_remote_destroy (KmsRembRemote * rm)
     g_object_unref (rm->pad_event);
   }
 
-  g_object_unref (rm->rtpsess);
+  g_object_unref (KMS_REMB_BASE (rm)->rtpsess);
   g_slice_free (KmsRembRemote, rm);
 }
 
@@ -430,7 +434,9 @@ kms_remb_remote_create (GObject * rtpsess, guint local_ssrc, guint min_bw,
   g_object_set_data (rtpsess, KMS_REMB_REMOTE, rm);
   g_signal_connect (rtpsess, "on-feedback-rtcp",
       G_CALLBACK (on_feedback_rtcp), NULL);
-  rm->rtpsess = g_object_ref (rtpsess);
+
+  KMS_REMB_BASE (rm)->rtpsess = g_object_ref (rtpsess);
+
   rm->local_ssrc = local_ssrc;
   rm->min_bw = min_bw;
   rm->max_bw = max_bw;

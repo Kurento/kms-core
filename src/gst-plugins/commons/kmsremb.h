@@ -20,12 +20,22 @@
 
 G_BEGIN_DECLS
 
+#define KMS_REMB_BASE(obj) ((KmsRembBase *)(obj))
+
+typedef struct _KmsRembBase KmsRembBase;
+
+struct _KmsRembBase
+{
+  GObject *rtpsess;
+};
+
 /* KmsRembLocal begin */
 typedef struct _KmsRembLocal KmsRembLocal;
 
 struct _KmsRembLocal
 {
-  GObject *rtpsess;
+  KmsRembBase base;
+
   guint remote_ssrc;
   guint max_bw;
 
@@ -49,7 +59,8 @@ typedef struct _KmsRembRemote KmsRembRemote;
 
 struct _KmsRembRemote
 {
-  GObject *rtpsess;
+  KmsRembBase base;
+
   guint local_ssrc;
   guint min_bw;
   guint max_bw;
