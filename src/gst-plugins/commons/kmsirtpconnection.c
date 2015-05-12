@@ -55,6 +55,14 @@ kms_i_rtp_connection_add (KmsIRtpConnection * self, GstBin * bin,
   g_object_set (G_OBJECT (self), "added", TRUE, NULL);
 }
 
+void
+kms_i_rtp_connection_sync_state_with_parent (KmsIRtpConnection * self)
+{
+  g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
+
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->sync_state_with_parent (self);
+}
+
 GstPad *
 kms_i_rtp_connection_request_rtp_sink (KmsIRtpConnection * self)
 {

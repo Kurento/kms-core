@@ -760,6 +760,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 
   gst_element_sync_state_with_parent_target_state (ssrcdemux);
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
+  kms_i_rtp_connection_sync_state_with_parent (conn);
 }
 
 static void
@@ -936,6 +937,8 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
   kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
       abs_send_time_id);
+
+  kms_i_rtp_connection_sync_state_with_parent (conn);
 }
 
 static void
@@ -948,6 +951,8 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
   kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
       abs_send_time_id);
   kms_base_rtp_endpoint_add_connection_src (self, conn, rtp_session);
+
+  kms_i_rtp_connection_sync_state_with_parent (conn);
 }
 
 static gint
