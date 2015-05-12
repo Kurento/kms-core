@@ -723,7 +723,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 {
   gboolean connected;
   GstElement *ssrcdemux;
-  GstElement *rtcpdemux;
+  GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
 
   g_object_get (conn, "added", &connected, NULL);
@@ -743,13 +743,19 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
+  /* RTP */
   src = kms_i_rtp_connection_request_rtp_src (conn);
-  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  sink = gst_element_get_static_pad (ssrcdemux, "sink");
   gst_pad_link (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
-  gst_element_link_pads (rtcpdemux, "rtp_src", ssrcdemux, "sink");
+  /* RTCP */
+  src = kms_i_rtp_connection_request_rtcp_src (conn);
+  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
   gst_element_link_pads (rtcpdemux, "rtcp_src", ssrcdemux, "rtcp_sink");
 
   gst_element_sync_state_with_parent_target_state (ssrcdemux);
@@ -900,6 +906,7 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
     KmsIRtpConnection * conn, gboolean active, const gchar * rtp_session,
     gint abs_send_time_id)
 {
+  /* FIXME: Useful for local and remote ssrcs mapping */
   GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
   GstPad *src, *sink;
   gchar *str;
@@ -907,16 +914,21 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   gst_bin_add (GST_BIN (self), rtcpdemux);
 
+  /* RTP */
   src = kms_i_rtp_connection_request_rtp_src (conn);
-  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTP_SINK, rtp_session);
+  sink = gst_element_get_static_pad (self->priv->rtpbin, str);
+  g_free (str);
   gst_pad_link (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
-  str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTP_SINK, rtp_session);
-  gst_element_link_pads (rtcpdemux, "rtp_src", self->priv->rtpbin, str);
-  g_free (str);
-
+  /* RTCP */
+  src = kms_i_rtp_connection_request_rtcp_src (conn);
+  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  gst_pad_link (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
   str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTCP_SINK, rtp_session);
   gst_element_link_pads (rtcpdemux, "rtcp_src", self->priv->rtpbin, str);
   g_free (str);
