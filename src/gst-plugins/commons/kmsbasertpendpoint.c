@@ -657,13 +657,14 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
 
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
-      kms_remb_local_create (rtpsession, self->priv->remote_video_ssrc,
-      max_recv_bw);
+      kms_remb_local_create (rtpsession, VIDEO_RTP_SESSION,
+      self->priv->remote_video_ssrc, max_recv_bw);
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
-      kms_remb_remote_create (rtpsession, self->priv->local_video_ssrc,
-      self->priv->min_video_send_bw, self->priv->max_video_send_bw, pad);
+      kms_remb_remote_create (rtpsession, VIDEO_RTP_SESSION,
+      self->priv->local_video_ssrc, self->priv->min_video_send_bw,
+      self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
   g_object_unref (rtpsession);
 
@@ -2014,6 +2015,89 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
 }
 
+typedef struct _KmsRembStats
+{
+  GstStructure *stats;
+  guint session;
+} KmsRembStats;
+
+static const GstStructure *
+get_structure_from_id (const GstStructure * structure, const gchar * fieldname)
+{
+  const GValue *value;
+
+  if (!gst_structure_has_field (structure, fieldname)) {
+    GST_WARNING ("No stats for %s", fieldname);
+    return NULL;
+  }
+
+  value = gst_structure_get_value (structure, fieldname);
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", fieldname, str_val);
+    g_free (str_val);
+
+    return NULL;
+  }
+
+  return gst_value_get_structure (value);
+}
+
+static void
+merge_remb_stats (gpointer key, guint * value, KmsRembStats * rs)
+{
+  guint ssrc = GPOINTER_TO_UINT (key);
+  gchar *session_id, *ssrc_id;
+  const GstStructure *session_stats, *ssrc_stats;
+
+  session_id = g_strdup_printf ("session-%u", rs->session);
+  session_stats = get_structure_from_id (rs->stats, session_id);
+  g_free (session_id);
+
+  if (session_stats == NULL) {
+    return;
+  }
+
+  ssrc_id = g_strdup_printf ("ssrc-%u", ssrc);
+  ssrc_stats = get_structure_from_id (session_stats, ssrc_id);
+  g_free (ssrc_id);
+
+  if (ssrc_stats == NULL) {
+    return;
+  }
+
+  gst_structure_set ((GstStructure *) ssrc_stats, "remb", G_TYPE_UINT, *value,
+      NULL);
+}
+
+static void
+kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
+    GstStructure * stats)
+{
+  KmsRembStats rs;
+
+  if (self->priv->rl != NULL) {
+    KMS_REMB_BASE_LOCK (self->priv->rl);
+    rs.stats = stats;
+    rs.session = KMS_REMB_BASE (self->priv->rl)->session;
+    g_hash_table_foreach (KMS_REMB_BASE (self->priv->rl)->remb_stats,
+        (GHFunc) merge_remb_stats, &rs);
+    KMS_REMB_BASE_UNLOCK (self->priv->rl);
+  }
+
+  if (self->priv->rm != NULL) {
+    KMS_REMB_BASE_LOCK (self->priv->rm);
+    rs.stats = stats;
+    rs.session = KMS_REMB_BASE (self->priv->rm)->session;
+    g_hash_table_foreach (KMS_REMB_BASE (self->priv->rm)->remb_stats,
+        (GHFunc) merge_remb_stats, &rs);
+    KMS_REMB_BASE_UNLOCK (self->priv->rm);
+  }
+}
+
 GstStructure *
 kms_base_rtp_endpoint_stats_action (KmsIStats * obj)
 {
@@ -2021,6 +2105,8 @@ kms_base_rtp_endpoint_stats_action (KmsIStats * obj)
   GstStructure *stats;
 
   stats = kms_base_rtp_endpoint_create_stats (self);
+
+  kms_base_rtp_endpoint_append_remb_stats (self, stats);
 
   return stats;
 }
