@@ -22,11 +22,18 @@ G_BEGIN_DECLS
 
 #define KMS_REMB_BASE(obj) ((KmsRembBase *)(obj))
 
+#define KMS_REMB_BASE_LOCK(obj) \
+  (g_rec_mutex_lock (&KMS_REMB_BASE(obj)->mutex))
+#define KMS_REMB_BASE_UNLOCK(obj) \
+  (g_rec_mutex_unlock (&KMS_REMB_BASE(obj)->mutex))
+
 typedef struct _KmsRembBase KmsRembBase;
 
 struct _KmsRembBase
 {
   GObject *rtpsess;
+  GRecMutex mutex;
+  GHashTable *remb_stats;
 };
 
 /* KmsRembLocal begin */

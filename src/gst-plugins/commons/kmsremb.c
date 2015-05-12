@@ -34,6 +34,43 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define REMB_THRESHOLD_FACTOR 0.8
 #define REMB_UP_LOSSES 12       /* 4% losses */
 
+static void
+kms_remb_base_destroy (KmsRembBase * rb)
+{
+  g_object_unref (rb->rtpsess);
+  g_rec_mutex_clear (&rb->mutex);
+  g_hash_table_unref (rb->remb_stats);
+}
+
+static void
+kms_remb_base_create (KmsRembBase * rb, GObject * rtpsess)
+{
+  rb->rtpsess = g_object_ref (rtpsess);
+  g_rec_mutex_init (&rb->mutex);
+  rb->remb_stats = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
+      (GDestroyNotify) kms_utils_destroy_guint);
+}
+
+static void
+kms_remb_base_update_stats (KmsRembBase * rb, guint ssrc, guint bitrate)
+{
+  guint *value;
+
+  KMS_REMB_BASE_LOCK (rb);
+
+  if (g_hash_table_contains (rb->remb_stats, GUINT_TO_POINTER (ssrc))) {
+    value =
+        (guint *) g_hash_table_lookup (rb->remb_stats, GUINT_TO_POINTER (ssrc));
+  } else {
+    value = g_slice_new0 (guint);
+    g_hash_table_insert (rb->remb_stats, GUINT_TO_POINTER (ssrc), value);
+  }
+
+  *value = bitrate;
+
+  KMS_REMB_BASE_UNLOCK (rb);
+}
+
 static gboolean
 get_video_recv_info (KmsRembLocal * rl,
     guint64 * bitrate, guint * fraction_lost)
@@ -229,6 +266,9 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
 
   GST_TRACE_OBJECT (sess, "Sending REMB with bitrate: %d", remb_packet.bitrate);
 
+  kms_remb_base_update_stats (KMS_REMB_BASE (rl), packet_ssrc,
+      remb_packet.bitrate);
+
 end:
   gst_rtcp_buffer_unmap (&rtcp);
 }
@@ -244,7 +284,8 @@ kms_remb_local_destroy (KmsRembLocal * rl)
     kms_utils_remb_event_manager_destroy (rl->event_manager);
   }
 
-  g_object_unref (KMS_REMB_BASE (rl)->rtpsess);
+  kms_remb_base_destroy (KMS_REMB_BASE (rl));
+
   g_slice_free (KmsRembLocal, rl);
 }
 
@@ -257,7 +298,7 @@ kms_remb_local_create (GObject * rtpsess, guint remote_ssrc, guint max_bw)
   g_signal_connect (rtpsess, "on-sending-rtcp",
       G_CALLBACK (on_sending_rtcp), NULL);
 
-  KMS_REMB_BASE (rl)->rtpsess = g_object_ref (rtpsess);
+  kms_remb_base_create (KMS_REMB_BASE (rl), rtpsess);
 
   rl->remote_ssrc = remote_ssrc;
   rl->max_bw = max_bw;
@@ -357,7 +398,7 @@ kms_remb_remote_update (KmsRembRemote * rm,
 }
 
 static void
-process_psfb_afb (GObject * sess, GstBuffer * fci_buffer)
+process_psfb_afb (GObject * sess, guint ssrc, GstBuffer * fci_buffer)
 {
   KmsRembRemote *rm = g_object_get_data (sess, KMS_REMB_REMOTE);
   KmsRTCPPSFBAFBBuffer afb_buffer = { NULL, };
@@ -380,6 +421,8 @@ process_psfb_afb (GObject * sess, GstBuffer * fci_buffer)
     case KMS_RTCP_PSFB_AFB_TYPE_REMB:
       kms_rtcp_psfb_afb_remb_get_packet (&afb_packet, &remb_packet);
       kms_remb_remote_update (rm, &remb_packet);
+      kms_remb_base_update_stats (KMS_REMB_BASE (rm), ssrc,
+          remb_packet.bitrate);
       break;
     default:
       break;
@@ -399,7 +442,7 @@ on_feedback_rtcp (GObject * sess, guint type, guint fbtype,
     case GST_RTCP_TYPE_PSFB:
       switch (fbtype) {
         case GST_RTCP_PSFB_TYPE_AFB:
-          process_psfb_afb (sess, fci);
+          process_psfb_afb (sess, sender_ssrc, fci);
           break;
         default:
           break;
@@ -421,7 +464,8 @@ kms_remb_remote_destroy (KmsRembRemote * rm)
     g_object_unref (rm->pad_event);
   }
 
-  g_object_unref (KMS_REMB_BASE (rm)->rtpsess);
+  kms_remb_base_destroy (KMS_REMB_BASE (rm));
+
   g_slice_free (KmsRembRemote, rm);
 }
 
@@ -435,7 +479,7 @@ kms_remb_remote_create (GObject * rtpsess, guint local_ssrc, guint min_bw,
   g_signal_connect (rtpsess, "on-feedback-rtcp",
       G_CALLBACK (on_feedback_rtcp), NULL);
 
-  KMS_REMB_BASE (rm)->rtpsess = g_object_ref (rtpsess);
+  kms_remb_base_create (KMS_REMB_BASE (rm), rtpsess);
 
   rm->local_ssrc = local_ssrc;
   rm->min_bw = min_bw;
