@@ -36,10 +36,10 @@ static std::shared_ptr<RTCInboundRTPStreamStats>
 createRTCInboundRTPStreamStats (const GstStructure *stats)
 {
   guint64 bytesReceived, packetsReceived;
-  guint jitter, fractionLost, pliCount, firCount;
+  guint jitter, fractionLost, pliCount, firCount, remb;
   gint packetLost;
 
-  packetLost = jitter = fractionLost = pliCount = firCount = 0;
+  packetLost = jitter = fractionLost = pliCount = firCount = remb = 0;
   bytesReceived = packetsReceived = G_GUINT64_CONSTANT (0);
 
   gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
@@ -55,20 +55,25 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
+  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+    GST_TRACE ("No remb stats collected");
+  }
+
   return std::make_shared <RTCInboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::inboundrtp), 0.0, "",
-         "", false, "", "", "", firCount, pliCount, 0, 0, packetsReceived,
-         bytesReceived, packetLost, (float) jitter, (float) fractionLost);
+         "", false, "", "", "", firCount, pliCount, 0, 0, remb,
+         packetsReceived, bytesReceived, packetLost, (float) jitter,
+         (float) fractionLost);
 }
 
 static std::shared_ptr<RTCOutboundRTPStreamStats>
 createRTCOutboundRTPStreamStats (const GstStructure *stats)
 {
   guint64 bytesSent, packetsSent, bitRate, roundTripTime;
-  guint pliCount, firCount;
+  guint pliCount, firCount, remb;
 
   bytesSent = packetsSent = bitRate = roundTripTime = G_GUINT64_CONSTANT (0);
-  pliCount = firCount = 0;
+  pliCount = firCount = remb = 0;
 
   gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
                      "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
@@ -82,10 +87,14 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
+  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+    GST_TRACE ("No remb stats collected");
+  }
+
   return std::make_shared <RTCOutboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::outboundrtp), 0.0, "",
-         "", false, "", "", "", firCount, pliCount, 0, 0, packetsSent,
-         bytesSent, (float) bitRate, (float) roundTripTime);
+         "", false, "", "", "", firCount, pliCount, 0, 0, remb,
+         packetsSent, bytesSent, (float) bitRate, (float) roundTripTime);
 }
 
 static std::shared_ptr<RTCRTPStreamStats>

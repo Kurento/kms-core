@@ -863,6 +863,11 @@
           "name": "sliCount",
           "doc": "Count the total number of Slice Loss Indication (SLI) packets received by the sender. This metric is only valid for video and is sent by receiver.",
           "type": "int"
+        },
+        {
+          "name": "remb",
+          "doc": "The Receiver Estimated Maximum Bitrate (REMB). This metric is only valid for video.",
+          "type": "int"
         }
       ]
     },
