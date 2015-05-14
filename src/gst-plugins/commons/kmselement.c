@@ -839,9 +839,18 @@ kms_element_finalize (GObject * object)
   KmsElement *element = KMS_ELEMENT (object);
 
   GST_DEBUG_OBJECT (object, "finalize");
+
   /* free resources allocated by this object */
   g_hash_table_unref (element->priv->pendingpads);
   g_rec_mutex_clear (&element->mutex);
+
+  if (element->priv->video_caps != NULL) {
+    gst_caps_unref (element->priv->video_caps);
+  }
+
+  if (element->priv->audio_caps != NULL) {
+    gst_caps_unref (element->priv->audio_caps);
+  }
 
   g_mutex_clear (&element->priv->sync_lock);
 
