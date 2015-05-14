@@ -544,6 +544,10 @@
             }
           ]
         }
+      ],
+      "events": [
+        "ElementConnected",
+        "ElementDisconnected"
       ]
     }
   ],
@@ -1460,6 +1464,60 @@
           "name": "newState",
           "doc": "The new state",
           "type": "MediaState"
+        }
+      ]
+    },
+    {
+      "name": "ElementConnected",
+      "extends": "Media",
+      "doc": "Indicates that an element has been connected to other",
+      "properties": [
+        {
+          "name": "sink",
+          "doc": "sink element in new connection",
+          "type": "MediaElement"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Media type of the connection",
+          "type": "MediaType"
+        },
+        {
+          "name": "sourceMediaDescription",
+          "doc": "Description of the source media",
+          "type": "String"
+        },
+        {
+          "name": "sinkMediaDescription",
+          "doc": "Description of the sink media",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "ElementDisconnected",
+      "extends": "Media",
+      "doc": "Indicates that an element has been disconnected",
+      "properties": [
+        {
+          "name": "sink",
+          "doc": "sink element in previous connection",
+          "type": "MediaElement"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Media type of the previous connection",
+          "type": "MediaType"
+        },
+        {
+          "name": "sourceMediaDescription",
+          "doc": "Description of the source media",
+          "type": "String"
+        },
+        {
+          "name": "sinkMediaDescription",
+          "doc": "Description of the sink media",
+          "type": "String"
         }
       ]
     }

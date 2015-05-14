@@ -567,6 +567,12 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
   sinkImpl->sources[mediaType][sinkMediaDescription] = connectionData;
 
   performConnection (connectionData);
+
+  ElementConnected elementConnected (shared_from_this(),
+                                     ElementConnected::getName (),
+                                     sink, mediaType, sourceMediaDescription,
+                                     sinkMediaDescription);
+  signalElementConnected (elementConnected);
 }
 
 void
@@ -666,6 +672,11 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
   }
 
+  ElementDisconnected elementDisconnected (shared_from_this(),
+      ElementDisconnected::getName (),
+      sink, mediaType, sourceMediaDescription,
+      sinkMediaDescription);
+  signalElementDisconnected (elementDisconnected);
 }
 
 void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)

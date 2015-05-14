@@ -95,6 +95,9 @@ public:
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
 
+  sigc::signal<void, ElementConnected> signalElementConnected;
+  sigc::signal<void, ElementDisconnected> signalElementDisconnected;
+
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
                        Json::Value &response);
