@@ -41,7 +41,8 @@ struct _KmsIRtpConnectionInterface
 
   /* virtual methods */
   void (*add) (KmsIRtpConnection *self, GstBin * bin, gboolean active);
-  void (*sync_state_with_parent) (KmsIRtpConnection *self);
+  void (*src_sync_state_with_parent) (KmsIRtpConnection *self);
+  void (*sink_sync_state_with_parent) (KmsIRtpConnection *self);
 
   GstPad * (*request_rtp_sink) (KmsIRtpConnection *self);
   GstPad * (*request_rtp_src) (KmsIRtpConnection *self);
@@ -55,7 +56,8 @@ struct _KmsIRtpConnectionInterface
 GType kms_i_rtp_connection_get_type (void);
 
 void kms_i_rtp_connection_add (KmsIRtpConnection *self, GstBin * bin, gboolean active);
-void kms_i_rtp_connection_sync_state_with_parent (KmsIRtpConnection *self);
+void kms_i_rtp_connection_src_sync_state_with_parent (KmsIRtpConnection *self);
+void kms_i_rtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtp_sink (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtp_src (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtcp_sink (KmsIRtpConnection *self);

@@ -741,6 +741,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
       G_CALLBACK (rtp_ssrc_demux_new_ssrc_pad), self);
 
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
+  kms_i_rtp_connection_sink_sync_state_with_parent (conn);
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
   /* RTP */
@@ -760,7 +761,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 
   gst_element_sync_state_with_parent_target_state (ssrcdemux);
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
-  kms_i_rtp_connection_sync_state_with_parent (conn);
+  kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
 static void
@@ -913,6 +914,7 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
   gchar *str;
 
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
+  kms_i_rtp_connection_sink_sync_state_with_parent (conn);
   gst_bin_add (GST_BIN (self), rtcpdemux);
 
   /* RTP */
@@ -938,7 +940,7 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
   kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
       abs_send_time_id);
 
-  kms_i_rtp_connection_sync_state_with_parent (conn);
+  kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
 static void
@@ -947,12 +949,13 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
     gint abs_send_time_id)
 {
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
+  kms_i_rtp_connection_sink_sync_state_with_parent (conn);
 
   kms_base_rtp_endpoint_add_connection_sink (self, conn, rtp_session,
       abs_send_time_id);
   kms_base_rtp_endpoint_add_connection_src (self, conn, rtp_session);
 
-  kms_i_rtp_connection_sync_state_with_parent (conn);
+  kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
 static gint

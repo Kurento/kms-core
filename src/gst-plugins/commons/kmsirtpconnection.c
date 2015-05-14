@@ -56,11 +56,19 @@ kms_i_rtp_connection_add (KmsIRtpConnection * self, GstBin * bin,
 }
 
 void
-kms_i_rtp_connection_sync_state_with_parent (KmsIRtpConnection * self)
+kms_i_rtp_connection_src_sync_state_with_parent (KmsIRtpConnection * self)
 {
   g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
 
-  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->sync_state_with_parent (self);
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->src_sync_state_with_parent (self);
+}
+
+void
+kms_i_rtp_connection_sink_sync_state_with_parent (KmsIRtpConnection * self)
+{
+  g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
+
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->sink_sync_state_with_parent (self);
 }
 
 GstPad *
