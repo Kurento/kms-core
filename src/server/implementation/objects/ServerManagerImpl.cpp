@@ -38,8 +38,9 @@ childToString (const boost::property_tree::ptree tree, const char *nodeName)
 }
 
 ServerManagerImpl::ServerManagerImpl (const std::shared_ptr<ServerInfo> info,
-                                      const boost::property_tree::ptree &config) : MediaObjectImpl (config),
-  info (info)
+                                      const boost::property_tree::ptree &config,
+                                      ModuleManager &moduleManager) : MediaObjectImpl (config),
+  info (info), moduleManager (moduleManager)
 {
   metadata = childToString (config, METADATA);
 }
@@ -68,6 +69,20 @@ std::vector<std::string> ServerManagerImpl::getSessions ()
 std::string ServerManagerImpl::getMetadata ()
 {
   return metadata;
+}
+
+std::string ServerManagerImpl::getKmd (const std::string &moduleName)
+{
+  for (auto moduleIt : moduleManager.getModules () ) {
+    if (moduleIt.second->getName () == moduleName) {
+      return moduleIt.second->getDescriptor();
+    }
+  }
+
+  GST_WARNING ("Requested kmd module doesn't exist");
+
+  throw KurentoException (SERVER_MANAGER_ERROR_KMD_NOT_FOUND,
+                          "Requested kmd module doesn't exist");
 }
 
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;

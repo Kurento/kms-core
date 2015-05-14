@@ -77,10 +77,12 @@ generate_code (
       ${gstreamer-sdp-1.5_INCLUDE_DIRS}
       ${KmsJsonRpc_INCLUDE_DIRS}
       ${sigc++-2.0_INCLUDE_DIRS}
+      ${glibmm-2.4_INCLUDE_DIRS}
   MODULE_EXTRA_LIBRARIES
       ${gstreamer-1.5_LIBRARIES}
       ${KmsJsonRpc_LIBRARIES}
       ${sigc++-2.0_LIBRARIES}
+      ${glibmm-2.4_LIBRARIES}
   SERVER_STUB_DESTINATION
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation/objects
   SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES

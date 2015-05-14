@@ -7,6 +7,7 @@
 #include "ServerManager.hpp"
 #include <EventHandler.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <ModuleManager.hpp>
 
 namespace kurento
 {
@@ -34,9 +35,12 @@ class ServerManagerImpl : public MediaObjectImpl, public virtual ServerManager
 public:
 
   ServerManagerImpl (const std::shared_ptr<ServerInfo> info,
-                     const boost::property_tree::ptree &config);
+                     const boost::property_tree::ptree &config,
+                     ModuleManager &moduleManager);
 
   virtual ~ServerManagerImpl () {};
+
+  std::string getKmd (const std::string &moduleName);
 
   virtual std::shared_ptr<ServerInfo> getInfo ();
 
@@ -67,6 +71,8 @@ private:
 
   std::shared_ptr<ServerInfo> info;
   std::string metadata;
+
+  ModuleManager &moduleManager;
 
   class StaticConstructor
   {

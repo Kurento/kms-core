@@ -67,7 +67,7 @@ initialize_test_function ()
 
   serverManager =  std::dynamic_pointer_cast <ServerManagerImpl>
                    (MediaSet::getMediaSet ()->ref (new ServerManagerImpl (
-                         serverInfo, boost::property_tree::ptree () ) ) );
+                         serverInfo, boost::property_tree::ptree (), *moduleManager.get() ) ) );
   MediaSet::getMediaSet ()->setServerManager (std::dynamic_pointer_cast
       <ServerManagerImpl> (serverManager) );
 }
