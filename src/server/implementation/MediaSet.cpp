@@ -544,6 +544,7 @@ MediaSet::checkEmpty()
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if ( empty() ) {
+    signalEmptyLocked.emit();
     lock.unlock();
     signalEmpty.emit();
   }

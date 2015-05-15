@@ -81,6 +81,7 @@ public:
 
   static const std::shared_ptr<MediaSet> getMediaSet();
 
+  sigc::signal<void> signalEmptyLocked;
   sigc::signal<void> signalEmpty;
 
 private:
