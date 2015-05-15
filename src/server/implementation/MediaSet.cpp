@@ -553,7 +553,11 @@ MediaSet::checkEmpty()
 bool
 MediaSet::empty()
 {
-  return objectsMap.empty();
+  if (serverManager) {
+    return objectsMap.size () == 1;
+  } else {
+    return objectsMap.empty();
+  }
 }
 
 std::vector<std::string>
