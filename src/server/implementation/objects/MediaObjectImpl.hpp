@@ -124,7 +124,7 @@ protected:
    */
   virtual void postConstructor ();
 
-  boost::property_tree::ptree config;
+  const boost::property_tree::ptree &config;
 
 private:
 

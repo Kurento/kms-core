@@ -20,13 +20,12 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config) :
 }
 
 MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
-                                  std::shared_ptr< MediaObject > parent)
+                                  std::shared_ptr< MediaObject > parent) : config (config)
 {
   this->parent = parent;
 
   creationTime = time (NULL);
   initialId = createId();
-  this->config = config;
   this->sendTagsInEvents = false;
 }
 
