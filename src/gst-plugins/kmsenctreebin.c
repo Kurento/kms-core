@@ -135,6 +135,62 @@ config_enc_bitrate_probe (GstPad * pad, GstPadProbeInfo * info,
   return GST_PAD_PROBE_OK;
 }
 
+/*
+ * FIXME: This is a hack to make x264 work.
+ *
+ * We have notice that x264 doesn't work if width or height is odd,
+ * so we force a rescale increasing one pixel that dimension
+ * when we detect this situation.
+ */
+static GstPadProbeReturn
+check_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  int width, height;
+  GstCaps *filter_caps, *caps;
+  GstElement *element;
+  GstStructure *st;
+  gboolean needs_filter = FALSE;
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+
+  if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  gst_event_parse_caps (event, &caps);
+
+  st = gst_caps_get_structure (caps, 0);
+
+  gst_structure_get (st, "width", G_TYPE_INT, &width, NULL);
+  gst_structure_get (st, "height", G_TYPE_INT, &height, NULL);
+
+  if (width % 2) {
+    GST_WARNING ("Width is odd");
+    needs_filter = TRUE;
+    width++;
+  }
+
+  if (height % 2) {
+    GST_WARNING ("Height is odd");
+    needs_filter = TRUE;
+    height++;
+  }
+
+  if (!needs_filter)
+    return GST_PAD_PROBE_OK;
+
+  filter_caps = gst_caps_from_string ("video/x-raw,format=I420");
+
+  gst_caps_set_simple (filter_caps, "width", G_TYPE_INT, width, NULL);
+  gst_caps_set_simple (filter_caps, "height", G_TYPE_INT, height, NULL);
+
+  element = gst_pad_get_parent_element (pad);
+  g_object_set (element, "caps", filter_caps, NULL);
+  gst_caps_unref (filter_caps);
+  g_object_unref (element);
+
+  return GST_PAD_PROBE_OK;
+}
+
 static gboolean
 kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     gint target_bitrate)
@@ -173,12 +229,17 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   gst_element_sync_state_with_parent (convert);
   gst_element_sync_state_with_parent (rate);
   if (is_h264) {
-    GstCaps *caps = gst_caps_from_string ("video/x-raw,format=I420");
+    GstCaps *filter_caps = gst_caps_from_string ("video/x-raw,format=I420");
+    GstPad *sink;
 
     capsfilter = gst_element_factory_make ("capsfilter", NULL);
+    sink = gst_element_get_static_pad (capsfilter, "sink");
+    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+        check_caps_probe, NULL, NULL);
+    g_object_unref (sink);
 
-    g_object_set (capsfilter, "caps", caps, NULL);
-    gst_caps_unref (caps);
+    g_object_set (capsfilter, "caps", filter_caps, NULL);
+    gst_caps_unref (filter_caps);
 
     gst_bin_add (GST_BIN (self), capsfilter);
     gst_element_sync_state_with_parent (capsfilter);

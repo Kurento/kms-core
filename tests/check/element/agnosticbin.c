@@ -70,6 +70,10 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
       g_free (warn_file);
       break;
     }
+    case GST_MESSAGE_EOS:{
+      quit_main_loop_idle (loop);
+      break;
+    }
     default:
       break;
   }
@@ -895,6 +899,33 @@ GST_START_TEST (create_test)
 }
 
 GST_END_TEST
+GST_START_TEST (h264_encoding_odd_dimension)
+{
+  GstElement *pipeline =
+      gst_parse_launch
+      ("videotestsrc is-live=true num-buffers=30 ! video/x-raw, format=(string)I420, width=(int)319, height=(int)239, pixel-aspect-ratio=(fraction)1/1, interlace-mode=(string)progressive, colorimetry=(string)bt601, framerate=(fraction)14/1 ! agnosticbin ! video/x-h264 ! fakesink async=true",
+      NULL);
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -919,6 +950,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
   tcase_add_test (tc_chain, encoded_input_n_encoded_output);
+  tcase_add_test (tc_chain, h264_encoding_odd_dimension);
 
   return s;
 }
