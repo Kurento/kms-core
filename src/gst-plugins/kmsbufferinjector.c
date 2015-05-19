@@ -104,6 +104,8 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
 
   KMS_BUFFER_INJECTOR_LOCK (self);
   if ((!self->priv->configured) || (self->priv->previous_buffer == NULL)) {
+    GST_WARNING_OBJECT (self,
+        "Buffer injector is not correctly configured, there is no buffer to send");
     KMS_BUFFER_INJECTOR_UNLOCK (self);
     return;
   }
@@ -130,6 +132,11 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     //timeout reached, it is necessary to inject a new buffer
     GST_DEBUG_OBJECT (self->priv->srcpad, "Injecting buffer");
     KMS_BUFFER_INJECTOR_LOCK (self);
+    if (!self->priv->previous_buffer) {
+      KMS_BUFFER_INJECTOR_UNLOCK (self);
+      g_mutex_unlock (&self->priv->mutex_generate);
+      return;
+    }
     copy = gst_buffer_copy (self->priv->previous_buffer);
 
     if (GST_BUFFER_DTS_IS_VALID (copy)) {
@@ -177,6 +184,9 @@ kms_buffer_injector_config (KmsBufferInjector * self, GstCaps * caps)
     } else {
       self->priv->wait_time = DEFAULT_WAITING_TIME;
     }
+
+    GST_DEBUG_OBJECT (self, "Resetting last buffer");
+    gst_buffer_replace (&self->priv->previous_buffer, NULL);
     KMS_BUFFER_INJECTOR_UNLOCK (self);
 
     GST_DEBUG ("Video: Wait time %" G_GINT64_FORMAT, self->priv->wait_time);
@@ -238,8 +248,10 @@ kms_buffer_injector_handle_sink_event (GstPad * pad, GstObject * parent,
     GstCaps *caps;
 
     gst_event_parse_caps (event, &caps);
+    KMS_BUFFER_INJECTOR_LOCK (buffer_injector);
     buffer_injector->priv->configured =
         kms_buffer_injector_config (buffer_injector, caps);
+    KMS_BUFFER_INJECTOR_UNLOCK (buffer_injector);
   }
 
   return gst_pad_event_default (pad, parent, event);
