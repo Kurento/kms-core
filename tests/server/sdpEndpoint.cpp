@@ -22,15 +22,25 @@
 #include <MediaType.hpp>
 #include <KurentoException.hpp>
 #include <objects/SdpEndpointImpl.hpp>
+#include <MediaSet.hpp>
+#include <ModuleManager.hpp>
 
 using namespace kurento;
+
+std::string mediaPipelineId;
+ModuleManager moduleManager;
+boost::property_tree::ptree config;
 
 BOOST_AUTO_TEST_CASE (duplicate_offer)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  boost::property_tree::ptree config;
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
   std::string offer;
 
   config.add ("modules.kurento.SdpEndpoint.configPath", "../../../tests" );
@@ -39,6 +49,9 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
+  std::shared_ptr <MediaObjectImpl> pipe =
+    MediaSet::getMediaSet()->getMediaObject (
+      mediaPipelineId);
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
@@ -59,9 +72,13 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
 BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  boost::property_tree::ptree config;
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
   std::string answer;
 
   config.add ("configPath", "../../../tests" );
@@ -70,6 +87,9 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
+  std::shared_ptr <MediaObjectImpl> pipe =
+    MediaSet::getMediaSet()->getMediaObject (
+      mediaPipelineId);
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
@@ -88,9 +108,13 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 BOOST_AUTO_TEST_CASE (duplicate_answer)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  boost::property_tree::ptree config;
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
   std::string answer;
 
   config.add ("configPath", "../../../tests" );
@@ -99,6 +123,9 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
+  std::shared_ptr <MediaObjectImpl> pipe =
+    MediaSet::getMediaSet()->getMediaObject (
+      mediaPipelineId);
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
@@ -122,10 +149,13 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
 
   gst_init (NULL, NULL);
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  boost::property_tree::ptree config;
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
   std::string offer;
 
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -144,6 +174,9 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
   videoCodecs.push_back (std::make_pair ("", vc) );
   config.add_child ("modules.kurento.SdpEndpoint.videoCodecs", videoCodecs);
 
+  std::shared_ptr <MediaObjectImpl> pipe =
+    MediaSet::getMediaSet()->getMediaObject (
+      mediaPipelineId);
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
