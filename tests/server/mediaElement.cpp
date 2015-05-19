@@ -22,18 +22,40 @@
 #include <MediaType.hpp>
 #include <KurentoException.hpp>
 #include <GstreamerDotDetails.hpp>
+#include <MediaSet.hpp>
+#include <ModuleManager.hpp>
 
 using namespace kurento;
+
+ModuleManager moduleManager;
+boost::property_tree::ptree config;
+
+static std::shared_ptr <MediaElementImpl>
+createDummyElement (std::string name, std::string mediaPipelineId)
+{
+  std::shared_ptr <MediaElementImpl> element = std::dynamic_pointer_cast
+      <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
+                            boost::property_tree::ptree(),
+                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                            name) ) );
+
+  return element;
+}
 
 BOOST_AUTO_TEST_CASE (connection_test)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummysink") );
-  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
-      boost::property_tree::ptree(), pipe, "dummysrc") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> sink = createDummyElement ("dummysink",
+      mediaPipelineId);
+  std::shared_ptr <MediaElementImpl> src = createDummyElement ("dummysrc",
+      mediaPipelineId);
+
   std::shared_ptr <MediaType> VIDEO (new MediaType (MediaType::VIDEO) );
   std::shared_ptr <MediaType> AUDIO (new MediaType (MediaType::AUDIO) );
 
@@ -104,13 +126,18 @@ BOOST_AUTO_TEST_CASE (connection_test)
 BOOST_AUTO_TEST_CASE (release_before_real_connection)
 {
   GstElement *srcElement;
+
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummysink") );
-  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
-      boost::property_tree::ptree(), pipe, "dummysrc") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> sink = createDummyElement ("dummysink",
+      mediaPipelineId);
+  std::shared_ptr <MediaElementImpl> src = createDummyElement ("dummysrc",
+      mediaPipelineId);
 
   src->setName ("SOURCE");
   sink->setName ("SINK");
@@ -133,10 +160,15 @@ BOOST_AUTO_TEST_CASE (release_before_real_connection)
 BOOST_AUTO_TEST_CASE (loopback)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> duplex (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummyduplex") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  std::shared_ptr <MediaElementImpl> duplex = createDummyElement ("dummyduplex",
+      mediaPipelineId);
 
   duplex->setName ("DUPLEX");
 
@@ -151,15 +183,22 @@ BOOST_AUTO_TEST_CASE (loopback)
 BOOST_AUTO_TEST_CASE (no_common_pipeline)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe1 (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaPipelineImpl> pipe2 (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
-  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe1, "dummysink") );
-  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
-      boost::property_tree::ptree(), pipe2, "dummysrc") );
+  std::string mediaPipelineId1 =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::string mediaPipelineId2 =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  std::shared_ptr <MediaElementImpl> sink = createDummyElement ("dummysink",
+      mediaPipelineId1);
+  std::shared_ptr <MediaElementImpl> src = createDummyElement ("dummysrc",
+      mediaPipelineId2);
+
 
   src->setName ("SOURCE");
   sink->setName ("SINK");
@@ -178,12 +217,21 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
 BOOST_AUTO_TEST_CASE (dot_test)
 {
   gst_init (NULL, NULL);
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> sink (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummysink") );
-  std::shared_ptr <MediaElementImpl> src (new  MediaElementImpl (
-      boost::property_tree::ptree(), pipe, "dummysrc") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  std::shared_ptr <MediaElementImpl> sink = createDummyElement ("dummysink",
+      mediaPipelineId);
+  std::shared_ptr <MediaElementImpl> src = createDummyElement ("dummysrc",
+      mediaPipelineId);
+  std::shared_ptr <MediaPipelineImpl> pipe = std::dynamic_pointer_cast
+      <MediaPipelineImpl> (MediaSet::getMediaSet()->getMediaObject (
+                             mediaPipelineId) );
+
   GstElement *gstSrc;
   GstElement *gstSink;
 
