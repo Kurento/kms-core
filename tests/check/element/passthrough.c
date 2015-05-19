@@ -135,6 +135,7 @@ connect_sink_async (GstElement * passthrough, GstElement * src,
 
     gst_element_link_pads (src, NULL, passthrough, pad_prefix);
     gst_element_sync_state_with_parent (src);
+    g_object_unref (pad);
   } else {
     KmsConnectData *data = g_slice_new (KmsConnectData);
 
