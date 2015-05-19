@@ -23,8 +23,25 @@
 #include <KurentoException.hpp>
 #include <objects/MediaObjectImpl.hpp>
 #include <string>
+#include <MediaSet.hpp>
+#include <ModuleManager.hpp>
 
 using namespace kurento;
+
+ModuleManager moduleManager;
+boost::property_tree::ptree config;
+
+static std::shared_ptr <MediaElementImpl>
+createDummyElement (std::string name, std::string mediaPipelineId)
+{
+  std::shared_ptr <MediaElementImpl> element = std::dynamic_pointer_cast
+      <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
+                            boost::property_tree::ptree(),
+                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                            name) ) );
+
+  return element;
+}
 
 BOOST_AUTO_TEST_CASE (add_tag)
 {
@@ -48,10 +65,14 @@ BOOST_AUTO_TEST_CASE (add_tag)
 
 BOOST_AUTO_TEST_CASE (add_tag_media_element)
 {
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> mediaElement (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummyduplex") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> mediaElement =
+    createDummyElement ("dummyduplex", mediaPipelineId);
 
   mediaElement->removeTag ("1");
 
@@ -68,10 +89,14 @@ BOOST_AUTO_TEST_CASE (add_tag_media_element)
 
 BOOST_AUTO_TEST_CASE (get_tag)
 {
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> mediaElement (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummyduplex") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> mediaElement =
+    createDummyElement ("dummyduplex", mediaPipelineId);
 
   mediaElement->addTag ("1", "test1");
   mediaElement->addTag ("2", "test2");
@@ -100,10 +125,14 @@ BOOST_AUTO_TEST_CASE (get_tag)
 
 BOOST_AUTO_TEST_CASE (get_tags)
 {
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> mediaElement (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummyduplex") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> mediaElement =
+    createDummyElement ("dummyduplex", mediaPipelineId);
   std::vector<std::shared_ptr<Tag>> ret ;
   int i = 1;
 
@@ -133,14 +162,21 @@ BOOST_AUTO_TEST_CASE (get_tags)
 
 BOOST_AUTO_TEST_CASE (creation_time)
 {
-  std::shared_ptr <MediaPipelineImpl> pipe (new MediaPipelineImpl (
-        boost::property_tree::ptree() ) );
-  std::shared_ptr <MediaElementImpl> mediaElement (new  MediaElementImpl (
-        boost::property_tree::ptree(), pipe, "dummyduplex") );
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
+  std::string mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+  std::shared_ptr <MediaElementImpl> mediaElement =
+    createDummyElement ("dummyduplex", mediaPipelineId);
+  std::shared_ptr <MediaPipelineImpl> pipe = std::dynamic_pointer_cast
+      <MediaPipelineImpl> (MediaSet::getMediaSet()->getMediaObject (
+                             mediaPipelineId) );
   time_t now = time (NULL);
 
   BOOST_CHECK (pipe->getCreationTime() <= mediaElement->getCreationTime() );
   BOOST_CHECK (pipe->getCreationTime() <= now);
   BOOST_CHECK (mediaElement->getCreationTime() <= now);
 }
+
