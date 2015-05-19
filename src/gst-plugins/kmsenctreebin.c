@@ -166,13 +166,13 @@ check_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   if (width % 2) {
     GST_WARNING ("Width is odd");
     needs_filter = TRUE;
-    width++;
+    width--;
   }
 
   if (height % 2) {
     GST_WARNING ("Height is odd");
     needs_filter = TRUE;
-    height++;
+    height--;
   }
 
   if (!needs_filter)
