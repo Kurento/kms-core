@@ -729,21 +729,26 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
 }
 
 static void
+remove_bin (gpointer key, gpointer value, gpointer agnosticbin)
+{
+  GST_DEBUG_OBJECT (agnosticbin, "Removing %" GST_PTR_FORMAT, value);
+  gst_bin_remove (GST_BIN (agnosticbin), value);
+  gst_element_set_state (value, GST_STATE_NULL);
+}
+
+static void
 kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 {
   KmsParseTreeBin *parse_bin;
   GstElement *parser;
   GstPad *parser_src;
   GstElement *input_element;
-  GstElement *old_bin = NULL;
 
   KMS_AGNOSTIC_BIN2_LOCK (self);
 
   if (self->priv->input_bin != NULL) {
     kms_tree_bin_unlink_input_element_from_tee (KMS_TREE_BIN (self->
             priv->input_bin));
-    old_bin = g_object_ref (GST_ELEMENT (self->priv->input_bin));
-    gst_bin_remove (GST_BIN (self), GST_ELEMENT (self->priv->input_bin));
   }
 
   parse_bin = kms_parse_tree_bin_new (caps);
@@ -762,14 +767,12 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   link_element_to_tee (self->priv->input_tee, input_element);
 
   self->priv->started = FALSE;
+
+  GST_DEBUG ("Removing old treebins");
+  g_hash_table_foreach (self->priv->bins, remove_bin, self);
   g_hash_table_remove_all (self->priv->bins);
 
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
-
-  if (old_bin != NULL) {
-    gst_element_set_state (old_bin, GST_STATE_NULL);
-    g_object_unref (old_bin);
-  }
 }
 
 static GstPadProbeReturn
