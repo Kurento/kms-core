@@ -490,6 +490,58 @@ GST_START_TEST (input_reconfiguration)
   g_main_loop_unref (loop);
 }
 
+GST_END_TEST;
+
+static gboolean
+change_input_caps_cb (gpointer pipeline)
+{
+  GstBin *pipe = GST_BIN (pipeline);
+  GstElement *fakesink = gst_bin_get_by_name (pipe, "fakesink");
+  GstCaps *caps = gst_caps_from_string ("video/x-raw,width=321,height=241");
+  GstElement *capsfilter = gst_bin_get_by_name (pipe, "input_caps");
+
+  g_object_set (capsfilter, "caps", caps, NULL);
+  gst_caps_unref (caps);
+  g_object_unref (capsfilter);
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+  g_object_unref (fakesink);
+
+  return FALSE;
+}
+
+GST_START_TEST (input_caps_reconfiguration)
+{
+  GstElement *pipeline =
+      gst_parse_launch
+      ("videotestsrc is-live=true ! capsfilter name=input_caps caps=video/x-raw,width=800,height=600 ! agnosticbin ! video/x-vp8 ! agnosticbin ! video/x-raw ! fakesink sync=false async=false signal-handoffs=true name=fakesink",
+      NULL);
+
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  g_timeout_add_seconds (1, change_input_caps_cb, pipeline);
+
+  g_timeout_add_seconds (6, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (pipeline);
+  g_object_unref (bus);
+  g_main_loop_unref (loop);
+}
+
 GST_END_TEST
 GST_START_TEST (add_later)
 {
@@ -949,6 +1001,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, delay_stream);
   tcase_add_test (tc_chain, add_later);
   tcase_add_test (tc_chain, input_reconfiguration);
+  tcase_add_test (tc_chain, input_caps_reconfiguration);
   tcase_add_test (tc_chain, encoded_input_n_encoded_output);
   tcase_add_test (tc_chain, h264_encoding_odd_dimension);
 

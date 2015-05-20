@@ -57,6 +57,13 @@
   ...
 }
 {
+  GModule init
+  Memcheck:Leak
+  ...
+  fun:g_module_open
+  ...
+}
+{
   Videotestsrc
   Memcheck:Leak
   fun:malloc
