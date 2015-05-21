@@ -399,6 +399,29 @@ sdp_media_add_extra_info_from_src (const GstSDPMedia * src,
   }
 }
 
+static void
+sdp_media_update_mid (const GstSDPMedia * src, const GstSDPMedia * result)
+{
+  const gchar *mid_src = gst_sdp_media_get_attribute_val (src, "mid");
+  guint len, i;
+
+  if (mid_src == NULL) {
+    return;
+  }
+
+  len = gst_sdp_media_attributes_len (result);
+  for (i = 0; i < len; i++) {
+    GstSDPAttribute *attr;
+
+    attr = (GstSDPAttribute *) gst_sdp_media_get_attribute (result, i);
+    if (g_strcmp0 (attr->key, "mid") == 0) {
+      gst_sdp_attribute_clear (attr);
+      gst_sdp_attribute_set (attr, "mid", mid_src);
+      break;
+    }
+  }
+}
+
 static GstSDPResult
 intersect_sdp_medias (const GstSDPMedia * offer,
     const GstSDPMedia * answer, GstSDPMedia ** offer_result,
@@ -491,6 +514,9 @@ intersect_sdp_medias (const GstSDPMedia * offer,
   sdp_media_add_extra_info_from_src (offer, *offer_result);
   sdp_media_add_extra_info_from_src (answer, *answer_result);
 
+  sdp_media_update_mid (offer, answer);
+  sdp_media_update_mid (*offer_result, *answer_result);
+
   return GST_SDP_OK;
 }
 
@@ -506,6 +532,48 @@ sdp_message_set_offer_session_id (const GstSDPMessage * offer,
   gst_sdp_message_set_origin (answer_result, answer_origin->username,
       offer_origin->sess_id, answer_origin->sess_version,
       answer_origin->nettype, answer_origin->addrtype, answer_origin->addr);
+}
+
+static void
+sdp_message_update_bundle (const GstSDPMessage * msg)
+{
+  const gchar *group = gst_sdp_message_get_attribute_val (msg, "group");
+  guint i, len;
+  gchar *bundle_mids;
+
+  if (group == NULL || !g_str_has_prefix (group, "BUNDLE")) {
+    return;
+  }
+
+  bundle_mids = g_strdup ("BUNDLE");
+
+  len = gst_sdp_message_medias_len (msg);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
+    const gchar *mid = gst_sdp_media_get_attribute_val (media, "mid");
+
+    if (mid != NULL) {
+      gchar *tmp;
+
+      tmp = g_strconcat (bundle_mids, " ", mid, NULL);
+      g_free (bundle_mids);
+      bundle_mids = tmp;
+    }
+  }
+
+  len = gst_sdp_message_attributes_len (msg);
+  for (i = 0; i < len; i++) {
+    GstSDPAttribute *attr;
+
+    attr = (GstSDPAttribute *) gst_sdp_message_get_attribute (msg, i);
+    if (g_strcmp0 (attr->key, "group") == 0) {
+      gst_sdp_attribute_clear (attr);
+      gst_sdp_attribute_set (attr, "group", bundle_mids);
+      break;
+    }
+  }
+
+  g_free (bundle_mids);
 }
 
 GstSDPResult
@@ -598,6 +666,9 @@ sdp_utils_intersect_sdp_messages (const GstSDPMessage * offer,
       gst_sdp_media_free (answer_media_result);
     }
   }
+
+  sdp_message_update_bundle (answer);
+  sdp_message_update_bundle (*answer_result);
 
   result = GST_SDP_OK;
 
