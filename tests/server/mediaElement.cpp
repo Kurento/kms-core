@@ -30,22 +30,62 @@ using namespace kurento;
 ModuleManager moduleManager;
 boost::property_tree::ptree config;
 
-static std::shared_ptr <MediaElementImpl>
-createDummyElement (std::string name, std::string mediaPipelineId)
+std::atomic<bool> finished;
+std::condition_variable cv;
+std::mutex mtx;
+std::unique_lock<std::mutex> lck (mtx);
+
+static void
+init_test ()
 {
+  gst_init (NULL, NULL);
+  moduleManager.loadModulesFromDirectories ("../../src/server");
+  finished = false;
+
+  MediaSet::getMediaSet()->signalEmpty.connect ([] () {
+    finished = true;
+    cv.notify_one();
+  });
+}
+
+static void
+end_test ()
+{
+  cv.wait_for (lck, std::chrono::seconds (5), [&] () {
+
+    return finished.load();
+  });
+
+  if (!finished) {
+    BOOST_ERROR ("MediaSet empty signal not raised");
+  }
+
+  BOOST_CHECK (MediaSet::getMediaSet ()->empty() );
+}
+
+static std::shared_ptr <MediaElementImpl>
+createDummyElement (const std::string &name, const std::string &mediaPipelineId)
+{
+  auto mediaObject = MediaSet::getMediaSet()->ref (new  MediaElementImpl (
+                       boost::property_tree::ptree(),
+                       MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                       name) );
   std::shared_ptr <MediaElementImpl> element = std::dynamic_pointer_cast
-      <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
-                            boost::property_tree::ptree(),
-                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
-                            name) ) );
+      <MediaElementImpl> (mediaObject);
+  MediaSet::getMediaSet()->ref ("", mediaObject);
 
   return element;
 }
 
+static void
+releaseMediaObject (const std::string &id)
+{
+  MediaSet::getMediaSet ()->release (id);
+}
+
 BOOST_AUTO_TEST_CASE (connection_test)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -114,21 +154,21 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = sink->getSourceConnections (VIDEO, "");
   BOOST_CHECK (connections.size() == 0);
 
-  src->release();
+  releaseMediaObject (src->getId() );
+  releaseMediaObject (sink->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  sink.reset();
   src.reset();
 
-  connections = sink->getSourceConnections ();
-  BOOST_CHECK (connections.size() == 0);
-
-  sink->release();
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (release_before_real_connection)
 {
   GstElement *srcElement;
 
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -153,14 +193,19 @@ BOOST_AUTO_TEST_CASE (release_before_real_connection)
   g_object_set (srcElement, "audio", TRUE, "video", TRUE, NULL);
   g_object_unref (srcElement);
 
-  src->release();
-  sink->release();
+  releaseMediaObject (src->getId() );
+  releaseMediaObject (sink->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  src.reset();
+  sink.reset();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (loopback)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -177,13 +222,17 @@ BOOST_AUTO_TEST_CASE (loopback)
 
   duplex->connect (duplex);
 
-  duplex->release();
+  releaseMediaObject (duplex->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  duplex.reset();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (no_common_pipeline)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   std::string mediaPipelineId1 =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -210,14 +259,20 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
     BOOST_CHECK (e.getCode () == CONNECT_ERROR);
   }
 
-  sink->release();
-  src->release();
+  releaseMediaObject (sink->getId() );
+  releaseMediaObject (src->getId() );
+  releaseMediaObject (mediaPipelineId1);
+  releaseMediaObject (mediaPipelineId2);
+
+  sink.reset();
+  src.reset();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (dot_test)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -232,13 +287,8 @@ BOOST_AUTO_TEST_CASE (dot_test)
       <MediaPipelineImpl> (MediaSet::getMediaSet()->getMediaObject (
                              mediaPipelineId) );
 
-  GstElement *gstSrc;
-  GstElement *gstSink;
-
-  gstSrc = (GstElement *) g_object_ref ( src->getGstreamerElement() );
-  g_object_set (gstSrc, "audio", TRUE, "video", TRUE, NULL);
-  gstSink = (GstElement *) g_object_ref ( src->getGstreamerElement() );
-  g_object_set (gstSink, "audio", TRUE, "video", TRUE, NULL);
+  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
+  g_object_set (sink->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
 
   src->connect (sink);
 
@@ -259,4 +309,14 @@ BOOST_AUTO_TEST_CASE (dot_test)
   dot = pipe->getGstreamerDot (details);
 
   BOOST_CHECK (!dot.empty() );
+
+  releaseMediaObject (sink->getId() );
+  releaseMediaObject (src->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  sink.reset();
+  src.reset();
+  pipe.reset();
+
+  end_test ();
 }
