@@ -50,8 +50,8 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
-                          "recv-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
+  if (!gst_structure_get (stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
+                          "sent-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
@@ -82,8 +82,8 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
-                          "sent-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
+  if (!gst_structure_get (stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
+                          "recv-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
