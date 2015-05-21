@@ -201,7 +201,15 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     created = true;
     mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
     MediaObjectImpl * obj) {
-      MediaSet::getMediaSet()->releasePointer (obj);
+      auto ms = MediaSet::getMediaSet();
+
+      if (ms.get() == this) {
+        ms->releasePointer (obj);
+      } else {
+        std::cerr << "Different mediaset found while releasing " << obj->getId() <<
+                  " this means that mediaset was released" << std::endl;
+        delete obj;
+      }
     });
   }
 
