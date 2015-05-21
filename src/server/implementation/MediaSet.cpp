@@ -220,6 +220,11 @@ MediaSet::ref (const std::string &sessionId,
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
+  if (objectsMap.find (mediaObject->getId() ) == objectsMap.end() ) {
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
+                            "Cannot register media object, it was not created by MediaSet");
+  }
+
   keepAliveSession (sessionId, true);
 
   if (mediaObject->getParent() ) {
@@ -377,7 +382,6 @@ MediaSet::unref (const std::string &sessionId,
   }
 
   if (released) {
-    objectsMap.erase (mediaObject->getId() );
     workers->post ( std::bind (call_release, mediaObject) );
   }
 
@@ -446,8 +450,6 @@ void MediaSet::release (std::shared_ptr< MediaObjectImpl > mediaObject)
     unref (it2, mediaObject);
   }
 
-  objectsMap.erase (mediaObject->getId() );
-
   lock.unlock();
 }
 
@@ -493,6 +495,13 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
   }
 
   if (!objectLocked) {
+    throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
+                            "Object '" + mediaObjectRef + "' not found");
+  }
+
+  auto it2 = reverseSessionMap.find (objectLocked->getId() );
+
+  if (it2 == reverseSessionMap.end() || it2->second.empty() ) {
     throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
                             "Object '" + mediaObjectRef + "' not found");
   }
@@ -580,8 +589,14 @@ std::list<std::shared_ptr<MediaObjectImpl>>
   try {
     for (auto it : objectsMap) {
       if (auto obj = it.second.lock() ) {
-        if (std::dynamic_pointer_cast <MediaPipelineImpl> (obj) ) {
-          ret.push_back (obj);
+        try {
+          auto object = getMediaObject (obj->getId(), sessionId);
+
+          if (std::dynamic_pointer_cast <MediaPipelineImpl> (object) ) {
+            ret.push_back (object);
+          }
+        } catch (KurentoException &e) {
+
         }
       }
     }
