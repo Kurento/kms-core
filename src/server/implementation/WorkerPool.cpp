@@ -69,6 +69,10 @@ WorkerPool::WorkerPool (int threads)
 
 WorkerPool::~WorkerPool()
 {
+  // Executing queued tasks
+  while (io_service->poll_one() ) {
+  }
+
   watcher_service->stop();
   io_service->stop();
 
