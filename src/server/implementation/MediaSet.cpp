@@ -72,6 +72,12 @@ MediaSet::getMediaSet()
   return mediaSet;
 }
 
+void
+MediaSet::deleteMediaSet()
+{
+  mediaSet.reset();
+}
+
 void MediaSet::doGarbageCollection ()
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
@@ -123,6 +129,8 @@ MediaSet::MediaSet()
 MediaSet::~MediaSet ()
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
+
+  serverManager.reset();
 
   if (!objectsMap.empty() ) {
     std::cerr << "Warning: Still " + std::to_string (objectsMap.size() ) +

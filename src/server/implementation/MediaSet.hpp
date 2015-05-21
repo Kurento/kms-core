@@ -80,6 +80,7 @@ public:
   bool empty();
 
   static const std::shared_ptr<MediaSet> getMediaSet();
+  static void deleteMediaSet();
 
   sigc::signal<void> signalEmptyLocked;
   sigc::signal<void> signalEmpty;
