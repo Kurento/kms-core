@@ -31,24 +31,44 @@
 
 using namespace kurento;
 
-struct F {
-  F();
-  ~F();
+std::shared_ptr <ModuleManager> moduleManager;
 
-  std::shared_ptr<ServerManagerImpl> serverManager;
-  std::shared_ptr <ModuleManager> moduleManager;
+struct InitTests {
+  InitTests();
+  ~InitTests();
 };
 
-F::F ()
+BOOST_GLOBAL_FIXTURE (InitTests)
+
+InitTests::InitTests()
 {
+  gst_init (NULL, NULL);
+
   moduleManager = std::shared_ptr<ModuleManager> (new ModuleManager() );
-  std::vector<std::shared_ptr<ModuleInfo>> modules;
 
   gst_init (NULL, NULL);
 
   std::string moduleName = "../../src/server/libkmscoremodule.so";
 
   moduleManager->loadModule (moduleName);
+}
+
+InitTests::~InitTests()
+{
+  moduleManager.reset();
+}
+
+
+struct F {
+  F();
+  ~F();
+
+  std::shared_ptr<ServerManagerImpl> serverManager;
+};
+
+F::F ()
+{
+  std::vector<std::shared_ptr<ModuleInfo>> modules;
 
   for (auto moduleIt : moduleManager->getModules () ) {
     std::vector<std::string> factories;
@@ -197,7 +217,6 @@ BOOST_FIXTURE_TEST_CASE (release_elements, F)
 
 BOOST_FIXTURE_TEST_CASE (get_pipelines, F)
 {
-  std::cout << "get_pipelines" << std::endl;
   std::shared_ptr<kurento::Factory> mediaPipelineFactory;
   std::string mediaPipelineId;
 
