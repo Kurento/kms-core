@@ -732,6 +732,9 @@ kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
 
   /* push EOS into the element, the probe will be fired when the */
   /* EOS leaves the effect and it has thus drained all of its data */
+  if (GST_PAD_IS_FLUSHING (pad)) {
+    gst_pad_send_event (pad, gst_event_new_flush_stop (FALSE));
+  }
   gst_pad_send_event (pad, gst_event_new_eos ());
 }
 
