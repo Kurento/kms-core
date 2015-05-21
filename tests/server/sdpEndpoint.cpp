@@ -31,10 +31,48 @@ std::string mediaPipelineId;
 ModuleManager moduleManager;
 boost::property_tree::ptree config;
 
-BOOST_AUTO_TEST_CASE (duplicate_offer)
+std::atomic<bool> finished;
+std::condition_variable cv;
+std::mutex mtx;
+std::unique_lock<std::mutex> lck (mtx);
+
+static void
+init_test ()
 {
   gst_init (NULL, NULL);
   moduleManager.loadModulesFromDirectories ("../../src/server");
+  finished = false;
+
+  MediaSet::getMediaSet()->signalEmpty.connect ([] () {
+    finished = true;
+    cv.notify_one();
+  });
+}
+
+static void
+end_test ()
+{
+  cv.wait_for (lck, std::chrono::seconds (5), [&] () {
+
+    return finished.load();
+  });
+
+  if (!finished) {
+    BOOST_ERROR ("MediaSet empty signal not raised");
+  }
+
+  BOOST_CHECK (MediaSet::getMediaSet ()->empty() );
+}
+
+static void
+releaseMediaObject (const std::string &id)
+{
+  MediaSet::getMediaSet ()->release (id);
+}
+
+BOOST_AUTO_TEST_CASE (duplicate_offer)
+{
+  init_test ();
 
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -66,13 +104,18 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
     }
   }
 
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
   sdpEndpoint.reset ();
+  pipe.reset();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -102,13 +145,18 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
     }
   }
 
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  pipe.reset ();
   sdpEndpoint.reset ();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (duplicate_answer)
 {
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -141,15 +189,20 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
     }
   }
 
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
   sdpEndpoint.reset ();
+  pipe.reset();
+
+  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (codec_parsing)
 {
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
 
-  gst_init (NULL, NULL);
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  init_test ();
 
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -180,5 +233,11 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
   sdpEndpoint.reset ();
+  pipe.reset ();
+
+  end_test ();
 }
