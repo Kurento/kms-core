@@ -98,12 +98,13 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
 }
 
 static std::shared_ptr<RTCRTPStreamStats>
-createRTCRTPStreamStats (uint nackCount, const GstStructure *stats)
+createRTCRTPStreamStats (guint nackSent, guint nackRecv,
+                         const GstStructure *stats)
 {
   std::shared_ptr<RTCRTPStreamStats> rtcStats;
   gboolean isInternal;
   gchar *ssrcStr, *id;
-  uint ssrc;
+  uint ssrc, nackCount;
 
   gst_structure_get (stats, "ssrc", G_TYPE_UINT, &ssrc, "internal",
                      G_TYPE_BOOLEAN, &isInternal, "id", G_TYPE_STRING, &id, NULL);
@@ -113,9 +114,11 @@ createRTCRTPStreamStats (uint nackCount, const GstStructure *stats)
   if (isInternal) {
     /* Local SSRC */
     rtcStats = createRTCOutboundRTPStreamStats (stats);
+    nackCount = nackRecv;
   } else {
     /* Remote SSRC */
     rtcStats = createRTCInboundRTPStreamStats (stats);
+    nackCount = nackSent;
   }
 
   rtcStats->setNackCount (nackCount);
@@ -132,10 +135,13 @@ static void
 collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
                           &rtcStatsReport, double timestamp, const GstStructure *stats)
 {
-  guint nackCount = 0;
+  guint nackSent, nackRecv;
   gint i, n;
 
-  gst_structure_get (stats, "sent-nack-count", G_TYPE_UINT, &nackCount, NULL);
+  nackSent = nackRecv = 0;
+
+  gst_structure_get (stats, "sent-nack-count", G_TYPE_UINT, &nackSent,
+                     "recv-nack-count", G_TYPE_UINT, &nackRecv, NULL);
 
   n = gst_structure_n_fields (stats);
 
@@ -162,7 +168,7 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
       continue;
     }
 
-    rtcStats = createRTCRTPStreamStats (nackCount,
+    rtcStats = createRTCRTPStreamStats (nackSent, nackRecv,
                                         gst_value_get_structure (value) );
 
     rtcStats->setTimestamp (timestamp);
