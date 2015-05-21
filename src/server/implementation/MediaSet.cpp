@@ -155,6 +155,8 @@ MediaSet::~MediaSet ()
 
   lock.unlock();
 
+  workers.reset();
+
   if (std::this_thread::get_id() != thread.get_id() ) {
     thread.join();
   }
@@ -191,7 +193,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     created = true;
     mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
     MediaObjectImpl * obj) {
-      this->releasePointer (obj);
+      MediaSet::getMediaSet()->releasePointer (obj);
     });
   }
 
@@ -502,6 +504,10 @@ MediaSet::getMediaObject (const std::string &mediaObjectRef)
   auto it2 = reverseSessionMap.find (objectLocked->getId() );
 
   if (it2 == reverseSessionMap.end() || it2->second.empty() ) {
+    if (serverManager && mediaObjectRef == serverManager->getId() ) {
+      return serverManager;
+    }
+
     throw KurentoException (MEDIA_OBJECT_NOT_FOUND,
                             "Object '" + mediaObjectRef + "' not found");
   }
@@ -586,22 +592,15 @@ std::list<std::shared_ptr<MediaObjectImpl>>
 {
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
-  try {
-    for (auto it : objectsMap) {
-      if (auto obj = it.second.lock() ) {
-        try {
-          auto object = getMediaObject (obj->getId(), sessionId);
+  for (auto it : objectsMap) {
+    try {
+      auto obj = getMediaObject (sessionId, it.first);
 
-          if (std::dynamic_pointer_cast <MediaPipelineImpl> (object) ) {
-            ret.push_back (object);
-          }
-        } catch (KurentoException &e) {
-
-        }
+      if (std::dynamic_pointer_cast <MediaPipelineImpl> (obj) ) {
+        ret.push_back (obj);
       }
+    } catch (KurentoException &e) {
     }
-  } catch (std::out_of_range) {
-    GST_ERROR ("Cannot get session %s", sessionId.c_str() );
   }
 
   return ret;
