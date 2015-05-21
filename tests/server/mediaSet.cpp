@@ -31,11 +31,15 @@
 
 using namespace kurento;
 
-std::shared_ptr<ServerManagerImpl> serverManager;
-std::shared_ptr <ModuleManager> moduleManager;
+struct F {
+  F();
+  ~F();
 
-static void
-initialize_test_function ()
+  std::shared_ptr<ServerManagerImpl> serverManager;
+  std::shared_ptr <ModuleManager> moduleManager;
+};
+
+F::F ()
 {
   moduleManager = std::shared_ptr<ModuleManager> (new ModuleManager() );
   std::vector<std::shared_ptr<ModuleInfo>> modules;
@@ -72,15 +76,13 @@ initialize_test_function ()
       <ServerManagerImpl> (serverManager) );
 }
 
-void
-initialize_test ()
+F::~F ()
 {
-  static std::once_flag flag;
-
-  std::call_once (flag, initialize_test_function);
+  serverManager.reset();
+  MediaSet::deleteMediaSet();
 }
 
-BOOST_AUTO_TEST_CASE (release_elements)
+BOOST_FIXTURE_TEST_CASE (release_elements, F)
 {
   std::mutex mtx;
   std::condition_variable cv;
@@ -93,8 +95,6 @@ BOOST_AUTO_TEST_CASE (release_elements)
   std::string mediaPipelineId;
   std::string passThroughId;
   std::string passThrough2Id;
-
-  initialize_test();
 
   sigc::connection createdConn = serverManager->signalObjectCreated.connect ([&] (
   ObjectCreated event) {
@@ -180,6 +180,9 @@ BOOST_AUTO_TEST_CASE (release_elements)
   watched_object = mediaPipelineId;
   lck.unlock();
 
+  BOOST_CHECK (kurento::MediaSet::getMediaSet()->getPipelines ("session3").size()
+               == 1);
+
   kurento::MediaSet::getMediaSet()->release (mediaPipelineId);
 
   // Wait for pipeline destruction event
@@ -190,6 +193,30 @@ BOOST_AUTO_TEST_CASE (release_elements)
 }) ) {
     BOOST_FAIL ("Timeout waiting for " + watched_object + " destruction event");
   }
+}
 
-  destroyedConn.disconnect();
+BOOST_FIXTURE_TEST_CASE (get_pipelines, F)
+{
+  std::cout << "get_pipelines" << std::endl;
+  std::shared_ptr<kurento::Factory> mediaPipelineFactory;
+  std::string mediaPipelineId;
+
+  mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
+
+  auto obj = mediaPipelineFactory->createObject (boost::property_tree::ptree(),
+             "session1", Json::Value() );
+  obj = mediaPipelineFactory->createObject (boost::property_tree::ptree(),
+        "session1", Json::Value() );
+  obj = mediaPipelineFactory->createObject (boost::property_tree::ptree(),
+        "session1", Json::Value() );
+  obj.reset();
+
+  auto pipes = kurento::MediaSet::getMediaSet()->getPipelines ("session3");
+  BOOST_CHECK (pipes.size() == 3);
+
+  for (auto pipe : pipes) {
+    kurento::MediaSet::getMediaSet()->release (pipe->getId() );
+  }
+
+  pipes.clear();
 }
