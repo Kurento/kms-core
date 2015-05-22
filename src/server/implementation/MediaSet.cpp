@@ -110,8 +110,8 @@ MediaSet::MediaSet()
     std::unique_lock <std::recursive_mutex> lock (recMutex);
 
 
-    while (waitCond.wait_for (recMutex,
-                              COLLECTOR_INTERVAL) == std::cv_status::timeout) {
+    while (!terminated && waitCond.wait_for (recMutex,
+           COLLECTOR_INTERVAL) == std::cv_status::timeout) {
       if (terminated) {
         return;
       }
