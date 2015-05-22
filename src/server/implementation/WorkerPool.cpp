@@ -69,10 +69,6 @@ WorkerPool::WorkerPool (int threads)
 
 WorkerPool::~WorkerPool()
 {
-  // Executing queued tasks
-  while (io_service->poll_one() ) {
-  }
-
   watcher_service->stop();
   io_service->stop();
 
@@ -80,6 +76,12 @@ WorkerPool::~WorkerPool()
 
   for (uint i = 0; i < workers.size (); i++) {
     workers[i].join();
+  }
+
+  // Executing queued tasks
+  io_service->reset();
+
+  while (io_service->poll() ) {
   }
 }
 
