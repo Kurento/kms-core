@@ -409,27 +409,24 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
   g_hash_table_iter_init (&iter, self->priv->pendingpads);
   while (g_hash_table_iter_next (&iter, &key, &value)) {
     PendingSrcPad *pendingpad = value;
-    gchar *pad_name = key;
 
     /* TODO: Discriminate pads using their description */
-
     if (pendingpad->type != type) {
       continue;
     }
 
-    kms_element_add_src_pad (self, element, pad_name, templ_name);
-
-    keys = g_slist_prepend (keys, key);
-  }
-
-  /* Remove all pending pads */
-  for (l = keys; l != NULL; l = l->next) {
-    g_hash_table_remove (self->priv->pendingpads, l->data);
+    keys = g_slist_prepend (keys, g_strdup (key));
+    g_hash_table_iter_remove (&iter);
   }
 
   KMS_ELEMENT_UNLOCK (self);
 
-  g_slist_free (keys);
+  /* Create all pending pads */
+  for (l = keys; l != NULL; l = l->next) {
+    kms_element_add_src_pad (self, element, l->data, templ_name);
+  }
+
+  g_slist_free_full (keys, g_free);
 }
 
 GstElement *
