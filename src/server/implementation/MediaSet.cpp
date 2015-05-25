@@ -20,6 +20,8 @@
 #include <MediaPipelineImpl.hpp>
 #include <ServerManagerImpl.hpp>
 
+#include <functional>
+
 /* This is included to avoid problems with slots and lamdas */
 #include <type_traits>
 #include <sigc++/sigc++.h>
@@ -167,6 +169,19 @@ MediaSet::~MediaSet ()
 
   if (std::this_thread::get_id() != thread.get_id() ) {
     thread.join();
+  }
+}
+
+void
+MediaSet::post (std::function<void (void) > f)
+{
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+
+  if (workers) {
+    workers->post (f);
+  } else {
+    lock.unlock();
+    f();
   }
 }
 
@@ -335,7 +350,9 @@ MediaSet::unrefSession (const std::string &sessionId)
 static void
 call_release (std::shared_ptr<MediaObjectImpl> mediaObject)
 {
-  mediaObject->release();
+  if (mediaObject) {
+    mediaObject->release();
+  }
 }
 
 void
@@ -400,7 +417,7 @@ MediaSet::unref (const std::string &sessionId,
   }
 
   if (released) {
-    workers->post ( std::bind (call_release, mediaObject) );
+    post (std::bind (call_release, mediaObject) );
   }
 
   lock.unlock();
@@ -436,11 +453,7 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 
   objectsMap.erase (id );
 
-  lock.unlock();
-
-  workers->post ( std::bind ( async_delete, mediaObject, id ) );
-
-  lock.lock ();
+  post (std::bind (async_delete, mediaObject, id) );
 
   if (this->serverManager) {
     lock.unlock ();

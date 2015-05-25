@@ -96,6 +96,8 @@ private:
 
   void checkEmpty ();
 
+  void post (std::function<void (void) > f);
+
   MediaSet ();
 
   std::recursive_mutex recMutex;
