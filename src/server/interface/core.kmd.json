@@ -897,27 +897,27 @@
         {
           "name": "firCount",
           "doc": "Count the total number of Full Intra Request (FIR) packets received by the sender. This metric is only valid for video and is sent by receiver.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "pliCount",
           "doc": "Count the total number of Packet Loss Indication (PLI) packets received by the sender and is sent by receiver.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "nackCount",
           "doc": "Count the total number of Negative ACKnowledgement (NACK) packets received by the sender and is sent by receiver.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "sliCount",
           "doc": "Count the total number of Slice Loss Indication (SLI) packets received by the sender. This metric is only valid for video and is sent by receiver.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "remb",
           "doc": "The Receiver Estimated Maximum Bitrate (REMB). This metric is only valid for video.",
-          "type": "int"
+          "type": "int64"
         }
       ]
     },
@@ -930,7 +930,7 @@
         {
           "name": "payloadType",
           "doc": "Payload type as used in RTP encoding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "codec",
@@ -940,12 +940,12 @@
         {
           "name": "clockRate",
           "doc": "Represents the media sampling rate.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "channels",
           "doc": "Use 2 for stereo, missing for most other cases.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "parameters",
@@ -963,27 +963,27 @@
         {
           "name": "packetsReceived",
           "doc": "Total number of RTP packets received for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesReceived",
           "doc": "Total number of bytes received for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "packetsLost",
           "doc": "Total number of RTP packets lost for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "jitter",
           "doc": "Packet Jitter measured in seconds for this SSRC.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "fractionLost",
           "doc": "The fraction packet loss reported for this SSRC.",
-          "type": "float"
+          "type": "double"
         }
       ]
     },
@@ -996,22 +996,22 @@
         {
           "name": "packetsSent",
           "doc": "Total number of RTP packets sent for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesSent",
           "doc": "Total number of bytes sent for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "targetBitrate",
           "doc": "Presently configured bitrate target of this SSRC, in bits per second.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "roundTripTime",
           "doc": "Estimated round trip time (seconds) for this SSRC based on the RTCP timestamp.",
-          "type": "float"
+          "type": "double"
         }
       ]
     },
@@ -1024,12 +1024,12 @@
         {
           "name": "dataChannelsOpened",
           "doc": "Represents the number of unique datachannels opened.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "dataChannelsClosed",
           "doc": "Represents the number of unique datachannels closed.",
-          "type": "int"
+          "type": "int64"
         }
       ]
     },
@@ -1075,57 +1075,57 @@
         {
           "name": "frameWidth",
           "doc": "Only makes sense for video media streams and represents the width of the video frame for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "frameHeight",
           "doc": "Only makes sense for video media streams and represents the height of the video frame for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "framesPerSecond",
           "doc": "Only valid for video. It represents the nominal FPS value.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "framesSent",
           "doc": "Only valid for video. It represents the total number of frames sent for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "framesReceived",
           "doc": "Only valid for video and when remoteSource is set to true. It represents the total number of frames received for this SSRC.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "framesDecoded",
           "doc": "Only valid for video. It represents the total number of frames correctly decoded for this SSRC. ",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "framesDropped",
           "doc": "Only valid for video. The total number of frames dropped predecode or dropped because the frame missed its display deadline.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "framesCorrupted",
           "doc": "Only valid for video. The total number of corrupted frames that have been detected.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "audioLevel",
           "doc": "Only valid for audio, and the value is between 0..1 (linear), where 1.0 represents 0 dBov.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "echoReturnLoss",
           "doc": "Only present on audio tracks sourced from a microphone where echo cancellation is applied. Calculated in decibels.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "echoReturnLossEnhancement",
           "doc": "Only present on audio tracks sourced from a microphone where echo cancellation is applied.",
-          "type": "float"
+          "type": "double"
         }
       ]
     },
@@ -1159,7 +1159,7 @@
         {
           "name": "datachannelid",
           "doc": "The RTCDatachannel identifier.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "state",
@@ -1169,22 +1169,22 @@
         {
           "name": "messagesSent",
           "doc": "Represents the total number of API 'message' events sent.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesSent",
           "doc": "Represents the total number of payload bytes sent on this RTCDatachannel, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "messagesReceived",
           "doc": "Represents the total number of API 'message' events received.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesReceived",
           "doc": "Represents the total number of bytes received on this RTCDatachannel, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         }
       ]
     },
@@ -1197,12 +1197,12 @@
         {
           "name": "bytesSent",
           "doc": "Represents the total number of payload bytes sent on this PeerConnection, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesReceived",
           "doc": "Represents the total number of bytes received on this PeerConnection, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "rtcpTransportStatsId",
@@ -1256,7 +1256,7 @@
         {
           "name": "portNumber",
           "doc": "It is the port number of the candidate.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "transport",
@@ -1271,7 +1271,7 @@
         {
           "name": "priority",
           "doc": "Represents the priority of the candidate",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "addressSourceUrl",
@@ -1322,7 +1322,7 @@
         {
           "name": "priority",
           "doc": "Calculated from candidate priorities as defined in [RFC5245] section 5.7.2.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "nominated",
@@ -1342,27 +1342,27 @@
         {
           "name": "bytesSent",
           "doc": "Represents the total number of payload bytes sent on this candidate pair, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "bytesReceived",
           "doc": "Represents the total number of payload bytes received on this candidate pair, i.e., not including headers or padding.",
-          "type": "int"
+          "type": "int64"
         },
         {
           "name": "roundTripTime",
           "doc": "Represents the RTT computed by the STUN connectivity checks",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "availableOutgoingBitrate",
           "doc": "Measured in Bits per second, and is implementation dependent. It may be calculated by the underlying congestion control.",
-          "type": "float"
+          "type": "double"
         },
         {
           "name": "availableIncomingBitrate",
           "doc": "Measured in Bits per second, and is implementation dependent. It may be calculated by the underlying congestion control.",
-          "type": "float"
+          "type": "double"
         }
       ]
     },
