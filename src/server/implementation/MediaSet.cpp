@@ -77,6 +77,32 @@ MediaSet::getMediaSet()
 void
 MediaSet::deleteMediaSet()
 {
+  std::condition_variable_any cv;
+  std::mutex mutex;
+
+  if (!mediaSet->empty() ) {
+    mediaSet->signalEmpty.connect ([&cv, &mutex] () {
+      std::unique_lock <std::mutex> lock (mutex);
+      cv.notify_all();
+    });
+
+
+    {
+      auto pipes = mediaSet->getPipelines();
+      GST_INFO ("Destroying %ld pipelines that are already alive", pipes.size() );
+
+      for (auto it : pipes) {
+        mediaSet->release (it);
+      }
+    }
+
+    std::unique_lock <std::mutex> lock (mutex);
+
+    while (!mediaSet->empty() ) {
+      cv.wait (lock);
+    }
+  }
+
   mediaSet.reset();
 }
 
@@ -114,6 +140,7 @@ MediaSet::MediaSet()
 
     while (!terminated && waitCond.wait_for (lock,
            COLLECTOR_INTERVAL) == std::cv_status::timeout) {
+
       if (terminated) {
         return;
       }
@@ -132,33 +159,10 @@ MediaSet::~MediaSet ()
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  serverManager.reset();
-
   if (!objectsMap.empty() ) {
     std::cerr << "Warning: Still " + std::to_string (objectsMap.size() ) +
               " object/s alive" << std::endl;
   }
-
-  if (!sessionMap.empty() ) {
-    std::cerr << "Warning: Still " + std::to_string (sessionMap.size() ) +
-              " session/s alive" << std::endl;
-  }
-
-  if (!sessionInUse.empty() ) {
-    std::cerr << "Warning: Still " + std::to_string (sessionInUse.size() ) +
-              " session/s with timeout" << std::endl;
-  }
-
-  if (!empty() ) {
-    auto copy = sessionMap;
-
-    for (auto it : copy) {
-      unrefSession (it.first);
-    }
-  }
-
-  childrenMap.clear();
-  sessionMap.clear();
 
   terminated = true;
   waitCond.notify_all();
