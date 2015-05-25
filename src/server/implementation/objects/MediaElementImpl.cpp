@@ -360,21 +360,40 @@ MediaElementImpl::release ()
 
 void MediaElementImpl::disconnectAll ()
 {
-  std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex);
-  std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex);
+  while (!getSinkConnections().empty() ) {
+    std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex);
 
-  for (std::shared_ptr<ElementConnectionData> connData :
-       getSourceConnections() ) {
-    connData->getSource ()->disconnect (connData->getSink (),
-                                        connData->getType (),
-                                        connData->getSourceDescription (),
-                                        connData->getSinkDescription () );
+    for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
+      auto sinkImpl = std::dynamic_pointer_cast <MediaElementImpl>
+                      (connData->getSink () );
+      std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex,
+          std::defer_lock);
+
+      if (sinkLock.try_lock() ) {
+        disconnect (connData->getSink (), connData->getType (),
+                    connData->getSourceDescription (),
+                    connData->getSinkDescription () );
+      }
+    }
   }
 
-  for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
-    disconnect (connData->getSink (), connData->getType (),
-                connData->getSourceDescription (),
-                connData->getSinkDescription () );
+  while (!getSourceConnections().empty() ) {
+    std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex);
+
+    for (std::shared_ptr<ElementConnectionData> connData :
+         getSourceConnections() ) {
+      auto sourceImpl = std::dynamic_pointer_cast <MediaElementImpl>
+                        (connData->getSource () );
+      std::unique_lock<std::recursive_mutex> sourceLock (sourceImpl->sinksMutex,
+          std::defer_lock);
+
+      if (sourceLock.try_lock() ) {
+        connData->getSource ()->disconnect (connData->getSink (),
+                                            connData->getType (),
+                                            connData->getSourceDescription (),
+                                            connData->getSinkDescription () );
+      }
+    }
   }
 }
 
