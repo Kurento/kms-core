@@ -580,6 +580,9 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
 
   performConnection (connectionData);
 
+  sinkLock.unlock();
+  lock.unlock ();
+
   ElementConnected elementConnected (shared_from_this(),
                                      ElementConnected::getName (),
                                      sink, mediaType, sourceMediaDescription,
@@ -683,6 +686,9 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
   } catch (std::out_of_range) {
 
   }
+
+  sinkLock.unlock();
+  lock.unlock ();
 
   ElementDisconnected elementDisconnected (shared_from_this(),
       ElementDisconnected::getName (),
