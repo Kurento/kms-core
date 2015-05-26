@@ -80,6 +80,10 @@ MediaSet::deleteMediaSet()
   std::condition_variable_any cv;
   std::mutex mutex;
 
+  if (!mediaSet) {
+    return;
+  }
+
   if (!mediaSet->empty() ) {
     mediaSet->signalEmpty.connect ([&cv, &mutex] () {
       std::unique_lock <std::mutex> lock (mutex);
