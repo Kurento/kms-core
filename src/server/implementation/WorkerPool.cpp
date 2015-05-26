@@ -72,10 +72,38 @@ WorkerPool::~WorkerPool()
   watcher_service->stop();
   io_service->stop();
 
-  watcher.join();
+  try {
+    if (std::this_thread::get_id() != watcher.get_id() ) {
+      watcher.join();
+    }
+  } catch (std::system_error &e) {
+    GST_ERROR ("Error joining: %s", e.what() );
+  }
+
+  try {
+    if (watcher.joinable() ) {
+      watcher.detach();
+    }
+  } catch (std::system_error &e) {
+    GST_ERROR ("Error detaching: %s", e.what() );
+  }
 
   for (uint i = 0; i < workers.size (); i++) {
-    workers[i].join();
+    try {
+      if (std::this_thread::get_id() != workers[i].get_id() ) {
+        workers[i].join();
+      }
+    } catch (std::system_error &e) {
+      GST_ERROR ("Error joining: %s", e.what() );
+    }
+
+    try {
+      if (workers[i].joinable() ) {
+        workers[i].detach();
+      }
+    } catch (std::system_error &e) {
+      GST_ERROR ("Error detaching: %s", e.what() );
+    }
   }
 
   // Executing queued tasks

@@ -172,7 +172,19 @@ MediaSet::~MediaSet ()
   workers.reset();
 
   if (std::this_thread::get_id() != thread.get_id() ) {
-    thread.join();
+    try {
+      thread.join();
+    } catch (std::system_error &e) {
+      GST_ERROR ("Error while joining the thread: %s", e.what() );
+    }
+  }
+
+  try {
+    if (thread.joinable() ) {
+      thread.detach();
+    }
+  } catch (std::system_error &e) {
+    GST_ERROR ("Error while detaching the thread: %s", e.what() );
   }
 }
 
