@@ -52,26 +52,13 @@ static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (
 static std::shared_ptr<MediaSet> mediaSet;
 static std::recursive_mutex mutex;
 
-void
-delete_media_set (MediaSet *ms)
-{
-  // Just delete mediaset when debugging or using valgrind
-  // This way we avoid possible problems with static varibles destruction
-  if (getenv ("DEBUG_MEDIASET") != NULL) {
-    std::cout << "Deleting mediaSet" << std::endl;
-    delete ms;
-  } else {
-    std::cout << "MediaSet destruction disabled by default" << std::endl;
-  }
-}
-
 const std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
   std::unique_lock <std::recursive_mutex> lock (mutex);
 
   if (!mediaSet) {
-    mediaSet = std::shared_ptr<MediaSet> (new MediaSet(), delete_media_set );
+    mediaSet = std::shared_ptr<MediaSet> (new MediaSet() );
   }
 
   return mediaSet;
