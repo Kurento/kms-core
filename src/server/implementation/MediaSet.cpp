@@ -50,6 +50,7 @@ static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (
       240);
 
 static std::shared_ptr<MediaSet> mediaSet;
+static std::recursive_mutex mutex;
 
 void
 delete_media_set (MediaSet *ms)
@@ -67,6 +68,8 @@ delete_media_set (MediaSet *ms)
 const std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
+  std::unique_lock <std::recursive_mutex> lock (mutex);
+
   if (!mediaSet) {
     mediaSet = std::shared_ptr<MediaSet> (new MediaSet(), delete_media_set );
   }
@@ -78,15 +81,15 @@ void
 MediaSet::deleteMediaSet()
 {
   std::condition_variable_any cv;
-  std::mutex mutex;
+  std::unique_lock <std::recursive_mutex> lock (mutex);
 
   if (!mediaSet) {
     return;
   }
 
   if (!mediaSet->empty() ) {
-    mediaSet->signalEmpty.connect ([&cv, &mutex] () {
-      std::unique_lock <std::mutex> lock (mutex);
+    mediaSet->signalEmpty.connect ([&cv] () {
+      std::unique_lock <std::recursive_mutex> lock (mutex);
       cv.notify_all();
     });
 
@@ -99,8 +102,6 @@ MediaSet::deleteMediaSet()
         mediaSet->release (it);
       }
     }
-
-    std::unique_lock <std::mutex> lock (mutex);
 
     while (!mediaSet->empty() ) {
       cv.wait (lock);
