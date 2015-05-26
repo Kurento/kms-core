@@ -56,6 +56,7 @@ InitTests::InitTests()
 InitTests::~InitTests()
 {
   moduleManager.reset();
+  MediaSet::deleteMediaSet();
 }
 
 

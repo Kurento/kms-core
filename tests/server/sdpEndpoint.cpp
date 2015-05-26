@@ -31,37 +31,22 @@ std::string mediaPipelineId;
 ModuleManager moduleManager;
 boost::property_tree::ptree config;
 
-std::atomic<bool> finished;
-std::condition_variable cv;
-std::mutex mtx;
-std::unique_lock<std::mutex> lck (mtx);
+struct GF {
+  GF();
+  ~GF();
+};
 
-static void
-init_test ()
+BOOST_GLOBAL_FIXTURE (GF)
+
+GF::GF()
 {
   gst_init (NULL, NULL);
   moduleManager.loadModulesFromDirectories ("../../src/server");
-  finished = false;
-
-  MediaSet::getMediaSet()->signalEmpty.connect ([] () {
-    finished = true;
-    cv.notify_one();
-  });
 }
 
-static void
-end_test ()
+GF::~GF()
 {
-  cv.wait_for (lck, std::chrono::seconds (5), [&] () {
-
-    return finished.load();
-  });
-
-  if (!finished) {
-    BOOST_ERROR ("MediaSet empty signal not raised");
-  }
-
-  BOOST_CHECK (MediaSet::getMediaSet ()->empty() );
+  MediaSet::deleteMediaSet();
 }
 
 static void
@@ -72,8 +57,6 @@ releaseMediaObject (const std::string &id)
 
 BOOST_AUTO_TEST_CASE (duplicate_offer)
 {
-  init_test ();
-
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -109,14 +92,10 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
 
   sdpEndpoint.reset ();
   pipe.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 {
-  init_test ();
-
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -150,14 +129,10 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 
   pipe.reset ();
   sdpEndpoint.reset ();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (duplicate_answer)
 {
-  init_test ();
-
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -194,15 +169,11 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
 
   sdpEndpoint.reset ();
   pipe.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (codec_parsing)
 {
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
-
-  init_test ();
 
   mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -238,6 +209,4 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
 
   sdpEndpoint.reset ();
   pipe.reset ();
-
-  end_test ();
 }

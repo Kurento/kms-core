@@ -25,6 +25,23 @@
 
 using namespace kurento;
 
+struct GF {
+  GF();
+  ~GF();
+};
+
+BOOST_GLOBAL_FIXTURE (GF)
+
+GF::GF()
+{
+}
+
+GF::~GF()
+{
+  MediaSet::deleteMediaSet();
+}
+
+
 BOOST_AUTO_TEST_CASE (complex_type)
 {
   std::shared_ptr <ModuleManager> moduleManager (new ModuleManager() );

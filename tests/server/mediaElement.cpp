@@ -30,37 +30,22 @@ using namespace kurento;
 ModuleManager moduleManager;
 boost::property_tree::ptree config;
 
-std::atomic<bool> finished;
-std::condition_variable cv;
-std::mutex mtx;
-std::unique_lock<std::mutex> lck (mtx);
+struct GF {
+  GF();
+  ~GF();
+};
 
-static void
-init_test ()
+BOOST_GLOBAL_FIXTURE (GF)
+
+GF::GF()
 {
   gst_init (NULL, NULL);
   moduleManager.loadModulesFromDirectories ("../../src/server");
-  finished = false;
-
-  MediaSet::getMediaSet()->signalEmpty.connect ([] () {
-    finished = true;
-    cv.notify_one();
-  });
 }
 
-static void
-end_test ()
+GF::~GF()
 {
-  cv.wait_for (lck, std::chrono::seconds (5), [&] () {
-
-    return finished.load();
-  });
-
-  if (!finished) {
-    BOOST_ERROR ("MediaSet empty signal not raised");
-  }
-
-  BOOST_CHECK (MediaSet::getMediaSet ()->empty() );
+  MediaSet::deleteMediaSet();
 }
 
 static std::shared_ptr <MediaElementImpl>
@@ -85,8 +70,6 @@ releaseMediaObject (const std::string &id)
 
 BOOST_AUTO_TEST_CASE (connection_test)
 {
-  init_test ();
-
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -160,15 +143,11 @@ BOOST_AUTO_TEST_CASE (connection_test)
 
   sink.reset();
   src.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (release_before_real_connection)
 {
   GstElement *srcElement;
-
-  init_test ();
 
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
@@ -199,14 +178,10 @@ BOOST_AUTO_TEST_CASE (release_before_real_connection)
 
   src.reset();
   sink.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (loopback)
 {
-  init_test ();
-
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -226,14 +201,10 @@ BOOST_AUTO_TEST_CASE (loopback)
   releaseMediaObject (mediaPipelineId);
 
   duplex.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (no_common_pipeline)
 {
-  init_test ();
-
   std::string mediaPipelineId1 =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -266,14 +237,10 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
 
   sink.reset();
   src.reset();
-
-  end_test ();
 }
 
 BOOST_AUTO_TEST_CASE (dot_test)
 {
-  init_test ();
-
   std::string mediaPipelineId =
     moduleManager.getFactory ("MediaPipeline")->createObject (
       config, "",
@@ -317,6 +284,4 @@ BOOST_AUTO_TEST_CASE (dot_test)
   sink.reset();
   src.reset();
   pipe.reset();
-
-  end_test ();
 }
