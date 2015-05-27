@@ -68,7 +68,7 @@ struct _KmsBaseSdpEndpointClass
   gboolean (*configure_media) (KmsBaseSdpEndpoint * self, SdpMediaConfig * mconf);
 
   /* Virtual handler factory methods */
-  void (*create_media_handler) (KmsBaseSdpEndpoint * self, KmsSdpMediaHandler **handler);
+  void (*create_media_handler) (KmsBaseSdpEndpoint * self, const gchar *media, KmsSdpMediaHandler **handler);
 };
 
 GType kms_base_sdp_endpoint_get_type (void);

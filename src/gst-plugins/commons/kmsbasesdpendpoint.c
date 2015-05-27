@@ -97,7 +97,7 @@ struct _KmsBaseSdpEndpointPrivate
 
 static void
 kms_base_sdp_endpoint_create_media_handler_impl (KmsBaseSdpEndpoint * self,
-    KmsSdpMediaHandler ** handler)
+    const gchar * media, KmsSdpMediaHandler ** handler)
 {
   KmsBaseSdpEndpointClass *klass =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -109,13 +109,18 @@ kms_base_sdp_endpoint_create_media_handler_impl (KmsBaseSdpEndpoint * self,
   }
 }
 
-void
+static void
 kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self,
-    KmsSdpMediaHandler ** handler)
+    const gchar * media, KmsSdpMediaHandler ** handler)
 {
   KmsBaseSdpEndpointClass *klass =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-  klass->create_media_handler (self, handler);
+  klass->create_media_handler (self, media, handler);
+
+  if (*handler == NULL) {
+    /* No media supported */
+    return;
+  }
 
   if (KMS_IS_SDP_RTP_AVP_MEDIA_HANDLER (*handler)) {
     KmsSdpRtpAvpMediaHandler *h = KMS_SDP_RTP_AVP_MEDIA_HANDLER (*handler);
@@ -169,7 +174,7 @@ kms_base_sdp_endpoint_add_handler (KmsBaseSdpEndpoint * self,
   KmsSdpMediaHandler *handler = NULL;
   gint hid;
 
-  kms_base_sdp_endpoint_create_media_handler (self, &handler);
+  kms_base_sdp_endpoint_create_media_handler (self, media, &handler);
   if (handler == NULL) {
     GST_ERROR_OBJECT (self, "Cannot create media handler.");
     return FALSE;

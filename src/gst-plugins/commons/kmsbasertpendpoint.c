@@ -152,14 +152,19 @@ enum
 /* Media handler management begin */
 static void
 kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
-    KmsSdpMediaHandler ** handler)
+    const gchar * media, KmsSdpMediaHandler ** handler)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp);
   KmsSdpRtpAvpMediaHandler *h_avp;
   GError *err = NULL;
 
+  if (*handler == NULL) {
+    /* Media not supported */
+    return;
+  }
+
   if (!KMS_IS_SDP_RTP_AVP_MEDIA_HANDLER (*handler)) {
-    GST_WARNING_OBJECT (base_sdp, "Handler should be or extend from RTP/AVP.");
+    /* No further configuration required */
     return;
   }
 
