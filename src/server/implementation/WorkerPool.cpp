@@ -69,6 +69,10 @@ WorkerPool::WorkerPool (int threads)
 
 WorkerPool::~WorkerPool()
 {
+  std::unique_lock <std::mutex> lock (mutex);
+  terminated = true ;
+  lock.unlock();
+
   watcher_service->stop();
   io_service->stop();
 
@@ -105,6 +109,8 @@ WorkerPool::~WorkerPool()
       GST_ERROR ("Error detaching: %s", e.what() );
     }
   }
+
+  workers.empty();
 
   // Executing queued tasks
   io_service->reset();
@@ -146,11 +152,11 @@ WorkerPool::checkWorkers ()
 
     GST_WARNING ("Worker threads locked. Spawning a new one.");
 
-    mutex.lock();
+    std::unique_lock <std::mutex> lock (mutex);
 
-    workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
-
-    mutex.unlock();
+    if (!terminated) {
+      workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
+    }
   });
 }
 

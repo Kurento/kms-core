@@ -51,6 +51,8 @@ private:
 
   std::mutex mutex;
 
+  bool terminated = false;
+
   class StaticConstructor
   {
   public:
