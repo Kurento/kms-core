@@ -208,7 +208,7 @@ MediaSet::setServerManager (std::shared_ptr <ServerManagerImpl> serverManager)
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if (this->serverManager) {
-    GST_WARNING ("ServerMaanger can only set once, ignoring");
+    GST_WARNING ("ServerManager can only set once, ignoring");
   } else {
     this->serverManager = serverManager;
   }
