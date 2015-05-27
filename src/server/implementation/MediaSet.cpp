@@ -74,26 +74,33 @@ MediaSet::deleteMediaSet()
     return;
   }
 
-  if (!mediaSet->empty() ) {
-    mediaSet->signalEmpty.connect ([&cv] () {
+  auto pipes = mediaSet->getPipelines();
+
+  if (!pipes.empty() ) {
+    bool empty = false;
+
+    auto sig = mediaSet->signalEmpty.connect ([&cv, &empty] () {
       std::unique_lock <std::recursive_mutex> lock (mutex);
+      empty = true;
       cv.notify_all();
     });
 
+    GST_INFO ("Destroying %ld pipelines that are already alive", pipes.size() );
 
-    {
-      auto pipes = mediaSet->getPipelines();
-      GST_INFO ("Destroying %ld pipelines that are already alive", pipes.size() );
-
-      for (auto it : pipes) {
-        mediaSet->release (it);
-      }
+    for (auto it : pipes) {
+      mediaSet->release (it);
     }
 
-    while (!mediaSet->empty() ) {
+    pipes.clear();
+
+    while (!empty) {
       cv.wait (lock);
     }
+
+    sig->disconnect();
   }
+
+  GST_INFO ("Destroying mediaSet");
 
   mediaSet.reset();
 }
@@ -157,6 +164,8 @@ MediaSet::~MediaSet ()
   }
 
   terminated = true;
+
+  serverManager.reset();
   waitCond.notify_all();
 
   lock.unlock();
@@ -185,7 +194,7 @@ MediaSet::post (std::function<void (void) > f)
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  if (workers) {
+  if (!terminated && workers) {
     workers->post (f);
   } else {
     lock.unlock();
@@ -224,15 +233,8 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     created = true;
     mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
     MediaObjectImpl * obj) {
-      auto ms = MediaSet::getMediaSet();
-
-      if (ms.get() == this) {
-        ms->releasePointer (obj);
-      } else {
-        std::cerr << "Different mediaset found while releasing " << obj->getId() <<
-                  " this means that mediaset was released" << std::endl;
-        delete obj;
-      }
+      // this will always exist because destructor is waiting for its threads
+      this->releasePointer (obj);
     });
   }
 
@@ -463,11 +465,12 @@ void MediaSet::releasePointer (MediaObjectImpl *mediaObject)
 
   post (std::bind (async_delete, mediaObject, id) );
 
-  if (this->serverManager) {
-    lock.unlock ();
+  if (this->serverManager && !terminated) {
     serverManager->signalObjectDestroyed (ObjectDestroyed (this->serverManager,
                                           id) );
   }
+
+  lock.unlock();
 
   checkEmpty();
 }
@@ -556,6 +559,7 @@ std::shared_ptr< MediaObjectImpl >
 MediaSet::getMediaObject (const std::string &sessionId,
                           const std::string &mediaObjectRef)
 {
+//   std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::shared_ptr< MediaObjectImpl > obj = getMediaObject (mediaObjectRef);
 
   ref (sessionId, obj);
@@ -605,6 +609,8 @@ MediaSet::checkEmpty()
 bool
 MediaSet::empty()
 {
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+
   if (serverManager) {
     return objectsMap.size () == 1;
   } else {
@@ -615,6 +621,7 @@ MediaSet::empty()
 std::vector<std::string>
 MediaSet::getSessions ()
 {
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::vector<std::string> ret (sessionMap.size () );
 
   for (auto it : sessionMap) {
@@ -627,9 +634,12 @@ MediaSet::getSessions ()
 std::list<std::shared_ptr<MediaObjectImpl>>
     MediaSet::getPipelines (const std::string &sessionId)
 {
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
-  for (auto it : objectsMap) {
+  auto copy = objectsMap;
+
+  for (auto it : copy) {
     try {
       auto obj = getMediaObject (sessionId, it.first);
 
@@ -646,6 +656,7 @@ std::list<std::shared_ptr<MediaObjectImpl>>
 std::list<std::shared_ptr<MediaObjectImpl>>
     MediaSet::getChilds (std::shared_ptr<MediaObjectImpl> obj)
 {
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::list<std::shared_ptr<MediaObjectImpl>> ret;
 
   try {
