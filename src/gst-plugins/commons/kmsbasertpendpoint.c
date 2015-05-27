@@ -1426,7 +1426,7 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
       connected_flag, type);
 }
 
-static gboolean
+static void
 kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
     SdpMediaConfig * mconf)
 {
@@ -1449,7 +1449,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
   if (caps == NULL) {
     GST_WARNING_OBJECT (self, "Caps not found for media '%s'", media_str);
-    return TRUE;
+    return;
   }
 
   GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
@@ -1459,7 +1459,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
   if (payloader == NULL) {
     GST_WARNING_OBJECT (self, "Payloader not found for media '%s'", media_str);
-    return TRUE;
+    return;
   }
 
   GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
@@ -1485,14 +1485,12 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
     conn = kms_base_rtp_endpoint_get_connection (self, mconf);
     if (conn == NULL) {
-      return TRUE;
+      return;
     }
 
     kms_base_rtp_endpoint_connect_payloader (self, conn, type, payloader,
         connected_flag, rtpbin_pad_name);
   }
-
-  return TRUE;
 }
 
 /* Payloading configuration end */
