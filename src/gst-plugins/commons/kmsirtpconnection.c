@@ -103,6 +103,32 @@ kms_i_rtp_connection_request_rtcp_src (KmsIRtpConnection * self)
   return KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->request_rtcp_src (self);
 }
 
+GstPad *
+kms_i_rtp_connection_request_data_src (KmsIRtpConnection * self)
+{
+  g_return_val_if_fail (KMS_IS_I_RTP_CONNECTION (self), NULL);
+
+  if (KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->request_rtcp_src == NULL) {
+    GST_WARNING_OBJECT (self, "Do not support data src pads");
+    return NULL;
+  }
+
+  return KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->request_data_src (self);
+}
+
+GstPad *
+kms_i_rtp_connection_request_data_sink (KmsIRtpConnection * self)
+{
+  g_return_val_if_fail (KMS_IS_I_RTP_CONNECTION (self), NULL);
+
+  if (KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->request_rtcp_src == NULL) {
+    GST_WARNING_OBJECT (self, "Do not support data sink pads");
+    return NULL;
+  }
+
+  return KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->request_data_sink (self);
+}
+
 void
 kms_i_rtp_connection_connected_signal (KmsIRtpConnection * self)
 {

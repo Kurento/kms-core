@@ -48,6 +48,8 @@ struct _KmsIRtpConnectionInterface
   GstPad * (*request_rtp_src) (KmsIRtpConnection *self);
   GstPad * (*request_rtcp_sink) (KmsIRtpConnection *self);
   GstPad * (*request_rtcp_src) (KmsIRtpConnection *self);
+  GstPad * (*request_data_src) (KmsIRtpConnection *self);
+  GstPad * (*request_data_sink) (KmsIRtpConnection *self);
 
   /* Signals */
   void (*connected_signal) (KmsIRtpConnection * self);
@@ -62,6 +64,8 @@ GstPad * kms_i_rtp_connection_request_rtp_sink (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtp_src (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtcp_sink (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtcp_src (KmsIRtpConnection *self);
+GstPad * kms_i_rtp_connection_request_data_src (KmsIRtpConnection *self);
+GstPad * kms_i_rtp_connection_request_data_sink (KmsIRtpConnection *self);
 
 void kms_i_rtp_connection_connected_signal (KmsIRtpConnection *self);
 
