@@ -1,3 +1,19 @@
+kms-core (5.1.5) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Miguel París Díaz ]
+  * kmsbasertpendpoint: free rtp hdr ext data
+  * sdp_utils: fix mids/bundle intersection
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 5.1.5
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Thu, 28 May 2015 16:38:26 +0200
+
 kms-core (5.1.4) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
