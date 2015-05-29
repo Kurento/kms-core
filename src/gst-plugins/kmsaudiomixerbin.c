@@ -72,22 +72,20 @@ typedef struct _WaitCond WaitCond;
 struct _WaitCond
 {
   GCond cond;
-  GMutex mutex;
+  GMutex *mutex;
   gboolean done;
 };
 
 #define OPERATION_DONE(wait) do {                  \
-  g_mutex_lock (&(wait)->mutex);                   \
+  g_mutex_lock ((wait)->mutex);                    \
   (wait)->done = TRUE;                             \
   g_cond_signal (&(wait)->cond);                   \
-  g_mutex_unlock (&(wait)->mutex);                 \
+  g_mutex_unlock ((wait)->mutex);                  \
 } while (0)
 
 #define WAIT_UNTIL_DONE(wait) do {                 \
-  g_mutex_lock (&(wait)->mutex);                   \
   while (!(wait)->done)                            \
-      g_cond_wait (&(wait)->cond, &(wait)->mutex); \
-  g_mutex_unlock (&(wait)->mutex);                 \
+      g_cond_wait (&(wait)->cond, (wait)->mutex); \
 } while (0)
 
 typedef struct _ProbeData ProbeData;
@@ -206,19 +204,18 @@ create_probe_data (KmsAudioMixerBin * audiomixer, GstElement * typefind,
 static void
 destroy_wait_condition (WaitCond * cond)
 {
-  g_mutex_clear (&cond->mutex);
   g_cond_clear (&cond->cond);
   g_slice_free (WaitCond, cond);
 }
 
 static WaitCond *
-create_wait_condition ()
+create_wait_condition (GMutex * mutex)
 {
   WaitCond *cond;
 
   cond = g_slice_new (WaitCond);
   cond->done = FALSE;
-  g_mutex_init (&cond->mutex);
+  cond->mutex = mutex;
   g_cond_init (&cond->cond);
 
   return cond;
@@ -420,6 +417,7 @@ kms_audio_mixer_bin_unlink_pad_in_playing (KmsAudioMixerBin * self,
   WaitCond *wait = NULL;
   RefCounter *refdata;
   ProbeData *data;
+  gulong probe_id;
 
   typefind = get_typefind_from_pad (pad);
   if (typefind == NULL)
@@ -448,23 +446,38 @@ kms_audio_mixer_bin_unlink_pad_in_playing (KmsAudioMixerBin * self,
     return;
   }
 
-  wait = create_wait_condition ();
+  wait = create_wait_condition (&GST_OBJECT (self)->lock);
   data = create_probe_data (self, typefind, agnosticbin, wait);
   refdata = create_ref_counter (data, (GDestroyNotify) destroy_probe_data);
 
   /* install probe for EOS */
-  gst_pad_add_probe (probepad, GST_PAD_PROBE_TYPE_BLOCK |
+  probe_id = gst_pad_add_probe (probepad, GST_PAD_PROBE_TYPE_BLOCK |
       GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, event_probe_cb, refdata,
       (GDestroyNotify) ref_counter_dec);
-  gst_object_unref (probepad);
 
   /* push EOS into the typefind's sink pad, the probe will be fired when the */
   /* EOS leaves the agnosticbin's src pad and both elements has thus drained */
   /* all their data */
+  if (GST_PAD_IS_FLUSHING (sinkpad)) {
+    GST_ERROR_OBJECT (sinkpad, "Pad is flushing");
+  }
   gst_pad_send_event (sinkpad, gst_event_new_eos ());
   gst_object_unref (sinkpad);
 
-  WAIT_UNTIL_DONE (wait);
+  GST_OBJECT_LOCK (self);
+  if ((GST_STATE (self) >= GST_STATE_PAUSED
+          && (GST_STATE_PENDING (self) > GST_STATE_PAUSED
+              || GST_STATE_PENDING (self) == GST_STATE_VOID_PENDING))
+      || GST_STATE_PENDING (self) >= GST_STATE_PAUSED) {
+    GST_INFO_OBJECT (sinkpad, "Waiting until done: %s, %s",
+        gst_element_state_get_name (GST_STATE (self)),
+        gst_element_state_get_name (GST_STATE_PENDING (self)));
+    WAIT_UNTIL_DONE (wait);
+  }
+  GST_OBJECT_UNLOCK (self);
+
+  gst_pad_remove_probe (probepad, probe_id);
+  gst_object_unref (probepad);
   destroy_wait_condition (wait);
 
   gst_object_unref (typefind);
