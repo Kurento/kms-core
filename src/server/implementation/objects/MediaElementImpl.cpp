@@ -244,10 +244,11 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
     }
 
     if (GST_PAD_IS_SRC (pad) ) {
-      std::unique_lock<std::recursive_mutex> lock (self->sinksMutex, std::defer_lock);
+      std::unique_lock<std::recursive_timed_mutex> lock (self->sinksMutex,
+          std::defer_lock);
       std::shared_ptr<MediaType> type;
 
-      retry = !lock.try_lock();
+      retry = !lock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
 
       if (retry) {
         continue;
@@ -268,10 +269,11 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 
         for (auto it : connections) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
-            std::unique_lock<std::recursive_mutex> sinkLock (it->getSink()->sourcesMutex,
-                std::defer_lock);
+            std::unique_lock<std::recursive_timed_mutex> sinkLock (
+              it->getSink()->sourcesMutex,
+              std::defer_lock);
 
-            retry = !sinkLock.try_lock();
+            retry = !sinkLock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
 
             if (retry) {
               continue;
@@ -284,11 +286,11 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 
       }
     } else {
-      std::unique_lock<std::recursive_mutex> lock (self->sourcesMutex,
+      std::unique_lock<std::recursive_timed_mutex> lock (self->sourcesMutex,
           std::defer_lock);
       std::shared_ptr<MediaType> type;
 
-      retry = !lock.try_lock();
+      retry = !lock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
 
       if (retry) {
         continue;
@@ -309,10 +311,10 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
         if (source) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad),
                          sourceData->getSinkPadName().c_str() ) == 0) {
-            std::unique_lock<std::recursive_mutex> sourceLock (source->sinksMutex,
+            std::unique_lock<std::recursive_timed_mutex> sourceLock (source->sinksMutex,
                 std::defer_lock);
 
-            retry = !sourceLock.try_lock();
+            retry = !sourceLock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
 
             if (retry) {
               continue;
@@ -397,9 +399,10 @@ MediaElementImpl::release ()
 void MediaElementImpl::disconnectAll ()
 {
   while (!getSinkConnections().empty() ) {
-    std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex, std::defer_lock);
+    std::unique_lock<std::recursive_timed_mutex> sinkLock (sinksMutex,
+        std::defer_lock);
 
-    if (!sinkLock.try_lock() ) {
+    if (!sinkLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
       GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
       continue;
     }
@@ -407,14 +410,15 @@ void MediaElementImpl::disconnectAll ()
     for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
       auto sinkImpl = std::dynamic_pointer_cast <MediaElementImpl>
                       (connData->getSink () );
-      std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex,
+      std::unique_lock<std::recursive_timed_mutex> sinkLock (sinkImpl->sourcesMutex,
           std::defer_lock);
 
-      if (sinkLock.try_lock() ) {
+      if (sinkLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
         disconnect (connData->getSink (), connData->getType (),
                     connData->getSourceDescription (),
                     connData->getSinkDescription () );
-      } else {
+      }
+      else {
         GST_DEBUG_OBJECT (sinkImpl->getGstreamerElement(),
                           "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
@@ -422,10 +426,10 @@ void MediaElementImpl::disconnectAll ()
   }
 
   while (!getSourceConnections().empty() ) {
-    std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex,
+    std::unique_lock<std::recursive_timed_mutex> sourceLock (sourcesMutex,
         std::defer_lock);
 
-    if (!sourceLock.try_lock() ) {
+    if (!sourceLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
       GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
       continue;
     }
@@ -434,15 +438,16 @@ void MediaElementImpl::disconnectAll ()
          getSourceConnections() ) {
       auto sourceImpl = std::dynamic_pointer_cast <MediaElementImpl>
                         (connData->getSource () );
-      std::unique_lock<std::recursive_mutex> sourceLock (sourceImpl->sinksMutex,
+      std::unique_lock<std::recursive_timed_mutex> sourceLock (sourceImpl->sinksMutex,
           std::defer_lock);
 
-      if (sourceLock.try_lock() ) {
+      if (sourceLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
         connData->getSource ()->disconnect (connData->getSink (),
                                             connData->getType (),
                                             connData->getSourceDescription (),
                                             connData->getSinkDescription () );
-      } else {
+      }
+      else {
         GST_DEBUG_OBJECT (sourceImpl->getGstreamerElement (),
                           "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
@@ -453,7 +458,7 @@ void MediaElementImpl::disconnectAll ()
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections ()
 {
-  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sourcesMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   for (auto it : sources) {
@@ -472,7 +477,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType)
 {
-  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sourcesMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   try {
@@ -494,7 +499,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  std::unique_lock<std::recursive_mutex> lock (sourcesMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sourcesMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   try {
@@ -511,7 +516,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
 std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections ()
 {
-  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   for (auto it : sinks) {
@@ -533,7 +538,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType)
 {
-  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   try {
@@ -557,7 +562,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     MediaElementImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
-  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
   std::vector<std::shared_ptr<ElementConnectionData>> ret;
 
   try {
@@ -612,8 +617,8 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                             "Media elements does not share pipeline");
   }
 
-  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
-  std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_timed_mutex> sinkLock (sinkImpl->sourcesMutex);
   std::vector <std::shared_ptr <ElementConnectionData>> connections;
   std::shared_ptr <ElementConnectionDataInternal> connectionData (
     new ElementConnectionDataInternal (std::dynamic_pointer_cast<MediaElement>
@@ -738,8 +743,8 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
   std::shared_ptr<MediaElementImpl> sinkImpl =
     std::dynamic_pointer_cast<MediaElementImpl> (sink);
-  std::unique_lock<std::recursive_mutex> sinkLock (sinkImpl->sourcesMutex);
-  std::unique_lock<std::recursive_mutex> lock (sinksMutex);
+  std::unique_lock<std::recursive_timed_mutex> sinkLock (sinkImpl->sourcesMutex);
+  std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
 
   GST_DEBUG ("Disconnecting %s - %s params %s %s %s", getName().c_str(),
              sink->getName ().c_str (), mediaType->getString ().c_str (),

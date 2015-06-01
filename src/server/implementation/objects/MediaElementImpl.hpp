@@ -8,6 +8,7 @@
 #include <gst/gst.h>
 #include <mutex>
 #include <set>
+#include <random>
 
 namespace kurento
 {
@@ -110,14 +111,17 @@ protected:
   gulong handlerId;
 
 private:
-  std::recursive_mutex sourcesMutex;
-  std::recursive_mutex sinksMutex;
+  std::recursive_timed_mutex sourcesMutex;
+  std::recursive_timed_mutex sinksMutex;
 
   std::map<std::shared_ptr <MediaType>, std::map<std::string,
       std::shared_ptr<ElementConnectionDataInternal>>, MediaTypeCmp> sources;
   std::map<std::shared_ptr <MediaType>, std::map<std::string,
       std::set<std::shared_ptr<ElementConnectionDataInternal>>>, MediaTypeCmp>
       sinks;
+
+  std::mt19937_64 rnd {std::random_device{}() };
+  std::uniform_int_distribution<> dist {1, 100};
 
   gulong padAddedHandlerId;
 
