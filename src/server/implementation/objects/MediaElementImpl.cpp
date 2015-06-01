@@ -233,63 +233,99 @@ void
 _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 {
   MediaElementImpl *self = (MediaElementImpl *) data;
+  bool retry = false;
 
   GST_LOG_OBJECT (pad, "Pad added");
 
-  if (GST_PAD_IS_SRC (pad) ) {
-    std::unique_lock<std::recursive_mutex> lock (self->sinksMutex);
-    std::shared_ptr<MediaType> type;
-    //FIXME: This method of pad recognition should change as well as pad names
-
-    if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio") ) {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
-    } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video") ) {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
-    } else {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+  do {
+    if (retry) {
+      GST_DEBUG_OBJECT (pad, "Retriying connection");
+      retry = false;
     }
 
-    try {
-      auto connections = self->sinks.at (type).at ("");
+    if (GST_PAD_IS_SRC (pad) ) {
+      std::unique_lock<std::recursive_mutex> lock (self->sinksMutex, std::defer_lock);
+      std::shared_ptr<MediaType> type;
 
-      for (auto it : connections) {
-        if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
-          std::unique_lock<std::recursive_mutex> sinkLock (it->getSink()->sourcesMutex);
+      retry = !lock.try_lock();
 
-          self->performConnection (it);
-        }
+      if (retry) {
+        continue;
       }
-    } catch (std::out_of_range) {
 
-    }
-  } else {
-    std::unique_lock<std::recursive_mutex> lock (self->sourcesMutex);
-    std::shared_ptr<MediaType> type;
+      //FIXME: This method of pad recognition should change as well as pad names
 
-    if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio") ) {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
-    } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video") ) {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
-    } else {
-      type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
-    }
-
-    try {
-      auto sourceData = self->sources.at (type).at ("");
-      auto source = sourceData->getSource();
-
-      if (source) {
-        if (g_strcmp0 (GST_OBJECT_NAME (pad),
-                       sourceData->getSinkPadName().c_str() ) == 0) {
-          std::unique_lock<std::recursive_mutex> sourceLock (source->sinksMutex);
-
-          source->performConnection (sourceData);
-        }
+      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio") ) {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video") ) {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+      } else {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
       }
-    } catch (std::out_of_range) {
 
+      try {
+        auto connections = self->sinks.at (type).at ("");
+
+        for (auto it : connections) {
+          if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
+            std::unique_lock<std::recursive_mutex> sinkLock (it->getSink()->sourcesMutex,
+                std::defer_lock);
+
+            retry = !sinkLock.try_lock();
+
+            if (retry) {
+              continue;
+            }
+
+            self->performConnection (it);
+          }
+        }
+      } catch (std::out_of_range) {
+
+      }
+    } else {
+      std::unique_lock<std::recursive_mutex> lock (self->sourcesMutex,
+          std::defer_lock);
+      std::shared_ptr<MediaType> type;
+
+      retry = !lock.try_lock();
+
+      if (retry) {
+        continue;
+      }
+
+      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio") ) {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video") ) {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+      } else {
+        type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+      }
+
+      try {
+        auto sourceData = self->sources.at (type).at ("");
+        auto source = sourceData->getSource();
+
+        if (source) {
+          if (g_strcmp0 (GST_OBJECT_NAME (pad),
+                         sourceData->getSinkPadName().c_str() ) == 0) {
+            std::unique_lock<std::recursive_mutex> sourceLock (source->sinksMutex,
+                std::defer_lock);
+
+            retry = !sourceLock.try_lock();
+
+            if (retry) {
+              continue;
+            }
+
+            source->performConnection (sourceData);
+          }
+        }
+      } catch (std::out_of_range) {
+
+      }
     }
-  }
+  } while (retry);
 }
 
 MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
@@ -361,7 +397,12 @@ MediaElementImpl::release ()
 void MediaElementImpl::disconnectAll ()
 {
   while (!getSinkConnections().empty() ) {
-    std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex);
+    std::unique_lock<std::recursive_mutex> sinkLock (sinksMutex, std::defer_lock);
+
+    if (!sinkLock.try_lock() ) {
+      GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
+      continue;
+    }
 
     for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
       auto sinkImpl = std::dynamic_pointer_cast <MediaElementImpl>
@@ -373,12 +414,21 @@ void MediaElementImpl::disconnectAll ()
         disconnect (connData->getSink (), connData->getType (),
                     connData->getSourceDescription (),
                     connData->getSinkDescription () );
+      } else {
+        GST_DEBUG_OBJECT (sinkImpl->getGstreamerElement(),
+                          "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
     }
   }
 
   while (!getSourceConnections().empty() ) {
-    std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex);
+    std::unique_lock<std::recursive_mutex> sourceLock (sourcesMutex,
+        std::defer_lock);
+
+    if (!sourceLock.try_lock() ) {
+      GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
+      continue;
+    }
 
     for (std::shared_ptr<ElementConnectionData> connData :
          getSourceConnections() ) {
@@ -392,6 +442,9 @@ void MediaElementImpl::disconnectAll ()
                                             connData->getType (),
                                             connData->getSourceDescription (),
                                             connData->getSinkDescription () );
+      } else {
+        GST_DEBUG_OBJECT (sourceImpl->getGstreamerElement (),
+                          "Retry disconnect all %" GST_PTR_FORMAT, getGstreamerElement() );
       }
     }
   }
