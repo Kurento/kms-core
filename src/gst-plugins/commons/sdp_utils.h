@@ -50,5 +50,6 @@ gboolean sdp_utils_intersect_media_attributes (const GstSDPMedia * offer, GstSDP
 const gchar *sdp_utils_get_attr_map_value (const GstSDPMedia * media, const gchar *name, const gchar * fmt);
 
 gboolean sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
+gboolean sdp_utils_media_is_active (const GstSDPMedia * media, gboolean offerer);
 
 #endif /* __SDP_H__ */

@@ -384,6 +384,41 @@ sdp_utils_is_attribute_in_media (const GstSDPMedia * media,
   return FALSE;
 }
 
+gboolean
+sdp_utils_media_is_active (const GstSDPMedia * media, gboolean offerer)
+{
+  const gchar *attr;
+
+  attr = gst_sdp_media_get_attribute_val_n (media, "setup", 0);
+  if (attr == NULL) {
+    goto _default;
+  }
+
+  if (offerer) {
+    if (g_strcmp0 (attr, "active") == 0) {
+      GST_DEBUG ("Remote is 'active', so we are 'passive'");
+      return FALSE;
+    } else if (g_strcmp0 (attr, "passive") == 0) {
+      GST_DEBUG ("Remote is 'passive', so we are 'active'");
+      return TRUE;
+    }
+  } else {
+    if (g_strcmp0 (attr, "active") == 0) {
+      GST_DEBUG ("We are 'active'");
+      return TRUE;
+    } else if (g_strcmp0 (attr, "passive") == 0) {
+      GST_DEBUG ("We are 'passive'");
+      return FALSE;
+    }
+  }
+
+_default:
+  GST_DEBUG ("Negotiated SDP is '%s'. %s", attr,
+      offerer ? "Local offerer, so 'passive'" : "Remote offerer, so 'active'");
+
+  return !offerer;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

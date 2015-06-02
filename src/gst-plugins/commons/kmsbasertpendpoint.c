@@ -1026,42 +1026,6 @@ kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
   return TRUE;
 }
 
-static gboolean
-kms_base_rtp_endpoint_sdp_media_is_active (KmsBaseRtpEndpoint * self,
-    GstSDPMedia * media, gboolean offerer)
-{
-  const gchar *attr;
-
-  attr = gst_sdp_media_get_attribute_val_n (media, "setup", 0);
-  if (attr == NULL) {
-    goto _default;
-  }
-
-  if (offerer) {
-    if (g_strcmp0 (attr, "active") == 0) {
-      GST_DEBUG_OBJECT (self, "Remote is 'active', so we are 'passive'");
-      return FALSE;
-    } else if (g_strcmp0 (attr, "passive") == 0) {
-      GST_DEBUG_OBJECT (self, "Remote is 'passive', so we are 'active'");
-      return TRUE;
-    }
-  } else {
-    if (g_strcmp0 (attr, "active") == 0) {
-      GST_DEBUG_OBJECT (self, "We are 'active'");
-      return TRUE;
-    } else if (g_strcmp0 (attr, "passive") == 0) {
-      GST_DEBUG_OBJECT (self, "We are 'passive'");
-      return FALSE;
-    }
-  }
-
-_default:
-  GST_DEBUG_OBJECT (self, "Negotiated SDP is '%s'. %s", attr,
-      offerer ? "Local offerer, so 'passive'" : "Remote offerer, so 'active'");
-
-  return !offerer;
-}
-
 static const gchar *
 kms_base_rtp_endpoint_process_remote_ssrc (KmsBaseRtpEndpoint * self,
     GstSDPMedia * remote_media)
@@ -1136,7 +1100,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
     kms_base_rtp_endpoint_create_remb_managers (self);
   }
 
-  active = kms_base_rtp_endpoint_sdp_media_is_active (self, neg_media, offerer);
+  active = sdp_utils_media_is_active (neg_media, offerer);
 
   return kms_base_rtp_endpoint_add_connection_for_session (self,
       rtp_session_str, neg_mconf, active);
