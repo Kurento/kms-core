@@ -106,7 +106,7 @@ struct _KmsBaseRtpEndpointClass
   gboolean (*request_local_key_frame) (KmsBaseRtpEndpoint * self);
 
   /* virtual methods */
-  KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
+  KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, SdpMediaConfig * mconf, const gchar *name);
   KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
   KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpEndpoint * self, const gchar *name);
 };

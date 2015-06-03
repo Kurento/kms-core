@@ -84,6 +84,8 @@ struct _KmsBaseRtpEndpointPrivate
   KmsMediaState state;
   gboolean audio_actived;
   gboolean video_actived;
+  gboolean audio_added;
+  gboolean video_added;
 
   gboolean rtcp_mux;
   gboolean rtcp_nack;
@@ -355,7 +357,7 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 
 static KmsIRtpConnection *
 kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
-    const gchar * name)
+    SdpMediaConfig * mconf, const gchar * name)
 {
   KmsBaseRtpEndpointClass *klass =
       KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -493,7 +495,7 @@ kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
           KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
           (self, name));
     } else {
-      conn = base_rtp_class->create_connection (self, name);
+      conn = base_rtp_class->create_connection (self, mconf, name);
     }
   }
 
@@ -732,10 +734,14 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
 
-  g_object_get (conn, "added", &connected, NULL);
-  if (connected) {
-    GST_DEBUG_OBJECT (self, "Conn already added");
+  if (self->priv->audio_added || self->priv->video_added) {
+    GST_DEBUG_OBJECT (self, "Connection configured");
     return;
+  }
+
+  g_object_get (conn, "added", &connected, NULL);
+  if (!connected) {
+    kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   }
 
   ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
@@ -746,7 +752,6 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   g_signal_connect (ssrcdemux, "new-ssrc-pad",
       G_CALLBACK (rtp_ssrc_demux_new_ssrc_pad), self);
 
-  kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   kms_i_rtp_connection_sink_sync_state_with_parent (conn);
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
@@ -767,6 +772,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 
   gst_element_sync_state_with_parent_target_state (ssrcdemux);
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
+
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
@@ -1068,7 +1074,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
   const gchar *remote_media_str = gst_sdp_media_get_media (remote_media);
 
   const gchar *rtp_session_str;
-  gboolean active;
+  gboolean active, added;
 
   if (g_strcmp0 (neg_proto_str, remote_proto_str) != 0) {
     GST_WARNING_OBJECT (self,
@@ -1078,9 +1084,10 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
   }
 
   if (!g_str_has_prefix (neg_proto_str, "RTP")) {
-    GST_DEBUG_OBJECT (self, "'%s' protocol not need RTP connection",
+    GST_DEBUG_OBJECT (self, "'%s' protocol does not need RTP connection",
         neg_proto_str);
-    return TRUE;                /* It cannot be managed here but could be managed by the child class */
+    /* It cannot be managed here but could be managed by the child class */
+    return FALSE;
   }
 
   if (g_strcmp0 (neg_media_str, remote_media_str) != 0) {
@@ -1092,6 +1099,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
 
   rtp_session_str =
       kms_base_rtp_endpoint_process_remote_ssrc (self, remote_media);
+
   if (rtp_session_str == NULL) {
     return TRUE;                /* It cannot be managed here but could be managed by the child class */
   }
@@ -1102,8 +1110,16 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
 
   active = sdp_utils_media_is_active (neg_media, offerer);
 
-  return kms_base_rtp_endpoint_add_connection_for_session (self,
+  added = kms_base_rtp_endpoint_add_connection_for_session (self,
       rtp_session_str, neg_mconf, active);
+
+  if (g_strcmp0 (rtp_session_str, AUDIO_RTP_SESSION_STR) == 0) {
+    self->priv->audio_added = added;
+  } else if (g_strcmp0 (rtp_session_str, VIDEO_RTP_SESSION_STR) == 0) {
+    self->priv->video_added = added;
+  }
+
+  return added;
 }
 
 static void
@@ -1136,7 +1152,8 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
 
     if (!kms_base_rtp_endpoint_configure_connection (self, neg_mconf,
             remote_mconf, offerer)) {
-      GST_WARNING_OBJECT (self, "Cannot configure connection.");
+      GST_WARNING_OBJECT (self, "Cannot configure connection for media %d.",
+          mid);
     }
   }
 }
