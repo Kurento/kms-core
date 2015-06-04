@@ -922,6 +922,9 @@ kms_base_rtp_endpoint_add_rtcp_mux_connection (KmsBaseRtpEndpoint * self,
   src = kms_i_rtp_connection_request_rtp_src (conn);
   str = g_strdup_printf ("%s%s", RTPBIN_RECV_RTP_SINK, rtp_session);
   sink = gst_element_get_static_pad (self->priv->rtpbin, str);
+  if (!sink) {
+    sink = gst_element_get_request_pad (self->priv->rtpbin, str);
+  }
   g_free (str);
   gst_pad_link (src, sink);
   g_object_unref (src);
