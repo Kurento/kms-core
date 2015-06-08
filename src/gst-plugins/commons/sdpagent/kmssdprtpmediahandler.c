@@ -193,7 +193,7 @@ kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
   }
 
   if (self->priv->rtcp_mux) {
-    gst_sdp_media_add_attribute (offer, "rtcp-mux", NULL);
+    gst_sdp_media_add_attribute (offer, "rtcp-mux", "");
   }
 
   return

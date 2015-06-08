@@ -1178,21 +1178,9 @@ is_rtcp_mux_in_media (const GstSDPMessage * msg)
 
   len = gst_sdp_message_medias_len (msg);
   for (i = 0; i < len; i++) {
-    const GstSDPMedia *media;
-    guint j;
+    const GstSDPMedia *media = gst_sdp_message_get_media (msg, i);
 
-    media = gst_sdp_message_get_media (msg, i);
-
-    for (j = 0;; j++) {
-      const gchar *val;
-
-      val = gst_sdp_media_get_attribute_val_n (media, "rtcp-mux", j);
-
-      if (val == NULL) {
-        /* Check more medias */
-        break;
-      }
-
+    if (gst_sdp_media_get_attribute_val (media, "rtcp-mux") != NULL) {
       return TRUE;
     }
   }
@@ -1208,8 +1196,8 @@ check_rtcp_mux_enabled (const GstSDPMessage * offer,
   fail_if (gst_sdp_message_medias_len (offer) !=
       gst_sdp_message_medias_len (answer));
 
-  fail_unless (!is_rtcp_mux_in_media (offer));
-  fail_unless (!is_rtcp_mux_in_media (answer));
+  fail_unless (is_rtcp_mux_in_media (offer));
+  fail_unless (is_rtcp_mux_in_media (answer));
 }
 
 static void
@@ -1269,7 +1257,7 @@ check_rtcp_mux_answer_disabled (const GstSDPMessage * offer,
   fail_if (gst_sdp_message_medias_len (offer) !=
       gst_sdp_message_medias_len (answer));
 
-  fail_unless (!is_rtcp_mux_in_media (offer));
+  fail_unless (is_rtcp_mux_in_media (offer));
   fail_if (is_rtcp_mux_in_media (answer));
 }
 
