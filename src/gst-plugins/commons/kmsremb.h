@@ -35,6 +35,7 @@ struct _KmsRembBase
   GRecMutex mutex;
   GHashTable *remb_stats;
   guint session;
+  gulong signal_id;
 };
 
 /* KmsRembLocal begin */
