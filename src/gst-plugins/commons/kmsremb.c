@@ -23,6 +23,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define REMB_MIN 30000          /* bps */
 #define REMB_MAX 2000000        /* bps */
 
+#define KMS_REMB_REMOTE "kms-remb-remote"
+
 /* KmsRembLocal begin */
 
 #define KMS_REMB_LOCAL "kms-remb-local"
@@ -39,6 +41,8 @@ kms_remb_base_destroy (KmsRembBase * rb)
 {
   g_signal_handler_disconnect (rb->rtpsess, rb->signal_id);
   rb->signal_id = 0;
+  g_object_set_data (rb->rtpsess, KMS_REMB_LOCAL, NULL);
+  g_object_set_data (rb->rtpsess, KMS_REMB_REMOTE, NULL);
   g_clear_object (&rb->rtpsess);
   g_rec_mutex_clear (&rb->mutex);
   g_hash_table_unref (rb->remb_stats);
@@ -78,12 +82,22 @@ static gboolean
 get_video_recv_info (KmsRembLocal * rl,
     guint64 * bitrate, guint * fraction_lost)
 {
-  GValueArray *arr;
+  GValueArray *arr = NULL;
   GValue *val;
   guint i;
   gboolean ret = FALSE;
 
+  if (!KMS_REMB_BASE (rl)->rtpsess) {
+    GST_WARNING ("Session object does not exist");
+    return ret;
+  }
+
   g_object_get (KMS_REMB_BASE (rl)->rtpsess, "sources", &arr, NULL);
+
+  if (arr == NULL) {
+    GST_WARNING ("Sources array not found");
+    return ret;
+  }
 
   for (i = 0; i < arr->n_values; i++) {
     GObject *source;
@@ -222,11 +236,18 @@ static void
 on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     gboolean * do_not_supress)
 {
-  KmsRembLocal *rl = g_object_get_data (sess, KMS_REMB_LOCAL);
+  KmsRembLocal *rl;
   KmsRTCPPSFBAFBREMBPacket remb_packet;
   GstRTCPBuffer rtcp = { NULL, };
   GstRTCPPacket packet;
   guint packet_ssrc;
+
+  rl = g_object_get_data (sess, KMS_REMB_LOCAL);
+
+  if (!rl) {
+    GST_WARNING ("Invalid RembLocal");
+    return;
+  }
 
   if (is_early) {
     return;
@@ -319,8 +340,6 @@ kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
 
 /* KmsRembRemote begin */
 
-#define KMS_REMB_REMOTE "kms-remb-remote"
-
 #define REMB_ON_CONNECT 300000  /* bps */
 
 static void
@@ -404,11 +423,23 @@ kms_remb_remote_update (KmsRembRemote * rm,
 static void
 process_psfb_afb (GObject * sess, guint ssrc, GstBuffer * fci_buffer)
 {
-  KmsRembRemote *rm = g_object_get_data (sess, KMS_REMB_REMOTE);
+  KmsRembRemote *rm;
   KmsRTCPPSFBAFBBuffer afb_buffer = { NULL, };
   KmsRTCPPSFBAFBPacket afb_packet;
   KmsRTCPPSFBAFBREMBPacket remb_packet;
   KmsRTCPPSFBAFBType type;
+
+  if (!G_IS_OBJECT (sess)) {
+    GST_WARNING ("Invalid session object");
+    return;
+  }
+
+  rm = g_object_get_data (sess, KMS_REMB_REMOTE);
+
+  if (!rm) {
+    GST_WARNING ("Invalid RembRemote");
+    return;
+  }
 
   if (!kms_rtcp_psfb_afb_buffer_map (fci_buffer, GST_MAP_READ, &afb_buffer)) {
     GST_WARNING_OBJECT (fci_buffer, "Buffer cannot be mapped");
