@@ -46,8 +46,24 @@ const int MEDIASET_THREADS_DEFAULT = 1;
 namespace kurento
 {
 
-static const std::chrono::seconds COLLECTOR_INTERVAL = std::chrono::seconds (
-      240);
+static const std::chrono::seconds COLLECTOR_INTERVAL_DEFAULT =
+  std::chrono::seconds (
+    240);
+
+std::chrono::seconds MediaSet::collectorInterval = COLLECTOR_INTERVAL_DEFAULT;
+
+void
+MediaSet::setCollectorInterval (std::chrono::seconds interval)
+{
+  collectorInterval = interval;
+}
+
+std::chrono::seconds
+MediaSet::getCollectorInterval()
+{
+  return collectorInterval;
+}
+
 
 static std::shared_ptr<MediaSet> mediaSet;
 static std::recursive_mutex mutex;
@@ -138,7 +154,7 @@ MediaSet::MediaSet()
 
 
     while (!terminated && waitCond.wait_for (lock,
-           COLLECTOR_INTERVAL) == std::cv_status::timeout) {
+           collectorInterval) == std::cv_status::timeout) {
 
       if (terminated) {
         return;

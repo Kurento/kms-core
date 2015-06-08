@@ -81,6 +81,8 @@ public:
 
   static const std::shared_ptr<MediaSet> getMediaSet();
   static void deleteMediaSet();
+  static void setCollectorInterval (std::chrono::seconds interval);
+  static std::chrono::seconds getCollectorInterval();
 
   sigc::signal<void> signalEmptyLocked;
   sigc::signal<void> signalEmpty;
@@ -121,6 +123,8 @@ private:
   std::map<std::string, std::unordered_set<std::string>> reverseSessionMap;
 
   std::shared_ptr<WorkerPool> workers;
+
+  static std::chrono::seconds collectorInterval;
 
   class StaticConstructor
   {
