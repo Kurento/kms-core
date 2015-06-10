@@ -49,6 +49,21 @@ target_link_libraries(test_sdp_agent
   sdputils
 )
 
+# metadata
+add_test_program (test_metadata metadata.c)
+add_dependencies(test_metadata kmsgstcommons)
+target_include_directories(test_metadata PRIVATE
+  ${gstreamer-1.5_INCLUDE_DIRS}
+  ${gstreamer-check-1.5_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons/
+)
+
+target_link_libraries(test_metadata
+  ${gstreamer-1.5_LIBRARIES}
+  ${gstreamer-check-1.5_LIBRARIES}
+  kmsgstcommons
+)
+
 add_custom_target(clear_directory
   COMMAND ${CMAKE_COMMAND} -E remove_directory ${KURENTO_DOT_DIR}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${KURENTO_DOT_DIR}
