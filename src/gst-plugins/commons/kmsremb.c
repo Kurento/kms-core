@@ -315,7 +315,7 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
 
   GST_TRACE_OBJECT (sess, "Sending REMB with bitrate: %d", remb_packet.bitrate);
 
-  kms_remb_base_update_stats (KMS_REMB_BASE (rl), packet_ssrc,
+  kms_remb_base_update_stats (KMS_REMB_BASE (rl), rl->remote_ssrc,
       remb_packet.bitrate);
 
 end:
@@ -525,6 +525,18 @@ kms_remb_remote_update (KmsRembRemote * rm,
 }
 
 static void
+kms_remb_remote_update_target_ssrcs_stats (KmsRembRemote * rm,
+    KmsRTCPPSFBAFBREMBPacket * remb_packet)
+{
+  guint i;
+
+  for (i = 0; i < remb_packet->n_ssrcs; i++) {
+    kms_remb_base_update_stats (KMS_REMB_BASE (rm), remb_packet->ssrcs[i],
+        remb_packet->bitrate);
+  }
+}
+
+static void
 process_psfb_afb (GObject * sess, guint ssrc, GstBuffer * fci_buffer)
 {
   KmsRembRemote *rm;
@@ -560,8 +572,7 @@ process_psfb_afb (GObject * sess, guint ssrc, GstBuffer * fci_buffer)
     case KMS_RTCP_PSFB_AFB_TYPE_REMB:
       kms_rtcp_psfb_afb_remb_get_packet (&afb_packet, &remb_packet);
       kms_remb_remote_update (rm, &remb_packet);
-      kms_remb_base_update_stats (KMS_REMB_BASE (rm), ssrc,
-          remb_packet.bitrate);
+      kms_remb_remote_update_target_ssrcs_stats (rm, &remb_packet);
       break;
     default:
       break;
