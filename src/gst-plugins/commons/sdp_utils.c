@@ -836,6 +836,40 @@ end:
   return ret;
 }
 
+gint
+sdp_utils_get_pt_for_codec_name (const GstSDPMedia * media,
+    const gchar * codec_name)
+{
+  const gchar *rtpmap;
+  guint j, f_len;
+  gint pt = -1;
+
+  f_len = gst_sdp_media_formats_len (media);
+  for (j = 0; j < f_len; j++) {
+    gchar *found_codec_name;
+    const gchar *payload = gst_sdp_media_get_format (media, j);
+
+    rtpmap = sdp_utils_sdp_media_get_rtpmap (media, payload);
+
+    if (!sdp_utils_get_data_from_rtpmap (rtpmap, &found_codec_name, NULL)) {
+      continue;
+    }
+
+    if (g_strcmp0 (found_codec_name, codec_name) == 0) {
+      GST_ERROR ("Found codec name pt is: %u", atoi (payload));
+      pt = atoi (payload);
+    }
+
+    g_free (found_codec_name);
+
+    if (pt != -1) {
+      return pt;
+    }
+  }
+
+  return pt;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
