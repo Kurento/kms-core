@@ -730,6 +730,12 @@ kms_sdp_message_context_get_medias (SdpMessageContext * ctx)
   return ctx->medias;
 }
 
+SdpMediaConfig *
+kms_sdp_message_context_get_media (SdpMessageContext * ctx, guint idx)
+{
+  return (SdpMediaConfig *) g_slist_nth_data (ctx->medias, idx);
+}
+
 void
 kms_sdp_message_context_set_type (SdpMessageContext * ctx,
     KmsSdpMessageType type)

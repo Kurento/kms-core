@@ -60,6 +60,7 @@ gboolean kms_sdp_message_context_remove_media_from_group (SdpMediaGroup *group, 
 gboolean kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext *ctx, const GstSDPMessage *offer, GError **error);
 GstSDPMessage * kms_sdp_message_context_get_sdp_message (SdpMessageContext *ctx);
 GSList * kms_sdp_message_context_get_medias (SdpMessageContext *ctx);
+SdpMediaConfig *kms_sdp_message_context_get_media (SdpMessageContext * ctx, guint idx);
 void kms_sdp_message_context_set_type (SdpMessageContext *ctx, KmsSdpMessageType type);
 KmsSdpMessageType kms_sdp_message_context_get_type (SdpMessageContext *ctx);
 
