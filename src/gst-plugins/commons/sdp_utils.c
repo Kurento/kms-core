@@ -804,6 +804,38 @@ sdp_utils_equal_messages (const GstSDPMessage * msg1,
   return TRUE;
 }
 
+gboolean
+sdp_utils_get_data_from_rtpmap (const gchar * rtpmap, gchar ** codec_name,
+    gint * clock_rate)
+{
+  gboolean ret = FALSE;
+  gchar **tokens;
+
+  tokens = g_strsplit (rtpmap, "/", 3);
+
+  if (tokens[0] == NULL || tokens[1] == NULL) {
+    goto end;
+  }
+
+  if (tokens[0] == NULL || tokens[1] == NULL) {
+    goto end;
+  }
+
+  if (clock_rate) {
+    *clock_rate = atoi (tokens[1]);
+  }
+
+  if (codec_name) {
+    *codec_name = g_strdup (tokens[0]);
+  }
+
+  ret = TRUE;
+end:
+
+  g_strfreev (tokens);
+  return ret;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
