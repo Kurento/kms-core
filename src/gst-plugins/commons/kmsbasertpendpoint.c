@@ -27,6 +27,7 @@
 #include "sdpagent/kmssdprtpavpfmediahandler.h"
 #include "kmsremb.h"
 #include "kmsistats.h"
+#include "kmsrefstruct.h"
 
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/video/video-event.h>
@@ -194,11 +195,18 @@ kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
 
 typedef struct _ConnectPayloaderData
 {
+  KmsRefStruct ref;
   KmsBaseRtpEndpoint *self;
   GstElement *payloader;
   gboolean *connected_flag;
   KmsElementPadType type;
 } ConnectPayloaderData;
+
+static void
+connect_payloader_data_destroy (gpointer data, GClosure * closure)
+{
+  g_slice_free (ConnectPayloaderData, data);
+}
 
 static ConnectPayloaderData *
 connect_payloader_data_new (KmsBaseRtpEndpoint * self, GstElement * payloader,
@@ -208,18 +216,15 @@ connect_payloader_data_new (KmsBaseRtpEndpoint * self, GstElement * payloader,
 
   data = g_slice_new0 (ConnectPayloaderData);
 
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (data),
+      (GDestroyNotify) connect_payloader_data_destroy);
+
   data->self = self;
   data->payloader = payloader;
   data->connected_flag = connected_flag;
   data->type = type;
 
   return data;
-}
-
-static void
-connect_payloader_data_destroy (gpointer data, GClosure * closure)
-{
-  g_slice_free (ConnectPayloaderData, data);
 }
 
 static KmsSSRCStats *
@@ -1364,6 +1369,11 @@ kms_base_rtp_endpoint_connect_payloader_cb (KmsIRtpConnection * conn,
 
   kms_base_rtp_endpoint_do_connect_payloader (data->self, data->payloader,
       data->connected_flag, data->type);
+
+  /* DTLS is already connected, so we do not need to be attached to this */
+  /* signal any more. We can free the tmp data without waiting for the   */
+  /* object to be realeased.                                             */
+  g_signal_handlers_disconnect_by_data (conn, data);
 }
 
 static void
@@ -1378,8 +1388,9 @@ kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
   data = connect_payloader_data_new (self, payloader, connected_flag, type);
 
   handler_id = g_signal_connect_data (conn, "connected",
-      G_CALLBACK (kms_base_rtp_endpoint_connect_payloader_cb), data,
-      connect_payloader_data_destroy, 0);
+      G_CALLBACK (kms_base_rtp_endpoint_connect_payloader_cb),
+      kms_ref_struct_ref (KMS_REF_STRUCT_CAST (data)),
+      (GClosureNotify) kms_ref_struct_unref, 0);
 
   g_object_get (conn, "connected", &connected, NULL);
 
@@ -1393,6 +1404,8 @@ kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
   } else {
     GST_DEBUG_OBJECT (self, "Media not connected, waiting for signal");
   }
+
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (data));
 }
 
 static void
