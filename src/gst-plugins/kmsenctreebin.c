@@ -67,6 +67,19 @@ create_encoder_for_caps (const GstCaps * caps, gint target_bitrate)
   encoder_list =
       gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
       GST_RANK_NONE);
+
+  /* HACK: Augment the openh264 rank */
+  for (l = encoder_list; l != NULL; l = l->next) {
+    encoder_factory = GST_ELEMENT_FACTORY (l->data);
+
+    if (g_str_has_prefix (GST_OBJECT_NAME (encoder_factory), "openh264")) {
+      encoder_list = g_list_remove (encoder_list, l->data);
+      encoder_list = g_list_prepend (encoder_list, encoder_factory);
+      break;
+    }
+  }
+
+  encoder_factory = NULL;
   filtered_list =
       gst_element_factory_list_filter (encoder_list, caps, GST_PAD_SRC, FALSE);
 
