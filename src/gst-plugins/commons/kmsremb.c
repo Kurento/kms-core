@@ -279,7 +279,12 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     }
   }
 
-  remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
+  if (rl->min_bw > 0) {
+    remb_packet.bitrate = MAX (remb_packet.bitrate, rl->min_bw * 1000);
+  } else {
+    remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
+  }
+
   remb_packet.n_ssrcs = 1;
   remb_packet.ssrcs[0] = rl->remote_ssrc;
   g_object_get (sess, "internal-ssrc", &packet_ssrc, NULL);
@@ -315,7 +320,7 @@ kms_remb_local_destroy (KmsRembLocal * rl)
 
 KmsRembLocal *
 kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
-    guint max_bw)
+    guint min_bw, guint max_bw)
 {
   KmsRembLocal *rl = g_slice_new0 (KmsRembLocal);
 
@@ -326,6 +331,7 @@ kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
   kms_remb_base_create (KMS_REMB_BASE (rl), session, rtpsess);
 
   rl->remote_ssrc = remote_ssrc;
+  rl->min_bw = min_bw;
   rl->max_bw = max_bw;
 
   rl->probed = FALSE;

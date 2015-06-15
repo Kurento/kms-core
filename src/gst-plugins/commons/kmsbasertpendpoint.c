@@ -108,6 +108,7 @@ struct _KmsBaseRtpEndpointPrivate
   guint video_ssrc;
 
   gint32 target_bitrate;
+  guint min_video_recv_bw;
   guint min_video_send_bw;
   guint max_video_send_bw;
 
@@ -135,6 +136,7 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define DEFAULT_RTCP_NACK    FALSE
 #define DEFAULT_RTCP_REMB    FALSE
 #define DEFAULT_TARGET_BITRATE    0
+#define MIN_VIDEO_RECV_BW_DEFAULT 0
 #define MIN_VIDEO_SEND_BW_DEFAULT 100
 #define MAX_VIDEO_SEND_BW_DEFAULT 500
 
@@ -145,6 +147,7 @@ enum
   PROP_RTCP_NACK,
   PROP_RTCP_REMB,
   PROP_TARGET_BITRATE,
+  PROP_MIN_VIDEO_RECV_BW,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
   PROP_STATE,
@@ -665,7 +668,8 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
       kms_remb_local_create (rtpsession, VIDEO_RTP_SESSION,
-      self->priv->remote_video_ssrc, max_recv_bw);
+      self->priv->remote_video_ssrc, self->priv->min_video_recv_bw,
+      max_recv_bw);
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
@@ -1891,6 +1895,21 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_TARGET_BITRATE:
       self->priv->target_bitrate = g_value_get_int (value);
       break;
+    case PROP_MIN_VIDEO_RECV_BW:{
+      int max_recv_bw;
+      guint v = g_value_get_uint (value);
+
+      g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
+
+      if (max_recv_bw != 0 && v > max_recv_bw) {
+        v = max_recv_bw;
+        GST_WARNING_OBJECT (object,
+            "Trying to set min > max. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      self->priv->min_video_recv_bw = v;
+      break;
+    }
     case PROP_MIN_VIDEO_SEND_BW:{
       guint v = g_value_get_uint (value);
 
@@ -1944,6 +1963,8 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_TARGET_BITRATE:
       g_value_set_int (value, self->priv->target_bitrate);
       break;
+    case PROP_MIN_VIDEO_RECV_BW:
+      g_value_set_uint (value, self->priv->min_video_recv_bw);
     case PROP_MIN_VIDEO_SEND_BW:
       g_value_set_uint (value, self->priv->min_video_send_bw);
       break;
@@ -2168,6 +2189,13 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Target bitrate (bps)", 0, G_MAXINT,
           DEFAULT_TARGET_BITRATE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_MIN_VIDEO_RECV_BW,
+      g_param_spec_uint ("min-video-recv-bandwidth",
+          "Minimum video bandwidth for receiving",
+          "Minimum video bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
+          0, G_MAXUINT32, MIN_VIDEO_RECV_BW_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_MIN_VIDEO_SEND_BW,
       g_param_spec_uint ("min-video-send-bandwidth",
           "Minimum video bandwidth for sending",
@@ -2385,6 +2413,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->rtcp_nack = DEFAULT_RTCP_NACK;
   self->priv->rtcp_remb = DEFAULT_RTCP_REMB;
 
+  self->priv->min_video_recv_bw = MIN_VIDEO_RECV_BW_DEFAULT;
   self->priv->min_video_send_bw = MIN_VIDEO_SEND_BW_DEFAULT;
   self->priv->max_video_send_bw = MAX_VIDEO_SEND_BW_DEFAULT;
 
