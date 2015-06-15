@@ -85,6 +85,21 @@ BaseRtpEndpointImpl::updateState (guint new_state)
   }
 }
 
+int BaseRtpEndpointImpl::getMinVideoRecvBandwidth ()
+{
+  int minVideoRecvBandwidth;
+
+  g_object_get (element, "min-video-recv-bandwidth", &minVideoRecvBandwidth,
+                NULL);
+
+  return minVideoRecvBandwidth;
+}
+
+void BaseRtpEndpointImpl::setMinVideoRecvBandwidth (int minVideoRecvBandwidth)
+{
+  g_object_set (element, "min-video-recv-bandwidth", minVideoRecvBandwidth, NULL);
+}
+
 int BaseRtpEndpointImpl::getMinVideoSendBandwidth ()
 {
   int minVideoSendBandwidth;

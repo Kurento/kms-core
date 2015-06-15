@@ -34,6 +34,9 @@ public:
 
   virtual ~BaseRtpEndpointImpl ();
 
+  virtual int getMinVideoRecvBandwidth ();
+  virtual void setMinVideoRecvBandwidth (int minVideoRecvBandwidth);
+
   virtual int getMinVideoSendBandwidth ();
   virtual void setMinVideoSendBandwidth (int minVideoSendBandwidth);
 

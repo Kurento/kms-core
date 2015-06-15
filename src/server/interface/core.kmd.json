@@ -373,6 +373,11 @@
       "doc": "Base class to manage common RTP features.",
       "properties": [
         {
+          "name": "minVideoRecvBandwidth",
+          "doc": "Minimum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 100",
+          "type": "int"
+        },
+        {
           "name": "minVideoSendBandwidth",
           "doc": "Minimum video bandwidth for sending.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 100",
           "type": "int"
