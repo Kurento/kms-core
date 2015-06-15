@@ -40,6 +40,23 @@ rm -rf java
 cmake .. -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DDISABLE_LIBRARIES_GENERATION=TRUE
 ```
 
+Other useful flags
+------------------
+
+* **KURENTO_CLIENT_JS_GIT**: URL to the GIT repository, for example when using
+  some custom templates:
+
+  ```bash
+  -DKURENTO_CLIENT_JS_GIT=file://$HOME/workspace/kurento-client-js
+  ```
+
+* **KURENTO_CLIENT_JS_BRANCH**: branch to be used from the GIT repository:
+
+  ```bash
+  -DKURENTO_CLIENT_JS_BRANCH=master
+  ```
+
+
 Kurento
 =======
 
@@ -84,4 +101,3 @@ Follow us on Twitter @[kurentoms].
 [GitHub Kurento Group]: https://github.com/kurento
 [website]: http://kurento.org
 [kurentoms]: http://twitter.com/kurentoms
-
