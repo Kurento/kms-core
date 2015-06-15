@@ -57,6 +57,8 @@ struct _KmsRembLocal
   guint avg_br;
   GstClockTime last_time;
   guint64 last_octets_received;
+  guint64 last_packets_received;
+  guint64 fraction_lost_record;
   RembEventManager *event_manager;
 };
 

@@ -29,6 +29,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define KMS_REMB_LOCAL "kms-remb-local"
 
+#define REMB_PACKETS_RECV_INTERVAL_TOP 100
 #define REMB_EXPONENTIAL_FACTOR 0.04
 #define REMB_LINEAL_FACTOR_MIN 50       /* bps */
 #define REMB_LINEAL_FACTOR_GRADE ((60 * RTCP_MIN_INTERVAL)/ 1000)       /* Reach last top bitrate in 60secs aprox. */
@@ -80,7 +81,7 @@ kms_remb_base_update_stats (KmsRembBase * rb, guint ssrc, guint bitrate)
 
 static gboolean
 get_video_recv_info (KmsRembLocal * rl,
-    guint64 * bitrate, guint * fraction_lost)
+    guint64 * bitrate, guint * fraction_lost, guint64 * packets_rcv_interval)
 {
   GValueArray *arr = NULL;
   GValue *val;
@@ -114,7 +115,7 @@ get_video_recv_info (KmsRembLocal * rl,
 
     if (ssrc == rl->remote_ssrc) {
       GstClockTime current_time;
-      guint64 octets_received;
+      guint64 octets_received, packets_received;
 
       if (!gst_structure_get_uint64 (s, "bitrate", bitrate)) {
         break;
@@ -123,6 +124,9 @@ get_video_recv_info (KmsRembLocal * rl,
         break;
       }
       if (!gst_structure_get_uint (s, "sent-rb-fractionlost", fraction_lost)) {
+        break;
+      }
+      if (!gst_structure_get_uint64 (s, "packets-received", &packets_received)) {
         break;
       }
 
@@ -142,6 +146,9 @@ get_video_recv_info (KmsRembLocal * rl,
       rl->last_time = current_time;
       rl->last_octets_received = octets_received;
 
+      *packets_rcv_interval = packets_received - rl->last_packets_received;
+      rl->last_packets_received = packets_received;
+
       ret = TRUE;
     }
 
@@ -160,10 +167,11 @@ get_video_recv_info (KmsRembLocal * rl,
 static gboolean
 kms_remb_local_update (KmsRembLocal * rl)
 {
-  guint64 bitrate;
-  guint fraction_lost;
+  guint64 bitrate, packets_rcv_interval;
+  guint fraction_lost, packets_rcv_interval_top;
 
-  if (!get_video_recv_info (rl, &bitrate, &fraction_lost)) {
+  if (!get_video_recv_info (rl, &bitrate, &fraction_lost,
+          &packets_rcv_interval)) {
     return FALSE;
   }
 
@@ -176,6 +184,12 @@ kms_remb_local_update (KmsRembLocal * rl)
     rl->probed = TRUE;
   }
 
+  packets_rcv_interval_top =
+      MAX (REMB_PACKETS_RECV_INTERVAL_TOP, packets_rcv_interval);
+  rl->fraction_lost_record =
+      (rl->fraction_lost_record * (packets_rcv_interval_top -
+          packets_rcv_interval) +
+      fraction_lost * packets_rcv_interval) / packets_rcv_interval_top;
   rl->max_br = MAX (rl->max_br, bitrate);
 
   if (rl->avg_br == 0) {
@@ -184,7 +198,11 @@ kms_remb_local_update (KmsRembLocal * rl)
     rl->avg_br = (rl->avg_br * 7 + bitrate) / 8;
   }
 
-  if (fraction_lost == 0) {
+  GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
+      "packets_rcv_interval: %" G_GUINT64_FORMAT ", fraction_lost_record: %"
+      G_GUINT64_FORMAT, packets_rcv_interval, rl->fraction_lost_record);
+
+  if (rl->fraction_lost_record == 0) {
     gint remb_base, remb_new;
 
     remb_base = MIN (rl->remb, rl->max_br);
@@ -200,7 +218,7 @@ kms_remb_local_update (KmsRembLocal * rl)
     }
 
     rl->remb = MAX (rl->remb, remb_new);
-  } else if (fraction_lost < REMB_UP_LOSSES) {
+  } else if (rl->fraction_lost_record < REMB_UP_LOSSES) {
     GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
 
     rl->remb = MIN (rl->remb, rl->max_br);
@@ -215,6 +233,7 @@ kms_remb_local_update (KmsRembLocal * rl)
     rl->threshold = remb_base * REMB_THRESHOLD_FACTOR;
     lineal_factor_new = (remb_base - rl->threshold) / REMB_LINEAL_FACTOR_GRADE;
     rl->lineal_factor = MAX (REMB_LINEAL_FACTOR_MIN, lineal_factor_new);
+    rl->fraction_lost_record = 0;
     rl->max_br = 0;
     rl->avg_br = 0;
   }
@@ -225,9 +244,10 @@ kms_remb_local_update (KmsRembLocal * rl)
 
   GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
       "REMB: %" G_GUINT32_FORMAT ", TH: %" G_GUINT32_FORMAT
-      ", fraction_lost: %d, bitrate: %" G_GUINT64_FORMAT "," " max_br: %"
-      G_GUINT32_FORMAT ", avg_br: %" G_GUINT32_FORMAT, rl->remb,
-      rl->threshold, fraction_lost, bitrate, rl->max_br, rl->avg_br);
+      ", fraction_lost: %d, fraction_lost_record: %" G_GUINT64_FORMAT
+      ", bitrate: %" G_GUINT64_FORMAT "," " max_br: %" G_GUINT32_FORMAT
+      ", avg_br: %" G_GUINT32_FORMAT, rl->remb, rl->threshold, fraction_lost,
+      rl->fraction_lost_record, bitrate, rl->max_br, rl->avg_br);
 
   return TRUE;
 }
