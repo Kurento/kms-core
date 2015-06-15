@@ -33,12 +33,45 @@ create_decoder_for_caps (const GstCaps * caps, const GstCaps * raw_caps)
   GList *decoder_list, *filtered_list, *aux_list, *l;
   GstElementFactory *decoder_factory = NULL;
   GstElement *decoder = NULL;
+  gboolean contains_openh264 = FALSE;
 
   decoder_list =
       gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_DECODER,
       GST_RANK_NONE);
-  aux_list =
-      gst_element_factory_list_filter (decoder_list, caps, GST_PAD_SINK, FALSE);
+
+  /* HACK: Augment the openh264 rank */
+  for (l = decoder_list; l != NULL; l = l->next) {
+    decoder_factory = GST_ELEMENT_FACTORY (l->data);
+
+    if (g_str_has_prefix (GST_OBJECT_NAME (decoder_factory), "openh264")) {
+      decoder_list = g_list_remove (decoder_list, l->data);
+      decoder_list = g_list_prepend (decoder_list, decoder_factory);
+      contains_openh264 = TRUE;
+      break;
+    }
+  }
+  decoder_factory = NULL;
+
+  /* Remove stream-format from raw_caps to allow select openh264dec */
+  if (contains_openh264 &&
+      g_str_has_suffix (gst_structure_get_name (gst_caps_get_structure (caps,
+                  0)), "h264")) {
+    GstCaps *caps_copy;
+    GstStructure *structure;
+
+    structure = gst_structure_copy (gst_caps_get_structure (caps, 0));
+    gst_structure_remove_field (structure, "stream-format");
+    caps_copy = gst_caps_new_full (structure, NULL);
+    aux_list =
+        gst_element_factory_list_filter (decoder_list, caps_copy, GST_PAD_SINK,
+        FALSE);
+    gst_caps_unref (caps_copy);
+  } else {
+    aux_list =
+        gst_element_factory_list_filter (decoder_list, caps, GST_PAD_SINK,
+        FALSE);
+  }
+
   filtered_list =
       gst_element_factory_list_filter (aux_list, raw_caps, GST_PAD_SRC, FALSE);
 
@@ -66,6 +99,7 @@ kms_dec_tree_bin_configure (KmsDecTreeBin * self, const GstCaps * caps,
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *dec, *output_tee;
   GstPad *pad;
+  gchar *name;
 
   dec = create_decoder_for_caps (caps, raw_caps);
   if (dec == NULL) {
@@ -74,17 +108,37 @@ kms_dec_tree_bin_configure (KmsDecTreeBin * self, const GstCaps * caps,
     return FALSE;
   }
   GST_DEBUG_OBJECT (self, "Decoder found: %" GST_PTR_FORMAT, dec);
+  name = gst_element_get_name (dec);
 
-  pad = gst_element_get_static_pad (dec, "sink");
-  kms_utils_drop_until_keyframe (pad, TRUE);
-  gst_object_unref (pad);
+  if (g_str_has_prefix (name, "openh264dec")) {
+    GstElement *parse = gst_element_factory_make ("h264parse", NULL);
 
-  gst_bin_add (GST_BIN (self), dec);
-  gst_element_sync_state_with_parent (dec);
+    pad = gst_element_get_static_pad (parse, "sink");
+    kms_utils_drop_until_keyframe (pad, TRUE);
+    gst_object_unref (pad);
 
-  kms_tree_bin_set_input_element (tree_bin, dec);
-  output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  gst_element_link (dec, output_tee);
+    gst_bin_add_many (GST_BIN (self), parse, dec, NULL);
+    gst_element_link (parse, dec);
+    gst_element_sync_state_with_parent (parse);
+    gst_element_sync_state_with_parent (dec);
+
+    kms_tree_bin_set_input_element (tree_bin, parse);
+    output_tee = kms_tree_bin_get_output_tee (tree_bin);
+    gst_element_link (dec, output_tee);
+  } else {
+    pad = gst_element_get_static_pad (dec, "sink");
+    kms_utils_drop_until_keyframe (pad, TRUE);
+    gst_object_unref (pad);
+
+    gst_bin_add (GST_BIN (self), dec);
+    gst_element_sync_state_with_parent (dec);
+
+    kms_tree_bin_set_input_element (tree_bin, dec);
+    output_tee = kms_tree_bin_get_output_tee (tree_bin);
+    gst_element_link (dec, output_tee);
+  }
+
+  g_free (name);
 
   return TRUE;
 }
