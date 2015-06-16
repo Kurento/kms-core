@@ -566,7 +566,7 @@
           "params": [
             {
               "name": "bitrate",
-              "doc": "Configure the enconding media bitrate in kbps",
+              "doc": "Configure the enconding media bitrate in bps",
               "type": "int"
             }
           ]

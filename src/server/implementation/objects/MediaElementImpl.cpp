@@ -360,7 +360,7 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
   //read default configuration for output bitrate
   try {
     int bitrate = getConfigValue<int, MediaElement> ("outputBitrate");
-    GST_DEBUG ("Output bitrate configured to %d kbps", bitrate);
+    GST_DEBUG ("Output bitrate configured to %d bps", bitrate);
     g_object_set (G_OBJECT (element), TARGET_BITRATE, bitrate, NULL);
   } catch (boost::property_tree::ptree_error &e) {
   }
