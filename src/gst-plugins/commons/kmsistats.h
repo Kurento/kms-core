@@ -35,7 +35,7 @@ struct _KmsIStatsInterface
   GTypeInterface parent;
 
   /* actions */
-  GstStructure * (*stats) (KmsIStats * self);
+  GstStructure * (*stats) (KmsIStats * self, gchar *selector);
 };
 
 GType kms_istats_get_type (void);

@@ -34,5 +34,6 @@ kms_istats_default_init (KmsIStatsInterface * iface)
       g_signal_new ("stats", G_TYPE_FROM_CLASS (iface),
       G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
       G_STRUCT_OFFSET (KmsIStatsInterface, stats),
-      NULL, NULL, __kms_core_marshal_BOXED__VOID, GST_TYPE_STRUCTURE, 0);
+      NULL, NULL, __kms_core_marshal_BOXED__STRING, GST_TYPE_STRUCTURE, 1,
+      G_TYPE_STRING);
 }

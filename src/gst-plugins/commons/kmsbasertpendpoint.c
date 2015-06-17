@@ -1971,15 +1971,42 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
 }
 
 static GstStructure *
-kms_base_rtp_endpoint_create_stats (KmsBaseRtpEndpoint * self)
+kms_base_rtp_endpoint_create_stats (KmsBaseRtpEndpoint * self,
+    const gchar * selector)
 {
+  KmsRTPSessionStats *rtp_stats;
   GstStructure *stats;
+  guint session_id;
 
   stats = gst_structure_new_empty ("stats");
 
-  g_hash_table_foreach (self->priv->stats, (GHFunc) append_rtp_session_stats,
-      stats);
+  if (selector == NULL) {
+    /* No selector provided. All stats will be generated */
+    g_hash_table_foreach (self->priv->stats, (GHFunc) append_rtp_session_stats,
+        stats);
+    goto end;
+  }
 
+  if (g_strcmp0 (selector, AUDIO_STREAM_NAME) == 0) {
+    session_id = AUDIO_RTP_SESSION;
+  } else if (g_strcmp0 (selector, VIDEO_STREAM_NAME) == 0) {
+    session_id = VIDEO_RTP_SESSION;
+  } else {
+    GST_WARNING_OBJECT (self, "Invalid selector provided: %s", selector);
+    goto end;
+  }
+
+  rtp_stats = g_hash_table_lookup (self->priv->stats,
+      GUINT_TO_POINTER (session_id));
+
+  if (rtp_stats == NULL) {
+    GST_DEBUG_OBJECT (self, "No available stats for '%s'", selector);
+    goto end;
+  }
+
+  append_rtp_session_stats (GUINT_TO_POINTER (session_id), rtp_stats, stats);
+
+end:
   return stats;
 }
 
@@ -2255,12 +2282,12 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
 }
 
 GstStructure *
-kms_base_rtp_endpoint_stats_action (KmsIStats * obj)
+kms_base_rtp_endpoint_stats_action (KmsIStats * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
   GstStructure *stats;
 
-  stats = kms_base_rtp_endpoint_create_stats (self);
+  stats = kms_base_rtp_endpoint_create_stats (self, selector);
 
   kms_base_rtp_endpoint_append_remb_stats (self, stats);
 
