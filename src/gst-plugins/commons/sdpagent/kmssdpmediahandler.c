@@ -305,33 +305,14 @@ static gboolean
 kms_sdp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
-  guint i, len;
+  gint i;
 
   /* Add bandwidth attributes */
-  len = gst_sdp_media_bandwidths_len (offer);
+  for (i = 0; i < handler->priv->bwtypes->len; i++) {
+    GstSDPBandwidth *bw;
 
-  for (i = 0; i < len; i++) {
-    const GstSDPBandwidth *offered_bw;
-    guint j;
-
-    offered_bw = gst_sdp_media_get_bandwidth (offer, i);
-
-    /* look up an appropriate bandwidth attribute to intersect this one */
-    for (j = 0; j < handler->priv->bwtypes->len; j++) {
-      GstSDPBandwidth *bw;
-      guint val;
-
-      bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, j);
-
-      if (g_strcmp0 (offered_bw->bwtype, bw->bwtype) != 0) {
-        continue;
-      }
-
-      val = (offered_bw->bandwidth < bw->bandwidth) ? offered_bw->bandwidth :
-          bw->bandwidth;
-
-      gst_sdp_media_add_bandwidth (answer, bw->bwtype, val);
-    }
+    bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, i);
+    gst_sdp_media_add_bandwidth (answer, bw->bwtype, bw->bandwidth);
   }
 
   return TRUE;

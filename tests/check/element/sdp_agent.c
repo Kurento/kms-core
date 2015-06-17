@@ -1577,13 +1577,21 @@ GST_START_TEST (sdp_agent_test_supported_attrs)
   g_object_unref (answerer);
 }
 
-GST_END_TEST static void
+GST_END_TEST typedef struct _BandwitdthData
+{
+  gboolean offered;
+  guint offer;
+  gboolean answered;
+  guint answer;
+} BandwitdthData;
+
+static void
 check_bandwidth_medias_attrs (const GstSDPMessage * offer,
     const GstSDPMessage * answer, gpointer data)
 {
   const GstSDPBandwidth *offer_bw, *answer_bw;
   const GstSDPMedia *offered, *answered;
-  guint answer_max = *((guint *) data);
+  BandwitdthData *bw = (BandwitdthData *) data;
 
   /* Same number of medias must be in answer */
   fail_if (gst_sdp_message_medias_len (offer) !=
@@ -1591,28 +1599,35 @@ check_bandwidth_medias_attrs (const GstSDPMessage * offer,
 
   offered = gst_sdp_message_get_media (offer, 0);
   fail_if (offered == NULL);
+  offer_bw = gst_sdp_media_get_bandwidth (offered, 0);
+
+  if (bw->offered) {
+    fail_if (offer_bw == NULL);
+    fail_unless (offer_bw->bandwidth == bw->offer);
+  } else {
+    fail_if (offer_bw != NULL);
+  }
 
   answered = gst_sdp_message_get_media (answer, 0);
   fail_if (answered == NULL);
-
-  offer_bw = gst_sdp_media_get_bandwidth (offered, 0);
-  fail_if (offer == NULL);
-
   answer_bw = gst_sdp_media_get_bandwidth (answered, 0);
-  fail_if (answer_bw == NULL);
 
-  if (offer_bw->bandwidth < answer_max) {
-    fail_if (answer_bw->bandwidth != offer_bw->bandwidth);
+  if (bw->answered) {
+    fail_if (answer_bw == NULL);
+    fail_unless (answer_bw->bandwidth == bw->answer);
   } else {
-    fail_if (answer_bw->bandwidth != answer_max);
+    fail_if (answer_bw != NULL);
   }
+
 }
 
 static void
-test_agents_bandwidth (guint offer, guint answer)
+test_agents_bandwidth (gboolean offer, guint offered, gboolean answer,
+    guint answered)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler1, *handler2;
+  BandwitdthData data;
   gint id;
 
   offerer = kms_sdp_agent_new ();
@@ -1630,7 +1645,9 @@ test_agents_bandwidth (guint offer, guint answer)
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler1);
   fail_if (id < 0);
 
-  kms_sdp_media_handler_add_bandwidth (handler1, "AS", offer);
+  if (offer) {
+    kms_sdp_media_handler_add_bandwidth (handler1, "AS", offered);
+  }
 
   handler2 = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler2 == NULL);
@@ -1638,12 +1655,19 @@ test_agents_bandwidth (guint offer, guint answer)
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler2), audio_codecs,
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
-  kms_sdp_media_handler_add_bandwidth (handler2, "AS", answer);
+  if (answer) {
+    kms_sdp_media_handler_add_bandwidth (handler2, "AS", answered);
+  }
 
   id = kms_sdp_agent_add_proto_handler (answerer, "video", handler2);
   fail_if (id < 0);
 
-  test_handler_offer (offerer, answerer, check_bandwidth_medias_attrs, &answer);
+  data.offered = offer;
+  data.answered = answer;
+  data.offer = offered;
+  data.answer = answered;
+
+  test_handler_offer (offerer, answerer, check_bandwidth_medias_attrs, &data);
 
   g_object_unref (answerer);
   g_object_unref (offerer);
@@ -1651,9 +1675,10 @@ test_agents_bandwidth (guint offer, guint answer)
 
 GST_START_TEST (sdp_agent_test_bandwidtth_attrs)
 {
-  test_agents_bandwidth (120, 15);
-  test_agents_bandwidth (16, 16);
-  test_agents_bandwidth (130, 140);
+  test_agents_bandwidth (TRUE, 120, TRUE, 15);
+  test_agents_bandwidth (FALSE, 0, TRUE, 16);
+  test_agents_bandwidth (TRUE, 16, FALSE, 0);
+  test_agents_bandwidth (FALSE, 0, FALSE, 0);
 }
 
 GST_END_TEST;
