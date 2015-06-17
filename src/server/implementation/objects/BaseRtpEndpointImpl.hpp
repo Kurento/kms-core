@@ -47,6 +47,8 @@ public:
   virtual std::shared_ptr<ConnectionState> getConnectionState ();
 
   virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
+  virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats (
+        std::shared_ptr<MediaType> mediaType);
 
   virtual std::shared_ptr<RembParams> getRembParams ();
   virtual void setRembParams (std::shared_ptr<RembParams> rembParams);

@@ -8,8 +8,9 @@
 #include <ConnectionState.hpp>
 #include <time.h>
 #include <SignalHandler.hpp>
-#include "RembParams.hpp"
+#include <MediaType.hpp>
 
+#include "RembParams.hpp"
 #include "Statistics.hpp"
 
 #define GST_CAT_DEFAULT kurento_base_rtp_endpoint_impl
@@ -174,19 +175,47 @@ void BaseRtpEndpointImpl::setMaxVideoSendBandwidth (int maxVideoSendBandwidth)
   g_object_set (element, "max-video-send-bandwidth", maxVideoSendBandwidth, NULL);
 }
 
-std::map <std::string, std::shared_ptr<RTCStats>>
-    BaseRtpEndpointImpl::getStats ()
+static std::map <std::string, std::shared_ptr<RTCStats>>
+    generateStats (GstElement *element, const gchar *selector)
 {
   std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
   GstStructure *stats;
 
-  g_signal_emit_by_name (getGstreamerElement(), "stats", &stats);
+  g_signal_emit_by_name (element, "stats", selector, &stats);
 
   rtcStatsReport = stats::createRTCStatsReport (time (NULL), stats);
 
   gst_structure_free (stats);
 
   return rtcStatsReport;
+}
+
+std::map <std::string, std::shared_ptr<RTCStats>>
+    BaseRtpEndpointImpl::getStats ()
+{
+  return generateStats (getGstreamerElement(), NULL);
+}
+
+std::map <std::string, std::shared_ptr<RTCStats>>
+    BaseRtpEndpointImpl::getStats (std::shared_ptr<MediaType> mediaType)
+{
+  const gchar *selector = NULL;
+
+  switch (mediaType->getValue () ) {
+  case MediaType::AUDIO:
+    selector = "audio";
+    break;
+
+  case MediaType::VIDEO:
+    selector = "video";
+    break;
+
+  default:
+    throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
+                            "Unsupported media type: " + mediaType->getString() );
+  }
+
+  return generateStats (getGstreamerElement(), selector);
 }
 
 std::shared_ptr<MediaState>
