@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "kmsdummysrc.h"
+#include "kmsagnosticcaps.h"
 
 #define PLUGIN_NAME "dummysrc"
 
@@ -123,7 +124,7 @@ kms_dummy_src_set_property (GObject * object, guint property_id,
 
         GST_DEBUG_OBJECT (self, "Creating data stream");
         tee = kms_element_get_data_tee (KMS_ELEMENT (self));
-        caps = gst_caps_from_string ("data/x-raw");
+        caps = gst_caps_from_string (KMS_AGNOSTIC_DATA_CAPS);
         self->priv->dataappsrc = gst_element_factory_make ("appsrc", NULL);
         g_object_set (G_OBJECT (self->priv->dataappsrc), "is-live", TRUE,
             "caps", caps, "emit-signals", TRUE, "stream-type", 0,

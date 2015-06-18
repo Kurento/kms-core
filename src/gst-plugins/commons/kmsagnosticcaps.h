@@ -105,6 +105,8 @@
   "video/x-vp8;" \
   "application/x-yuv4mpeg,y4mversion=2;" \
 
+#define KMS_AGNOSTIC_DATA_CAPS "application/data"
+
 #define KMS_AGNOSTIC_CAPS_CAPS KMS_AGNOSTIC_AUDIO_CAPS KMS_AGNOSTIC_VIDEO_CAPS
 
 #endif /* __KMS_AGNOSTIC_CAPS_H__ */

@@ -133,7 +133,7 @@ static GstStaticPadTemplate data_src_factory =
 GST_STATIC_PAD_TEMPLATE (DATA_SRC_PAD,
     GST_PAD_SRC,
     GST_PAD_SOMETIMES,
-    GST_STATIC_CAPS ("data/x-raw")
+    GST_STATIC_CAPS (KMS_AGNOSTIC_DATA_CAPS)
     );
 
 static PendingSrcPad *
