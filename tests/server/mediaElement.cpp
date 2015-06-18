@@ -81,23 +81,28 @@ BOOST_AUTO_TEST_CASE (connection_test)
 
   std::shared_ptr <MediaType> VIDEO (new MediaType (MediaType::VIDEO) );
   std::shared_ptr <MediaType> AUDIO (new MediaType (MediaType::AUDIO) );
+  std::shared_ptr <MediaType> DATA (new MediaType (MediaType::DATA) );
 
   src->setName ("SOURCE");
   sink->setName ("SINK");
 
   src->connect (sink);
   auto connections = sink->getSourceConnections ();
-  BOOST_CHECK (connections.size() == 2);
+
+  BOOST_CHECK (connections.size() == 3);
 
   for (auto it : connections) {
     BOOST_CHECK (it->getSource()->getId() == src->getId() );
   }
 
-  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
-  g_object_set (sink->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
+  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE,
+                "data", TRUE, NULL);
+  g_object_set (sink->getGstreamerElement(), "audio", TRUE, "video", TRUE,
+                "data", TRUE, NULL);
 
   connections = src->getSinkConnections ();
-  BOOST_CHECK (connections.size() == 2);
+
+  BOOST_CHECK (connections.size() == 3);
 
   for (auto it : connections) {
     BOOST_CHECK (it->getSource()->getId() == src->getId() );
@@ -121,9 +126,16 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = sink->getSourceConnections (VIDEO, "test");
   BOOST_CHECK (connections.size() == 0);
 
+  connections = sink->getSourceConnections (DATA, "");
+  BOOST_CHECK (connections.size() == 1);
+
+  connections = sink->getSourceConnections (DATA, "test");
+  BOOST_CHECK (connections.size() == 0);
+
   src->disconnect (sink);
 
   connections = sink->getSourceConnections ();
+
   BOOST_CHECK (connections.size() == 0);
 
   src->connect (sink, AUDIO);

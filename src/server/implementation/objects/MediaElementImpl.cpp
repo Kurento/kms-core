@@ -587,6 +587,8 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
            "", "");
   connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) ),
            "", "");
+  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) ),
+           "", "");
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
@@ -716,6 +718,8 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
                 MediaType::AUDIO) ), "", "");
   disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
                 MediaType::VIDEO) ), "", "");
+  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
+                MediaType::DATA) ), "", "");
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
