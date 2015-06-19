@@ -55,6 +55,8 @@ G_BEGIN_DECLS
   )                                                     \
 )
 
+#define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
+
 typedef struct _KmsSdpRtpAvpMediaHandler KmsSdpRtpAvpMediaHandler;
 typedef struct _KmsSdpRtpAvpMediaHandlerClass KmsSdpRtpAvpMediaHandlerClass;
 typedef struct _KmsSdpRtpAvpMediaHandlerPrivate KmsSdpRtpAvpMediaHandlerPrivate;

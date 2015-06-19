@@ -51,7 +51,6 @@ struct _KmsSdpRtpAvpMediaHandlerPrivate
   GSList *video_fmts;
 };
 
-#define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_AUDIO_MEDIA "audio"
 #define SDP_VIDEO_MEDIA "video"
 
@@ -760,46 +759,37 @@ static gboolean
 kms_sdp_rtp_avp_media_handler_init_answer (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
-  gchar *proto = NULL;
+  const gchar *proto;
 
   if (g_strcmp0 (gst_sdp_media_get_media (offer), SDP_AUDIO_MEDIA) != 0
       && g_strcmp0 (gst_sdp_media_get_media (offer), SDP_VIDEO_MEDIA) != 0) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
         "Unsupported '%s' media", gst_sdp_media_get_media (offer));
-    goto error;
+    return FALSE;
   }
 
-  g_object_get (handler, "proto", &proto, NULL);
+  proto = gst_sdp_media_get_proto (offer);
 
-  if (g_strcmp0 (proto, gst_sdp_media_get_proto (offer)) != 0) {
+  if (!kms_sdp_media_handler_manage_protocol (handler, proto)) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PROTOCOL,
         "Unexpected media protocol '%s'", gst_sdp_media_get_proto (offer));
-    goto error;
+    return FALSE;
   }
 
   if (gst_sdp_media_set_media (answer,
           gst_sdp_media_get_media (offer)) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
         "Can not set '%s' media attribute", gst_sdp_media_get_media (offer));
-    goto error;
+    return FALSE;
   }
 
   if (gst_sdp_media_set_proto (answer, proto) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
         "Can not set proto '%s' attribute", proto);
-    goto error;
+    return FALSE;
   }
-
-  g_free (proto);
 
   return TRUE;
-
-error:
-  if (proto != NULL) {
-    g_free (proto);
-  }
-
-  return FALSE;
 }
 
 static gboolean

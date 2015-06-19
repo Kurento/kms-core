@@ -210,6 +210,14 @@ kms_sdp_media_handler_add_bandwidth_impl (KmsSdpMediaHandler * handler,
 }
 
 static gboolean
+kms_sdp_media_handler_manage_protocol_impl (KmsSdpMediaHandler * handler,
+    const gchar * protocol)
+{
+  /* Just check protocol by default */
+  return g_strcmp0 (handler->priv->proto, protocol) == 0;
+}
+
+static gboolean
 is_direction_attr_present (const GstSDPMedia * media)
 {
   guint i, len;
@@ -345,6 +353,7 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;
   klass->add_bandwidth = kms_sdp_media_handler_add_bandwidth_impl;
+  klass->manage_protocol = kms_sdp_media_handler_manage_protocol_impl;
 
   klass->can_insert_attribute = kms_sdp_media_handler_can_insert_attribute_impl;
   klass->intersect_sdp_medias = kms_sdp_media_handler_intersect_sdp_medias_impl;
@@ -396,4 +405,14 @@ kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler * handler,
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_bandwidth (handler,
       bwtype, bandwidth);
+}
+
+gboolean
+kms_sdp_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
+    const gchar * protocol)
+{
+  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), FALSE);
+
+  return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->manage_protocol (handler,
+      protocol);
 }

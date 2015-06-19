@@ -449,7 +449,6 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
 
   for (l = agent->priv->handlers; l != NULL; l = l->next) {
     SdpHandler *sdp_handler;
-    gchar *proto;
 
     sdp_handler = l->data;
 
@@ -458,14 +457,10 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
       continue;
     }
 
-    g_object_get (sdp_handler->handler, "proto", &proto, NULL);
-    if (g_strcmp0 (proto, gst_sdp_media_get_proto (media)) != 0) {
-      /* This handler can not manage this protocol */
-      g_free (proto);
+    if (!kms_sdp_media_handler_manage_protocol (sdp_handler->handler,
+            gst_sdp_media_get_proto (media))) {
       continue;
     }
-
-    g_free (proto);
 
     return sdp_handler;
   }

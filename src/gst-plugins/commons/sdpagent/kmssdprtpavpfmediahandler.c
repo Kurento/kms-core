@@ -395,6 +395,14 @@ error:
 }
 
 static gboolean
+kms_sdp_rtp_avpf_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
+    const gchar * protocol)
+{
+  return g_strcmp0 (protocol, SDP_MEDIA_RTP_AVPF_PROTO) == 0 ||
+      g_strcmp0 (protocol, SDP_MEDIA_RTP_AVP_PROTO) == 0;
+}
+
+static gboolean
 kms_sdp_rtp_avpf_media_handler_can_insert_attribute (KmsSdpMediaHandler *
     handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
     GstSDPMedia * answer)
@@ -482,6 +490,11 @@ kms_sdp_rtp_avpf_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
     return FALSE;
   }
 
+  if (g_strcmp0 (gst_sdp_media_get_proto (offer), SDP_MEDIA_RTP_AVP_PROTO) == 0) {
+    /* Do not add specific feedback parameters in response */
+    return TRUE;
+  }
+
   return kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (handler, offer,
       answer, error);
 }
@@ -541,6 +554,8 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
 
   handler_class->create_offer = kms_sdp_rtp_avpf_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_rtp_avpf_media_handler_create_answer;
+  handler_class->manage_protocol =
+      kms_sdp_rtp_avpf_media_handler_manage_protocol;
 
   handler_class->can_insert_attribute =
       kms_sdp_rtp_avpf_media_handler_can_insert_attribute;

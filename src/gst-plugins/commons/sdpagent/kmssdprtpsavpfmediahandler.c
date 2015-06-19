@@ -61,15 +61,29 @@ kms_sdp_rtp_savpf_media_handler_constructor (GType gtype, guint n_properties,
   return object;
 }
 
+static gboolean
+kms_sdp_rtp_savpf_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
+    const gchar * protocol)
+{
+  /* Only support RTP/SAVPF */
+  return g_strcmp0 (protocol, SDP_MEDIA_RTP_SAVPF_PROTO) == 0;
+}
+
 static void
 kms_sdp_rtp_savpf_media_handler_class_init (KmsSdpRtpSavpfMediaHandlerClass *
     klass)
 {
   GObjectClass *gobject_class;
+  KmsSdpMediaHandlerClass *handler_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
 
   gobject_class->constructor = kms_sdp_rtp_savpf_media_handler_constructor;
+
+  handler_class = KMS_SDP_MEDIA_HANDLER_CLASS (klass);
+
+  handler_class->manage_protocol =
+      kms_sdp_rtp_savpf_media_handler_manage_protocol;
 }
 
 static void
