@@ -113,6 +113,7 @@ struct _KmsBaseRtpEndpointPrivate
   guint max_video_send_bw;
 
   /* REMB */
+  GstStructure *remb_params;
   KmsRembLocal *rl;
   KmsRembRemote *rm;
 
@@ -151,6 +152,7 @@ enum
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
   PROP_STATE,
+  PROP_REMB_PARAMS,
   PROP_LAST
 };
 
@@ -670,6 +672,10 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
       kms_remb_local_create (rtpsession, VIDEO_RTP_SESSION,
       self->priv->remote_video_ssrc, self->priv->min_video_recv_bw,
       max_recv_bw);
+
+  if (self->priv->remb_params != NULL) {
+    kms_remb_local_set_remb_params (self->priv->rl, self->priv->remb_params);
+  }
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
@@ -1932,6 +1938,19 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       self->priv->max_video_send_bw = v;
       break;
     }
+    case PROP_REMB_PARAMS:
+      if (self->priv->rl != NULL) {
+        GST_DEBUG_OBJECT (self, "Set to already created RembLocal");
+        kms_remb_local_set_remb_params (self->priv->rl,
+            g_value_get_boxed (value));
+      } else {
+        GST_DEBUG_OBJECT (self, "Set to aux structure");
+        if (self->priv->remb_params != NULL) {
+          gst_structure_free (self->priv->remb_params);
+        }
+        self->priv->remb_params = g_value_dup_boxed (value);
+      }
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -1971,6 +1990,16 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_STATE:
       g_value_set_enum (value, self->priv->state);
+      break;
+    case PROP_REMB_PARAMS:
+      if (self->priv->rl != NULL) {
+        GST_DEBUG_OBJECT (self, "Get from already created RembLocal");
+        g_value_take_boxed (value,
+            kms_remb_local_get_remb_params (self->priv->rl));
+      } else if (self->priv->remb_params != NULL) {
+        GST_DEBUG_OBJECT (self, "Get from aux structure");
+        g_value_set_boxed (value, self->priv->remb_params);
+      }
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -2013,6 +2042,10 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
 
   GST_DEBUG_OBJECT (self, "finalize");
+
+  if (self->priv->remb_params != NULL) {
+    gst_structure_free (self->priv->remb_params);
+  }
 
   kms_remb_local_destroy (self->priv->rl);
   kms_remb_remote_destroy (self->priv->rm);
@@ -2207,6 +2240,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Maximum video bandwidth for sending. Unit: kbps(kilobits per second). 0: unlimited",
           0, G_MAXUINT32, MAX_VIDEO_SEND_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_REMB_PARAMS,
+      g_param_spec_boxed ("remb-params", "remb params",
+          "Set parameters for REMB algorithm",
+          GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
   obj_signals[MEDIA_STATE_CHANGED] =
