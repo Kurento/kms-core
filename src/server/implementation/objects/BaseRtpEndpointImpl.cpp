@@ -17,6 +17,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define KMS_MEDIA_DISCONNECTED 0
 #define KMS_MEDIA_CONNECTED 1
+#define REMB_PARAMS "remb-params"
 
 namespace kurento
 {
@@ -155,8 +156,42 @@ BaseRtpEndpointImpl::getMediaState ()
 std::shared_ptr<RembParams>
 BaseRtpEndpointImpl::getRembParams ()
 {
-  /* TODO: implement */
-  return NULL;
+  std::shared_ptr<RembParams> ret (new RembParams() );
+  GstStructure *params;
+  guint aux;
+  gfloat auxf;
+
+  g_object_get (G_OBJECT (element), REMB_PARAMS, &params, NULL);
+
+  if (params == NULL)  {
+    return ret;
+  }
+
+  gst_structure_get (params, "packets-recv-interval-top", G_TYPE_UINT, &aux,
+                     NULL);
+  ret->setPacketsRecvIntervalTop (aux);
+
+  gst_structure_get (params, "exponential-factor", G_TYPE_FLOAT, &auxf, NULL);
+  ret->setExponentialFactor (auxf);
+
+  gst_structure_get (params, "lineal-factor-min", G_TYPE_UINT, &aux, NULL);
+  ret->setLinealFactorMin (aux);
+
+  gst_structure_get (params, "lineal-factor-grade", G_TYPE_FLOAT, &auxf, NULL);
+  ret->setLinealFactorGrade (auxf);
+
+  gst_structure_get (params, "decrement-factor", G_TYPE_FLOAT, &auxf, NULL);
+  ret->setDecrementFactor (auxf);
+
+  gst_structure_get (params, "threshold-factor", G_TYPE_FLOAT, &auxf, NULL);
+  ret->setThresholdFactor (auxf);
+
+  gst_structure_get (params, "up-losses", G_TYPE_UINT, &aux, NULL);
+  ret->setUpLosses (aux);
+
+  gst_structure_free (params);
+
+  return ret;
 }
 
 void
