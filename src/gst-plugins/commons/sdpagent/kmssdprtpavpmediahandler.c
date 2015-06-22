@@ -964,7 +964,7 @@ is_codec_used (GSList * rtpmaps, const gchar * name)
   return FALSE;
 }
 
-static gboolean
+static gint
 kms_sdp_rtp_avp_media_handler_add_codec (KmsSdpRtpAvpMediaHandler * self,
     const gchar * media, const gchar * name, GError ** error)
 {
@@ -978,24 +978,24 @@ kms_sdp_rtp_avp_media_handler_add_codec (KmsSdpRtpAvpMediaHandler * self,
   } else {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "Unsuported media '%s'", media);
-    return FALSE;
+    return -1;
   }
 
   if (is_codec_used (*fmts, name)) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "Codec %s is already used", name);
-    return FALSE;
+    return -1;
   }
 
   rtpmap = kms_sdp_rtp_map_create_for_codec (self, name, error);
 
   if (rtpmap == NULL) {
-    return FALSE;
+    return -1;
   }
 
   *fmts = g_slist_append (*fmts, rtpmap);
 
-  return TRUE;
+  return rtpmap->payload;
 }
 
 gboolean
@@ -1003,7 +1003,7 @@ kms_sdp_rtp_avp_media_handler_add_audio_codec (KmsSdpRtpAvpMediaHandler * self,
     const gchar * name, GError ** error)
 {
   return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_AUDIO_MEDIA, name,
-      error);
+      error) >= 0;
 }
 
 gboolean
@@ -1011,5 +1011,19 @@ kms_sdp_rtp_avp_media_handler_add_video_codec (KmsSdpRtpAvpMediaHandler * self,
     const gchar * name, GError ** error)
 {
   return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_VIDEO_MEDIA, name,
+      error) >= 0;
+}
+
+gint kms_sdp_rtp_avp_media_handler_add_generic_audio_payload
+    (KmsSdpRtpAvpMediaHandler * self, const gchar * format, GError ** error)
+{
+  return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_AUDIO_MEDIA, format,
+      error);
+}
+
+gint kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+    (KmsSdpRtpAvpMediaHandler * self, const gchar * format, GError ** error)
+{
+  return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_VIDEO_MEDIA, format,
       error);
 }

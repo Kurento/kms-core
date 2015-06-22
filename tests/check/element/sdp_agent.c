@@ -2248,6 +2248,115 @@ GST_START_TEST (sdp_agent_avp_avpf_negotiation)
   g_object_unref (answerer);
 }
 
+GST_END_TEST
+GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
+{
+  KmsSdpPayloadManager *ptmanager;
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
+
+  ptmanager = kms_sdp_payload_manager_new ();
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  kms_sdp_rtp_avp_media_handler_use_payload_manager
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler),
+      KMS_I_SDP_PAYLOAD_MANAGER (ptmanager), &err);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "ulpfec/90000", &err);
+  fail_if (err != NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "red/8000", &err);
+  fail_if (err != NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  ptmanager = kms_sdp_payload_manager_new ();
+
+  kms_sdp_rtp_avp_media_handler_use_payload_manager
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler),
+      KMS_I_SDP_PAYLOAD_MANAGER (ptmanager), &err);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "ulpfec/90000", &err);
+  fail_if (err != NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "red/8000", &err);
+  fail_if (err != NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_destroy (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  /* Same number of medias must be in answer */
+  fail_if (gst_sdp_message_medias_len (offer) !=
+      gst_sdp_message_medias_len (answer));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -2264,6 +2373,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_savpf_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_avp_generic_payload_negotiation);
   tcase_add_test (tc_chain, sdp_agent_avp_avpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_bundle_group);
   tcase_add_test (tc_chain, sdp_agent_test_fb_messages);
