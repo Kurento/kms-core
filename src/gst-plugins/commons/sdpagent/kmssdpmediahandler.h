@@ -46,11 +46,11 @@ G_BEGIN_DECLS
 #define KMS_IS_SDP_MEDIA_HANDLER_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SDP_MEDIA_HANDLER))
 #define KMS_SDP_MEDIA_HANDLER_GET_CLASS(obj) (  \
-  G_TYPE_INSTANCE_GET_CLASS (              \
-    (obj),                                 \
+  G_TYPE_INSTANCE_GET_CLASS (                   \
+    (obj),                                      \
     KMS_TYPE_SDP_MEDIA_HANDLER,                 \
-    KmsSdpMediaHandlerClass                    \
-  )                                        \
+    KmsSdpMediaHandlerClass                     \
+  )                                             \
 )
 
 typedef struct _KmsSdpMediaHandler KmsSdpMediaHandler;

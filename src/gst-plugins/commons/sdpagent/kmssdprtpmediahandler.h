@@ -23,33 +23,33 @@ G_BEGIN_DECLS
   (kms_sdp_rtp_media_handler_get_type())
 
 #define KMS_SDP_RTP_MEDIA_HANDLER(obj) (  \
-  G_TYPE_CHECK_INSTANCE_CAST (             \
-    (obj),                                 \
+  G_TYPE_CHECK_INSTANCE_CAST (            \
+    (obj),                                \
     KMS_TYPE_SDP_RTP_MEDIA_HANDLER,       \
     KmsSdpRtpMediaHandler                 \
-  )                                        \
+  )                                       \
 )
-#define KMS_SDP_RTP_MEDIA_HANDLER_CLASS(klass) (  \
-  G_TYPE_CHECK_CLASS_CAST (                        \
-    (klass),                                       \
-    KMS_TYPE_SDP_RTP_MEDIA_HANDLER,               \
-    KmsSdpRtpMediaHandlerClass                    \
-  )                                                \
+#define KMS_SDP_RTP_MEDIA_HANDLER_CLASS(klass) ( \
+  G_TYPE_CHECK_CLASS_CAST (                      \
+    (klass),                                     \
+    KMS_TYPE_SDP_RTP_MEDIA_HANDLER,              \
+    KmsSdpRtpMediaHandlerClass                   \
+  )                                              \
 )
 #define KMS_IS_SDP_RTP_MEDIA_HANDLER(obj) ( \
-  G_TYPE_CHECK_INSTANCE_TYPE (               \
-    (obj),                                   \
+  G_TYPE_CHECK_INSTANCE_TYPE (              \
+    (obj),                                  \
     KMS_TYPE_SDP_RTP_MEDIA_HANDLER          \
-  )                                          \
+  )                                         \
 )
 #define KMS_IS_SDP_RTP_MEDIA_HANDLER_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SDP_RTP_MEDIA_HANDLER))
-#define KMS_SDP_RTP_MEDIA_HANDLER_GET_CLASS(obj) (  \
-  G_TYPE_INSTANCE_GET_CLASS (                        \
-    (obj),                                           \
-    KMS_TYPE_SDP_RTP_MEDIA_HANDLER,                 \
-    KmsSdpRtpMediaHandlerClass                      \
-  )                                                  \
+#define KMS_SDP_RTP_MEDIA_HANDLER_GET_CLASS(obj) ( \
+  G_TYPE_INSTANCE_GET_CLASS (                      \
+    (obj),                                         \
+    KMS_TYPE_SDP_RTP_MEDIA_HANDLER,                \
+    KmsSdpRtpMediaHandlerClass                     \
+  )                                                \
 )
 
 typedef struct _KmsSdpRtpMediaHandler KmsSdpRtpMediaHandler;
