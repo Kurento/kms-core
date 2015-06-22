@@ -29,13 +29,13 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define KMS_REMB_LOCAL "kms-remb-local"
 
-#define REMB_PACKETS_RECV_INTERVAL_TOP 100
-#define REMB_EXPONENTIAL_FACTOR 0.04
-#define REMB_LINEAL_FACTOR_MIN 50       /* bps */
-#define REMB_LINEAL_FACTOR_GRADE ((60 * RTCP_MIN_INTERVAL)/ 1000)       /* Reach last top bitrate in 60secs aprox. */
-#define REMB_DECREMENT_FACTOR 0.5
-#define REMB_THRESHOLD_FACTOR 0.8
-#define REMB_UP_LOSSES 12       /* 4% losses */
+#define DEFAULT_REMB_PACKETS_RECV_INTERVAL_TOP 100
+#define DEFAULT_REMB_EXPONENTIAL_FACTOR 0.04
+#define DEFAULT_REMB_LINEAL_FACTOR_MIN 50       /* bps */
+#define DEFAULT_REMB_LINEAL_FACTOR_GRADE ((60 * RTCP_MIN_INTERVAL)/ 1000)       /* Reach last top bitrate in 60secs aprox. */
+#define DEFAULT_REMB_DECREMENT_FACTOR 0.5
+#define DEFAULT_REMB_THRESHOLD_FACTOR 0.8
+#define DEFAULT_REMB_UP_LOSSES 12       /* 4% losses */
 
 static void
 kms_remb_base_destroy (KmsRembBase * rb)
@@ -185,7 +185,7 @@ kms_remb_local_update (KmsRembLocal * rl)
   }
 
   packets_rcv_interval_top =
-      MAX (REMB_PACKETS_RECV_INTERVAL_TOP, packets_rcv_interval);
+      MAX (rl->packets_recv_interval_top, packets_rcv_interval);
   rl->fraction_lost_record =
       (rl->fraction_lost_record * (packets_rcv_interval_top -
           packets_rcv_interval) +
@@ -209,8 +209,8 @@ kms_remb_local_update (KmsRembLocal * rl)
 
     if (remb_base < rl->threshold) {
       GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "A.1) Exponential (%f)",
-          REMB_EXPONENTIAL_FACTOR);
-      remb_new = remb_base * (1 + REMB_EXPONENTIAL_FACTOR);
+          rl->exponential_factor);
+      remb_new = remb_base * (1 + rl->exponential_factor);
     } else {
       GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
           "A.2) Lineal (%" G_GUINT32_FORMAT ")", rl->lineal_factor);
@@ -218,21 +218,21 @@ kms_remb_local_update (KmsRembLocal * rl)
     }
 
     rl->remb = MAX (rl->remb, remb_new);
-  } else if (rl->fraction_lost_record < REMB_UP_LOSSES) {
+  } else if (fraction_lost < rl->up_losses) {
     GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
 
     rl->remb = MIN (rl->remb, rl->max_br);
-    rl->threshold = rl->remb * REMB_THRESHOLD_FACTOR;
+    rl->threshold = rl->remb * rl->threshold_factor;
   } else {
     gint remb_base, lineal_factor_new;
 
     GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "C) Too losses");
 
     remb_base = MAX (rl->remb, rl->avg_br);
-    rl->remb = remb_base * REMB_DECREMENT_FACTOR;
-    rl->threshold = remb_base * REMB_THRESHOLD_FACTOR;
-    lineal_factor_new = (remb_base - rl->threshold) / REMB_LINEAL_FACTOR_GRADE;
-    rl->lineal_factor = MAX (REMB_LINEAL_FACTOR_MIN, lineal_factor_new);
+    rl->remb = remb_base * rl->decrement_factor;
+    rl->threshold = remb_base * rl->threshold_factor;
+    lineal_factor_new = (remb_base - rl->threshold) / rl->lineal_factor_grade;
+    rl->lineal_factor = MAX (rl->lineal_factor_min, lineal_factor_new);
     rl->fraction_lost_record = 0;
     rl->max_br = 0;
     rl->avg_br = 0;
@@ -357,9 +357,87 @@ kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
   rl->probed = FALSE;
   rl->remb = REMB_MAX;
   rl->threshold = REMB_MAX;
-  rl->lineal_factor = REMB_LINEAL_FACTOR_MIN;
+  rl->lineal_factor = DEFAULT_REMB_LINEAL_FACTOR_MIN;
+
+  rl->packets_recv_interval_top = DEFAULT_REMB_PACKETS_RECV_INTERVAL_TOP;
+  rl->exponential_factor = DEFAULT_REMB_EXPONENTIAL_FACTOR;
+  rl->lineal_factor_min = DEFAULT_REMB_LINEAL_FACTOR_MIN;
+  rl->lineal_factor_grade = DEFAULT_REMB_LINEAL_FACTOR_GRADE;
+  rl->decrement_factor = DEFAULT_REMB_DECREMENT_FACTOR;
+  rl->threshold_factor = DEFAULT_REMB_THRESHOLD_FACTOR;
+  rl->up_losses = DEFAULT_REMB_UP_LOSSES;
 
   return rl;
+}
+
+void
+kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
+{
+  gfloat auxf;
+  guint auxui;
+  gboolean is_set;
+
+  is_set =
+      gst_structure_get (params, "packets-recv-interval-top", G_TYPE_UINT,
+      &auxui, NULL);
+  if (is_set) {
+    rl->packets_recv_interval_top = auxui;
+  }
+
+  is_set =
+      gst_structure_get (params, "exponential-factor", G_TYPE_FLOAT,
+      &auxf, NULL);
+  if (is_set) {
+    rl->exponential_factor = auxf;
+  }
+
+  is_set =
+      gst_structure_get (params, "lineal-factor-min", G_TYPE_UINT, &auxui,
+      NULL);
+  if (is_set) {
+    rl->lineal_factor_min = auxui;
+  }
+
+  is_set =
+      gst_structure_get (params, "lineal-factor-grade", G_TYPE_UINT,
+      &auxui, NULL);
+  if (is_set) {
+    rl->lineal_factor_grade = auxui;
+  }
+
+  is_set =
+      gst_structure_get (params, "decrement-factor", G_TYPE_FLOAT, &auxf, NULL);
+  if (is_set) {
+    rl->decrement_factor = auxf;
+  }
+
+  is_set =
+      gst_structure_get (params, "threshold-factor", G_TYPE_FLOAT, &auxf, NULL);
+  if (is_set) {
+    rl->threshold_factor = auxf;
+  }
+
+  is_set = gst_structure_get (params, "up-losses", G_TYPE_UINT, &auxui, NULL);
+  if (is_set) {
+    rl->up_losses = auxui;
+  }
+}
+
+GstStructure *
+kms_remb_local_get_remb_params (KmsRembLocal * rl)
+{
+  GstStructure *ret;
+
+  ret = gst_structure_new ("remb-params",
+      "packets-recv-interval-top", G_TYPE_UINT, rl->packets_recv_interval_top,
+      "exponential-factor", G_TYPE_FLOAT, rl->exponential_factor,
+      "lineal-factor-min", G_TYPE_UINT, rl->lineal_factor_min,
+      "lineal-factor-grade", G_TYPE_FLOAT, rl->lineal_factor_grade,
+      "decrement-factor", G_TYPE_FLOAT, rl->decrement_factor,
+      "threshold-factor", G_TYPE_FLOAT, rl->threshold_factor,
+      "up-losses", G_TYPE_UINT, rl->up_losses, NULL);
+
+  return ret;
 }
 
 /* KmsRembLocal end */

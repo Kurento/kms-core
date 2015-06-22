@@ -49,6 +49,14 @@ struct _KmsRembLocal
   guint min_bw;
   guint max_bw;
 
+  guint packets_recv_interval_top;
+  gfloat exponential_factor;
+  gint lineal_factor_min;
+  gfloat lineal_factor_grade;
+  gfloat decrement_factor;
+  gfloat threshold_factor;
+  gint up_losses;
+
   guint remb;
   gboolean probed;
   guint threshold;
@@ -64,6 +72,8 @@ struct _KmsRembLocal
 
 KmsRembLocal * kms_remb_local_create (GObject *rtpsess, guint session,
   guint remote_ssrc, guint min_bw, guint max_bw);
+void kms_remb_local_set_remb_params (KmsRembLocal *rl, GstStructure *params);
+GstStructure* kms_remb_local_get_remb_params (KmsRembLocal *rl);
 void kms_remb_local_destroy (KmsRembLocal *rl);
 /* KmsRembLocal end */
 
