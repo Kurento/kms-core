@@ -7,6 +7,7 @@
 #include <MediaState.hpp>
 #include <time.h>
 #include <SignalHandler.hpp>
+#include "RembParams.hpp"
 
 #include "Statistics.hpp"
 
@@ -149,6 +150,70 @@ std::shared_ptr<MediaState>
 BaseRtpEndpointImpl::getMediaState ()
 {
   return current_state;
+}
+
+std::shared_ptr<RembParams>
+BaseRtpEndpointImpl::getRembParams ()
+{
+  /* TODO: implement */
+  return NULL;
+}
+
+void
+BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
+{
+  GstStructure *params = gst_structure_new_empty ("remb-params");
+
+  if (rembParams->isSetPacketsRecvIntervalTop () ) {
+    gst_structure_set (params, "packets-recv-interval-top", G_TYPE_UINT,
+                       rembParams->getPacketsRecvIntervalTop(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'packets-recv-interval-top' value %d",
+                      rembParams->getPacketsRecvIntervalTop() );
+  }
+
+  if (rembParams->isSetExponentialFactor () ) {
+    gst_structure_set (params, "exponential-factor", G_TYPE_FLOAT,
+                       rembParams->getExponentialFactor(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'exponential-factor' value %g",
+                      rembParams->getExponentialFactor() );
+  }
+
+  if (rembParams->isSetLinealFactorMin () ) {
+    gst_structure_set (params, "lineal-factor-min", G_TYPE_UINT,
+                       rembParams->getLinealFactorMin(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'lineal-factor-min' value %d",
+                      rembParams->getLinealFactorMin() );
+  }
+
+  if (rembParams->isSetLinealFactorGrade () ) {
+    gst_structure_set (params, "lineal-factor-grade", G_TYPE_FLOAT,
+                       rembParams->getLinealFactorGrade(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'lineal-factor-grade' value %g",
+                      rembParams->getLinealFactorGrade() );
+  }
+
+  if (rembParams->isSetDecrementFactor () ) {
+    gst_structure_set (params, "decrement-factor", G_TYPE_FLOAT,
+                       rembParams->getDecrementFactor(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'decrement-factor' value %g",
+                      rembParams->getDecrementFactor() );
+  }
+
+  if (rembParams->isSetThresholdFactor () ) {
+    gst_structure_set (params, "threshold-factor", G_TYPE_FLOAT,
+                       rembParams->getThresholdFactor(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'threshold-factor' value %g",
+                      rembParams->getThresholdFactor() );
+  }
+
+  if (rembParams->isSetUpLosses () ) {
+    gst_structure_set (params, "up-losses", G_TYPE_UINT,
+                       rembParams->getUpLosses(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'up-losses' value %d",
+                      rembParams->getUpLosses() );
+  }
+
+  g_object_set (G_OBJECT (element), "remb-params", params, NULL);
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;

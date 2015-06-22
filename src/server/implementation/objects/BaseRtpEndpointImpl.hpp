@@ -47,6 +47,9 @@ public:
 
   virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
 
+  virtual std::shared_ptr<RembParams> getRembParams ();
+  virtual void setRembParams (std::shared_ptr<RembParams> rembParams);
+
   sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
 
   /* Next methods are automatically implemented by code generator */

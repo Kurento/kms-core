@@ -392,6 +392,11 @@
           "doc": "State of the media",
           "type": "MediaState",
           "readOnly": true
+        },
+        {
+          "name": "rembParams",
+          "doc": "Parameters of the congestion control algorithm",
+          "type": "RembParams"
         }
       ],
       "methods": [
@@ -1381,6 +1386,55 @@
           "doc": "String used for tuning codec properties",
           "type": "String<>",
           "optional": true
+        }
+      ]
+    },
+    {
+      "name": "RembParams",
+      "doc": "Defines values for parameters of congestion control",
+      "typeFormat": "REGISTER",
+      "properties": [
+        {
+          "name": "packetsRecvIntervalTop",
+          "doc": "",
+          "type": "int",
+          "optional":true
+        },
+        {
+          "name": "exponentialFactor",
+          "doc": "",
+          "type": "float",
+          "optional":true
+        },
+        {
+          "name": "linealFactorMin",
+          "doc": "bps",
+          "type": "int",
+          "optional":true
+        },
+        {
+          "name": "linealFactorGrade",
+          "doc": "",
+          "type": "float",
+          "optional":true
+        },
+        {
+          "name": "decrementFactor",
+          "doc": "",
+          "type": "float",
+          "optional":true
+        },
+        {
+          "name": "thresholdFactor",
+          "doc": "",
+          "type": "float",
+          "optional":true
+        },
+        {
+          "name": "upLosses",
+          "doc": "",
+          "type": "int",
+          "optional":true
         }
       ]
     }
