@@ -371,7 +371,7 @@ kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
 }
 
 void
-kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
+kms_remb_local_set_params (KmsRembLocal * rl, GstStructure * params)
 {
   gfloat auxf;
   gint auxi;
@@ -423,7 +423,7 @@ kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
 }
 
 GstStructure *
-kms_remb_local_get_remb_params (KmsRembLocal * rl)
+kms_remb_local_get_params (KmsRembLocal * rl)
 {
   GstStructure *ret;
 

@@ -702,7 +702,7 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
       max_recv_bw);
 
   if (self->priv->remb_params != NULL) {
-    kms_remb_local_set_remb_params (self->priv->rl, self->priv->remb_params);
+    kms_remb_local_set_params (self->priv->rl, self->priv->remb_params);
   }
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
@@ -2045,8 +2045,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
         GST_DEBUG_OBJECT (self, "Set to already created RembLocal");
-        kms_remb_local_set_remb_params (self->priv->rl,
-            g_value_get_boxed (value));
+        kms_remb_local_set_params (self->priv->rl, g_value_get_boxed (value));
       } else {
         GST_DEBUG_OBJECT (self, "Set to aux structure");
         if (self->priv->remb_params != NULL) {
@@ -2101,8 +2100,7 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
         GST_DEBUG_OBJECT (self, "Get from already created RembLocal");
-        g_value_take_boxed (value,
-            kms_remb_local_get_remb_params (self->priv->rl));
+        g_value_take_boxed (value, kms_remb_local_get_params (self->priv->rl));
       } else if (self->priv->remb_params != NULL) {
         GST_DEBUG_OBJECT (self, "Get from aux structure");
         g_value_set_boxed (value, self->priv->remb_params);
