@@ -82,7 +82,7 @@ struct _KmsRTPSessionStats
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
-  KmsMediaState state;
+  KmsMediaState media_state;
   gboolean audio_actived;
   gboolean video_actived;
   gboolean audio_added;
@@ -128,6 +128,7 @@ enum
   MEDIA_START,
   MEDIA_STOP,
   MEDIA_STATE_CHANGED,
+  CONNECTION_STATE_CHANGED,
   SIGNAL_REQUEST_LOCAL_KEY_FRAME,
   LAST_SIGNAL
 };
@@ -152,7 +153,7 @@ enum
   PROP_MIN_VIDEO_RECV_BW,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
-  PROP_STATE,
+  PROP_MEDIA_STATE,
   PROP_REMB_PARAMS,
   PROP_LAST
 };
@@ -2001,8 +2002,8 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_MAX_VIDEO_SEND_BW:
       g_value_set_uint (value, self->priv->max_video_send_bw);
       break;
-    case PROP_STATE:
-      g_value_set_enum (value, self->priv->state);
+    case PROP_MEDIA_STATE:
+      g_value_set_enum (value, self->priv->media_state);
       break;
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
@@ -2208,8 +2209,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   base_endpoint_class->configure_media = kms_base_rtp_endpoint_configure_media;
 
-  g_object_class_install_property (object_class, PROP_STATE,
-      g_param_spec_enum ("state", "Media state", "Media state",
+  g_object_class_install_property (object_class, PROP_MEDIA_STATE,
+      g_param_spec_enum ("media-state", "Media state", "Media state",
           KMS_TYPE_MEDIA_STATE, KMS_MEDIA_STATE_DISCONNECTED,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
@@ -2353,8 +2354,8 @@ kms_base_rtp_endpoint_set_media_state (KmsBaseRtpEndpoint * self, guint session,
     new_state = KMS_MEDIA_STATE_DISCONNECTED;
   }
 
-  if (self->priv->state != new_state) {
-    self->priv->state = new_state;
+  if (self->priv->media_state != new_state) {
+    self->priv->media_state = new_state;
     emit = TRUE;
   }
 
