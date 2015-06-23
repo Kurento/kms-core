@@ -103,6 +103,7 @@ set(ENUM_HEADERS
   kmsfiltertype.h
   kmselementpadtype.h
   kmsmediastate.h
+  kmsconnectionstate.h
 )
 
 list(APPEND KMS_COMMONS_HEADERS ${ENUM_HEADERS})

@@ -82,6 +82,7 @@ struct _KmsRTPSessionStats
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
+  KmsConnectionState conn_state;
   KmsMediaState media_state;
   gboolean audio_actived;
   gboolean video_actived;
@@ -153,6 +154,7 @@ enum
   PROP_MIN_VIDEO_RECV_BW,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
+  PROP_CONNECTION_STATE,
   PROP_MEDIA_STATE,
   PROP_REMB_PARAMS,
   PROP_LAST
@@ -745,7 +747,7 @@ static void
 kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
     KmsIRtpConnection * conn, gboolean active)
 {
-  gboolean connected;
+  gboolean added;
   GstElement *ssrcdemux;
   GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
@@ -755,8 +757,8 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
     return;
   }
 
-  g_object_get (conn, "added", &connected, NULL);
-  if (!connected) {
+  g_object_get (conn, "added", &added, NULL);
+  if (!added) {
     kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   }
 
@@ -1139,6 +1141,72 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
 }
 
 static void
+kms_base_rtp_endpoint_update_conn_state (KmsBaseRtpEndpoint * self)
+{
+  GHashTableIter iter;
+  gpointer key, v;
+  gboolean emit = FALSE;
+  KmsConnectionState new_state = KMS_CONNECTION_STATE_CONNECTED;
+
+  KMS_ELEMENT_LOCK (self);
+
+  g_hash_table_iter_init (&iter, self->priv->conns);
+  while (g_hash_table_iter_next (&iter, &key, &v)) {
+    KmsIRtpConnection *conn = KMS_I_RTP_CONNECTION (v);
+    gboolean connected;
+
+    g_object_get (conn, "connected", &connected, NULL);
+    if (!connected) {
+      new_state = KMS_CONNECTION_STATE_DISCONNECTED;
+      break;
+    }
+  }
+
+  if (self->priv->conn_state != new_state) {
+    GST_DEBUG_OBJECT (self, "Connection state changed to '%d'", new_state);
+    self->priv->conn_state = new_state;
+    emit = TRUE;
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  if (emit) {
+    g_signal_emit (G_OBJECT (self), obj_signals[CONNECTION_STATE_CHANGED], 0,
+        new_state);
+  }
+}
+
+static void
+kms_base_rtp_endpoint_connected_cb (KmsIRtpConnection * conn,
+    gpointer user_data)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  kms_base_rtp_endpoint_update_conn_state (self);
+}
+
+static void
+kms_base_rtp_endpoint_check_conn_status (KmsBaseRtpEndpoint * self)
+{
+  GHashTableIter iter;
+  gpointer key, v;
+
+  KMS_ELEMENT_LOCK (self);
+
+  g_hash_table_iter_init (&iter, self->priv->conns);
+  while (g_hash_table_iter_next (&iter, &key, &v)) {
+    KmsIRtpConnection *conn = KMS_I_RTP_CONNECTION (v);
+
+    g_signal_connect_data (conn, "connected",
+        G_CALLBACK (kms_base_rtp_endpoint_connected_cb), self, NULL, 0);
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  kms_base_rtp_endpoint_update_conn_state (self);
+}
+
+static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, gboolean offerer)
 {
@@ -1149,6 +1217,8 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
       kms_base_sdp_endpoint_get_remote_sdp_ctx (base_sdp_endpoint);
   GSList *item = kms_sdp_message_context_get_medias (neg_ctx);
   GSList *remote_media_list = kms_sdp_message_context_get_medias (remote_ctx);
+
+  kms_base_rtp_endpoint_check_conn_status (self);
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *neg_mconf = item->data;
@@ -2002,6 +2072,9 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
     case PROP_MAX_VIDEO_SEND_BW:
       g_value_set_uint (value, self->priv->max_video_send_bw);
       break;
+    case PROP_CONNECTION_STATE:
+      g_value_set_enum (value, self->priv->conn_state);
+      break;
     case PROP_MEDIA_STATE:
       g_value_set_enum (value, self->priv->media_state);
       break;
@@ -2209,6 +2282,12 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   base_endpoint_class->configure_media = kms_base_rtp_endpoint_configure_media;
 
+  g_object_class_install_property (object_class, PROP_CONNECTION_STATE,
+      g_param_spec_enum ("connection-state", "Connection state",
+          "Connection state", KMS_TYPE_CONNECTION_STATE,
+          KMS_CONNECTION_STATE_DISCONNECTED,
+          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_MEDIA_STATE,
       g_param_spec_enum ("media-state", "Media state", "Media state",
           KMS_TYPE_MEDIA_STATE, KMS_MEDIA_STATE_DISCONNECTED,
@@ -2261,6 +2340,14 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /* set signals */
+  obj_signals[CONNECTION_STATE_CHANGED] =
+      g_signal_new ("connection-state-changed",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsBaseRtpEndpointClass, connection_state_changed), NULL,
+      NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE, 1,
+      KMS_TYPE_CONNECTION_STATE);
+
   obj_signals[MEDIA_STATE_CHANGED] =
       g_signal_new ("media-state-changed",
       G_TYPE_FROM_CLASS (klass),

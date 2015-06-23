@@ -19,6 +19,7 @@
 #include "kmsirtpconnection.h"
 #include "kmsmediatype.h"
 #include "kmsmediastate.h"
+#include "kmsconnectionstate.h"
 
 /* TODO: remove from here, it is defined in kmrtcp.h */
 #define RTCP_MIN_INTERVAL 500 /* ms */
@@ -102,6 +103,8 @@ struct _KmsBaseRtpEndpointClass
   void (*media_stop) (KmsBaseRtpEndpoint * self, KmsMediaType type,
     gboolean local);
   void (*media_state_changed) (KmsBaseRtpEndpoint * self, KmsMediaState new_state);
+
+  void (*connection_state_changed) (KmsBaseRtpEndpoint * self, KmsConnectionState new_state);
 
   gboolean (*request_local_key_frame) (KmsBaseRtpEndpoint * self);
 
