@@ -1412,45 +1412,51 @@
       "properties": [
         {
           "name": "packetsRecvIntervalTop",
-          "doc": "",
+          "doc": "Size of the RTP packets history to smooth fraction-lost.\nUnits: num of packets",
           "type": "int",
-          "optional":true
+          "optional":true,
+          "defaultValue": 100
         },
         {
           "name": "exponentialFactor",
-          "doc": "",
+          "doc": "Factor used to increase exponentially the next REMB when it is below the threshold.\nREMB[i+1] = REMB[i] * (1 + exponentialFactor)",
           "type": "float",
-          "optional":true
+          "optional":true,
+          "defaultValue": 0.04
         },
         {
           "name": "linealFactorMin",
-          "doc": "bps",
+          "doc": "Set the min of the factor used to increase linearly the next REMB when it is over the threshold.\nUnits: bps (bits per second).\nREMB[i+1] = REMB[i] + MIN (linealFactorMin, linealFactor)",
           "type": "int",
           "optional":true
         },
         {
           "name": "linealFactorGrade",
-          "doc": "",
+          "doc": "Determine the value of the next linearFactor based on the threshold and the current REMB. Taking into account that the frequency of updating is 500ms, the default value makes that the last REMB is reached in 60secs.\nlinealFactor = (REMB - TH) / linealFactorGrade",
           "type": "float",
-          "optional":true
+          "optional":true,
+          "defaultValue": 30
         },
         {
           "name": "decrementFactor",
-          "doc": "",
+          "doc": "Determine how much is decreased the current REMB when too losses are detected.\nREMB[i+1] = REMB[i] * decrementFactor",
           "type": "float",
-          "optional":true
+          "optional":true,
+          "defaultValue": 0.5
         },
         {
           "name": "thresholdFactor",
-          "doc": "",
+          "doc": "Determine the next threshold (TH) when too losses are detected.\nTH[i+1] = REMB[i] * thresholdFactor",
           "type": "float",
-          "optional":true
+          "optional":true,
+          "defaultValue": 0.8
         },
         {
           "name": "upLosses",
-          "doc": "",
+          "doc": "Max fraction-lost to no determine too losses. This value is the denominator of the fraction N/256, so the default value is about 4% of losses (12/256)",
           "type": "int",
-          "optional":true
+          "optional":true,
+          "defaultValue": 12
         },
         {
           "name": "rembOnConnect",
