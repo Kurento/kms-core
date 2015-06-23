@@ -1451,6 +1451,13 @@
           "doc": "",
           "type": "int",
           "optional":true
+        },
+        {
+          "name": "rembOnConnect",
+          "doc": "REMB propagated upstream when video sending is started in a new connected endpoint.\n  Unit: bps(bits per second)",
+          "type": "int",
+          "optional":true,
+          "defaultValue": 300000
         }
       ]
     }

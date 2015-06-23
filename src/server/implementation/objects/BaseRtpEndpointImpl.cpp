@@ -215,6 +215,7 @@ BaseRtpEndpointImpl::getRembParams ()
     return ret;
   }
 
+  /* REMB local begin */
   gst_structure_get (params, "packets-recv-interval-top", G_TYPE_INT, &auxi,
                      NULL);
   ret->setPacketsRecvIntervalTop (auxi);
@@ -236,6 +237,12 @@ BaseRtpEndpointImpl::getRembParams ()
 
   gst_structure_get (params, "up-losses", G_TYPE_INT, &auxi, NULL);
   ret->setUpLosses (auxi);
+  /* REMB local end */
+
+  /* REMB remote begin */
+  gst_structure_get (params, "remb-on-connect", G_TYPE_INT, &auxi, NULL);
+  ret->setRembOnConnect (auxi);
+  /* REMB remote end */
 
   gst_structure_free (params);
 
@@ -247,6 +254,7 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 {
   GstStructure *params = gst_structure_new_empty (REMB_PARAMS);
 
+  /* REMB local begin */
   if (rembParams->isSetPacketsRecvIntervalTop () ) {
     gst_structure_set (params, "packets-recv-interval-top", G_TYPE_INT,
                        rembParams->getPacketsRecvIntervalTop(), NULL);
@@ -295,6 +303,18 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
     GST_DEBUG_OBJECT (element, "New 'up-losses' value %d",
                       rembParams->getUpLosses() );
   }
+
+  /* REMB local end */
+
+  /* REMB remote begin */
+  if (rembParams->isSetRembOnConnect () ) {
+    gst_structure_set (params, "remb-on-connect", G_TYPE_INT,
+                       rembParams->getRembOnConnect(), NULL);
+    GST_DEBUG_OBJECT (element, "New 'remb-on-connect' value %d",
+                      rembParams->getRembOnConnect() );
+  }
+
+  /* REMB remote end */
 
   g_object_set (G_OBJECT (element), REMB_PARAMS, params, NULL);
   gst_structure_free (params);
