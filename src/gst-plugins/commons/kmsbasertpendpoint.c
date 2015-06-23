@@ -701,10 +701,6 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
       self->priv->remote_video_ssrc, self->priv->min_video_recv_bw,
       max_recv_bw);
 
-  if (self->priv->remb_params != NULL) {
-    kms_remb_local_set_params (self->priv->rl, self->priv->remb_params);
-  }
-
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
       kms_remb_remote_create (rtpsession, VIDEO_RTP_SESSION,
@@ -712,6 +708,11 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpEndpoint * self)
       self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
   g_object_unref (rtpsession);
+
+  if (self->priv->remb_params != NULL) {
+    kms_remb_local_set_params (self->priv->rl, self->priv->remb_params);
+    kms_remb_remote_set_params (self->priv->rm, self->priv->remb_params);
+  }
 
   GST_DEBUG_OBJECT (self, "REMB managers added");
 }
@@ -2044,8 +2045,12 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     }
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
-        GST_DEBUG_OBJECT (self, "Set to already created RembLocal");
-        kms_remb_local_set_params (self->priv->rl, g_value_get_boxed (value));
+        GstStructure *params = g_value_get_boxed (value);
+
+        GST_DEBUG_OBJECT (self,
+            "Set to already created RembLocal and RembRemote");
+        kms_remb_local_set_params (self->priv->rl, params);
+        kms_remb_remote_set_params (self->priv->rm, params);
       } else {
         GST_DEBUG_OBJECT (self, "Set to aux structure");
         if (self->priv->remb_params != NULL) {
@@ -2099,8 +2104,13 @@ kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
-        GST_DEBUG_OBJECT (self, "Get from already created RembLocal");
-        g_value_take_boxed (value, kms_remb_local_get_params (self->priv->rl));
+        GstStructure *params = gst_structure_new_empty ("remb-params");
+
+        GST_DEBUG_OBJECT (self,
+            "Get from already created RembLocal and RembRemote");
+        kms_remb_local_get_params (self->priv->rl, &params);
+        kms_remb_remote_get_params (self->priv->rm, &params);
+        g_value_take_boxed (value, params);
       } else if (self->priv->remb_params != NULL) {
         GST_DEBUG_OBJECT (self, "Get from aux structure");
         g_value_set_boxed (value, self->priv->remb_params);

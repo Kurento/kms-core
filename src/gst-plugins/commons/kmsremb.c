@@ -422,12 +422,10 @@ kms_remb_local_set_params (KmsRembLocal * rl, GstStructure * params)
   }
 }
 
-GstStructure *
-kms_remb_local_get_params (KmsRembLocal * rl)
+void
+kms_remb_local_get_params (KmsRembLocal * rl, GstStructure ** params)
 {
-  GstStructure *ret;
-
-  ret = gst_structure_new ("remb-params",
+  gst_structure_set (*params,
       "packets-recv-interval-top", G_TYPE_INT, rl->packets_recv_interval_top,
       "exponential-factor", G_TYPE_FLOAT, rl->exponential_factor,
       "lineal-factor-min", G_TYPE_INT, rl->lineal_factor_min,
@@ -435,8 +433,6 @@ kms_remb_local_get_params (KmsRembLocal * rl)
       "decrement-factor", G_TYPE_FLOAT, rl->decrement_factor,
       "threshold-factor", G_TYPE_FLOAT, rl->threshold_factor,
       "up-losses", G_TYPE_INT, rl->up_losses, NULL);
-
-  return ret;
 }
 
 /* KmsRembLocal end */
@@ -641,6 +637,26 @@ kms_remb_remote_create (GObject * rtpsess, guint session, guint local_ssrc,
       send_remb_event_probe, rm, NULL);
 
   return rm;
+}
+
+void
+kms_remb_remote_set_params (KmsRembRemote * rm, GstStructure * params)
+{
+  gint auxi;
+  gboolean is_set;
+
+  is_set =
+      gst_structure_get (params, "remb-on-connect", G_TYPE_INT, &auxi, NULL);
+  if (is_set) {
+    rm->remb_on_connect = auxi;
+  }
+}
+
+void
+kms_remb_remote_get_params (KmsRembRemote * rm, GstStructure ** params)
+{
+  gst_structure_set (*params,
+      "remb-on-connect", G_TYPE_INT, rm->remb_on_connect, NULL);
 }
 
 /* KmsRembRemote end */
