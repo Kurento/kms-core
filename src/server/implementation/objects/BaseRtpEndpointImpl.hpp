@@ -44,6 +44,7 @@ public:
   virtual void setMaxVideoSendBandwidth (int maxVideoSendBandwidth);
 
   virtual std::shared_ptr<MediaState> getMediaState ();
+  virtual std::shared_ptr<ConnectionState> getConnectionState ();
 
   virtual std::map <std::string, std::shared_ptr<RTCStats>> getStats ();
 
@@ -51,6 +52,7 @@ public:
   virtual void setRembParams (std::shared_ptr<RembParams> rembParams);
 
   sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
+  sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
@@ -68,9 +70,12 @@ private:
   std::string formatGstStructure (const GstStructure *stats);
   std::shared_ptr<MediaState> current_media_state;
   gulong mediaStateChangedHandlerId;
+  std::shared_ptr<ConnectionState> current_conn_state;
+  gulong connStateChangedHandlerId;
   std::recursive_mutex mutex;
 
   void updateMediaState (guint new_state);
+  void updateConnectionState (guint new_state);
 
   class StaticConstructor
   {

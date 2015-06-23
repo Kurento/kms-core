@@ -5,6 +5,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <MediaState.hpp>
+#include <ConnectionState.hpp>
 #include <time.h>
 #include <SignalHandler.hpp>
 #include "RembParams.hpp"
@@ -17,6 +18,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define KMS_MEDIA_DISCONNECTED 0
 #define KMS_MEDIA_CONNECTED 1
+#define KMS_CONNECTION_DISCONNECTED 0
+#define KMS_CONNECTION_CONNECTED 1
 #define REMB_PARAMS "remb-params"
 
 namespace kurento
@@ -32,6 +35,14 @@ void BaseRtpEndpointImpl::postConstructor ()
                                      std::placeholders::_2) ),
                                std::dynamic_pointer_cast<BaseRtpEndpointImpl>
                                (shared_from_this() ) );
+
+  connStateChangedHandlerId = register_signal_handler (G_OBJECT (element),
+                              "connection-state-changed",
+                              std::function <void (GstElement *, guint) > (std::bind (
+                                    &BaseRtpEndpointImpl::updateConnectionState, this,
+                                    std::placeholders::_2) ),
+                              std::dynamic_pointer_cast<BaseRtpEndpointImpl>
+                              (shared_from_this() ) );
 }
 
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
@@ -40,11 +51,13 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     const std::string &factoryName) :
   SdpEndpointImpl (config, parent, factoryName)
 {
-
   current_media_state = std::make_shared <MediaState>
                         (MediaState::DISCONNECTED);
-
   mediaStateChangedHandlerId = 0;
+
+  current_conn_state = std::make_shared <ConnectionState>
+                       (ConnectionState::DISCONNECTED);
+  connStateChangedHandlerId = 0;
 }
 
 BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
@@ -82,6 +95,37 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
                              MediaStateChanged::getName (), old_state, current_media_state);
 
     this->signalMediaStateChanged (event);
+  }
+}
+
+void
+BaseRtpEndpointImpl::updateConnectionState (guint new_state)
+{
+  std::unique_lock<std::recursive_mutex> lock (mutex);
+  std::shared_ptr<ConnectionState> old_state = current_conn_state;
+
+  switch (new_state) {
+  case KMS_CONNECTION_DISCONNECTED:
+    current_conn_state = std::make_shared <ConnectionState>
+                         (ConnectionState::DISCONNECTED);
+    break;
+
+  case KMS_CONNECTION_CONNECTED:
+    current_conn_state = std::make_shared <ConnectionState>
+                         (ConnectionState::CONNECTED);
+    break;
+
+  default:
+    GST_ERROR ("Invalid connection state %u", new_state);
+    return;
+  }
+
+  if (old_state->getValue() != current_conn_state->getValue() ) {
+    /* Emit state change signal */
+    ConnectionStateChanged event (shared_from_this(),
+                                  ConnectionStateChanged::getName (), old_state, current_conn_state);
+
+    this->signalConnectionStateChanged (event);
   }
 }
 
@@ -149,6 +193,12 @@ std::shared_ptr<MediaState>
 BaseRtpEndpointImpl::getMediaState ()
 {
   return current_media_state;
+}
+
+std::shared_ptr<ConnectionState>
+BaseRtpEndpointImpl::getConnectionState ()
+{
+  return current_conn_state;
 }
 
 std::shared_ptr<RembParams>
