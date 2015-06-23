@@ -381,6 +381,12 @@ kms_remb_local_set_params (KmsRembLocal * rl, GstStructure * params)
       gst_structure_get (params, "packets-recv-interval-top", G_TYPE_INT,
       &auxi, NULL);
   if (is_set) {
+    if (auxi <= 0) {
+      GST_WARNING
+          ("'packets-recv-interval-top' must be greater than 0. Setting to 1.");
+      auxi = 1;
+    }
+
     rl->packets_recv_interval_top = auxi;
   }
 
