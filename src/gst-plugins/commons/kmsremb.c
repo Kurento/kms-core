@@ -374,14 +374,14 @@ void
 kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
 {
   gfloat auxf;
-  guint auxui;
+  gint auxi;
   gboolean is_set;
 
   is_set =
-      gst_structure_get (params, "packets-recv-interval-top", G_TYPE_UINT,
-      &auxui, NULL);
+      gst_structure_get (params, "packets-recv-interval-top", G_TYPE_INT,
+      &auxi, NULL);
   if (is_set) {
-    rl->packets_recv_interval_top = auxui;
+    rl->packets_recv_interval_top = auxi;
   }
 
   is_set =
@@ -392,17 +392,16 @@ kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
   }
 
   is_set =
-      gst_structure_get (params, "lineal-factor-min", G_TYPE_UINT, &auxui,
-      NULL);
+      gst_structure_get (params, "lineal-factor-min", G_TYPE_INT, &auxi, NULL);
   if (is_set) {
-    rl->lineal_factor_min = auxui;
+    rl->lineal_factor_min = auxi;
   }
 
   is_set =
-      gst_structure_get (params, "lineal-factor-grade", G_TYPE_UINT,
-      &auxui, NULL);
+      gst_structure_get (params, "lineal-factor-grade", G_TYPE_INT,
+      &auxi, NULL);
   if (is_set) {
-    rl->lineal_factor_grade = auxui;
+    rl->lineal_factor_grade = auxi;
   }
 
   is_set =
@@ -417,9 +416,9 @@ kms_remb_local_set_remb_params (KmsRembLocal * rl, GstStructure * params)
     rl->threshold_factor = auxf;
   }
 
-  is_set = gst_structure_get (params, "up-losses", G_TYPE_UINT, &auxui, NULL);
+  is_set = gst_structure_get (params, "up-losses", G_TYPE_INT, &auxi, NULL);
   if (is_set) {
-    rl->up_losses = auxui;
+    rl->up_losses = auxi;
   }
 }
 
@@ -429,13 +428,13 @@ kms_remb_local_get_remb_params (KmsRembLocal * rl)
   GstStructure *ret;
 
   ret = gst_structure_new ("remb-params",
-      "packets-recv-interval-top", G_TYPE_UINT, rl->packets_recv_interval_top,
+      "packets-recv-interval-top", G_TYPE_INT, rl->packets_recv_interval_top,
       "exponential-factor", G_TYPE_FLOAT, rl->exponential_factor,
-      "lineal-factor-min", G_TYPE_UINT, rl->lineal_factor_min,
+      "lineal-factor-min", G_TYPE_INT, rl->lineal_factor_min,
       "lineal-factor-grade", G_TYPE_FLOAT, rl->lineal_factor_grade,
       "decrement-factor", G_TYPE_FLOAT, rl->decrement_factor,
       "threshold-factor", G_TYPE_FLOAT, rl->threshold_factor,
-      "up-losses", G_TYPE_UINT, rl->up_losses, NULL);
+      "up-losses", G_TYPE_INT, rl->up_losses, NULL);
 
   return ret;
 }

@@ -158,7 +158,7 @@ BaseRtpEndpointImpl::getRembParams ()
 {
   std::shared_ptr<RembParams> ret (new RembParams() );
   GstStructure *params;
-  guint aux;
+  gint auxi;
   gfloat auxf;
 
   g_object_get (G_OBJECT (element), REMB_PARAMS, &params, NULL);
@@ -167,15 +167,15 @@ BaseRtpEndpointImpl::getRembParams ()
     return ret;
   }
 
-  gst_structure_get (params, "packets-recv-interval-top", G_TYPE_UINT, &aux,
+  gst_structure_get (params, "packets-recv-interval-top", G_TYPE_INT, &auxi,
                      NULL);
-  ret->setPacketsRecvIntervalTop (aux);
+  ret->setPacketsRecvIntervalTop (auxi);
 
   gst_structure_get (params, "exponential-factor", G_TYPE_FLOAT, &auxf, NULL);
   ret->setExponentialFactor (auxf);
 
-  gst_structure_get (params, "lineal-factor-min", G_TYPE_UINT, &aux, NULL);
-  ret->setLinealFactorMin (aux);
+  gst_structure_get (params, "lineal-factor-min", G_TYPE_INT, &auxi, NULL);
+  ret->setLinealFactorMin (auxi);
 
   gst_structure_get (params, "lineal-factor-grade", G_TYPE_FLOAT, &auxf, NULL);
   ret->setLinealFactorGrade (auxf);
@@ -186,8 +186,8 @@ BaseRtpEndpointImpl::getRembParams ()
   gst_structure_get (params, "threshold-factor", G_TYPE_FLOAT, &auxf, NULL);
   ret->setThresholdFactor (auxf);
 
-  gst_structure_get (params, "up-losses", G_TYPE_UINT, &aux, NULL);
-  ret->setUpLosses (aux);
+  gst_structure_get (params, "up-losses", G_TYPE_INT, &auxi, NULL);
+  ret->setUpLosses (auxi);
 
   gst_structure_free (params);
 
@@ -200,7 +200,7 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
   GstStructure *params = gst_structure_new_empty (REMB_PARAMS);
 
   if (rembParams->isSetPacketsRecvIntervalTop () ) {
-    gst_structure_set (params, "packets-recv-interval-top", G_TYPE_UINT,
+    gst_structure_set (params, "packets-recv-interval-top", G_TYPE_INT,
                        rembParams->getPacketsRecvIntervalTop(), NULL);
     GST_DEBUG_OBJECT (element, "New 'packets-recv-interval-top' value %d",
                       rembParams->getPacketsRecvIntervalTop() );
@@ -214,7 +214,7 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
   }
 
   if (rembParams->isSetLinealFactorMin () ) {
-    gst_structure_set (params, "lineal-factor-min", G_TYPE_UINT,
+    gst_structure_set (params, "lineal-factor-min", G_TYPE_INT,
                        rembParams->getLinealFactorMin(), NULL);
     GST_DEBUG_OBJECT (element, "New 'lineal-factor-min' value %d",
                       rembParams->getLinealFactorMin() );
@@ -242,7 +242,7 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
   }
 
   if (rembParams->isSetUpLosses () ) {
-    gst_structure_set (params, "up-losses", G_TYPE_UINT,
+    gst_structure_set (params, "up-losses", G_TYPE_INT,
                        rembParams->getUpLosses(), NULL);
     GST_DEBUG_OBJECT (element, "New 'up-losses' value %d",
                       rembParams->getUpLosses() );
