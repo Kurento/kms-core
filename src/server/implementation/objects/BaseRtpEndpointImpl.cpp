@@ -197,7 +197,7 @@ BaseRtpEndpointImpl::getRembParams ()
 void
 BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 {
-  GstStructure *params = gst_structure_new_empty ("remb-params");
+  GstStructure *params = gst_structure_new_empty (REMB_PARAMS);
 
   if (rembParams->isSetPacketsRecvIntervalTop () ) {
     gst_structure_set (params, "packets-recv-interval-top", G_TYPE_UINT,
@@ -248,7 +248,8 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
                       rembParams->getUpLosses() );
   }
 
-  g_object_set (G_OBJECT (element), "remb-params", params, NULL);
+  g_object_set (G_OBJECT (element), REMB_PARAMS, params, NULL);
+  gst_structure_free (params);
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;
