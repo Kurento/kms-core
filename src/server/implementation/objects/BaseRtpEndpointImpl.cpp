@@ -25,13 +25,13 @@ void BaseRtpEndpointImpl::postConstructor ()
 {
   SdpEndpointImpl::postConstructor ();
 
-  stateChangedHandlerId = register_signal_handler (G_OBJECT (element),
-                          "media-state-changed",
-                          std::function <void (GstElement *, guint) > (std::bind (
-                                &BaseRtpEndpointImpl::updateState, this,
-                                std::placeholders::_2) ),
-                          std::dynamic_pointer_cast<BaseRtpEndpointImpl>
-                          (shared_from_this() ) );
+  mediaStateChangedHandlerId = register_signal_handler (G_OBJECT (element),
+                               "media-state-changed",
+                               std::function <void (GstElement *, guint) > (std::bind (
+                                     &BaseRtpEndpointImpl::updateMediaState, this,
+                                     std::placeholders::_2) ),
+                               std::dynamic_pointer_cast<BaseRtpEndpointImpl>
+                               (shared_from_this() ) );
 }
 
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
@@ -41,36 +41,34 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
   SdpEndpointImpl (config, parent, factoryName)
 {
 
-  current_state = std::make_shared <MediaState>
-                  (MediaState::DISCONNECTED);
+  current_media_state = std::make_shared <MediaState>
+                        (MediaState::DISCONNECTED);
 
-  stateChangedHandlerId = 0;
+  mediaStateChangedHandlerId = 0;
 }
 
 BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
 {
-  if (stateChangedHandlerId > 0) {
-    unregister_signal_handler (element, stateChangedHandlerId);
+  if (mediaStateChangedHandlerId > 0) {
+    unregister_signal_handler (element, mediaStateChangedHandlerId);
   }
 }
 
 void
-BaseRtpEndpointImpl::updateState (guint new_state)
+BaseRtpEndpointImpl::updateMediaState (guint new_state)
 {
   std::unique_lock<std::recursive_mutex> lock (mutex);
-  std::shared_ptr<MediaState> old_state;
-
-  old_state = current_state;
+  std::shared_ptr<MediaState> old_state = current_media_state;
 
   switch (new_state) {
   case KMS_MEDIA_DISCONNECTED:
-    current_state = std::make_shared <MediaState>
-                    (MediaState::DISCONNECTED);
+    current_media_state = std::make_shared <MediaState>
+                          (MediaState::DISCONNECTED);
     break;
 
   case KMS_MEDIA_CONNECTED:
-    current_state = std::make_shared <MediaState>
-                    (MediaState::CONNECTED);
+    current_media_state = std::make_shared <MediaState>
+                          (MediaState::CONNECTED);
     break;
 
   default:
@@ -78,10 +76,10 @@ BaseRtpEndpointImpl::updateState (guint new_state)
     return;
   }
 
-  if (old_state->getValue() != current_state->getValue() ) {
+  if (old_state->getValue() != current_media_state->getValue() ) {
     /* Emit state change signal */
     MediaStateChanged event (shared_from_this(),
-                             MediaStateChanged::getName (), old_state, current_state);
+                             MediaStateChanged::getName (), old_state, current_media_state);
 
     this->signalMediaStateChanged (event);
   }
@@ -150,7 +148,7 @@ std::map <std::string, std::shared_ptr<RTCStats>>
 std::shared_ptr<MediaState>
 BaseRtpEndpointImpl::getMediaState ()
 {
-  return current_state;
+  return current_media_state;
 }
 
 std::shared_ptr<RembParams>

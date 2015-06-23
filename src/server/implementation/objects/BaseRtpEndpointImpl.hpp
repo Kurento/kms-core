@@ -66,11 +66,11 @@ protected:
 private:
 
   std::string formatGstStructure (const GstStructure *stats);
-  std::shared_ptr<MediaState> current_state;
-  gulong stateChangedHandlerId;
+  std::shared_ptr<MediaState> current_media_state;
+  gulong mediaStateChangedHandlerId;
   std::recursive_mutex mutex;
 
-  void updateState (guint new_state);
+  void updateMediaState (guint new_state);
 
   class StaticConstructor
   {
