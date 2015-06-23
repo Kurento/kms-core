@@ -2355,6 +2355,7 @@ kms_base_rtp_endpoint_set_media_state (KmsBaseRtpEndpoint * self, guint session,
   }
 
   if (self->priv->media_state != new_state) {
+    GST_DEBUG_OBJECT (self, "Media state changed to '%d'", new_state);
     self->priv->media_state = new_state;
     emit = TRUE;
   }
