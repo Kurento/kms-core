@@ -29,6 +29,7 @@
 #include "kmsistats.h"
 #include "kmsrefstruct.h"
 
+#include <gst/rtp/gstrtpdefs.h>
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/video/video-event.h>
 
@@ -540,7 +541,7 @@ assign_uuid (GObject * ssrc)
 
 static GObject *
 kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
-    guint session_id, const gchar * rtpbin_pad_name)
+    guint session_id, const gchar * rtpbin_pad_name, guint rtp_profile)
 {
   GstElement *rtpbin = self->priv->rtpbin;
   KmsRTPSessionStats *rtp_stats;
@@ -569,9 +570,27 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
   }
 
   g_object_set (rtpsession, "rtcp-min-interval",
-      RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
+      RTCP_MIN_INTERVAL * GST_MSECOND, "rtp-profile", rtp_profile, NULL);
 
   return rtpsession;
+}
+
+static guint
+kms_base_rtp_endpoint_media_proto_to_rtp_profile (KmsBaseRtpEndpoint * self,
+    const gchar * proto)
+{
+  if (g_strcmp0 (proto, "RTP/AVP") == 0) {
+    return GST_RTP_PROFILE_AVP;
+  } else if (g_strcmp0 (proto, "RTP/AVPF") == 0) {
+    return GST_RTP_PROFILE_AVPF;
+  } else if (g_strcmp0 (proto, "RTP/SAVP") == 0) {
+    return GST_RTP_PROFILE_SAVP;
+  } else if (g_strcmp0 (proto, "RTP/SAVPF") == 0) {
+    return GST_RTP_PROFILE_SAVPF;
+  } else {
+    GST_WARNING_OBJECT (self, "Unknown protocol '%s'", proto);
+    return GST_RTP_PROFILE_UNKNOWN;
+  }
 }
 
 static gboolean
@@ -608,7 +627,8 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
 
   rtpsession =
       kms_base_rtp_endpoint_create_rtp_session (self, session_id,
-      rtpbin_pad_name);
+      rtpbin_pad_name,
+      kms_base_rtp_endpoint_media_proto_to_rtp_profile (self, proto_str));
   if (rtpsession == NULL) {
     GST_WARNING_OBJECT (self,
         "Cannot create RTP Session'%" G_GUINT32_FORMAT "'", session_id);
