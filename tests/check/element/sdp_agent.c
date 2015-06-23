@@ -2248,7 +2248,49 @@ GST_START_TEST (sdp_agent_avp_avpf_negotiation)
   g_object_unref (answerer);
 }
 
-GST_END_TEST
+GST_END_TEST static void
+check_payloads (GstSDPMessage * answer, gint fec_payload, gint red_payload)
+{
+  const GstSDPMedia *media = NULL;
+  const gchar *attr;
+  gchar *payload;
+  guint i, l;
+
+  l = gst_sdp_message_medias_len (answer);
+
+  fail_if (l == 0);
+
+  for (i = 0; i < l; i++) {
+    media = gst_sdp_message_get_media (answer, i);
+
+    if (g_strcmp0 (gst_sdp_media_get_media (media), "video") == 0) {
+      break;
+    }
+  }
+
+  fail_if (media == NULL ||
+      g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
+
+  /* Check payloads */
+  payload = g_strdup_printf ("%d", fec_payload);
+  attr = sdp_utils_get_attr_map_value (media, "rtpmap", payload);
+  g_free (payload);
+
+  fail_if (attr == NULL);
+
+  payload = g_strdup_printf ("%d", red_payload);
+  attr = sdp_utils_get_attr_map_value (media, "rtpmap", payload);
+  g_free (payload);
+
+  fail_if (attr == NULL);
+
+  payload = g_strdup_printf ("%d", red_payload);
+  attr = sdp_utils_get_attr_map_value (media, "fmtp", payload);
+  g_free (payload);
+
+  fail_if (attr == NULL);
+}
+
 GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
 {
   KmsSdpPayloadManager *ptmanager;
@@ -2256,7 +2298,7 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   KmsSdpMediaHandler *handler;
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
-  gint id;
+  gint id, fec_payload, red_payload;
   gchar *sdp_str = NULL;
   SdpMessageContext *ctx;
 
@@ -2282,12 +2324,16 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
-  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+  fec_payload = kms_sdp_rtp_avp_media_handler_add_generic_video_payload
       (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "ulpfec/90000", &err);
   fail_if (err != NULL);
 
-  kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+  red_payload = kms_sdp_rtp_avp_media_handler_add_generic_video_payload
       (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "red/8000", &err);
+  fail_if (err != NULL);
+
+  kms_sdp_rtp_avp_media_handler_add_fmtp (KMS_SDP_RTP_AVP_MEDIA_HANDLER
+      (handler), red_payload, "0/5/100", &err);
   fail_if (err != NULL);
 
   id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
@@ -2346,9 +2392,8 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
-  /* Same number of medias must be in answer */
-  fail_if (gst_sdp_message_medias_len (offer) !=
-      gst_sdp_message_medias_len (answer));
+  check_all_is_negotiated (offer, answer);
+  check_payloads (answer, fec_payload, red_payload);
 
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);

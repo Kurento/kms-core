@@ -104,6 +104,7 @@ struct _KmsSdpRtpMap
 {
   guint payload;
   gchar *name;
+  GSList *fmtps;                /* list of GstSDPAttributes */
 };
 
 static KmsSdpRtpMap *
@@ -119,9 +120,19 @@ kms_sdp_rtp_map_new (guint payload, const gchar * name)
 }
 
 static void
+kms_sdp_attribute_destroy (GstSDPAttribute * attr)
+{
+  gst_sdp_attribute_clear (attr);
+
+  g_slice_free (GstSDPAttribute, attr);
+}
+
+static void
 kms_sdp_rtp_map_destroy (KmsSdpRtpMap * rtpmap)
 {
   g_free (rtpmap->name);
+  g_slist_free_full (rtpmap->fmtps, (GDestroyNotify) kms_sdp_attribute_destroy);
+
   g_slice_free (KmsSdpRtpMap, rtpmap);
 }
 
@@ -330,10 +341,31 @@ kms_sdp_rtp_avp_media_handler_add_extmaps (KmsSdpRtpAvpMediaHandler *
 }
 
 static gboolean
+kms_sdp_rtp_avp_media_handler_add_fmtp_attrs (KmsSdpRtpAvpMediaHandler * self,
+    const KmsSdpRtpMap * rtpmap, GstSDPMedia * media, GError ** error)
+{
+  GSList *item = NULL;
+
+  for (item = rtpmap->fmtps; item != NULL; item = g_slist_next (item)) {
+    GstSDPAttribute *fmtp = item->data;
+
+    if (gst_sdp_media_add_attribute (media, fmtp->key,
+            fmtp->value) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Can not to set attribute '%s:%s'", fmtp->key, fmtp->value);
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+static gboolean
 kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (KmsSdpRtpAvpMediaHandler * self,
     GstSDPMedia * media, GError ** error)
 {
   GSList *fmts = NULL;
+  gboolean omit;
   guint i;
 
   if (g_strcmp0 (gst_sdp_media_get_media (media), SDP_AUDIO_MEDIA) == 0) {
@@ -347,18 +379,16 @@ kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (KmsSdpRtpAvpMediaHandler * self,
   }
 
   for (i = 0; i < media->fmts->len; i++) {
-    gchar *payload, *attr;
+    gchar *payload;
     GSList *item = NULL;
     guint pt;
 
     payload = g_array_index (media->fmts, gchar *, i);
     pt = atoi (payload);
 
-    if (pt >= DEFAULT_RTP_AUDIO_BASE_PAYLOAD && pt <= G_N_ELEMENTS (rtpmaps)) {
-      /* [rfc4566] rtpmap attribute can be omitted for static payload type  */
-      /* numbers so it is completely defined in the RTP Audio/Video profile */
-      continue;
-    }
+    /* [rfc4566] rtpmap attribute can be omitted for static payload type  */
+    /* numbers so it is completely defined in the RTP Audio/Video profile */
+    omit = pt >= DEFAULT_RTP_AUDIO_BASE_PAYLOAD && pt <= G_N_ELEMENTS (rtpmaps);
 
     for (item = fmts; item != NULL; item = g_slist_next (item)) {
       KmsSdpRtpMap *rtpmap = item->data;
@@ -367,16 +397,27 @@ kms_sdp_rtp_avp_media_handler_add_rtpmap_attrs (KmsSdpRtpAvpMediaHandler * self,
         continue;
       }
 
-      attr = g_strdup_printf ("%u %s", rtpmap->payload, rtpmap->name);
+      if (!omit) {
+        gchar *attr;
 
-      if (gst_sdp_media_add_attribute (media, "rtpmap", attr) != GST_SDP_OK) {
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-            "Can not to set attribute 'rtpmap:%s'", attr);
+        attr = g_strdup_printf ("%u %s", rtpmap->payload, rtpmap->name);
+
+        if (gst_sdp_media_add_attribute (media, "rtpmap", attr) != GST_SDP_OK) {
+          /* Add rtpmap attribute */
+          g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+              "Can not to set attribute 'rtpmap:%s'", attr);
+          g_free (attr);
+          return FALSE;
+        }
+
         g_free (attr);
-        return FALSE;
       }
 
-      g_free (attr);
+      /* Add fmtp attributes */
+      if (!kms_sdp_rtp_avp_media_handler_add_fmtp_attrs (self, rtpmap, media,
+              error)) {
+        return FALSE;
+      }
     }
   }
 
@@ -1026,4 +1067,52 @@ gint kms_sdp_rtp_avp_media_handler_add_generic_video_payload
 {
   return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_VIDEO_MEDIA, format,
       error);
+}
+
+static gint
+find_rtpmap_payload (KmsSdpRtpMap * rtpmap, guint * payload)
+{
+  return rtpmap->payload - *payload;
+}
+
+gboolean
+kms_sdp_rtp_avp_media_handler_add_fmtp (KmsSdpRtpAvpMediaHandler * self,
+    guint payload, const gchar * value, GError ** error)
+{
+  GstSDPAttribute *fmtp;
+  KmsSdpRtpMap *rtpmap;
+  gchar *attr;
+  GSList *l;
+
+  l = g_slist_find_custom (self->priv->audio_fmts, &payload,
+      (GCompareFunc) find_rtpmap_payload);
+
+  if (l == NULL) {
+    l = g_slist_find_custom (self->priv->video_fmts, &payload,
+        (GCompareFunc) find_rtpmap_payload);
+  }
+
+  if (l == NULL) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Invalid payload (%d)", payload);
+    return FALSE;
+  }
+
+  fmtp = g_slice_new0 (GstSDPAttribute);
+
+  attr = g_strdup_printf ("%u %s", payload, value);
+  if (gst_sdp_attribute_set (fmtp, "fmtp", attr) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not create fmtp attribute");
+    g_slice_free (GstSDPAttribute, fmtp);
+    g_free (attr);
+    return FALSE;
+  }
+
+  g_free (attr);
+
+  rtpmap = l->data;
+  rtpmap->fmtps = g_slist_prepend (rtpmap->fmtps, fmtp);
+
+  return TRUE;
 }
