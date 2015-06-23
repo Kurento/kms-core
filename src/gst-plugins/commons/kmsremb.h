@@ -88,6 +88,8 @@ struct _KmsRembRemote
   guint min_bw;
   guint max_bw;
 
+  gint remb_on_connect;
+
   guint remb;
   gboolean probed;
   GstPad *pad_event;

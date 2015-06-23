@@ -443,7 +443,7 @@ kms_remb_local_get_params (KmsRembLocal * rl)
 
 /* KmsRembRemote begin */
 
-#define REMB_ON_CONNECT 300000  /* bps */
+#define DEFAULT_REMB_ON_CONNECT 300000  /* bps */
 
 static void
 send_remb_event (KmsRembRemote * rm, guint bitrate, guint ssrc)
@@ -487,7 +487,7 @@ send_remb_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     return GST_PAD_PROBE_OK;
   };
 
-  send_remb_event (rm, REMB_ON_CONNECT, rm->local_ssrc);
+  send_remb_event (rm, rm->remb_on_connect, rm->local_ssrc);
 
   return GST_PAD_PROBE_REMOVE;
 }
@@ -510,7 +510,7 @@ kms_remb_remote_update (KmsRembRemote * rm,
     /* FIXME: if no event is sent until this condition,
      * the restriction of this br will be removed by event manager
      * in 10secs*/
-    if ((remb_packet->bitrate < REMB_ON_CONNECT)
+    if ((remb_packet->bitrate < rm->remb_on_connect)
         && (remb_packet->bitrate >= rm->remb)) {
       rm->remb = remb_packet->bitrate;
       return;
@@ -633,6 +633,8 @@ kms_remb_remote_create (GObject * rtpsess, guint session, guint local_ssrc,
   rm->local_ssrc = local_ssrc;
   rm->min_bw = min_bw;
   rm->max_bw = max_bw;
+
+  rm->remb_on_connect = DEFAULT_REMB_ON_CONNECT;
 
   rm->pad_event = g_object_ref (pad);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
