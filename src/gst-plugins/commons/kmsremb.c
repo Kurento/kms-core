@@ -218,7 +218,7 @@ kms_remb_local_update (KmsRembLocal * rl)
     }
 
     rl->remb = MAX (rl->remb, remb_new);
-  } else if (fraction_lost < rl->up_losses) {
+  } else if (rl->fraction_lost_record < rl->up_losses) {
     GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
 
     rl->remb = MIN (rl->remb, rl->max_br);
