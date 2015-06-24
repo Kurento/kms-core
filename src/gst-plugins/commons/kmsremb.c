@@ -218,24 +218,26 @@ kms_remb_local_update (KmsRembLocal * rl)
     }
 
     rl->remb = MAX (rl->remb, remb_new);
-  } else if (rl->fraction_lost_record < rl->up_losses) {
-    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
-
-    rl->remb = MIN (rl->remb, rl->max_br);
-    rl->threshold = rl->remb * rl->threshold_factor;
   } else {
     gint remb_base, lineal_factor_new;
 
-    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "C) Too losses");
-
     remb_base = MAX (rl->remb, rl->avg_br);
-    rl->remb = remb_base * rl->decrement_factor;
     rl->threshold = remb_base * rl->threshold_factor;
     lineal_factor_new = (remb_base - rl->threshold) / rl->lineal_factor_grade;
     rl->lineal_factor = MAX (rl->lineal_factor_min, lineal_factor_new);
-    rl->fraction_lost_record = 0;
-    rl->max_br = 0;
-    rl->avg_br = 0;
+
+    if (rl->fraction_lost_record < rl->up_losses) {
+      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "B) Assumable losses");
+
+      rl->remb = MIN (rl->remb, rl->max_br);
+    } else {
+      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "C) Too losses");
+
+      rl->remb = remb_base * rl->decrement_factor;
+      rl->fraction_lost_record = 0;
+      rl->max_br = 0;
+      rl->avg_br = 0;
+    }
   }
 
   if (rl->max_bw > 0) {
