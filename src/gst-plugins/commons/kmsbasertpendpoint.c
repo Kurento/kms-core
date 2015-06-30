@@ -1909,6 +1909,46 @@ rtp_session_stats_get_jitter_buffer (KmsRTPSessionStats * rtp_stats, guint ssrc)
   return NULL;
 }
 
+static const GstStructure *
+get_structure_from_id (const GstStructure * structure, const gchar * fieldname)
+{
+  const GValue *value;
+
+  if (!gst_structure_has_field (structure, fieldname)) {
+    GST_WARNING ("No stats for %s", fieldname);
+    return NULL;
+  }
+
+  value = gst_structure_get_value (structure, fieldname);
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", fieldname, str_val);
+    g_free (str_val);
+
+    return NULL;
+  }
+
+  return gst_value_get_structure (value);
+}
+
+static void
+set_rtt (const GstStructure * session_stats, const gchar * ssrc_id, guint rtt)
+{
+  const GstStructure *ssrc_stats;
+
+  ssrc_stats = get_structure_from_id (session_stats, ssrc_id);
+
+  if (ssrc_stats == NULL) {
+    return;
+  }
+
+  gst_structure_set ((GstStructure *) ssrc_stats, "round-trip-time",
+      G_TYPE_UINT, rtt, NULL);
+}
+
 static void
 append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     GstStructure * stats)
@@ -1916,7 +1956,8 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
   GstStructure *session_stats;
   gchar *str_session;
   GValueArray *arr;
-  guint i;
+  gchar *ssrc_id = NULL;
+  guint i, rtt = 0;
 
   g_object_get (rtp_stats->rtp_session, "stats", &session_stats, NULL);
 
@@ -1929,6 +1970,7 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
   for (i = 0; i < arr->n_values; i++) {
     GstElement *jitter_buffer;
     GstStructure *ssrc_stats;
+    gboolean internal;
     GObject *source;
     GValue *val;
     gchar *name;
@@ -1958,8 +2000,26 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, ssrc_stats,
         NULL);
 
+    gst_structure_get (ssrc_stats, "internal", G_TYPE_BOOLEAN, &internal, NULL);
+
+    if (internal) {
+      if (ssrc_id == NULL) {
+        ssrc_id = g_strdup (name);
+      } else {
+        GST_WARNING ("Session %d has more than 1 internal source",
+            GPOINTER_TO_UINT (session));
+      }
+    } else {
+      gst_structure_get (ssrc_stats, "rb-round-trip", G_TYPE_UINT, &rtt, NULL);
+    }
+
     gst_structure_free (ssrc_stats);
     g_free (name);
+  }
+
+  if (ssrc_id != NULL) {
+    set_rtt (session_stats, ssrc_id, rtt);
+    g_free (ssrc_id);
   }
 
   g_value_array_free (arr);
@@ -2205,31 +2265,6 @@ typedef struct _KmsRembStats
   GstStructure *stats;
   guint session;
 } KmsRembStats;
-
-static const GstStructure *
-get_structure_from_id (const GstStructure * structure, const gchar * fieldname)
-{
-  const GValue *value;
-
-  if (!gst_structure_has_field (structure, fieldname)) {
-    GST_WARNING ("No stats for %s", fieldname);
-    return NULL;
-  }
-
-  value = gst_structure_get_value (structure, fieldname);
-
-  if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
-    gchar *str_val;
-
-    str_val = g_strdup_value_contents (value);
-    GST_WARNING ("Unexpected field type (%s) = %s", fieldname, str_val);
-    g_free (str_val);
-
-    return NULL;
-  }
-
-  return gst_value_get_structure (value);
-}
 
 static void
 merge_remb_stats (gpointer key, guint * value, KmsRembStats * rs)
