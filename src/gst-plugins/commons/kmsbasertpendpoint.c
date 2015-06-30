@@ -1766,6 +1766,8 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
   } else {
     GstElement *fake = gst_element_factory_make ("fakesink", NULL);
 
+    g_object_set (fake, "async", FALSE, "sync", FALSE, NULL);
+
     GST_WARNING_OBJECT (self, "Depayloder not found for pad %" GST_PTR_FORMAT,
         pad);
 

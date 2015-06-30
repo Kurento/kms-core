@@ -99,7 +99,7 @@ kms_tree_bin_init (KmsTreeBin * self)
 
   self->priv->output_tee = gst_element_factory_make ("tee", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);
-  g_object_set (fakesink, "async", FALSE, NULL);
+  g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (self), self->priv->output_tee, fakesink, NULL);
   gst_element_link (self->priv->output_tee, fakesink);

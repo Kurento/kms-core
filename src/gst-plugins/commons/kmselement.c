@@ -454,6 +454,7 @@ kms_element_get_data_tee (KmsElement * self)
   }
 
   sink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (sink, "sync", FALSE, "async", FALSE, NULL);
 
   gst_bin_add_many (GST_BIN (self), tee, sink, NULL);
   gst_element_link (tee, sink);
