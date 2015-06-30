@@ -69,16 +69,21 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
 static std::shared_ptr<RTCOutboundRTPStreamStats>
 createRTCOutboundRTPStreamStats (const GstStructure *stats)
 {
-  guint64 bytesSent, packetsSent, bitRate, roundTripTime;
-  guint pliCount, firCount, remb;
+  guint64 bytesSent, packetsSent, bitRate;
+  guint pliCount, firCount, remb, rtt;
+  float roundTripTime;
 
-  bytesSent = packetsSent = bitRate = roundTripTime = G_GUINT64_CONSTANT (0);
-  pliCount = firCount = remb = 0;
+  bytesSent = packetsSent = bitRate = G_GUINT64_CONSTANT (0);
+  pliCount = firCount = remb = rtt = 0;
+  roundTripTime = 0.0;
 
   gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
                      "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
-                     G_TYPE_UINT64, &bitRate, "rb-round-trip", G_TYPE_UINT64,
-                     &roundTripTime, NULL);
+                     G_TYPE_UINT64, &bitRate, "round-trip-time", G_TYPE_UINT,
+                     &rtt, NULL);
+
+  /* rtt is provided in nanosecond. We must provide it in seconds */
+  roundTripTime = (float) rtt / G_GUINT64_CONSTANT (1000000000);
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
@@ -94,7 +99,7 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   return std::make_shared <RTCOutboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::outboundrtp), 0.0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb,
-         packetsSent, bytesSent, (float) bitRate, (float) roundTripTime);
+         packetsSent, bytesSent, (float) bitRate, roundTripTime);
 }
 
 static std::shared_ptr<RTCRTPStreamStats>
