@@ -93,8 +93,8 @@ kms_dummy_sink_add_sinkpad (KmsDummySink * self, KmsElementPadType type)
 
   if (*appsink == NULL) {
     /* First time that appsink is created */
-    *appsink = gst_element_factory_make ("appsink", name);
-    g_object_set (*appsink, "async", FALSE, "sync", TRUE, NULL);
+    *appsink = gst_element_factory_make ("fakesink", name);
+    g_object_set (*appsink, "async", FALSE, "sync", FALSE, NULL);
     gst_bin_add (GST_BIN (self), *appsink);
     gst_element_sync_state_with_parent (*appsink);
   }
