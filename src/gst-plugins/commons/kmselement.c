@@ -26,7 +26,6 @@
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
-#define DEFAULT_DO_SYNCHRONIZATION FALSE
 #define DEFAULT_BITRATE_ "default-bitrate"
 
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
@@ -75,13 +74,6 @@ struct _KmsElementPrivate
   GstCaps *audio_caps;
   GstCaps *video_caps;
 
-  /* Synchronization */
-  GMutex sync_lock;
-  GstClockTime base_time;
-  GstClockTime base_clock;
-
-  gboolean do_synchronization;
-
   GHashTable *pendingpads;
 
   gint target_bitrate;
@@ -104,7 +96,6 @@ enum
   PROP_ACCEPT_EOS,
   PROP_AUDIO_CAPS,
   PROP_VIDEO_CAPS,
-  PROP_DO_SYNCHRONIZATION,
   PROP_TARGET_BITRATE,
   PROP_LAST
 };
@@ -156,142 +147,6 @@ destroy_pendingpads (PendingSrcPad * data)
   }
 
   g_slice_free (PendingSrcPad, data);
-}
-
-static GstClockTime
-kms_element_adjust_pts (KmsElement * self, GstClockTime in)
-{
-  GstClockTime pts = in;
-
-  if (GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
-      && GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
-    if (GST_CLOCK_TIME_IS_VALID (in)) {
-      if (self->priv->base_time > in) {
-        GST_WARNING_OBJECT (self,
-            "Received a buffer with a pts lower than base");
-        pts = self->priv->base_clock;
-      } else {
-        pts = (in - self->priv->base_time) + self->priv->base_clock;
-      }
-    }
-  } else {
-    pts = GST_CLOCK_TIME_NONE;
-  }
-
-  return pts;
-}
-
-static GstClockTime
-kms_element_synchronize_pts (KmsElement * self, GstClockTime in)
-{
-  GstClockTime pts;
-
-  KMS_ELEMENT_SYNC_LOCK (self);
-
-  if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_time)
-      && GST_CLOCK_TIME_IS_VALID (in)) {
-    self->priv->base_time = in;
-  }
-
-  if (!GST_CLOCK_TIME_IS_VALID (self->priv->base_clock)) {
-    GstObject *parent = GST_OBJECT (self);
-    GstClock *clock;
-
-    while (parent && parent->parent) {
-      parent = parent->parent;
-    }
-
-    if (parent) {
-      clock = gst_element_get_clock (GST_ELEMENT (parent));
-
-      if (clock) {
-        self->priv->base_clock =
-            gst_clock_get_time (clock) -
-            gst_element_get_base_time (GST_ELEMENT (parent));
-        g_object_unref (clock);
-      }
-    }
-  }
-
-  pts = kms_element_adjust_pts (self, in);
-
-  KMS_ELEMENT_SYNC_UNLOCK (self);
-
-  return pts;
-}
-
-static void
-kms_element_synchronize_buffer (KmsElement * self, GstBuffer * buffer)
-{
-  GST_BUFFER_PTS (buffer) = kms_element_synchronize_pts (self,
-      GST_BUFFER_PTS (buffer));
-  GST_BUFFER_DTS (buffer) = GST_BUFFER_PTS (buffer);
-}
-
-static gboolean
-synchronize_bufferlist (GstBuffer ** buf, guint idx, KmsElement * self)
-{
-  *buf = gst_buffer_make_writable (*buf);
-
-  kms_element_synchronize_buffer (self, *buf);
-
-  return TRUE;
-}
-
-static GstPadProbeReturn
-synchronize_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
-{
-  KmsElement *self = KMS_ELEMENT (data);
-
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
-
-    buffer = gst_buffer_make_writable (buffer);
-    kms_element_synchronize_buffer (self, buffer);
-
-    GST_PAD_PROBE_INFO_DATA (info) = buffer;
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
-
-    bufflist = gst_buffer_list_make_writable (bufflist);
-    gst_buffer_list_foreach (bufflist,
-        (GstBufferListFunc) synchronize_bufferlist, self);
-    GST_PAD_PROBE_INFO_DATA (info) = bufflist;
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) &
-      GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
-    GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
-
-    event = gst_event_make_writable (event);
-    GST_EVENT_TIMESTAMP (event) = kms_element_synchronize_pts (self,
-        GST_EVENT_TIMESTAMP (event));
-
-    /* Check dowstream events */
-    switch (GST_EVENT_TYPE (event)) {
-//      case GST_EVENT_STREAM_START:
-      case GST_EVENT_CAPS:
-        /* TODO: VP8 tend to pack a streamheader field */
-        /* in caps containing a buffer */
-      case GST_EVENT_SEGMENT:
-        /* TODO: Check start, stop, base.. fields of the segment */
-//      case GST_EVENT_TAG:
-//      case GST_EVENT_BUFFERSIZE:
-//      case GST_EVENT_SINK_MESSAGE:
-//      case GST_EVENT_EOS:
-//      case GST_EVENT_TOC:
-//      case GST_EVENT_SEGMENT_DONE:
-      case GST_EVENT_GAP:
-        /* TODO: GAP contains the start time (pts) os the gap */
-        break;
-      default:
-        break;
-    }
-
-    GST_PAD_PROBE_INFO_DATA (info) = event;
-  } else {
-    GST_ERROR_OBJECT (self, "Unsupported data received in probe");
-  }
-
-  return GST_PAD_PROBE_OK;
 }
 
 static void
@@ -443,16 +298,6 @@ kms_element_get_data_tee (KmsElement * self)
 
   tee = gst_element_factory_make ("tee", NULL);
 
-  if (self->priv->do_synchronization) {
-    GstPad *sink;
-
-    sink = gst_element_get_static_pad (tee, "sink");
-    gst_pad_add_probe (sink,
-        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        synchronize_probe, self, NULL);
-    g_object_unref (sink);
-  }
-
   sink = gst_element_factory_make ("fakesink", NULL);
   g_object_set (sink, "sync", FALSE, "async", FALSE, NULL);
 
@@ -483,16 +328,6 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   self->priv->audio_agnosticbin =
       gst_element_factory_make ("agnosticbin", NULL);
 
-  if (self->priv->do_synchronization) {
-    GstPad *sink;
-
-    sink = gst_element_get_static_pad (self->priv->audio_agnosticbin, "sink");
-    gst_pad_add_probe (sink,
-        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        synchronize_probe, self, NULL);
-    g_object_unref (sink);
-  }
-
   gst_bin_add (GST_BIN (self), self->priv->audio_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
@@ -514,16 +349,6 @@ kms_element_get_video_agnosticbin (KmsElement * self)
 
   self->priv->video_agnosticbin =
       gst_element_factory_make ("agnosticbin", NULL);
-
-  if (self->priv->do_synchronization) {
-    GstPad *sink;
-
-    sink = gst_element_get_static_pad (self->priv->video_agnosticbin, "sink");
-    gst_pad_add_probe (sink,
-        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        synchronize_probe, self, NULL);
-    g_object_unref (sink);
-  }
 
   gst_bin_add (GST_BIN (self), self->priv->video_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
@@ -781,9 +606,6 @@ kms_element_set_property (GObject * object, guint property_id,
       kms_element_endpoint_set_caps (self, gst_value_get_caps (value),
           &self->priv->video_caps);
       break;
-    case PROP_DO_SYNCHRONIZATION:
-      self->priv->do_synchronization = g_value_get_boolean (value);
-      break;
     case PROP_TARGET_BITRATE:
       KMS_ELEMENT_LOCK (self);
       self->priv->target_bitrate = g_value_get_int (value);
@@ -817,9 +639,6 @@ kms_element_get_property (GObject * object, guint property_id,
       g_value_take_boxed (value, kms_element_endpoint_get_caps (self,
               self->priv->video_caps));
       break;
-    case PROP_DO_SYNCHRONIZATION:
-      g_value_set_boolean (value, self->priv->do_synchronization);
-      break;
     case PROP_TARGET_BITRATE:
       KMS_ELEMENT_LOCK (self);
       g_value_set_int (value, self->priv->target_bitrate);
@@ -849,8 +668,6 @@ kms_element_finalize (GObject * object)
   if (element->priv->audio_caps != NULL) {
     gst_caps_unref (element->priv->audio_caps);
   }
-
-  g_mutex_clear (&element->priv->sync_lock);
 
   /* chain up */
   G_OBJECT_CLASS (kms_element_parent_class)->finalize (object);
@@ -1013,12 +830,6 @@ kms_element_class_init (KmsElementClass * klass)
           "Indicates if the element should accept EOS events.",
           DEFAULT_ACCEPT_EOS, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_DO_SYNCHRONIZATION,
-      g_param_spec_boolean ("do-synchronization",
-          "Do synchronization",
-          "Synchronize buffers, events and queries using global pipeline clock",
-          DEFAULT_DO_SYNCHRONIZATION, G_PARAM_READWRITE));
-
   g_object_class_install_property (gobject_class, PROP_AUDIO_CAPS,
       g_param_spec_boxed ("audio-caps", "Audio capabilities",
           "The allowed caps for audio", GST_TYPE_CAPS,
@@ -1074,11 +885,6 @@ kms_element_init (KmsElement * element)
   element->priv->audio_agnosticbin = NULL;
   element->priv->video_agnosticbin = NULL;
 
-  element->priv->base_time = GST_CLOCK_TIME_NONE;
-  element->priv->base_clock = GST_CLOCK_TIME_NONE;
-  g_mutex_init (&element->priv->sync_lock);
-
-  element->priv->do_synchronization = DEFAULT_DO_SYNCHRONIZATION;
   element->priv->pendingpads = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) destroy_pendingpads);
 }

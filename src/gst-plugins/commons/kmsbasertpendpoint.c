@@ -2675,7 +2675,7 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   g_signal_connect (self->priv->rtpbin, "on-ssrc-active",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_active), self);
 
-  g_object_set (self, "accept-eos", FALSE, "do-synchronization", TRUE, NULL);
+  g_object_set (self, "accept-eos", FALSE, NULL);
 
   gst_bin_add (GST_BIN (self), self->priv->rtpbin);
 
