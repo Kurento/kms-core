@@ -636,7 +636,6 @@ GST_START_TEST (valve_test)
   g_object_set_data (G_OBJECT (pipeline), VALVE_KEY, valve);
 
   loop = g_main_loop_new (NULL, TRUE);
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
@@ -690,7 +689,6 @@ GST_START_TEST (reconnect_test)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
@@ -744,7 +742,6 @@ GST_START_TEST (static_link)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
@@ -796,7 +793,6 @@ GST_START_TEST (encoded_input_n_encoded_output)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (audiotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
@@ -849,7 +845,6 @@ GST_START_TEST (encoded_input_link)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);
@@ -900,7 +895,6 @@ GST_START_TEST (simple_link)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);

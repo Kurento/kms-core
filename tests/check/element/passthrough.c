@@ -200,7 +200,6 @@ GST_START_TEST (check_connecion)
 
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
   gst_bus_add_signal_watch (bus);

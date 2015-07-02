@@ -1130,6 +1130,8 @@ GST_START_TEST (connect_chain_of_elements)
   data2->audio_probe = (KmsProbeType) audio_probe_cb;
   data2->video_probe = (KmsProbeType) video_probe_cb;
 
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
   data1->src = gst_element_factory_make ("dummysrc", NULL);
   data1->sink = gst_element_factory_make ("filterelement", NULL);
 
@@ -1201,7 +1203,10 @@ GST_START_TEST (connect_chain_of_elements)
 
   g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_element_sync_state_with_parent (data1->src);
+  gst_element_sync_state_with_parent (data1->sink);
+  gst_element_sync_state_with_parent (data2->sink);
+
   g_main_loop_run (loop);
 
   gst_element_set_state (pipeline, GST_STATE_NULL);

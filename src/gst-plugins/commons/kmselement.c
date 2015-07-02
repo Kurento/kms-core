@@ -1067,8 +1067,6 @@ kms_element_init (KmsElement * element)
 
   element->priv = KMS_ELEMENT_GET_PRIVATE (element);
 
-  g_object_set (G_OBJECT (element), "async-handling", TRUE, NULL);
-
   element->priv->accept_eos = DEFAULT_ACCEPT_EOS;
   element->priv->data_pad_count = 0;
   element->priv->audio_pad_count = 0;

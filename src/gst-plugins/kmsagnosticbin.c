@@ -1078,8 +1078,6 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 
   gst_element_add_pad (GST_ELEMENT (self), self->priv->sink);
 
-  g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
-
   self->priv->started = FALSE;
   self->priv->remove_pool =
       g_thread_pool_new (remove_on_unlinked_async, NULL, -1, FALSE, NULL);

@@ -690,8 +690,6 @@ kms_audio_mixer_bin_init (KmsAudioMixerBin * self)
 
   g_rec_mutex_init (&self->priv->mutex);
   self->priv->loop = kms_loop_new ();
-
-  g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 }
 
 gboolean

@@ -931,8 +931,6 @@ kms_agnostic_bin3_init (KmsAgnosticBin3 * self)
   g_rec_mutex_init (&self->priv->mutex);
   self->priv->sinkcaps = g_hash_table_new_full (g_direct_hash, g_direct_equal,
       NULL, (GDestroyNotify) gst_caps_unref);
-
-  g_object_set (G_OBJECT (self), "async-handling", TRUE, NULL);
 }
 
 gboolean

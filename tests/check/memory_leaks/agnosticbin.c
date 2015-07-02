@@ -86,7 +86,6 @@ play_agnosticbin_video_passthrough (void)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
@@ -126,7 +125,6 @@ play_agnosticbin_raw_to_vp8 (void)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
@@ -180,7 +178,6 @@ play_decodebin_vp8_to_raw (void)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
@@ -226,7 +223,6 @@ play_agnosticbin_audio_passthrough (void)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
@@ -268,7 +264,6 @@ play_agnosticbin_vp8_to_raw (void)
   loop = g_main_loop_new (NULL, TRUE);
   GstCaps *caps;
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
@@ -329,7 +324,6 @@ play_agnosticbin_raw_to_vorbis (void)
 
   loop = g_main_loop_new (NULL, TRUE);
 
-  g_object_set (G_OBJECT (pipeline), "async-handling", TRUE, NULL);
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
