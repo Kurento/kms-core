@@ -37,16 +37,25 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
 {
   guint64 bytesReceived, packetsReceived;
   guint jitter, fractionLost, pliCount, firCount, remb;
-  gint packetLost;
+  gint packetLost, clock_rate;
+  float jitterSec;
 
-  packetLost = jitter = fractionLost = pliCount = firCount = remb = 0;
+  packetLost = jitter = fractionLost = pliCount = firCount = remb =
+                                         clock_rate = 0;
   bytesReceived = packetsReceived = G_GUINT64_CONSTANT (0);
+  jitterSec = 0.0;
 
   gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
                      "octets-received", G_TYPE_UINT64, &bytesReceived,
                      "rb-packetslost", G_TYPE_INT, &packetLost,
                      "rb-fractionlost", G_TYPE_UINT, &fractionLost,
-                     "rb-jitter", G_TYPE_UINT, &jitter, NULL);
+                     "clock-rate", G_TYPE_INT, &clock_rate,
+                     "jitter", G_TYPE_UINT, &jitter, NULL);
+
+  /* jitter is computed in timestamp units. Convert it to seconds */
+  if (clock_rate > 0) {
+    jitterSec = (float) jitter / clock_rate;
+  }
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
@@ -62,7 +71,7 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   return std::make_shared <RTCInboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::inboundrtp), 0.0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb,
-         packetsReceived, bytesReceived, packetLost, (float) jitter,
+         packetsReceived, bytesReceived, packetLost, jitterSec,
          (float) fractionLost);
 }
 
