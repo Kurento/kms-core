@@ -18,6 +18,7 @@
 #endif
 
 #include "kmsparsetreebin.h"
+#include <kmsutils.h>
 
 #define GST_DEFAULT_NAME "parsetreebin"
 #define GST_CAT_DEFAULT kms_parse_tree_bin_debug
@@ -34,9 +35,17 @@ G_DEFINE_TYPE (KmsParseTreeBin, kms_parse_tree_bin, KMS_TYPE_TREE_BIN);
   )                                             \
 )
 
+#define BITRATE_THRESHOLD 0.07
+
 struct _KmsParseTreeBinPrivate
 {
   GstElement *parser;
+
+  /* Bitrate calculation */
+  GstClockTime last_buffer_pts;
+  GstClockTime last_buffer_dts;
+  guint bitrate_mean;
+  guint last_pushed_bitrate;
 };
 
 static GstElement *
@@ -70,6 +79,79 @@ create_parser_for_caps (const GstCaps * caps)
   return parser;
 }
 
+static gboolean
+difference_over_threshold (guint a, guint b, float th)
+{
+  return (a > b ? (a - b) > (a * th) : (b - a) > (b * th));
+}
+
+static GstPadProbeReturn
+bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  KmsParseTreeBin *self = data;
+
+  if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
+    GstClockTime timediff = GST_CLOCK_TIME_NONE;
+    guint bitrate;
+
+    if (GST_CLOCK_TIME_IS_VALID (buffer->dts)
+        && GST_CLOCK_TIME_IS_VALID (self->priv->last_buffer_dts)) {
+      timediff = buffer->dts - self->priv->last_buffer_dts;
+    } else if (GST_CLOCK_TIME_IS_VALID (buffer->pts)
+        && GST_CLOCK_TIME_IS_VALID (self->priv->last_buffer_pts)) {
+      timediff = buffer->pts - self->priv->last_buffer_pts;
+    }
+
+    if (GST_CLOCK_TIME_IS_VALID (timediff)) {
+      bitrate = (gst_buffer_get_size (buffer) * GST_SECOND * 8) / timediff;
+
+      self->priv->bitrate_mean = (self->priv->bitrate_mean * 7 + bitrate) / 8;
+
+      if (self->priv->last_pushed_bitrate == 0
+          || difference_over_threshold (self->priv->bitrate_mean,
+              self->priv->last_pushed_bitrate, BITRATE_THRESHOLD)) {
+        GstTagList *taglist = NULL;
+        GstEvent *previous_tag_event;
+
+        GST_TRACE_OBJECT (self, "Bitrate: %u", bitrate);
+        GST_TRACE_OBJECT (self, "Bitrate_mean:\t\t%u",
+            self->priv->bitrate_mean);
+
+        previous_tag_event = gst_pad_get_sticky_event (pad, GST_EVENT_TAG, 0);
+
+        if (previous_tag_event) {
+          GST_TRACE_OBJECT (self, "Previous tag event: %" GST_PTR_FORMAT,
+              previous_tag_event);
+          gst_event_parse_tag (previous_tag_event, &taglist);
+
+          taglist = gst_tag_list_copy (taglist);
+          gst_tag_list_add (taglist, GST_TAG_MERGE_REPLACE, "bitrate",
+              self->priv->bitrate_mean, NULL);
+
+          gst_event_unref (previous_tag_event);
+        }
+
+        if (!taglist) {
+          taglist =
+              gst_tag_list_new ("bitrate", self->priv->bitrate_mean, NULL);
+        }
+
+        gst_pad_send_event (pad, gst_event_new_tag (taglist));
+        self->priv->last_pushed_bitrate = self->priv->bitrate_mean;
+      }
+    }
+
+    self->priv->last_buffer_pts = buffer->pts;
+    self->priv->last_buffer_dts = buffer->dts;
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GST_WARNING_OBJECT (self,
+        "Bufferlist is not supported yet for bitrate calculation");
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 static void
 kms_parse_tree_bin_configure (KmsParseTreeBin * self, const GstCaps * caps)
 {
@@ -83,6 +165,15 @@ kms_parse_tree_bin_configure (KmsParseTreeBin * self, const GstCaps * caps)
 
   kms_tree_bin_set_input_element (tree_bin, self->priv->parser);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
+  if (kms_utils_is_raw_caps (caps)) {
+    GstPad *sink = gst_element_get_static_pad (output_tee, "sink");
+
+    gst_pad_add_probe (sink,
+        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+        bitrate_calculation_probe, self, NULL);
+
+    g_object_unref (sink);
+  }
   gst_element_link_many (self->priv->parser, output_tee, NULL);
 }
 
@@ -107,6 +198,9 @@ static void
 kms_parse_tree_bin_init (KmsParseTreeBin * self)
 {
   self->priv = KMS_PARSE_TREE_BIN_GET_PRIVATE (self);
+
+  self->priv->last_buffer_dts = GST_CLOCK_TIME_NONE;
+  self->priv->last_buffer_pts = GST_CLOCK_TIME_NONE;
 }
 
 static void

@@ -127,6 +127,19 @@ kms_utils_caps_are_video (const GstCaps * caps)
   return caps_can_intersect_with_static (caps, &static_video_caps);
 }
 
+gboolean
+kms_utils_is_raw_caps (const GstCaps * caps)
+{
+  gboolean ret;
+  GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
+
+  ret = gst_caps_is_always_compatible (caps, raw_caps);
+
+  gst_caps_unref (raw_caps);
+
+  return ret;
+}
+
 /* Caps end */
 
 GstElement *
