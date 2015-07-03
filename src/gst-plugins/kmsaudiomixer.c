@@ -29,6 +29,7 @@
 #define KMS_LABEL_AUDIOMIXER "audiomixer"
 #define KMS_LABEL_AGNOSTICBIN "agnosticbin"
 #define KMS_LABEL_ADDER "adder"
+#define LATENCY 250             //ms
 
 #define KMS_AUDIO_MIXER_LOCK(mixer) \
   (g_rec_mutex_lock (&(mixer)->priv->mutex))
@@ -115,6 +116,22 @@ kms_create_audio_mixer_data ()
   return data;
 }
 
+static GstPadProbeReturn
+cb_latency (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  if (GST_QUERY_TYPE (GST_PAD_PROBE_INFO_QUERY (info)) != GST_QUERY_LATENCY) {
+    return GST_PAD_PROBE_OK;
+  }
+
+  GST_LOG_OBJECT (pad, "Modifing latency query. New latency %ld",
+      LATENCY * GST_MSECOND);
+
+  gst_query_set_latency (GST_PAD_PROBE_INFO_QUERY (info),
+      TRUE, LATENCY * GST_MSECOND, LATENCY * GST_MSECOND);
+
+  return GST_PAD_PROBE_OK;
+}
+
 static void
 link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
 {
@@ -149,6 +166,10 @@ link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
   GST_DEBUG ("Linking %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
       sinkpad);
 
+  gst_pad_add_probe (sinkpad,
+      GST_PAD_PROBE_TYPE_QUERY_UPSTREAM,
+      (GstPadProbeCallback) cb_latency, NULL, NULL);
+
   if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK) {
     GST_ERROR ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
         sinkpad);
@@ -170,6 +191,7 @@ static void
 link_new_adder (gchar * key, GstElement * agnosticbin, GstElement * adder)
 {
   char *padname;
+  GstPad *srcpad = NULL, *sinkpad = NULL;
 
   padname = g_object_get_data (G_OBJECT (adder), KEY_SINK_PAD_NAME);
   if (padname == NULL) {
@@ -186,9 +208,35 @@ link_new_adder (gchar * key, GstElement * agnosticbin, GstElement * adder)
   GST_DEBUG ("Linking %s to %s", GST_ELEMENT_NAME (agnosticbin),
       GST_ELEMENT_NAME (adder));
 
-  if (!gst_element_link_pads (agnosticbin, "src_%u", adder, "sink_%u"))
+  srcpad = gst_element_get_request_pad (agnosticbin, "src_%u");
+  if (srcpad == NULL) {
+    GST_ERROR ("Could not get src pad in %" GST_PTR_FORMAT, agnosticbin);
+    goto end;
+  }
+
+  sinkpad = gst_element_get_request_pad (adder, "sink_%u");
+  if (srcpad == NULL) {
+    GST_ERROR ("Could not get sink pad in %" GST_PTR_FORMAT, adder);
+    gst_element_release_request_pad (agnosticbin, srcpad);
+    goto end;
+  }
+
+  gst_pad_add_probe (sinkpad,
+      GST_PAD_PROBE_TYPE_QUERY_UPSTREAM,
+      (GstPadProbeCallback) cb_latency, NULL, NULL);
+
+  if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK)
     GST_ERROR ("Could not link %s to %s", GST_ELEMENT_NAME (agnosticbin),
         GST_ELEMENT_NAME (adder));
+
+end:
+  if (srcpad != NULL) {
+    g_object_unref (srcpad);
+  }
+
+  if (sinkpad != NULL) {
+    g_object_unref (sinkpad);
+  }
 }
 
 static gint
