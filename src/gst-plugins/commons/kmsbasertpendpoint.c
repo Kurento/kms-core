@@ -1508,7 +1508,7 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
   GstElement *rtpbin = self->priv->rtpbin;
   GstElement *rtprtxqueue = gst_element_factory_make ("rtprtxqueue", NULL);
 
-  g_object_set (rtprtxqueue, "max-size-packets", 128, NULL);
+  g_object_set (rtprtxqueue, "max-size-packets", 512, NULL);
 
   g_object_ref (payloader);
   gst_bin_add_many (GST_BIN (self), payloader, rtprtxqueue, NULL);
