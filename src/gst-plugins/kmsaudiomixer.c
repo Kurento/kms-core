@@ -809,8 +809,10 @@ end:
 static gboolean
 kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
 {
-  GstPad *srcpad, *pad;
+  GstPad *srcpad = NULL, *pad, *sinkpad = NULL;
   GstElement *adder;
+  GstElement *audiotestsrc, *capsfilter;
+  GstCaps *filtercaps;
   gchar *srcname;
   gint id;
 
@@ -822,9 +824,51 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
   adder = gst_element_factory_make ("audiomixer", NULL);
   g_object_set_data_full (G_OBJECT (adder), KEY_SINK_PAD_NAME,
       g_strdup (padname), g_free);
+  audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
+  g_object_set (audiotestsrc, "is-live", TRUE, "wave", /*silence */ 4, NULL);
 
-  gst_bin_add (GST_BIN (self), adder);
+  capsfilter = gst_element_factory_make ("capsfilter", NULL);
+  filtercaps =
+      gst_caps_new_simple ("audio/x-raw", "format", G_TYPE_STRING, "S16LE",
+      "rate", G_TYPE_INT, 480000, "channels", G_TYPE_INT, 2, NULL);
+  g_object_set (G_OBJECT (capsfilter), "caps", filtercaps, NULL);
+  gst_caps_unref (filtercaps);
+
+  gst_bin_add_many (GST_BIN (self), audiotestsrc, capsfilter, adder, NULL);
+
+  gst_element_link_many (audiotestsrc, capsfilter, NULL);
+
+  srcpad = gst_element_get_static_pad (capsfilter, "src");
+  if (srcpad == NULL) {
+    GST_ERROR ("Could not get src pad in %" GST_PTR_FORMAT, capsfilter);
+    goto no_audiotestsrc;
+  }
+
+  sinkpad = gst_element_get_request_pad (adder, "sink_%u");
+  if (sinkpad == NULL) {
+    GST_ERROR ("Could not get sink pad in %" GST_PTR_FORMAT, adder);
+    goto no_audiotestsrc;
+  }
+
+  GST_DEBUG ("Linking %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
+      sinkpad);
+
+  if (gst_pad_link (srcpad, sinkpad) != GST_PAD_LINK_OK) {
+    GST_ERROR ("Could not link %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
+        sinkpad);
+    gst_element_release_request_pad (adder, sinkpad);
+  }
+
+no_audiotestsrc:
+  if (srcpad != NULL) {
+    g_object_unref (srcpad);
+  }
+  if (sinkpad != NULL) {
+    g_object_unref (sinkpad);
+  }
+
   gst_element_sync_state_with_parent (adder);
+  gst_element_sync_state_with_parent (audiotestsrc);
 
   KMS_AUDIO_MIXER_LOCK (self);
 
