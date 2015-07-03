@@ -689,7 +689,10 @@ unlink_adder_sink (const GValue * item, gpointer user_data)
   }
 
   gst_element_release_request_pad (adder, sinkpad);
-  gst_element_release_request_pad (agnosticbin, srcpad);
+
+  if (g_str_has_prefix (GST_ELEMENT_NAME (agnosticbin), "kmsagnosticbin")) {
+    gst_element_release_request_pad (agnosticbin, srcpad);
+  }
 
 end:
   if (srcpad != NULL) {
