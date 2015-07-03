@@ -448,6 +448,7 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
 
   g_hash_table_insert (self->priv->agnostics, g_strdup (padname), agnosticbin);
 
+  gst_bin_recalculate_latency (GST_BIN (self));
   KMS_AUDIO_MIXER_UNLOCK (self);
 
   gst_element_sync_state_with_parent (audiorate);
@@ -888,6 +889,7 @@ no_audiotestsrc:
 
   if (gst_element_add_pad (GST_ELEMENT (self), pad)) {
     KMS_AUDIO_MIXER_UNLOCK (self);
+    gst_bin_recalculate_latency (GST_BIN (self));
     return TRUE;
   }
 
