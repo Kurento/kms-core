@@ -32,6 +32,7 @@
 #include <gst/rtp/gstrtpdefs.h>
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/video/video-event.h>
+#include "kmsbufferlacentymeta.h"
 
 #define PLUGIN_NAME "base_rtp_endpoint"
 
@@ -160,6 +161,60 @@ enum
   PROP_REMB_PARAMS,
   PROP_LAST
 };
+
+static void
+update_buffer_latency_metadata (GstBuffer * buffer, KmsMediaType type)
+{
+  KmsBufferLatencyMeta *meta;
+
+  meta = kms_buffer_get_buffer_latency_meta (buffer);
+
+  if (meta != NULL) {
+    meta->type = type;
+    meta->valid = TRUE;
+  }
+}
+
+static gboolean
+update_buffer_list_latency_metadata (GstBuffer ** buffer, guint idx,
+    gpointer user_data)
+{
+  update_buffer_latency_metadata (*buffer, GPOINTER_TO_UINT (user_data));
+
+  return TRUE;
+}
+
+static GstPadProbeReturn
+update_buffer_latency_metadata_cb (GstPad * pad, GstPadProbeInfo * info,
+    gpointer user_data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+    update_buffer_latency_metadata (buffer, GPOINTER_TO_UINT (user_data));
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
+    gst_buffer_list_foreach (list, update_buffer_list_latency_metadata,
+        user_data);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+element_add_data_probe (GstElement * e, const gchar * pad_name,
+    GstPadProbeCallback callback, gpointer user_data,
+    GDestroyNotify destroy_data)
+{
+  GstPad *pad;
+
+  pad = gst_element_get_static_pad (e, pad_name);
+  gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, callback,
+      user_data, destroy_data);
+  g_object_unref (pad);
+}
 
 /* Media handler management begin */
 static void
@@ -1758,7 +1813,8 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
   if (depayloader != NULL) {
     GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
-
+    element_add_data_probe (depayloader, "sink",
+        update_buffer_latency_metadata_cb, GUINT_TO_POINTER (media), NULL);
     gst_bin_add (GST_BIN (self), depayloader);
     gst_element_link_pads (depayloader, "src", agnostic, "sink");
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
