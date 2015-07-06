@@ -37,6 +37,7 @@ kms_buffer_latency_meta_init (GstMeta * meta, gpointer params,
   KmsBufferLatencyMeta *lmeta = (KmsBufferLatencyMeta *) meta;
 
   lmeta->ts = GST_CLOCK_TIME_NONE;
+  lmeta->valid = FALSE;
 
   return TRUE;
 }
@@ -52,7 +53,8 @@ kms_buffer_latency_meta_transform (GstBuffer * transbuf, GstMeta * meta,
     lmeta = (KmsBufferLatencyMeta *) meta;
 
     GST_DEBUG ("copy latency metadata");
-    kms_buffer_add_buffer_latency_meta (transbuf, lmeta->ts);
+    kms_buffer_add_buffer_latency_meta (transbuf, lmeta->ts, lmeta->valid,
+        lmeta->type);
   }
 
   return TRUE;
@@ -84,7 +86,8 @@ kms_buffer_latency_meta_get_info (void)
 }
 
 KmsBufferLatencyMeta *
-kms_buffer_add_buffer_latency_meta (GstBuffer * buffer, GstClockTime ts)
+kms_buffer_add_buffer_latency_meta (GstBuffer * buffer, GstClockTime ts,
+    gboolean valid, KmsMediaType type)
 {
   KmsBufferLatencyMeta *meta;
 
@@ -94,6 +97,8 @@ kms_buffer_add_buffer_latency_meta (GstBuffer * buffer, GstClockTime ts)
       KMS_BUFFER_LATENCY_META_INFO, NULL);
 
   meta->ts = ts;
+  meta->valid = valid;
+  meta->type = type;
 
   return meta;
 }

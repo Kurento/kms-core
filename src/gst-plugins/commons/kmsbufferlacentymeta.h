@@ -18,6 +18,8 @@
 
 #include <gst/gst.h>
 
+#include "kmsmediatype.h"
+
 G_BEGIN_DECLS
 
 typedef struct _KmsBufferLatencyMeta KmsBufferLatencyMeta;
@@ -34,6 +36,8 @@ struct _KmsBufferLatencyMeta {
   GstMeta       meta;
 
   GstClockTime ts;
+  KmsMediaType type;
+  gboolean valid;
 };
 
 GType kms_buffer_latency_meta_api_get_type (void);
@@ -47,7 +51,8 @@ GType kms_buffer_latency_meta_api_get_type (void);
 const GstMetaInfo *kms_buffer_latency_meta_get_info (void);
 #define KMS_BUFFER_LATENCY_META_INFO (kms_buffer_latency_meta_get_info ())
 
-KmsBufferLatencyMeta * kms_buffer_add_buffer_latency_meta (GstBuffer *buffer, GstClockTime ts);
+KmsBufferLatencyMeta * kms_buffer_add_buffer_latency_meta (GstBuffer *buffer,
+  GstClockTime ts, gboolean valid, KmsMediaType type);
 
 G_END_DECLS
 

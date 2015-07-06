@@ -195,7 +195,8 @@ add_metadata_data (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 
   time = g_get_monotonic_time () * GST_USECOND;
 
-  kms_buffer_add_buffer_latency_meta (buffer, time);
+  kms_buffer_add_buffer_latency_meta (buffer, time, TRUE,
+      0 /*No matter media type */ );
 
   return GST_PAD_PROBE_OK;
 }
