@@ -26,12 +26,12 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define kms_parse_tree_bin_parent_class parent_class
 G_DEFINE_TYPE (KmsParseTreeBin, kms_parse_tree_bin, KMS_TYPE_TREE_BIN);
 
-#define KMS_PARSE_TREE_BIN_GET_PRIVATE(obj) ( \
-  G_TYPE_INSTANCE_GET_PRIVATE (         \
-    (obj),                              \
-    KMS_TYPE_PARSE_TREE_BIN,                  \
-    KmsParseTreeBinPrivate                   \
-  )                                     \
+#define KMS_PARSE_TREE_BIN_GET_PRIVATE(obj) (   \
+  G_TYPE_INSTANCE_GET_PRIVATE (                 \
+    (obj),                                      \
+    KMS_TYPE_PARSE_TREE_BIN,                    \
+    KmsParseTreeBinPrivate                      \
+  )                                             \
 )
 
 struct _KmsParseTreeBinPrivate
