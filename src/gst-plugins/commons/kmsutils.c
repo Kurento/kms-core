@@ -656,7 +656,7 @@ struct _RembEventManager
   GHashTable *remb_hash;
   GstPad *pad;
   gulong probe_id;
-  GstClockTime last_clear_time;
+  GstClockTime oldest_remb_value;
 };
 
 typedef struct _RembHashValue
@@ -682,11 +682,12 @@ remb_hash_value_destroy (gpointer value)
   g_slice_free (RembHashValue, value);
 }
 
-static guint
+static void
 remb_event_manager_calc_min (RembEventManager * manager)
 {
   guint remb_min = 0;
   GstClockTime time = kms_utils_get_time_nsecs ();
+  GstClockTime oldest_time = GST_CLOCK_TIME_NONE;
   GHashTableIter iter;
   gpointer key, v;
 
@@ -706,24 +707,28 @@ remb_event_manager_calc_min (RembEventManager * manager)
     } else {
       remb_min = MIN (remb_min, br);
     }
+
+    oldest_time = MIN (oldest_time, ts);
   }
 
-  manager->last_clear_time = time;
+  manager->oldest_remb_value = oldest_time;
   manager->remb_min = remb_min;
-
-  return remb_min;
+  // TODO: Check if min has changed and raise an event
 }
 
-static guint
-remb_event_manager_calc_min_full (RembEventManager * manager, guint bitrate,
+static void
+remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
     guint ssrc)
 {
   RembHashValue *last_value, *value;
 
+  g_mutex_lock (&manager->mutex);
   last_value = g_hash_table_lookup (manager->remb_hash,
       GUINT_TO_POINTER (ssrc));
+
   if (last_value != NULL && bitrate == last_value->bitrate) {
-    return manager->remb_min;
+    last_value->ts = kms_utils_get_time_nsecs ();
+    goto end;
   }
 
   value = remb_hash_value_create (bitrate);
@@ -733,9 +738,15 @@ remb_event_manager_calc_min_full (RembEventManager * manager, guint bitrate,
     remb_event_manager_calc_min (manager);
   } else {
     manager->remb_min = bitrate;
+    // TODO: Check if min has changed and raise an event
   }
 
-  return manager->remb_min;
+end:
+
+  GST_TRACE_OBJECT (manager->pad, "remb_min: %" G_GUINT32_FORMAT,
+      manager->remb_min);
+
+  g_mutex_unlock (&manager->mutex);
 }
 
 static GstPadProbeReturn
@@ -743,7 +754,7 @@ remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
   RembEventManager *manager = user_data;
   GstEvent *event = gst_pad_probe_info_get_event (info);
-  guint bitrate, ssrc, remb_min;
+  guint bitrate, ssrc;
 
   if (!kms_utils_remb_event_upstream_parse (event, &bitrate, &ssrc)) {
     return GST_PAD_PROBE_OK;
@@ -752,11 +763,7 @@ remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   GST_TRACE_OBJECT (pad, "<%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT ">", ssrc,
       bitrate);
 
-  g_mutex_lock (&manager->mutex);
-  remb_min = remb_event_manager_calc_min_full (manager, bitrate, ssrc);
-  g_mutex_unlock (&manager->mutex);
-
-  GST_TRACE_OBJECT (pad, "remb_min: %" G_GUINT32_FORMAT, remb_min);
+  remb_event_manager_update_min (manager, bitrate, ssrc);
 
   return GST_PAD_PROBE_DROP;
 }
@@ -772,7 +779,7 @@ kms_utils_remb_event_manager_create (GstPad * pad)
   manager->pad = g_object_ref (pad);
   manager->probe_id = gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
       remb_probe, manager, NULL);
-  manager->last_clear_time = kms_utils_get_time_nsecs ();
+  manager->oldest_remb_value = kms_utils_get_time_nsecs ();
 
   return manager;
 }
@@ -800,7 +807,7 @@ kms_utils_remb_event_manager_get_min (RembEventManager * manager)
   guint ret;
 
   g_mutex_lock (&manager->mutex);
-  if (time - manager->last_clear_time > REMB_HASH_CLEAR_INTERVAL) {
+  if (time - manager->oldest_remb_value > REMB_HASH_CLEAR_INTERVAL) {
     remb_event_manager_calc_min (manager);
   }
 
