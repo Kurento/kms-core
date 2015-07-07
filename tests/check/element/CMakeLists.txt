@@ -7,7 +7,7 @@ set(ALL_TESTS
   agnosticbin
   agnosticbin3
   audiomixerbin
-  audiomixer
+  #audiomixer
   bufferinjector
   pad_connections
   passthrough
