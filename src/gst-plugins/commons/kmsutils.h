@@ -50,11 +50,12 @@ GstEvent * kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc);
 gboolean kms_utils_remb_event_upstream_parse (GstEvent *event, guint *bitrate, guint *ssrc);
 
 typedef struct _RembEventManager RembEventManager;
-typedef void (*BitrateUpdatedCallback) (RembEventManager * manager, guint bitrate, gpointer user_data);
+typedef void (*RembBitrateUpdatedCallback) (RembEventManager * manager, guint bitrate, gpointer user_data);
 RembEventManager * kms_utils_remb_event_manager_create (GstPad *pad);
 void kms_utils_remb_event_manager_destroy (RembEventManager * manager);
 void kms_utils_remb_event_manager_pointer_destroy (gpointer manager);
 guint kms_utils_remb_event_manager_get_min (RembEventManager * manager);
+void kms_utils_remb_event_manager_set_callback (RembEventManager * manager, RembBitrateUpdatedCallback cb, gpointer data, GDestroyNotify destroy_notify);
 
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();

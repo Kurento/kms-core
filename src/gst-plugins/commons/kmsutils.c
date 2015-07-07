@@ -657,6 +657,11 @@ struct _RembEventManager
   GstPad *pad;
   gulong probe_id;
   GstClockTime oldest_remb_value;
+
+  /* Callback */
+  RembBitrateUpdatedCallback callback;
+  gpointer user_data;
+  GDestroyNotify user_data_destroy;
 };
 
 typedef struct _RembHashValue
@@ -680,6 +685,19 @@ static void
 remb_hash_value_destroy (gpointer value)
 {
   g_slice_free (RembHashValue, value);
+}
+
+static void
+remb_event_manager_set_min (RembEventManager * manager, guint min)
+{
+  if (manager->remb_min != min) {
+    manager->remb_min = min;
+
+    if (manager->callback) {
+      // TODO: Think about having a threshold to not notify in excess
+      manager->callback (manager, manager->remb_min, manager->user_data);
+    }
+  }
 }
 
 static void
@@ -712,8 +730,7 @@ remb_event_manager_calc_min (RembEventManager * manager)
   }
 
   manager->oldest_remb_value = oldest_time;
-  manager->remb_min = remb_min;
-  // TODO: Check if min has changed and raise an event
+  remb_event_manager_set_min (manager, remb_min);
 }
 
 static void
@@ -737,8 +754,7 @@ remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
   if (bitrate > manager->remb_min) {
     remb_event_manager_calc_min (manager);
   } else {
-    manager->remb_min = bitrate;
-    // TODO: Check if min has changed and raise an event
+    remb_event_manager_set_min (manager, bitrate);
   }
 
 end:
@@ -785,8 +801,20 @@ kms_utils_remb_event_manager_create (GstPad * pad)
 }
 
 void
+kms_utils_remb_event_manager_destroy_user_data (RembEventManager * manager)
+{
+  if (manager->user_data && manager->user_data_destroy) {
+    manager->user_data_destroy (manager->user_data);
+  }
+  manager->user_data = NULL;
+  manager->user_data_destroy = NULL;
+}
+
+void
 kms_utils_remb_event_manager_destroy (RembEventManager * manager)
 {
+  kms_utils_remb_event_manager_destroy_user_data (manager);
+
   gst_pad_remove_probe (manager->pad, manager->probe_id);
   g_object_unref (manager->pad);
   g_hash_table_destroy (manager->remb_hash);
@@ -815,6 +843,19 @@ kms_utils_remb_event_manager_get_min (RembEventManager * manager)
   g_mutex_unlock (&manager->mutex);
 
   return ret;
+}
+
+void
+kms_utils_remb_event_manager_set_callback (RembEventManager * manager,
+    RembBitrateUpdatedCallback cb, gpointer data, GDestroyNotify destroy_notify)
+{
+  g_mutex_lock (&manager->mutex);
+  kms_utils_remb_event_manager_destroy_user_data (manager);
+
+  manager->user_data = data;
+  manager->user_data_destroy = destroy_notify;
+  manager->callback = cb;
+  g_mutex_unlock (&manager->mutex);
 }
 
 /* REMB event end */
