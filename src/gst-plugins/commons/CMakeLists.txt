@@ -75,6 +75,7 @@ set(KMS_COMMONS_SOURCES
   kmsrefstruct.c
   kmsistats.c
   kmsbufferlacentymeta.c
+  kmsserializablemeta.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -96,6 +97,7 @@ set(KMS_COMMONS_HEADERS
   kmsrefstruct.h
   kmsistats.h
   kmsbufferlacentymeta.h
+  kmsserializablemeta.h
 )
 
 set(ENUM_HEADERS
