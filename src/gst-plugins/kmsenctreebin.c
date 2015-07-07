@@ -38,7 +38,6 @@ G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
 struct _KmsEncTreeBinPrivate
 {
   GstPad *enc_sink;
-  gulong remb_manager_probe_id;
   RembEventManager *remb_manager;
 };
 
@@ -108,6 +107,7 @@ enc_set_target_bitrate (GstElement * enc, gint target_bitrate)
 
   g_object_get (enc, "name", &name, NULL);
 
+  GST_DEBUG_OBJECT (enc, "Setting encoding bitrate to: %d", target_bitrate);
   if (g_str_has_prefix (name, "vp8enc")) {
     gint last_br;
 
@@ -117,10 +117,18 @@ enc_set_target_bitrate (GstElement * enc, gint target_bitrate)
       g_object_set (enc, "target-bitrate", target_bitrate, NULL);
     }
   } else if (g_str_has_prefix (name, "x264enc")) {
-    gint last_br, new_br = target_bitrate / 1000;
+    guint last_br, new_br = target_bitrate / 1000;
 
     g_object_get (enc, "bitrate", &last_br, NULL);
     if (last_br != new_br) {
+      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
+      g_object_set (enc, "target-bitrate", new_br, NULL);
+    }
+  } else if (g_str_has_prefix (name, "openh264enc")) {
+    guint last_br, new_br = target_bitrate;
+
+    g_object_get (enc, "bitrate", &last_br, NULL);
+    if (last_br / 1000 != new_br / 1000) {
       GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
       g_object_set (enc, "target-bitrate", new_br, NULL);
     }
@@ -129,23 +137,15 @@ enc_set_target_bitrate (GstElement * enc, gint target_bitrate)
   g_free (name);
 }
 
-static GstPadProbeReturn
-config_enc_bitrate_probe (GstPad * pad, GstPadProbeInfo * info,
+static void
+bitrate_callback (RembEventManager * remb_manager, guint bitrate,
     gpointer user_data)
 {
-  RembEventManager *remb_manager = user_data;
-  GstElement *enc;
-  guint br = kms_utils_remb_event_manager_get_min (remb_manager);
+  GstElement *enc = user_data;
 
-  if (br == 0) {
-    return GST_PAD_PROBE_OK;
+  if (bitrate != 0) {
+    enc_set_target_bitrate (enc, bitrate);
   }
-
-  enc = gst_pad_get_parent_element (pad);
-  enc_set_target_bitrate (enc, br);
-  g_object_unref (enc);
-
-  return GST_PAD_PROBE_OK;
 }
 
 /*
@@ -228,9 +228,8 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   self->priv->enc_sink = gst_element_get_static_pad (enc, "sink");
   self->priv->remb_manager =
       kms_utils_remb_event_manager_create (self->priv->enc_sink);
-  self->priv->remb_manager_probe_id =
-      gst_pad_add_probe (self->priv->enc_sink, GST_PAD_PROBE_TYPE_BUFFER,
-      config_enc_bitrate_probe, self->priv->remb_manager, NULL);
+  kms_utils_remb_event_manager_set_callback (self->priv->remb_manager,
+      bitrate_callback, self, NULL);
 
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
@@ -292,7 +291,6 @@ kms_enc_tree_bin_init (KmsEncTreeBin * self)
 
   self->priv->enc_sink = NULL;
   self->priv->remb_manager = NULL;
-  self->priv->remb_manager_probe_id = 0L;
 }
 
 static void
@@ -302,13 +300,6 @@ kms_enc_tree_bin_dispose (GObject * object)
 
   GST_DEBUG_OBJECT (object, "dispose");
   if (self->priv->enc_sink) {
-    if (self->priv->remb_manager_probe_id) {
-      gst_pad_remove_probe (self->priv->enc_sink,
-          self->priv->remb_manager_probe_id);
-
-      self->priv->remb_manager_probe_id = 0L;
-    }
-
     g_clear_object (&self->priv->enc_sink);
   }
 
