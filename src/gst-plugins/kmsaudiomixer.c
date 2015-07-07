@@ -22,6 +22,7 @@
 #include "kmsaudiomixer.h"
 #include "kmsloop.h"
 #include "kmsrefstruct.h"
+#include "kmsagnosticbin.h"
 
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
@@ -713,7 +714,7 @@ unlink_adder_sink (const GValue * item, gpointer user_data)
 {
   GstElement *adder = GST_ELEMENT (user_data);
   GstPad *sinkpad, *srcpad = NULL;
-  GstElement *agnosticbin = NULL;
+  GstElement *src = NULL;
 
   sinkpad = g_value_get_object (item);
 
@@ -723,8 +724,8 @@ unlink_adder_sink (const GValue * item, gpointer user_data)
     goto end;
   }
 
-  agnosticbin = gst_pad_get_parent_element (srcpad);
-  if (agnosticbin == NULL) {
+  src = gst_pad_get_parent_element (srcpad);
+  if (src == NULL) {
     GST_ERROR_OBJECT (srcpad, "No parent element");
     goto end;
   }
@@ -739,18 +740,13 @@ unlink_adder_sink (const GValue * item, gpointer user_data)
 
   gst_element_release_request_pad (adder, sinkpad);
 
-  if (g_str_has_prefix (GST_ELEMENT_NAME (agnosticbin), "kmsagnosticbin")) {
-    gst_element_release_request_pad (agnosticbin, srcpad);
+  if (KMS_IS_AGNOSTIC_BIN2 (src)) {
+    gst_element_release_request_pad (src, srcpad);
   }
 
 end:
-  if (srcpad != NULL) {
-    gst_object_unref (srcpad);
-  }
-
-  if (agnosticbin != NULL) {
-    gst_object_unref (agnosticbin);
-  }
+  g_clear_object (&srcpad);
+  g_clear_object (&src);
 }
 
 static void
