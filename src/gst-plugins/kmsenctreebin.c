@@ -39,6 +39,7 @@ typedef enum
 {
   VP8,
   X264,
+  OPENH264,
   UNSUPPORTED
 } EncoderType;
 
@@ -70,6 +71,12 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
           "threads", (guint) 1, "bitrate", target_bitrate / 1000, NULL);
       break;
     }
+    case OPENH264:
+    {
+      g_object_set (G_OBJECT (encoder), "rate-control", 1 /* bitrate */ ,
+          "bitrate", target_bitrate, NULL);
+      break;
+    }
     default:
       GST_DEBUG ("Codec %" GST_PTR_FORMAT
           " not configured because it is not supported", encoder);
@@ -88,6 +95,8 @@ kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
     self->priv->enc_type = VP8;
   } else if (g_str_has_prefix (name, "x264enc")) {
     self->priv->enc_type = X264;
+  } else if (g_str_has_prefix (name, "openh264enc")) {
+    self->priv->enc_type = OPENH264;
   } else {
     self->priv->enc_type = UNSUPPORTED;
   }
@@ -179,6 +188,17 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
         g_object_set (self->priv->enc, "target-bitrate", new_br, NULL);
       }
       break;
+    }
+    case OPENH264:
+    {
+      guint last_br, new_br = target_bitrate;
+
+      g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
+      if (last_br / 1000 != new_br / 1000) {
+        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
+            target_bitrate);
+        g_object_set (self->priv->enc, "bitrate", new_br, NULL);
+      }
     }
     default:
       GST_DEBUG ("Not setting bitrate, encoder not supported");
