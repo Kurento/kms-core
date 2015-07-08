@@ -48,6 +48,8 @@ struct _KmsEncTreeBinPrivate
   GstElement *enc;
   EncoderType enc_type;
   RembEventManager *remb_manager;
+
+  gint remb_bitrate;
 };
 
 static void
@@ -133,54 +135,67 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
 
   gst_plugin_feature_list_free (filtered_list);
   gst_plugin_feature_list_free (encoder_list);
+}
 
+static gint
+kms_enc_tree_bin_get_bitrate (KmsEncTreeBin * self)
+{
+  return self->priv->remb_bitrate;
 }
 
 static void
-enc_set_target_bitrate (GstElement * enc, gint target_bitrate)
+kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 {
-  gchar *name;
+  gint target_bitrate = kms_enc_tree_bin_get_bitrate (self);
 
-  g_object_get (enc, "name", &name, NULL);
-
-  GST_DEBUG_OBJECT (enc, "Setting encoding bitrate to: %d", target_bitrate);
-  if (g_str_has_prefix (name, "vp8enc")) {
-    gint last_br;
-
-    g_object_get (enc, "target-bitrate", &last_br, NULL);
-    if (last_br / 1000 != target_bitrate / 1000) {
-      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
-      g_object_set (enc, "target-bitrate", target_bitrate, NULL);
-    }
-  } else if (g_str_has_prefix (name, "x264enc")) {
-    guint last_br, new_br = target_bitrate / 1000;
-
-    g_object_get (enc, "bitrate", &last_br, NULL);
-    if (last_br != new_br) {
-      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
-      g_object_set (enc, "target-bitrate", new_br, NULL);
-    }
-  } else if (g_str_has_prefix (name, "openh264enc")) {
-    guint last_br, new_br = target_bitrate;
-
-    g_object_get (enc, "bitrate", &last_br, NULL);
-    if (last_br / 1000 != new_br / 1000) {
-      GST_DEBUG_OBJECT (enc, "Set bitrate: %" G_GUINT32_FORMAT, target_bitrate);
-      g_object_set (enc, "target-bitrate", new_br, NULL);
-    }
+  if (target_bitrate <= 0) {
+    return;
   }
 
-  g_free (name);
+  GST_DEBUG_OBJECT (self->priv->enc, "Setting encoding bitrate to: %d",
+      target_bitrate);
+
+  switch (self->priv->enc_type) {
+    case VP8:
+    {
+      gint last_br;
+
+      g_object_get (self->priv->enc, "target-bitrate", &last_br, NULL);
+      if (last_br / 1000 != target_bitrate / 1000) {
+        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
+            target_bitrate);
+        g_object_set (self->priv->enc, "target-bitrate", target_bitrate, NULL);
+      }
+      break;
+    }
+    case X264:
+    {
+      guint last_br, new_br = target_bitrate / 1000;
+
+      g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
+      if (last_br != new_br) {
+        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
+            target_bitrate);
+        g_object_set (self->priv->enc, "target-bitrate", new_br, NULL);
+      }
+      break;
+    }
+    default:
+      GST_DEBUG ("Not setting bitrate, encoder not supported");
+      break;
+  }
 }
 
 static void
 bitrate_callback (RembEventManager * remb_manager, guint bitrate,
     gpointer user_data)
 {
-  GstElement *enc = user_data;
+  KmsEncTreeBin *self = user_data;
 
+  // TODO: Get min of remb and tag
   if (bitrate != 0) {
-    enc_set_target_bitrate (enc, bitrate);
+    self->priv->remb_bitrate = bitrate;
+    kms_enc_tree_bin_set_target_bitrate (self);
   }
 }
 
@@ -328,6 +343,8 @@ kms_enc_tree_bin_init (KmsEncTreeBin * self)
 
   self->priv->enc_sink = NULL;
   self->priv->remb_manager = NULL;
+
+  self->priv->remb_bitrate = -1;
 }
 
 static void
