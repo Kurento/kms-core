@@ -52,6 +52,7 @@ struct _KmsEncTreeBinPrivate
   RembEventManager *remb_manager;
 
   gint remb_bitrate;
+  gint tag_bitrate;
 };
 
 static void
@@ -157,7 +158,13 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
 static gint
 kms_enc_tree_bin_get_bitrate (KmsEncTreeBin * self)
 {
-  return self->priv->remb_bitrate;
+  if (self->priv->remb_bitrate <= 0) {
+    return self->priv->tag_bitrate;
+  } else if (self->priv->tag_bitrate <= 0) {
+    return self->priv->remb_bitrate;
+  } else {
+    return MIN (self->priv->remb_bitrate, self->priv->tag_bitrate);
+  }
 }
 
 static void
@@ -225,6 +232,27 @@ bitrate_callback (RembEventManager * remb_manager, guint bitrate,
     self->priv->remb_bitrate = bitrate;
     kms_enc_tree_bin_set_target_bitrate (self);
   }
+}
+
+static GstPadProbeReturn
+tag_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_TAG) {
+    KmsEncTreeBin *self = data;
+    GstTagList *taglist;
+    guint bitrate;
+
+    gst_event_parse_tag (event, &taglist);
+    if (gst_tag_list_get_uint (taglist, "bitrate", &bitrate)) {
+
+      self->priv->tag_bitrate = bitrate;
+      kms_enc_tree_bin_set_target_bitrate (self);
+    }
+  }
+
+  return GST_PAD_PROBE_OK;
 }
 
 /*
@@ -305,6 +333,8 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
       kms_utils_remb_event_manager_create (self->priv->enc_sink);
   kms_utils_remb_event_manager_set_callback (self->priv->remb_manager,
       bitrate_callback, self, NULL);
+  gst_pad_add_probe (self->priv->enc_sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+      tag_event_probe, self, NULL);
 
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
@@ -373,6 +403,7 @@ kms_enc_tree_bin_init (KmsEncTreeBin * self)
   self->priv->remb_manager = NULL;
 
   self->priv->remb_bitrate = -1;
+  self->priv->tag_bitrate = -1;
 }
 
 static void
