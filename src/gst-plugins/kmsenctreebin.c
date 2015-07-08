@@ -35,33 +35,70 @@ G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
   )                                         \
 )
 
+typedef enum
+{
+  VP8,
+  X264,
+  UNSUPPORTED
+} EncoderType;
+
 struct _KmsEncTreeBinPrivate
 {
   GstPad *enc_sink;
+  GstElement *enc;
+  EncoderType enc_type;
   RembEventManager *remb_manager;
 };
 
 static void
-configure_encoder (GstElement * encoder, const gchar * factory_name,
-    gint target_bitrate)
+configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
 {
-  GST_DEBUG ("Configure encoder: %s", factory_name);
-  if (g_strcmp0 ("vp8enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
-        "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-        "target-bitrate", target_bitrate, "end-usage", /* cbr */ 1, NULL);
-  } else if (g_strcmp0 ("x264enc", factory_name) == 0) {
-    g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-        "threads", (guint) 1, "bitrate", target_bitrate / 1000, NULL);
+  GST_DEBUG ("Configure encoder: %" GST_PTR_FORMAT, encoder);
+  switch (type) {
+    case VP8:
+    {
+      g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
+          "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
+          "target-bitrate", target_bitrate, "end-usage", /* cbr */ 1, NULL);
+      break;
+    }
+    case X264:
+    {
+      g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
+          "threads", (guint) 1, "bitrate", target_bitrate / 1000, NULL);
+      break;
+    }
+    default:
+      GST_DEBUG ("Codec %" GST_PTR_FORMAT
+          " not configured because it is not supported", encoder);
+      break;
   }
 }
 
-static GstElement *
-create_encoder_for_caps (const GstCaps * caps, gint target_bitrate)
+static void
+kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
+{
+  gchar *name;
+
+  g_object_get (self->priv->enc, "name", &name, NULL);
+
+  if (g_str_has_prefix (name, "vp8enc")) {
+    self->priv->enc_type = VP8;
+  } else if (g_str_has_prefix (name, "x264enc")) {
+    self->priv->enc_type = X264;
+  } else {
+    self->priv->enc_type = UNSUPPORTED;
+  }
+
+  g_free (name);
+}
+
+static void
+kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
+    const GstCaps * caps, gint target_bitrate)
 {
   GList *encoder_list, *filtered_list, *l;
   GstElementFactory *encoder_factory = NULL;
-  GstElement *encoder = NULL;
 
   encoder_list =
       gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
@@ -89,15 +126,14 @@ create_encoder_for_caps (const GstCaps * caps, gint target_bitrate)
   }
 
   if (encoder_factory != NULL) {
-    encoder = gst_element_factory_create (encoder_factory, NULL);
-    configure_encoder (encoder, GST_OBJECT_NAME (encoder_factory),
-        target_bitrate);
+    self->priv->enc = gst_element_factory_create (encoder_factory, NULL);
+    kms_enc_tree_bin_set_encoder_type (self);
+    configure_encoder (self->priv->enc, self->priv->enc_type, target_bitrate);
   }
 
   gst_plugin_feature_list_free (filtered_list);
   gst_plugin_feature_list_free (encoder_list);
 
-  return encoder;
 }
 
 static void
@@ -209,23 +245,19 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     gint target_bitrate)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
-  GstElement *rate, *convert, *mediator, *enc, *output_tee, *capsfilter;
-  gboolean is_h264;
+  GstElement *rate, *convert, *mediator, *output_tee, *capsfilter = NULL;
 
-  enc = create_encoder_for_caps (caps, target_bitrate);
-  if (enc == NULL) {
+  kms_enc_tree_bin_create_encoder_for_caps (self, caps, target_bitrate);
+
+  if (self->priv->enc == NULL) {
     GST_WARNING_OBJECT (self, "Invalid encoder for caps: %" GST_PTR_FORMAT,
         caps);
     return FALSE;
   }
-  // FIXME: This is a hack to avoid an error on x264enc that does not work
-  // properly with some raw formats, this should be fixed in gstreamer
-  // but until this is done this hack makes it work
-  is_h264 = g_str_has_prefix (GST_OBJECT_NAME (enc), "x264");
 
-  GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, enc);
+  GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, self->priv->enc);
 
-  self->priv->enc_sink = gst_element_get_static_pad (enc, "sink");
+  self->priv->enc_sink = gst_element_get_static_pad (self->priv->enc, "sink");
   self->priv->remb_manager =
       kms_utils_remb_event_manager_create (self->priv->enc_sink);
   kms_utils_remb_event_manager_set_callback (self->priv->remb_manager,
@@ -235,12 +267,16 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   convert = kms_utils_create_convert_for_caps (caps);
   mediator = kms_utils_create_mediator_element (caps);
 
-  gst_bin_add_many (GST_BIN (self), rate, convert, mediator, enc, NULL);
-  gst_element_sync_state_with_parent (enc);
+  gst_bin_add_many (GST_BIN (self), rate, convert, mediator, self->priv->enc,
+      NULL);
+  gst_element_sync_state_with_parent (self->priv->enc);
   gst_element_sync_state_with_parent (mediator);
   gst_element_sync_state_with_parent (convert);
   gst_element_sync_state_with_parent (rate);
-  if (is_h264) {
+  // FIXME: This is a hack to avoid an error on x264enc that does not work
+  // properly with some raw formats, this should be fixed in gstreamer
+  // but until this is done this hack makes it work
+  if (self->priv->enc_type == X264) {
     GstCaps *filter_caps = gst_caps_from_string ("video/x-raw,format=I420");
     GstPad *sink;
 
@@ -259,11 +295,12 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 
   kms_tree_bin_set_input_element (tree_bin, rate);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  if (is_h264) {
-    gst_element_link_many (rate, convert, mediator, capsfilter, enc, output_tee,
-        NULL);
+  if (self->priv->enc_type == X264) {
+    gst_element_link_many (rate, convert, mediator, capsfilter, self->priv->enc,
+        output_tee, NULL);
   } else {
-    gst_element_link_many (rate, convert, mediator, enc, output_tee, NULL);
+    gst_element_link_many (rate, convert, mediator, self->priv->enc, output_tee,
+        NULL);
   }
 
   return TRUE;
