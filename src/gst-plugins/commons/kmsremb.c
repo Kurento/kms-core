@@ -315,7 +315,8 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     gst_rtcp_packet_remove (&packet);
   }
 
-  GST_TRACE_OBJECT (sess, "Sending REMB with bitrate: %d", remb_packet.bitrate);
+  GST_TRACE_OBJECT (sess, "Sending REMB (bitrate: %" G_GUINT32_FORMAT
+      ", ssrc: %" G_GUINT32_FORMAT ")", remb_packet.bitrate, rl->remote_ssrc);
 
   kms_remb_base_update_stats (KMS_REMB_BASE (rl), rl->remote_ssrc,
       remb_packet.bitrate);

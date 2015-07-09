@@ -168,14 +168,8 @@ kms_rtcp_psfb_afb_remb_get_packet (KmsRTCPPSFBAFBPacket * afb_packet,
   }
 
   for (i = 0; i < remb_packet->n_ssrcs; i++) {
-    guint32 ssrc;
-
-    ssrc = *fci++ << 24;
-    ssrc += *fci++ << 16;
-    ssrc += *fci++ << 8;
-    ssrc += *fci++;
-
-    remb_packet->ssrcs[i] = ssrc;
+    remb_packet->ssrcs[i] = g_ntohl (*(guint32 *) fci);
+    fci += 4;
   }
 
   return TRUE;
@@ -248,10 +242,9 @@ kms_rtcp_psfb_afb_remb_marshall_packet (GstRTCPPacket * rtcp_packet,
   fci_data += 8;
 
   for (i = 0; i < remb_packet->n_ssrcs; i++) {
-    *fci_data = remb_packet->ssrcs[i];
+    *(guint32 *) fci_data = g_htonl (remb_packet->ssrcs[i]);
     fci_data += 4;
   }
-
   return TRUE;
 }
 
