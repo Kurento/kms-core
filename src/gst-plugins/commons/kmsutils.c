@@ -17,7 +17,6 @@
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
 #include "kmsagnosticcaps.h"
-#include <time.h>
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -770,11 +769,11 @@ kms_utils_remb_event_manager_get_min (RembEventManager * manager)
 GstClockTime
 kms_utils_get_time_nsecs ()
 {
-  struct timespec time;
+  GstClockTime time;
 
-  clock_gettime (CLOCK_MONOTONIC, &time);
+  time = g_get_monotonic_time () * GST_USECOND;
 
-  return time.tv_sec * GST_SECOND + time.tv_nsec;
+  return time;
 }
 
 /* time end */
