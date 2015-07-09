@@ -519,6 +519,7 @@ kms_element_release_pad (GstElement * element, GstPad * pad)
 {
   GstElement *agnosticbin;
   GstPad *target;
+  GstPad *peer;
 
   if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio_src")) {
     agnosticbin = KMS_ELEMENT (element)->priv->audio_agnosticbin;
@@ -539,12 +540,18 @@ kms_element_release_pad (GstElement * element, GstPad * pad)
     g_object_unref (target);
   }
 
+  peer = gst_pad_get_peer (pad);
+
   gst_pad_push_event (pad, gst_event_new_flush_start ());
-  gst_pad_push_event (pad, gst_event_new_flush_stop (FALSE));
 
   if (GST_STATE (element) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (element) >= GST_STATE_PAUSED) {
     gst_pad_set_active (pad, FALSE);
+  }
+
+  if (peer) {
+    gst_pad_send_event (peer, gst_event_new_flush_stop (FALSE));
+    g_object_unref (peer);
   }
 
   gst_element_remove_pad (element, pad);
