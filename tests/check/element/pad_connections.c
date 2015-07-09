@@ -731,7 +731,7 @@ unlink_buffer_injector_on_handoff (GstElement * object, GstBuffer * buff,
     gboolean disconnected;
 
     if (count > 10) {
-      g_main_loop_quit (loop);
+      g_idle_add (quit_main_loop_idle, NULL);
     }
 
     disconnected =
