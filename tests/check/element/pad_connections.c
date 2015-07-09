@@ -685,7 +685,139 @@ GST_START_TEST (disconnect_requested_src_pad_linked)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST static GstPadProbeReturn
+GST_END_TEST;
+
+static gboolean
+remove_src_pad (gpointer user_data)
+{
+  GstElement *dummysrc, *bufferinjector = user_data;
+  GstPad *sink = gst_element_get_static_pad (bufferinjector, "sink");
+  GstPad *src;
+  gboolean success = FALSE;
+
+  fail_unless (sink);
+  src = gst_pad_get_peer (sink);
+  fail_unless (src);
+  dummysrc = gst_pad_get_parent_element (src);
+
+  g_signal_emit_by_name (dummysrc, "release-requested-srcpad",
+      GST_OBJECT_NAME (src), &success);
+  fail_unless (success);
+
+  g_object_unref (src);
+  g_object_unref (sink);
+  g_object_unref (dummysrc);
+
+  g_object_set_data (G_OBJECT (bufferinjector), "disconnected",
+      GINT_TO_POINTER (TRUE));
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+unlink_buffer_injector_on_handoff (GstElement * object, GstBuffer * buff,
+    GstPad * pad, gpointer user_data)
+{
+  GstElement *bufferinjector = user_data;
+  static gint count = 0;
+
+  GST_DEBUG_OBJECT (object, "Buffer received");
+
+  if (count == 0) {
+    count++;
+    g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, remove_src_pad,
+        g_object_ref (bufferinjector), g_object_unref);
+  } else {
+    gboolean disconnected;
+
+    if (count > 10) {
+      g_main_loop_quit (loop);
+    }
+
+    disconnected =
+        GPOINTER_TO_INT (g_object_get_data (G_OBJECT (bufferinjector),
+            "disconnected"));
+
+    if (disconnected) {
+      count++;
+    }
+  }
+}
+
+static void
+linked_srcpad_added_link_buffer_injector (GstElement * dummysrc,
+    GstPad * new_pad, gpointer user_data)
+{
+  GstElement *bufferinjector;
+  GstElement *sink;
+  GstPad *sinkpad;
+
+  GST_DEBUG_OBJECT (dummysrc, "Added pad %" GST_PTR_FORMAT, new_pad);
+
+  bufferinjector = gst_element_factory_make ("bufferinjector", NULL);
+  sink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (G_OBJECT (sink), "async", FALSE, "sync", FALSE,
+      "signal-handoffs", TRUE, NULL);
+  signal_id =
+      g_signal_connect (sink, "handoff",
+      G_CALLBACK (unlink_buffer_injector_on_handoff), bufferinjector);
+
+  gst_bin_add_many (GST_BIN (pipeline), bufferinjector, sink, NULL);
+  gst_element_sync_state_with_parent (sink);
+  gst_element_sync_state_with_parent (bufferinjector);
+  gst_element_link (bufferinjector, sink);
+
+  sinkpad = gst_element_get_static_pad (bufferinjector, "sink");
+  if (gst_pad_link (new_pad, sinkpad) != GST_PAD_LINK_OK) {
+    fail ("Could not link pads");
+  }
+
+  g_object_unref (sinkpad);
+}
+
+GST_START_TEST (disconnect_requested_src_pad_linked_with_buffer_injector)
+{
+  GstElement *dummysrc;
+  gchar *padname = NULL;
+  GstBus *bus;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  dummysrc = gst_element_factory_make ("dummysrc", NULL);
+  g_signal_connect (dummysrc, "pad-added",
+      G_CALLBACK (linked_srcpad_added_link_buffer_injector), NULL);
+
+  gst_bin_add (GST_BIN (pipeline), dummysrc);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Pad name %s", padname);
+  g_object_set (G_OBJECT (dummysrc), "video", TRUE, NULL);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_free (padname);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST;
+
+static GstPadProbeReturn
 audio_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
 {
   GST_DEBUG_OBJECT (pad, "buffer received");
@@ -1243,6 +1375,8 @@ pads_connection_suite (void)
   tcase_add_test (tc_chain, connection_of_elements);
   tcase_add_test (tc_chain, connection_of_elements_data);
   tcase_add_test (tc_chain, connect_chain_of_elements);
+  tcase_add_test (tc_chain,
+      disconnect_requested_src_pad_linked_with_buffer_injector);
 
   return s;
 }
