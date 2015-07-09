@@ -85,18 +85,6 @@ buffer_latency_data_destroy (BufferLatencyData * bl)
   g_slice_free (BufferLatencyData, bl);
 }
 
-void
-kms_utils_set_valve_drop (GstElement * valve, gboolean drop)
-{
-  gboolean old_drop;
-
-  g_object_get (valve, "drop", &old_drop, NULL);
-  if (drop == old_drop)
-    return;
-
-  g_object_set (valve, "drop", drop, NULL);
-}
-
 static gboolean
 debug_graph (gpointer bin)
 {
