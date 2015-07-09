@@ -128,6 +128,7 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     GST_WARNING_OBJECT (self,
         "Buffer injector is not correctly configured, there is no buffer to send");
     KMS_BUFFER_INJECTOR_UNLOCK (self);
+    g_usleep (10000);
     return;
   }
 
