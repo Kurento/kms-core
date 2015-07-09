@@ -97,6 +97,27 @@ enum
 };
 
 static void
+kms_buffer_injector_check_segment_event (KmsBufferInjector * self)
+{
+  GstSegment *segment;
+  GstEvent *segment_event =
+      gst_pad_get_sticky_event (self->priv->srcpad, GST_EVENT_SEGMENT, 0);
+
+  if (segment_event) {
+    gst_event_unref (segment_event);
+    return;
+  }
+
+  segment = gst_segment_new ();
+
+  gst_segment_init (segment, GST_FORMAT_TIME);
+  GST_DEBUG_OBJECT (self,
+      "Generating segment event before pushing generated buffers");
+  gst_pad_push_event (self->priv->srcpad, gst_event_new_segment (segment));
+  gst_segment_free (segment);
+}
+
+static void
 kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
 {
   gint64 end_time;              /* microseconds */
@@ -151,6 +172,10 @@ kms_buffer_injector_generate_buffers (KmsBufferInjector * self)
     GST_BUFFER_FLAG_SET (copy, GST_BUFFER_FLAG_GAP);
     GST_BUFFER_FLAG_SET (copy, GST_BUFFER_FLAG_DROPPABLE);
     KMS_BUFFER_INJECTOR_UNLOCK (self);
+
+    /* We need to check if segment event is present,
+     * we could have receive a flush */
+    kms_buffer_injector_check_segment_event (self);
     gst_pad_push (self->priv->srcpad, copy);
   }
   g_mutex_unlock (&self->priv->mutex_generate);
