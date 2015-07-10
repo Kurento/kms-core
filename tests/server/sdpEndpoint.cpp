@@ -117,10 +117,10 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
 
   try {
     sdpEndpoint->processAnswer (answer);
-    BOOST_ERROR ("Process answer without generate ofeer does not detected");
+    BOOST_ERROR ("Process answer without generating offer does not detected");
   } catch (KurentoException &e) {
     if (e.getCode () != 40209) {
-      BOOST_ERROR ("Process answer without generate ofeer does not detected");
+      BOOST_ERROR ("Process answer without generating offer does not detected");
     }
   }
 

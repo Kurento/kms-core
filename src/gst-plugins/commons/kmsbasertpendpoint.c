@@ -56,6 +56,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
   )                                               \
 )
 
+#define BUNDLE_CONN_ADDED "bundle-conn-added"
 #define RTCP_DEMUX_PEER "rtcp-demux-peer"
 
 #define JB_INITIAL_LATENCY 0
@@ -95,8 +96,6 @@ struct _KmsBaseRtpEndpointPrivate
   KmsMediaState media_state;
   gboolean audio_actived;
   gboolean video_actived;
-  gboolean audio_added;
-  gboolean video_added;
 
   gboolean rtcp_mux;
   gboolean rtcp_nack;
@@ -168,6 +167,193 @@ enum
   PROP_REMB_PARAMS,
   PROP_LAST
 };
+
+/* RTP hdrext begin */
+
+typedef struct _HdrExtData
+{
+  GstPad *pad;
+  /* Useful to make buffers writable when needed. */
+  gboolean add_hdr;
+  gboolean set_time;
+  gint abs_send_time_id;
+} HdrExtData;
+
+static HdrExtData *
+hdr_ext_data_new (GstPad * pad, gboolean add_hdr, gboolean set_time,
+    gint abs_send_time_id)
+{
+  HdrExtData *data;
+
+  data = g_slice_new0 (HdrExtData);
+  data->pad = pad;
+  data->add_hdr = add_hdr;
+  data->set_time = set_time;
+  data->abs_send_time_id = abs_send_time_id;
+
+  return data;
+}
+
+static void
+hdr_ext_data_destroy (HdrExtData * data)
+{
+  g_slice_free (HdrExtData, data);
+}
+
+static void
+hdr_ext_data_destroy_pointer (gpointer data)
+{
+  hdr_ext_data_destroy ((HdrExtData *) data);
+}
+
+static void
+kms_base_rtp_endpoint_rtp_hdr_ext_set_time (guint8 * data)
+{
+  GstClockTime current_time, ms;
+  guint value;
+
+  current_time = kms_utils_get_time_nsecs ();
+  ms = current_time / 1000000;
+  value = (((ms << 18) / 1000) & 0x00ffffff);
+
+  data[0] = (guint8) (value >> 16);
+  data[1] = (guint8) (value >> 8);
+  data[2] = (guint8) (value);
+}
+
+static void
+kms_base_rtp_endpoint_add_rtp_hdr_ext (HdrExtData * data, GstBuffer * buffer)
+{
+  GstRTPBuffer rtp = { NULL, };
+  guint8 id = data->abs_send_time_id;
+  GstMapFlags map_flags;
+  guint8 *time;
+  guint size;
+
+  if (data->add_hdr) {
+    map_flags = GST_MAP_WRITE;
+  } else {
+    map_flags = GST_MAP_READ;
+  }
+
+  if (!gst_rtp_buffer_map (buffer, map_flags, &rtp)) {
+    GST_WARNING_OBJECT (data->pad, "Can not map RTP buffer");
+    return;
+  }
+
+  if (!gst_rtp_buffer_get_extension_onebyte_header (&rtp,
+          id, 0, (gpointer) & time, &size)) {
+    GST_TRACE_OBJECT (data->pad,
+        "RTP hdrext abs-send-time with id '%d' not found", id);
+
+    if (data->add_hdr) {
+      GST_TRACE_OBJECT (data->pad, " Adding new one.");
+    } else {
+      GST_WARNING_OBJECT (data->pad, "Cannot add new one: not writable");
+      goto end;
+    }
+
+    time = g_malloc0 (RTP_HDR_EXT_ABS_SEND_TIME_SIZE);
+    if (data->set_time) {
+      kms_base_rtp_endpoint_rtp_hdr_ext_set_time (time);
+    }
+
+    if (!gst_rtp_buffer_add_extension_onebyte_header (&rtp,
+            id, time, RTP_HDR_EXT_ABS_SEND_TIME_SIZE)) {
+      GST_WARNING_OBJECT (data->pad, "RTP hdrext abs-send-time not added");
+    }
+
+    g_free (time);
+  } else if (data->set_time) {
+    if (size != RTP_HDR_EXT_ABS_SEND_TIME_SIZE) {
+      GST_WARNING_OBJECT (data->pad,
+          "RTP hdrext abs-send-time size with id '%d' not matching", id);
+    } else {
+      GST_TRACE_OBJECT (data->pad,
+          "RTP hdrext abs-send-time with id '%d' found. Update time.", id);
+      kms_base_rtp_endpoint_rtp_hdr_ext_set_time (time);
+    }
+  }
+
+end:
+  gst_rtp_buffer_unmap (&rtp);
+}
+
+static gboolean
+kms_base_rtp_endpoint_add_rtp_hdr_ext_bufflist (GstBuffer ** buf, guint idx,
+    HdrExtData * data)
+{
+  if (data->add_hdr) {
+    *buf = gst_buffer_make_writable (*buf);
+  }
+  kms_base_rtp_endpoint_add_rtp_hdr_ext (data, *buf);
+
+  return TRUE;
+}
+
+static GstPadProbeReturn
+kms_base_rtp_endpoint_add_rtp_hdr_ext_probe (GstPad * pad,
+    GstPadProbeInfo * info, gpointer gp)
+{
+  HdrExtData *data = (HdrExtData *) gp;
+
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+    if (data->add_hdr) {
+      buffer = gst_buffer_make_writable (buffer);
+    }
+    kms_base_rtp_endpoint_add_rtp_hdr_ext (data, buffer);
+    GST_PAD_PROBE_INFO_DATA (info) = buffer;
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
+    if (data->add_hdr) {
+      bufflist = gst_buffer_list_make_writable (bufflist);
+    }
+    gst_buffer_list_foreach (bufflist,
+        (GstBufferListFunc) kms_base_rtp_endpoint_add_rtp_hdr_ext_bufflist,
+        data);
+
+    GST_PAD_PROBE_INFO_DATA (info) = bufflist;
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+kms_base_rtp_endpoint_config_rtp_hdr_ext (KmsBaseRtpEndpoint * self,
+    SdpMediaConfig * mconf)
+{
+  HdrExtData *data;
+  gint abs_send_time_id;
+  GstPad *pad;
+
+  abs_send_time_id = kms_sdp_media_config_get_abs_send_time_id (mconf);
+  if (abs_send_time_id == -1) {
+    GST_DEBUG_OBJECT (self, "abs-send-time-id not configured.");
+    return;
+  }
+
+  pad = gst_element_get_static_pad (self->priv->video_payloader, "src");
+  if (pad == NULL) {
+    GST_WARNING_OBJECT (self, "No RTP pad to configure hdrext probe.");
+    return;
+  }
+
+  data = hdr_ext_data_new (pad, TRUE, FALSE, abs_send_time_id);
+
+  GST_DEBUG_OBJECT (self,
+      "Add probe for adding abs-send-time (id: %d, %" GST_PTR_FORMAT
+      ").", abs_send_time_id, pad);
+  gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      kms_base_rtp_endpoint_add_rtp_hdr_ext_probe, data,
+      hdr_ext_data_destroy_pointer);
+  g_object_unref (pad);
+}
+
+/* RTP hdrext end */
 
 /* Media handler management begin */
 static void
@@ -287,16 +473,16 @@ static gboolean
 kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 {
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
-  SdpMessageContext *negotiated_ctx;
+  KmsSdpSession *neg_sess =
+      kms_base_sdp_endpoint_get_first_negotiated_session (base_endpoint);
   const GSList *item;
 
-  negotiated_ctx = kms_base_sdp_endpoint_get_negotiated_sdp_ctx (base_endpoint);
-  if (negotiated_ctx == NULL) {
-    GST_WARNING_OBJECT (self, "Negotiation ctx not set");
+  if (neg_sess == NULL) {
+    GST_WARNING_OBJECT (self, "Negotiated session not set");
     return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (negotiated_ctx);
+  item = kms_sdp_message_context_get_medias (neg_sess->negotiated_ctx);
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
     GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
@@ -314,7 +500,7 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 
 static KmsIRtpConnection *
 kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf, const gchar * name)
+    KmsSdpSession * sess, SdpMediaConfig * mconf, const gchar * name)
 {
   KmsBaseRtpEndpointClass *klass =
       KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -330,7 +516,7 @@ kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
 
 static KmsIRtcpMuxConnection *
 kms_base_rtp_endpoint_create_rtcp_mux_connection_default (KmsBaseRtpEndpoint *
-    self, const gchar * name)
+    self, KmsSdpSession * sess, const gchar * name)
 {
   KmsBaseRtpEndpointClass *klass =
       KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -347,7 +533,7 @@ kms_base_rtp_endpoint_create_rtcp_mux_connection_default (KmsBaseRtpEndpoint *
 
 static KmsIBundleConnection *
 kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
-    self, const gchar * name)
+    self, KmsSdpSession * sess, const gchar * name)
 {
   KmsBaseRtpEndpointClass *klass =
       KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
@@ -363,7 +549,8 @@ kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
 }
 
 static gchar *
-create_connection_name_from_media_config (SdpMediaConfig * mconf)
+create_connection_name_from_media_config (KmsSdpSession * sess,
+    SdpMediaConfig * mconf)
 {
   SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
   gchar *conn_name;
@@ -372,11 +559,12 @@ create_connection_name_from_media_config (SdpMediaConfig * mconf)
     gint gid = kms_sdp_media_group_get_id (group);
 
     conn_name =
-        g_strdup_printf ("%s%" G_GINT32_FORMAT, BUNDLE_STREAM_NAME, gid);
+        g_strdup_printf ("%d_%s%" G_GINT32_FORMAT, sess->id, BUNDLE_STREAM_NAME,
+        gid);
   } else {
     gint mid = kms_sdp_media_config_get_id (mconf);
 
-    conn_name = g_strdup_printf ("%" G_GINT32_FORMAT, mid);
+    conn_name = g_strdup_printf ("%d_%" G_GINT32_FORMAT, sess->id, mid);
   }
 
   return conn_name;
@@ -401,9 +589,9 @@ kms_base_rtp_endpoint_get_connection_by_name (KmsBaseRtpEndpoint * self,
 
 KmsIRtpConnection *
 kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf)
+    KmsSdpSession * sess, SdpMediaConfig * mconf)
 {
-  gchar *name = create_connection_name_from_media_config (mconf);
+  gchar *name = create_connection_name_from_media_config (sess, mconf);
   KmsIRtpConnection *conn;
 
   conn = kms_base_rtp_endpoint_get_connection_by_name (self, name);
@@ -476,10 +664,10 @@ kms_base_rtp_endpoint_set_connection_stats (KmsBaseRtpEndpoint * self,
 
 static KmsIRtpConnection *
 kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf)
+    KmsSdpSession * sess, SdpMediaConfig * mconf)
 {
   KmsBaseRtpEndpointClass *base_rtp_class;
-  gchar *name = create_connection_name_from_media_config (mconf);
+  gchar *name = create_connection_name_from_media_config (sess, mconf);
   SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
   KmsIRtpConnection *conn;
 
@@ -496,17 +684,18 @@ kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
   if (group != NULL) {          /* bundle */
     conn =
         KMS_I_RTP_CONNECTION (base_rtp_class->create_bundle_connection (self,
-            name));
+            sess, name));
   } else {
     if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
       conn =
           KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
-          (self, name));
+          (self, sess, name));
     } else {
-      conn = base_rtp_class->create_connection (self, mconf, name);
+      conn = base_rtp_class->create_connection (self, sess, mconf, name);
     }
   }
 
+  /* inmediate-TODO: take into account the related session */
   g_hash_table_insert (self->priv->conns, g_strdup (name), conn);
 
   kms_base_rtp_endpoint_set_connection_stats (self, conn);
@@ -663,12 +852,12 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
 
 static gboolean
 kms_base_rtp_endpoint_configure_media (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, SdpMediaConfig * mconf)
+    base_sdp_endpoint, KmsSdpSession * sess, SdpMediaConfig * mconf)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
   KmsIRtpConnection *conn;
 
-  conn = kms_base_rtp_endpoint_create_connection (self, mconf);
+  conn = kms_base_rtp_endpoint_create_connection (self, sess, mconf);
   if (conn == NULL) {
     return FALSE;
   }
@@ -780,10 +969,13 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
 
-  if (self->priv->audio_added || self->priv->video_added) {
+  if (GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (conn), BUNDLE_CONN_ADDED))) {
     GST_DEBUG_OBJECT (self, "Connection configured");
     return;
   }
+
+  g_object_set_data (G_OBJECT (conn), BUNDLE_CONN_ADDED,
+      GUINT_TO_POINTER (TRUE));
 
   g_object_get (conn, "added", &added, NULL);
   if (!added) {
@@ -823,106 +1015,31 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
 }
 
 static void
-kms_base_rtp_endpoint_write_rtp_hdr_ext (GstPad * pad, GstBuffer * buffer,
-    gint id)
-{
-  GstRTPBuffer rtp = { NULL, };
-  guint8 *data;
-  GstClockTime current_time, ms;
-  guint value;
-
-  if (!gst_rtp_buffer_map (buffer, GST_MAP_WRITE, &rtp)) {
-    GST_WARNING_OBJECT (pad, "Can not map RTP buffer for writting");
-    return;
-  }
-
-  current_time = kms_utils_get_time_nsecs ();
-  ms = current_time / 1000000;
-  value = (((ms << 18) / 1000) & 0x00ffffff);
-
-  data = g_malloc0 (RTP_HDR_EXT_ABS_SEND_TIME_SIZE);
-  data[0] = (guint8) (value >> 16);
-  data[1] = (guint8) (value >> 8);
-  data[2] = (guint8) (value);
-
-  /* TODO: check if header exists and in this case replace the value */
-  if (!gst_rtp_buffer_add_extension_onebyte_header (&rtp,
-          id, data, RTP_HDR_EXT_ABS_SEND_TIME_SIZE)) {
-    GST_WARNING_OBJECT (pad, "RTP hdrext abs-send-time not added");
-  }
-
-  g_free (data);
-  gst_rtp_buffer_unmap (&rtp);
-}
-
-typedef struct _HdrExtData
-{
-  GstPad *pad;
-  gint abs_send_time_id;
-} HdrExtData;
-
-static gboolean
-kms_base_rtp_endpoint_write_rtp_hdr_ext_bufflist (GstBuffer ** buf, guint idx,
-    HdrExtData * data)
-{
-  *buf = gst_buffer_make_writable (*buf);
-  kms_base_rtp_endpoint_write_rtp_hdr_ext (data->pad, *buf,
-      data->abs_send_time_id);
-
-  return TRUE;
-}
-
-static GstPadProbeReturn
-kms_base_rtp_endpoint_write_rtp_hdr_ext_probe (GstPad * pad,
-    GstPadProbeInfo * info, gpointer gp)
-{
-  gint id = GPOINTER_TO_INT (gp);
-
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
-
-    buffer = gst_buffer_make_writable (buffer);
-    kms_base_rtp_endpoint_write_rtp_hdr_ext (pad, buffer, id);
-    GST_PAD_PROBE_INFO_DATA (info) = buffer;
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
-    HdrExtData data;
-
-    data.pad = pad;
-    data.abs_send_time_id = id;
-
-    bufflist = gst_buffer_list_make_writable (bufflist);
-    gst_buffer_list_foreach (bufflist,
-        (GstBufferListFunc) kms_base_rtp_endpoint_write_rtp_hdr_ext_bufflist,
-        &data);
-
-    GST_PAD_PROBE_INFO_DATA (info) = bufflist;
-  }
-
-  return GST_PAD_PROBE_OK;
-}
-
-static void
 kms_base_rtp_endpoint_add_connection_sink (KmsBaseRtpEndpoint * self,
     KmsIRtpConnection * conn, const gchar * rtp_session, gint abs_send_time_id)
 {
   GstPad *src, *sink;
   gchar *str;
 
+  /* RTP */
   str = g_strdup_printf ("%s%s", RTPBIN_SEND_RTP_SRC, rtp_session);
   src = gst_element_get_static_pad (self->priv->rtpbin, str);
   g_free (str);
   sink = kms_i_rtp_connection_request_rtp_sink (conn);
   gst_pad_link (src, sink);
 
-  if (abs_send_time_id > -1) {
+  /* TODO: check if needed for audio */
+  if (abs_send_time_id != -1
+      && g_strcmp0 (rtp_session, VIDEO_RTP_SESSION_STR) == 0) {
+    HdrExtData *data = hdr_ext_data_new (src, FALSE, TRUE, abs_send_time_id);
+
     GST_DEBUG_OBJECT (self,
-        "Add probe for abs-send-time management (id: %d, %" GST_PTR_FORMAT ").",
+        "Add probe for updating abs-send-time (id: %d, %" GST_PTR_FORMAT ").",
         abs_send_time_id, src);
     gst_pad_add_probe (src,
         GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-        kms_base_rtp_endpoint_write_rtp_hdr_ext_probe,
-        GINT_TO_POINTER (abs_send_time_id), NULL);
+        kms_base_rtp_endpoint_add_rtp_hdr_ext_probe,
+        data, hdr_ext_data_destroy_pointer);
   }
 
   g_object_unref (src);
@@ -1021,13 +1138,14 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
 
 static gboolean
 kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
-    const gchar * rtp_session, SdpMediaConfig * mconf, gboolean active)
+    KmsSdpSession * sess, const gchar * rtp_session, SdpMediaConfig * mconf,
+    gboolean active)
 {
   KmsIRtpConnection *conn;
   SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
   gint abs_send_time_id;
 
-  conn = kms_base_rtp_endpoint_get_connection (self, mconf);
+  conn = kms_base_rtp_endpoint_get_connection (self, sess, mconf);
   if (conn == NULL) {
     return FALSE;
   }
@@ -1080,7 +1198,8 @@ kms_base_rtp_endpoint_process_remote_ssrc (KmsBaseRtpEndpoint * self,
 
 static gboolean
 kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * neg_mconf, SdpMediaConfig * remote_mconf, gboolean offerer)
+    KmsSdpSession * sess, SdpMediaConfig * neg_mconf,
+    SdpMediaConfig * remote_mconf, gboolean offerer)
 {
   GstSDPMedia *neg_media = kms_sdp_media_config_get_sdp_media (neg_mconf);
   const gchar *neg_proto_str = gst_sdp_media_get_proto (neg_media);
@@ -1091,7 +1210,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
   const gchar *remote_media_str = gst_sdp_media_get_media (remote_media);
 
   const gchar *rtp_session_str;
-  gboolean active, added;
+  gboolean active;
 
   if (g_strcmp0 (neg_proto_str, remote_proto_str) != 0) {
     GST_WARNING_OBJECT (self,
@@ -1127,16 +1246,8 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
 
   active = sdp_utils_media_is_active (neg_media, offerer);
 
-  added = kms_base_rtp_endpoint_add_connection_for_session (self,
+  return kms_base_rtp_endpoint_add_connection_for_session (self, sess,
       rtp_session_str, neg_mconf, active);
-
-  if (g_strcmp0 (rtp_session_str, AUDIO_RTP_SESSION_STR) == 0) {
-    self->priv->audio_added = added;
-  } else if (g_strcmp0 (rtp_session_str, VIDEO_RTP_SESSION_STR) == 0) {
-    self->priv->video_added = added;
-  }
-
-  return added;
 }
 
 static void
@@ -1207,15 +1318,12 @@ kms_base_rtp_endpoint_check_conn_status (KmsBaseRtpEndpoint * self)
 
 static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
-    base_sdp_endpoint, gboolean offerer)
+    base_sdp_endpoint, KmsSdpSession * sess, gboolean offerer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  SdpMessageContext *neg_ctx =
-      kms_base_sdp_endpoint_get_negotiated_sdp_ctx (base_sdp_endpoint);
-  SdpMessageContext *remote_ctx =
-      kms_base_sdp_endpoint_get_remote_sdp_ctx (base_sdp_endpoint);
-  GSList *item = kms_sdp_message_context_get_medias (neg_ctx);
-  GSList *remote_media_list = kms_sdp_message_context_get_medias (remote_ctx);
+  GSList *item = kms_sdp_message_context_get_medias (sess->negotiated_ctx);
+  GSList *remote_media_list =
+      kms_sdp_message_context_get_medias (sess->remote_ctx);
 
   kms_base_rtp_endpoint_check_conn_status (self);
 
@@ -1235,7 +1343,7 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
       continue;
     }
 
-    if (!kms_base_rtp_endpoint_configure_connection (self, neg_mconf,
+    if (!kms_base_rtp_endpoint_configure_connection (self, sess, neg_mconf,
             remote_mconf, offerer)) {
       GST_WARNING_OBJECT (self, "Cannot configure connection for media %d.",
           mid);
@@ -1502,7 +1610,7 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf)
+    KmsSdpSession * sess, SdpMediaConfig * mconf)
 {
   GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
@@ -1545,6 +1653,8 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
     rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
     self->priv->video_payloader = payloader;
+    /* TODO: check if is needed for audio  */
+    kms_base_rtp_endpoint_config_rtp_hdr_ext (self, mconf);
     connected_flag = &self->priv->video_payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_VIDEO;
     rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
@@ -1557,7 +1667,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   if (rtpbin_pad_name != NULL) {
     KmsIRtpConnection *conn;
 
-    conn = kms_base_rtp_endpoint_get_connection (self, mconf);
+    conn = kms_base_rtp_endpoint_get_connection (self, sess, mconf);
     if (conn == NULL) {
       return;
     }
@@ -1571,10 +1681,11 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
-    base_endpoint, SdpMessageContext * negotiated_ctx)
+    base_endpoint, KmsSdpSession * sess)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
-  const GSList *item = kms_sdp_message_context_get_medias (negotiated_ctx);
+  const GSList *item =
+      kms_sdp_message_context_get_medias (sess->negotiated_ctx);
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
@@ -1590,7 +1701,7 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
     if (g_strcmp0 (media_str, AUDIO_STREAM_NAME) == 0 ||
         g_strcmp0 (media_str, VIDEO_STREAM_NAME) == 0) {
-      kms_base_rtp_endpoint_set_media_payloader (self, mconf);
+      kms_base_rtp_endpoint_set_media_payloader (self, sess, mconf);
     }
   }
 }
@@ -1637,16 +1748,16 @@ static GstCaps *
 kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 {
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
-  SdpMessageContext *negotiated_ctx;
+  KmsSdpSession *neg_sess =
+      kms_base_sdp_endpoint_get_first_negotiated_session (base_endpoint);
   const GSList *item;
 
-  negotiated_ctx = kms_base_sdp_endpoint_get_negotiated_sdp_ctx (base_endpoint);
-  if (negotiated_ctx == NULL) {
-    GST_WARNING_OBJECT (self, "Negotiation ctx not set");
-    return NULL;
+  if (neg_sess == NULL) {
+    GST_WARNING_OBJECT (self, "Negotiated session not set");
+    return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (negotiated_ctx);
+  item = kms_sdp_message_context_get_medias (neg_sess->negotiated_ctx);
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
     GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);

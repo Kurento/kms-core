@@ -43,6 +43,10 @@ public:
 
   virtual void Serialize (JsonSerializer &serializer);
 
+protected:
+
+  std::string sessId;
+
 private:
 
   static std::mutex sdpMutex;

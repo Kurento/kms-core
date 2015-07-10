@@ -77,7 +77,17 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
 {
   GArray *audio_codecs, *video_codecs;
   guint audio_medias, video_medias;
+  gchar *sess_id;
 
+  g_signal_emit_by_name (element, "create-session", &sess_id);
+
+  if (sess_id == NULL) {
+    throw KurentoException (SDP_END_POINT_CANNOT_CREATE_SESSON,
+                            "Cannot create session");
+  }
+
+  sessId = std::string (sess_id);
+  g_free (sess_id);
   audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
   video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
 
@@ -120,7 +130,6 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   answerProcessed = false;
 }
 
-
 int SdpEndpointImpl::getMaxVideoRecvBandwidth ()
 {
   int maxVideoRecvBandwidth;
@@ -148,10 +157,7 @@ std::string SdpEndpointImpl::generateOffer ()
                             "Endpoint already negotiated");
   }
 
-  if (element == NULL) {
-  }
-
-  g_signal_emit_by_name (element, "generate-offer", &offer);
+  g_signal_emit_by_name (element, "generate-offer", sessId.c_str (), &offer);
 
   if (offer == NULL) {
     offerInProcess = false;
@@ -179,7 +185,8 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
   }
 
   offerSdp = str_to_sdp (offer);
-  g_signal_emit_by_name (element, "process-offer", offerSdp, &result);
+  g_signal_emit_by_name (element, "process-offer", sessId.c_str (), offerSdp,
+                         &result);
   gst_sdp_message_free (offerSdp);
 
   if (result == NULL) {
@@ -217,7 +224,8 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   }
 
   answerSdp = str_to_sdp (answer);
-  g_signal_emit_by_name (element, "process-answer", answerSdp, NULL);
+  g_signal_emit_by_name (element, "process-answer", sessId.c_str (), answerSdp,
+                         NULL);
   gst_sdp_message_free (answerSdp);
 
   MediaSessionStarted event (shared_from_this(), MediaSessionStarted::getName() );
@@ -231,7 +239,7 @@ std::string SdpEndpointImpl::getLocalSessionDescriptor ()
   GstSDPMessage *localSdp = NULL;
   std::string localSdpStr;
 
-  g_object_get (element, "local-sdp", &localSdp, NULL);
+  g_signal_emit_by_name (element, "get-local-sdp", sessId.c_str (), &localSdp);
 
   if (localSdp == NULL) {
     throw KurentoException (SDP_END_POINT_NO_LOCAL_SDP_ERROR, "No local SDP");
@@ -248,7 +256,7 @@ std::string SdpEndpointImpl::getRemoteSessionDescriptor ()
   GstSDPMessage *remoteSdp = NULL;
   std::string remoteSdpStr;
 
-  g_object_get (element, "remote-sdp", &remoteSdp, NULL);
+  g_signal_emit_by_name (element, "get-remote-sdp", sessId.c_str (), &remoteSdp);
 
   if (remoteSdp == NULL) {
     throw KurentoException (SDP_END_POINT_NO_REMOTE_SDP_ERROR, "No remote SDP");
