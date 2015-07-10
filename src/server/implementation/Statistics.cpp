@@ -47,8 +47,8 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
 
   gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
                      "octets-received", G_TYPE_UINT64, &bytesReceived,
-                     "rb-packetslost", G_TYPE_INT, &packetLost,
-                     "rb-fractionlost", G_TYPE_UINT, &fractionLost,
+                     "sent-rb-packetslost", G_TYPE_INT, &packetLost,
+                     "sent-rb-fractionlost", G_TYPE_UINT, &fractionLost,
                      "clock-rate", G_TYPE_INT, &clock_rate,
                      "jitter", G_TYPE_UINT, &jitter, NULL);
 
