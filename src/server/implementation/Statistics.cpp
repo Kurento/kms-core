@@ -26,6 +26,10 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_STATISTIC_FIELD_PREFIX_SESSION "session-"
 #define KMS_STATISTIC_FIELD_PREFIX_SSRC "ssrc-"
 
+/* Fixed point conversion macros */
+#define FRIC        65536.                  /* 2^16 as a double */
+#define FP2D(r)     ((double)(r) / FRIC)
+
 namespace kurento
 {
 
@@ -91,8 +95,8 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
                      G_TYPE_UINT64, &bitRate, "round-trip-time", G_TYPE_UINT,
                      &rtt, NULL);
 
-  /* rtt is provided in nanosecond. We must provide it in seconds */
-  roundTripTime = (float) rtt / G_GUINT64_CONSTANT (1000000000);
+  /* the round-trip time (in NTP Short Format, 16.16 fixed point) */
+  roundTripTime = FP2D (rtt);
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
