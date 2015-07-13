@@ -15,6 +15,7 @@
 
 #include "kmsremb.h"
 #include "kmsrtcp.h"
+#include "constants.h"
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);

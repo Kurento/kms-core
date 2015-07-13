@@ -17,6 +17,7 @@
 #endif
 
 #include "kmsbasertpendpoint.h"
+#include "constants.h"
 
 #include <uuid/uuid.h>
 #include <stdlib.h>
@@ -56,10 +57,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 )
 
 #define RTCP_DEMUX_PEER "rtcp-demux-peer"
-
-#define RTP_HDR_EXT_ABS_SEND_TIME_URI "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
-#define RTP_HDR_EXT_ABS_SEND_TIME_SIZE 3
-#define RTP_HDR_EXT_ABS_SEND_TIME_ID 3  /* TODO: do it dynamic when needed */
 
 #define JB_INITIAL_LATENCY 0
 #define JB_READY_LATENCY 1500

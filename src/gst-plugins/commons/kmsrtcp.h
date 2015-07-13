@@ -19,8 +19,6 @@
 #include <gst/gst.h>
 #include <gst/rtp/gstrtcpbuffer.h>
 
-#define RTCP_MIN_INTERVAL 500 /* ms */
-
 G_BEGIN_DECLS
 /**
  * KmsRTCPPSFBAFBType:

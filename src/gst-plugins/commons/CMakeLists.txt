@@ -79,6 +79,7 @@ set(KMS_COMMONS_SOURCES
 )
 
 set(KMS_COMMONS_HEADERS
+  constants.h
   kmsrtcp.h
   kmsremb.h
   kmsirtpconnection.h
