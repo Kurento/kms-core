@@ -833,7 +833,9 @@
         "transport",
         "candidatepair",
         "localcandidate",
-        "remotecandidate"
+        "remotecandidate",
+        "element",
+        "endpoint"
       ]
     },
     {
@@ -854,6 +856,42 @@
         {
           "name": "timestamp",
           "doc": "The timestamp associated with this object. The time is relative to the UNIX epoch (Jan 1, 1970, UTC).",
+          "type": "double"
+        }
+      ]
+    },
+    {
+      "name": "ElementStats",
+      "doc": "A dictionary that represents the stats gathered in the media element.",
+      "typeFormat": "REGISTER",
+      "extends" : "Stats",
+      "properties": [
+        {
+          "name": "inputAudioLatency",
+          "doc": "Audio average measured on the sink pad in nano seconds",
+          "type": "double"
+        },
+        {
+          "name": "inputVideoLatency",
+          "doc": "Video average measured on the sink pad in nano seconds",
+          "type": "double"
+        }
+      ]
+    },
+    {
+      "name": "EndpointStats",
+      "doc": "A dictionary that represents the stats gathered in the endpoint element.",
+      "typeFormat": "REGISTER",
+      "extends" : "ElementStats",
+      "properties": [
+        {
+          "name": "audioE2ELatency",
+          "doc": "End-to-end audio latency measured in nano seconds",
+          "type": "double"
+        },
+        {
+          "name": "videoE2ELatency",
+          "doc": "End-to-end video latency measured in nano seconds",
           "type": "double"
         }
       ]
