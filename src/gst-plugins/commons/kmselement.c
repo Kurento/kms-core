@@ -60,6 +60,8 @@ typedef struct _PendingSrcPad
 
 struct _KmsElementPrivate
 {
+  gchar *id;
+
   guint audio_pad_count;
   guint video_pad_count;
   guint data_pad_count;
@@ -93,6 +95,7 @@ static guint element_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
+  PROP_ELEMENT_ID,
   PROP_ACCEPT_EOS,
   PROP_AUDIO_CAPS,
   PROP_VIDEO_CAPS,
@@ -599,6 +602,12 @@ kms_element_set_property (GObject * object, guint property_id,
   KmsElement *self = KMS_ELEMENT (object);
 
   switch (property_id) {
+    case PROP_ELEMENT_ID:
+      KMS_ELEMENT_LOCK (self);
+      g_free (self->priv->id);
+      self->priv->id = g_strdup (g_value_get_string (value));
+      KMS_ELEMENT_UNLOCK (self);
+      break;
     case PROP_ACCEPT_EOS:
       KMS_ELEMENT_LOCK (self);
       self->priv->accept_eos = g_value_get_boolean (value);
@@ -632,6 +641,11 @@ kms_element_get_property (GObject * object, guint property_id,
   KmsElement *self = KMS_ELEMENT (object);
 
   switch (property_id) {
+    case PROP_ELEMENT_ID:
+      KMS_ELEMENT_LOCK (self);
+      g_value_set_string (value, self->priv->id);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
     case PROP_ACCEPT_EOS:
       KMS_ELEMENT_LOCK (self);
       g_value_set_boolean (value, self->priv->accept_eos);
@@ -662,6 +676,8 @@ kms_element_finalize (GObject * object)
   KmsElement *element = KMS_ELEMENT (object);
 
   GST_DEBUG_OBJECT (object, "finalize");
+
+  g_free (element->priv->id);
 
   /* free resources allocated by this object */
   g_hash_table_unref (element->priv->pendingpads);
@@ -829,6 +845,12 @@ kms_element_class_init (KmsElementClass * klass)
       gst_static_pad_template_get (&data_src_factory));
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&sink_factory));
+
+  g_object_class_install_property (gobject_class, PROP_ELEMENT_ID,
+      g_param_spec_string ("element-id",
+          "Element identifier", "Element identifier",
+          NULL,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_ACCEPT_EOS,
       g_param_spec_boolean ("accept-eos",

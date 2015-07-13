@@ -345,6 +345,8 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                             "Cannot create gstreamer element: " + factoryName);
   }
 
+  g_object_set (element, "element-id", getId().c_str(), NULL);
+
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
   handlerId = g_signal_connect (bus, "message",
                                 G_CALLBACK (_media_element_impl_bus_message), this);
