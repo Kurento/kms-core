@@ -75,16 +75,17 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   return std::make_shared <RTCInboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::inboundrtp), 0.0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb,
-         packetsReceived, bytesReceived, packetLost, jitterSec,
-         (float) fractionLost);
+         packetLost, (float) fractionLost, packetsReceived, bytesReceived,
+         jitterSec);
 }
 
 static std::shared_ptr<RTCOutboundRTPStreamStats>
 createRTCOutboundRTPStreamStats (const GstStructure *stats)
 {
   guint64 bytesSent, packetsSent, bitRate;
-  guint pliCount, firCount, remb, rtt;
+  guint pliCount, firCount, remb, rtt, fractionLost;
   float roundTripTime;
+  gint packetLost;
 
   bytesSent = packetsSent = bitRate = G_GUINT64_CONSTANT (0);
   pliCount = firCount = remb = rtt = 0;
@@ -93,7 +94,8 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
                      "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
                      G_TYPE_UINT64, &bitRate, "round-trip-time", G_TYPE_UINT,
-                     &rtt, NULL);
+                     &rtt, "outbound-fraction-lost", G_TYPE_UINT, &fractionLost,
+                     "outbound-packet-lost", G_TYPE_INT, &packetLost, NULL);
 
   /* the round-trip time (in NTP Short Format, 16.16 fixed point) */
   roundTripTime = FP2D (rtt);
@@ -111,8 +113,9 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
 
   return std::make_shared <RTCOutboundRTPStreamStats> ("",
          std::make_shared <RTCStatsType> (RTCStatsType::outboundrtp), 0.0, "",
-         "", false, "", "", "", firCount, pliCount, 0, 0, remb,
-         packetsSent, bytesSent, (float) bitRate, roundTripTime);
+         "", false, "", "", "", firCount, pliCount, 0, 0, remb, packetLost,
+         (float) fractionLost, packetsSent, bytesSent, (float) bitRate,
+         roundTripTime);
 }
 
 static std::shared_ptr<RTCRTPStreamStats>

@@ -918,6 +918,16 @@
           "name": "remb",
           "doc": "The Receiver Estimated Maximum Bitrate (REMB). This metric is only valid for video.",
           "type": "int64"
+        },
+        {
+          "name": "packetsLost",
+          "doc": "Total number of RTP packets lost for this SSRC.",
+          "type": "int64"
+        },
+        {
+          "name": "fractionLost",
+          "doc": "The fraction packet loss reported for this SSRC.",
+          "type": "double"
         }
       ]
     },
@@ -971,18 +981,8 @@
           "type": "int64"
         },
         {
-          "name": "packetsLost",
-          "doc": "Total number of RTP packets lost for this SSRC.",
-          "type": "int64"
-        },
-        {
           "name": "jitter",
           "doc": "Packet Jitter measured in seconds for this SSRC.",
-          "type": "double"
-        },
-        {
-          "name": "fractionLost",
-          "doc": "The fraction packet loss reported for this SSRC.",
           "type": "double"
         }
       ]
