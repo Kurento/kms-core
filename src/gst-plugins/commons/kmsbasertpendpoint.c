@@ -1991,7 +1991,8 @@ get_structure_from_id (const GstStructure * structure, const gchar * fieldname)
 }
 
 static void
-set_rtt (const GstStructure * session_stats, const gchar * ssrc_id, guint rtt)
+set_outbound_additional_params (const GstStructure * session_stats,
+    const gchar * ssrc_id, guint rtt, guint fraction_lost, gint packet_lost)
 {
   const GstStructure *ssrc_stats;
 
@@ -2002,7 +2003,8 @@ set_rtt (const GstStructure * session_stats, const gchar * ssrc_id, guint rtt)
   }
 
   gst_structure_set ((GstStructure *) ssrc_stats, "round-trip-time",
-      G_TYPE_UINT, rtt, NULL);
+      G_TYPE_UINT, rtt, "outbound-fraction-lost", G_TYPE_UINT, fraction_lost,
+      "outbound-packet-lost", G_TYPE_INT, packet_lost, NULL);
 }
 
 static void
@@ -2013,7 +2015,10 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
   gchar *str_session;
   GValueArray *arr;
   gchar *ssrc_id = NULL;
-  guint i, rtt = 0;
+  guint i, f_lost, rtt;
+  gint p_lost;
+
+  p_lost = f_lost = rtt = 0;
 
   g_object_get (rtp_stats->rtp_session, "stats", &session_stats, NULL);
 
@@ -2066,7 +2071,9 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
             GPOINTER_TO_UINT (session));
       }
     } else {
-      gst_structure_get (ssrc_stats, "rb-round-trip", G_TYPE_UINT, &rtt, NULL);
+      gst_structure_get (ssrc_stats, "rb-round-trip", G_TYPE_UINT, &rtt,
+          "rb-fractionlost", G_TYPE_UINT, &f_lost, "rb-packetslost", G_TYPE_INT,
+          &p_lost, NULL);
     }
 
     gst_structure_free (ssrc_stats);
@@ -2074,7 +2081,8 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
   }
 
   if (ssrc_id != NULL) {
-    set_rtt (session_stats, ssrc_id, rtt);
+    set_outbound_additional_params (session_stats, ssrc_id, rtt, f_lost,
+        p_lost);
     g_free (ssrc_id);
   }
 
