@@ -53,4 +53,8 @@ const gchar *sdp_utils_get_attr_map_value (const GstSDPMedia * media, const gcha
 gboolean sdp_utils_for_each_media (const GstSDPMessage * msg, GstSDPMediaFunc func, gpointer user_data);
 gboolean sdp_utils_media_is_active (const GstSDPMedia * media, gboolean offerer);
 
+gboolean sdp_utils_rtcp_fb_attr_check_type (const gchar * attr, const gchar * pt, const gchar * type);
+gboolean sdp_utils_media_has_remb (const GstSDPMedia * media);
+gboolean sdp_utils_media_has_rtcp_nack (const GstSDPMedia * media);
+
 #endif /* __SDP_H__ */

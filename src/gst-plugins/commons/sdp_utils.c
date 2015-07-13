@@ -441,6 +441,72 @@ _default:
   return !offerer;
 }
 
+gboolean
+sdp_utils_rtcp_fb_attr_check_type (const gchar * attr,
+    const gchar * pt, const gchar * type)
+{
+  gchar *aux;
+  gboolean ret;
+
+  aux = g_strconcat (pt, " ", type, NULL);
+  ret = g_strcmp0 (attr, aux) == 0;
+  g_free (aux);
+
+  return ret;
+}
+
+gboolean
+sdp_utils_media_has_remb (const GstSDPMedia * media)
+{
+  const gchar *payload = gst_sdp_media_get_format (media, 0);
+  guint a;
+
+  if (payload == NULL) {
+    return FALSE;
+  }
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+
+    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    if (attr == NULL) {
+      break;
+    }
+
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_REMB)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+gboolean
+sdp_utils_media_has_rtcp_nack (const GstSDPMedia * media)
+{
+  const gchar *payload = gst_sdp_media_get_format (media, 0);
+  guint a;
+
+  if (payload == NULL) {
+    return FALSE;
+  }
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+
+    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    if (attr == NULL) {
+      break;
+    }
+
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_NACK)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

@@ -283,72 +283,6 @@ rtp_session_stats_destroy (KmsRTPSessionStats * stats)
 }
 
 static gboolean
-rtcp_fb_attr_check_type (const gchar * attr, const gchar * pt,
-    const gchar * type)
-{
-  gchar *aux;
-  gboolean ret;
-
-  aux = g_strconcat (pt, " ", type, NULL);
-  ret = g_strcmp0 (attr, aux) == 0;
-  g_free (aux);
-
-  return ret;
-}
-
-static gboolean
-media_has_remb (const GstSDPMedia * media)
-{
-  const gchar *payload = gst_sdp_media_get_format (media, 0);
-  guint a;
-
-  if (payload == NULL) {
-    return FALSE;
-  }
-
-  for (a = 0;; a++) {
-    const gchar *attr;
-
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
-    if (attr == NULL) {
-      break;
-    }
-
-    if (rtcp_fb_attr_check_type (attr, payload, RTCP_FB_REMB)) {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-static gboolean
-media_has_rtcp_nack (const GstSDPMedia * media)
-{
-  const gchar *payload = gst_sdp_media_get_format (media, 0);
-  guint a;
-
-  if (payload == NULL) {
-    return FALSE;
-  }
-
-  for (a = 0;; a++) {
-    const gchar *attr;
-
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
-    if (attr == NULL) {
-      break;
-    }
-
-    if (rtcp_fb_attr_check_type (attr, payload, RTCP_FB_NACK)) {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-static gboolean
 kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 {
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
@@ -368,7 +302,7 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
     const gchar *media_str = gst_sdp_media_get_media (media);
 
     if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-      return media_has_rtcp_nack (media);
+      return sdp_utils_media_has_rtcp_nack (media);
     }
   }
 
@@ -1215,7 +1149,7 @@ kms_base_rtp_endpoint_configure_connection (KmsBaseRtpEndpoint * self,
     return TRUE;                /* It cannot be managed here but could be managed by the child class */
   }
 
-  if (media_has_remb (neg_media)) {
+  if (sdp_utils_media_has_remb (neg_media)) {
     kms_base_rtp_endpoint_create_remb_managers (self);
   }
 
@@ -1708,12 +1642,12 @@ complete_caps_with_fb (GstCaps * caps, const GstSDPMedia * media,
       break;
     }
 
-    if (rtcp_fb_attr_check_type (attr, payload, RTCP_FB_FIR)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_FIR)) {
       fir = TRUE;
       continue;
     }
 
-    if (rtcp_fb_attr_check_type (attr, payload, RTCP_FB_PLI)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_PLI)) {
       pli = TRUE;
       continue;
     }
