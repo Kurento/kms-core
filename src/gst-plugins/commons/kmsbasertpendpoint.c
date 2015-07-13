@@ -1014,6 +1014,7 @@ kms_base_rtp_endpoint_add_bundle_connection (KmsBaseRtpEndpoint * self,
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
+/* inmediate-TODO: add when conn is "connected" */
 static void
 kms_base_rtp_endpoint_add_connection_sink (KmsBaseRtpEndpoint * self,
     KmsIRtpConnection * conn, const gchar * rtp_session, gint abs_send_time_id)
@@ -1295,6 +1296,7 @@ kms_base_rtp_endpoint_connected_cb (KmsIRtpConnection * conn,
   kms_base_rtp_endpoint_update_conn_state (self);
 }
 
+/* inmediate-TODO: do per session */
 static void
 kms_base_rtp_endpoint_check_conn_status (KmsBaseRtpEndpoint * self)
 {
