@@ -52,6 +52,9 @@ struct _KmsSdpSessionClass
 GType kms_sdp_session_get_type (void);
 
 KmsSdpSession * kms_sdp_session_new ();
+GstSDPMessage * kms_sdp_session_generate_offer (KmsSdpSession * self);
+GstSDPMessage * kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer);
+void kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer);
 SdpMessageContext * kms_sdp_session_get_local_sdp_ctx (KmsSdpSession * self);
 SdpMessageContext * kms_sdp_session_get_remote_sdp_ctx (KmsSdpSession * self);
 SdpMessageContext * kms_sdp_session_get_neg_sdp_ctx (KmsSdpSession * self);

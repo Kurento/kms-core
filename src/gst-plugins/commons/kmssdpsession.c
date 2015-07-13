@@ -56,6 +56,103 @@ kms_sdp_session_new ()
   return sess;
 }
 
+GstSDPMessage *
+kms_sdp_session_generate_offer (KmsSdpSession * self)
+{
+  SdpMessageContext *ctx;
+  GstSDPMessage *offer = NULL;
+  GError *err = NULL;
+
+  GST_DEBUG_OBJECT (self, "Generate offer");
+
+  ctx = kms_sdp_agent_create_offer (self->priv->agent, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
+    g_error_free (err);
+    goto end;
+  }
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
+    g_error_free (err);
+    goto end;
+  }
+
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+  self->priv->local_sdp_ctx = ctx;
+
+end:
+  return offer;
+}
+
+GstSDPMessage *
+kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
+{
+  SdpMessageContext *ctx;
+  GstSDPMessage *answer = NULL;
+  GError *err = NULL;
+
+  GST_DEBUG_OBJECT (self, "Process offer");
+
+  ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
+    g_error_free (err);
+    goto end;
+  }
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
+  self->priv->remote_sdp_ctx = ctx;
+
+  ctx = kms_sdp_agent_create_answer (self->priv->agent, offer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
+    g_error_free (err);
+    goto end;
+  }
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
+    g_error_free (err);
+    kms_sdp_message_context_destroy (ctx);
+    goto end;
+  }
+
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
+  self->priv->local_sdp_ctx = ctx;
+  self->priv->neg_sdp_ctx = ctx;
+
+end:
+  return answer;
+}
+
+void
+kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
+{
+  SdpMessageContext *ctx;
+  GError *err = NULL;
+
+  GST_DEBUG_OBJECT (self, "Process answer");
+
+  if (self->priv->local_sdp_ctx == NULL) {
+    // TODO: This should raise an error
+    GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
+    return;
+  }
+
+  ctx = kms_sdp_message_context_new_from_sdp (answer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing answer (%s)", err->message);
+    g_error_free (err);
+    return;
+  }
+
+  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
+  self->priv->remote_sdp_ctx = ctx;
+  self->priv->neg_sdp_ctx = ctx;
+}
+
 SdpMessageContext *
 kms_sdp_session_get_local_sdp_ctx (KmsSdpSession * self)
 {
