@@ -837,13 +837,13 @@
       ]
     },
     {
-      "name": "RTCStats",
-      "doc": "An RTCStats dictionary represents the stats gathered.",
+      "name": "Stats",
+      "doc": "A dictionary that represents the stats gathered.",
       "typeFormat": "REGISTER",
       "properties": [
         {
           "name": "id",
-          "doc": "A unique id that is associated with the object that was inspected to produce this RTCStats object.",
+          "doc": "A unique id that is associated with the object that was inspected to produce this Stats object.",
           "type": "String"
         },
         {
@@ -856,6 +856,14 @@
           "doc": "The timestamp associated with this object. The time is relative to the UNIX epoch (Jan 1, 1970, UTC).",
           "type": "double"
         }
+      ]
+    },
+    {
+      "name": "RTCStats",
+      "doc": "An RTCStats dictionary represents the stats gathered.",
+      "typeFormat": "REGISTER",
+      "extends" : "Stats",
+      "properties": [
       ]
     },
     {
