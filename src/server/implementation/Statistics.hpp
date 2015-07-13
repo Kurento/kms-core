@@ -17,7 +17,7 @@
 #define __STATISTICS_HPP__
 
 #include <gst/gst.h>
-#include "RTCStats.hpp"
+#include "Stats.hpp"
 
 namespace kurento
 {
@@ -25,7 +25,7 @@ namespace kurento
 namespace stats
 {
 
-std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
+std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
       double timestamp, const GstStructure *stats);
 
 } /* statistics */

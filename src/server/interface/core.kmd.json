@@ -419,7 +419,7 @@
           ],
           "return" : {
             "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
-            "type": "RTCStats<>"
+            "type": "Stats<>"
           }
         }
       ],
@@ -821,7 +821,7 @@
       ]
     },
     {
-      "name": "RTCStatsType",
+      "name": "StatsType",
       "typeFormat": "ENUM",
       "doc": "The type of the object.",
       "values": [
@@ -849,7 +849,7 @@
         {
           "name": "type",
           "doc": "The type of this object.",
-          "type": "RTCStatsType"
+          "type": "StatsType"
         },
         {
           "name": "timestamp",
@@ -863,8 +863,7 @@
       "doc": "An RTCStats dictionary represents the stats gathered.",
       "typeFormat": "REGISTER",
       "extends" : "Stats",
-      "properties": [
-      ]
+      "properties": []
     },
     {
       "name": "RTCRTPStreamStats",

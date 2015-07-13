@@ -14,7 +14,7 @@
  */
 
 #include "Statistics.hpp"
-#include "RTCStatsType.hpp"
+#include "StatsType.hpp"
 #include "RTCInboundRTPStreamStats.hpp"
 #include "RTCOutboundRTPStreamStats.hpp"
 
@@ -73,7 +73,7 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   }
 
   return std::make_shared <RTCInboundRTPStreamStats> ("",
-         std::make_shared <RTCStatsType> (RTCStatsType::inboundrtp), 0.0, "",
+         std::make_shared <StatsType> (StatsType::inboundrtp), 0.0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb,
          packetLost, (float) fractionLost, packetsReceived, bytesReceived,
          jitterSec);
@@ -112,7 +112,7 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   }
 
   return std::make_shared <RTCOutboundRTPStreamStats> ("",
-         std::make_shared <RTCStatsType> (RTCStatsType::outboundrtp), 0.0, "",
+         std::make_shared <StatsType> (StatsType::outboundrtp), 0.0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb, packetLost,
          (float) fractionLost, packetsSent, bytesSent, (float) bitRate,
          roundTripTime);
@@ -153,8 +153,8 @@ createRTCRTPStreamStats (guint nackSent, guint nackRecv,
 }
 
 static void
-collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
-                          &rtcStatsReport, double timestamp, const GstStructure *stats)
+collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
+                          &statsReport, double timestamp, const GstStructure *stats)
 {
   guint nackSent, nackRecv;
   gint i, n;
@@ -194,14 +194,14 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<RTCStats>>
 
     rtcStats->setTimestamp (timestamp);
 
-    rtcStatsReport[rtcStats->getId ()] = rtcStats;
+    statsReport[rtcStats->getId ()] = rtcStats;
   }
 }
 
-std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
+std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
       double timestamp, const GstStructure *stats)
 {
-  std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
+  std::map <std::string, std::shared_ptr<Stats>> statsReport;
   gint i, n;
 
   n = gst_structure_n_fields (stats);
@@ -230,11 +230,11 @@ std::map <std::string, std::shared_ptr<RTCStats>> createRTCStatsReport (
       continue;
     }
 
-    collectRTCRTPStreamStats (rtcStatsReport, timestamp,
+    collectRTCRTPStreamStats (statsReport, timestamp,
                               gst_value_get_structure (value) );
   }
 
-  return rtcStatsReport;
+  return statsReport;
 }
 
 } /* statistics */

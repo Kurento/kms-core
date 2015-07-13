@@ -175,28 +175,28 @@ void BaseRtpEndpointImpl::setMaxVideoSendBandwidth (int maxVideoSendBandwidth)
   g_object_set (element, "max-video-send-bandwidth", maxVideoSendBandwidth, NULL);
 }
 
-static std::map <std::string, std::shared_ptr<RTCStats>>
+static std::map <std::string, std::shared_ptr<Stats>>
     generateStats (GstElement *element, const gchar *selector)
 {
-  std::map <std::string, std::shared_ptr<RTCStats>> rtcStatsReport;
+  std::map <std::string, std::shared_ptr<Stats>> statsReport;
   GstStructure *stats;
 
   g_signal_emit_by_name (element, "stats", selector, &stats);
 
-  rtcStatsReport = stats::createRTCStatsReport (time (NULL), stats);
+  statsReport = stats::createStatsReport (time (NULL), stats);
 
   gst_structure_free (stats);
 
-  return rtcStatsReport;
+  return statsReport;
 }
 
-std::map <std::string, std::shared_ptr<RTCStats>>
+std::map <std::string, std::shared_ptr<Stats>>
     BaseRtpEndpointImpl::getStats ()
 {
   return generateStats (getGstreamerElement(), NULL);
 }
 
-std::map <std::string, std::shared_ptr<RTCStats>>
+std::map <std::string, std::shared_ptr<Stats>>
     BaseRtpEndpointImpl::getStats (std::shared_ptr<MediaType> mediaType)
 {
   const gchar *selector = NULL;
