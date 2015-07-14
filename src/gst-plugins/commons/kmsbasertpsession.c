@@ -28,17 +28,16 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 G_DEFINE_TYPE (KmsBaseRtpSession, kms_base_rtp_session, KMS_TYPE_SDP_SESSION);
 
 KmsBaseRtpSession *
-kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id)
+kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
+    KmsIRtpSessionManager * manager)
 {
   GObject *obj;
   KmsBaseRtpSession *self;
-  KmsSdpSession *sdp_sess;
 
   obj = g_object_new (KMS_TYPE_BASE_RTP_SESSION, NULL);
   self = KMS_BASE_RTP_SESSION (obj);
-  sdp_sess = KMS_SDP_SESSION (self);
-  KMS_SDP_SESSION_CLASS
-      (kms_base_rtp_session_parent_class)->post_constructor (sdp_sess, ep, id);
+  KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor
+      (self, ep, id, manager);
 
   return self;
 }
@@ -80,10 +79,23 @@ kms_base_rtp_session_finalize (GObject * object)
 {
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (object);
 
+  GST_DEBUG_OBJECT (self, "finalize");
+
   g_hash_table_destroy (self->conns);
 
   /* chain up */
   G_OBJECT_CLASS (kms_base_rtp_session_parent_class)->finalize (object);
+}
+
+static void
+kms_base_rtp_session_post_constructor (KmsBaseRtpSession * self,
+    KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager)
+{
+  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self);
+
+  self->manager = manager;
+  KMS_SDP_SESSION_CLASS
+      (kms_base_rtp_session_parent_class)->post_constructor (sdp_sess, ep, id);
 }
 
 static void
@@ -103,6 +115,8 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       GST_DEFAULT_NAME);
 
   gobject_class->finalize = kms_base_rtp_session_finalize;
+
+  klass->post_constructor = kms_base_rtp_session_post_constructor;
 
   gst_element_class_set_details_simple (gstelement_class,
       "BaseRtpSession",

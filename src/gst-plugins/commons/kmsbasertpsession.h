@@ -18,6 +18,7 @@
 
 #include <gst/gst.h>
 #include "kmssdpsession.h"
+#include "kmsirtpsessionmanager.h"
 #include "sdpagent/kmssdpagent.h"
 #include "sdpagent/kmssdppayloadmanager.h"
 #include "kmsbasesdpendpoint.h"
@@ -26,6 +27,7 @@
 
 G_BEGIN_DECLS
 
+typedef struct _KmsIRtpSessionManager KmsIRtpSessionManager;
 
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_BASE_RTP_SESSION \
@@ -47,6 +49,7 @@ struct _KmsBaseRtpSession
 {
   KmsSdpSession parent;
 
+  KmsIRtpSessionManager *manager;
   GHashTable *conns;
   KmsConnectionState conn_state;
 };
@@ -54,11 +57,15 @@ struct _KmsBaseRtpSession
 struct _KmsBaseRtpSessionClass
 {
   KmsSdpSessionClass parent_class;
+
+  /* private */
+  /* virtual methods */
+  void (*post_constructor) (KmsBaseRtpSession * self, KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager);
 };
 
 GType kms_base_rtp_session_get_type (void);
 
-KmsBaseRtpSession * kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id);
+KmsBaseRtpSession * kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager);
 KmsIRtpConnection * kms_base_rtp_session_get_connection_by_name (KmsBaseRtpSession * self, const gchar * name);
 KmsIRtpConnection * kms_base_rtp_session_get_connection (KmsBaseRtpSession * self, SdpMediaConfig * mconf);
 
