@@ -19,6 +19,7 @@
 enum
 {
   SIGNAL_STATS,
+  SIGNAL_ACTIVE_MEDIA_STATS,
   LAST_SIGNAL
 };
 
@@ -29,6 +30,13 @@ G_DEFINE_INTERFACE (KmsIStats, kms_istats, 0);
 static void
 kms_istats_default_init (KmsIStatsInterface * iface)
 {
+  /* This property will allow us to know at first glance if a certain */
+  /* element is collecting pipeline measurements when debugging */
+  g_object_interface_install_property (iface,
+      g_param_spec_boolean ("media-stats", "Media stats",
+          "Indicates wheter this element is collecting stats or not",
+          FALSE, G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
   /* set actions */
   kms_i_stats_signals[SIGNAL_STATS] =
       g_signal_new ("stats", G_TYPE_FROM_CLASS (iface),
