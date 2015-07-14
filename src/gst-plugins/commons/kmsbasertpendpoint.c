@@ -26,7 +26,6 @@
 #include "sdp_utils.h"
 #include "sdpagent/kmssdprtpavpfmediahandler.h"
 #include "kmsremb.h"
-#include "kmsistats.h"
 #include "kmsrefstruct.h"
 
 #include <gst/rtp/gstrtpdefs.h>
@@ -43,11 +42,8 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
 #define KMS_KEY_ID "kms-key-id"
 
-static void kms_istats_interface_init (KmsIStatsInterface * iface);
-
 G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
     KMS_TYPE_BASE_SDP_ENDPOINT,
-    G_IMPLEMENT_INTERFACE (KMS_TYPE_ISTATS, kms_istats_interface_init);
     GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME));
 
 #define KMS_BASE_RTP_ENDPOINT_GET_PRIVATE(obj) (  \
@@ -2097,14 +2093,11 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
 }
 
 static GstStructure *
-kms_base_rtp_endpoint_create_stats (KmsBaseRtpEndpoint * self,
-    const gchar * selector)
+kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
+    GstStructure * stats, const gchar * selector)
 {
   KmsRTPSessionStats *rtp_stats;
-  GstStructure *stats;
   guint session_id;
-
-  stats = gst_structure_new_empty ("stats");
 
   if (selector == NULL) {
     /* No selector provided. All stats will be generated */
@@ -2382,13 +2375,18 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
   }
 }
 
-GstStructure *
-kms_base_rtp_endpoint_stats_action (KmsIStats * obj, gchar * selector)
+static GstStructure *
+kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
   GstStructure *stats;
 
-  stats = kms_base_rtp_endpoint_create_stats (self, selector);
+  /* chain up */
+  stats =
+      KMS_ELEMENT_CLASS (kms_base_rtp_endpoint_parent_class)->stats_action (obj,
+      selector);
+
+  kms_base_rtp_endpoint_add_rtp_stats (self, stats, selector);
 
   kms_base_rtp_endpoint_append_remb_stats (self, stats);
 
@@ -2396,10 +2394,22 @@ kms_base_rtp_endpoint_stats_action (KmsIStats * obj, gchar * selector)
 }
 
 static void
+kms_base_rtp_endpoint_collect_media_stats_action (KmsElement * obj,
+    gboolean enable)
+{
+  /* TODO: Active set/unset callbacks to set and get metadata */
+
+  KMS_ELEMENT_CLASS
+      (kms_base_rtp_endpoint_parent_class)->collect_media_stats_action (obj,
+      enable);
+}
+
+static void
 kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 {
   KmsBaseSdpEndpointClass *base_endpoint_class;
   GstElementClass *gstelement_class;
+  KmsElementClass *kmselement_class;
   GObjectClass *object_class;
 
   object_class = G_OBJECT_CLASS (klass);
@@ -2407,6 +2417,12 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   object_class->finalize = kms_base_rtp_endpoint_finalize;
   object_class->set_property = kms_base_rtp_endpoint_set_property;
   object_class->get_property = kms_bse_rtp_endpoint_get_property;
+
+  kmselement_class = KMS_ELEMENT_CLASS (klass);
+  kmselement_class->stats_action =
+      GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_stats_action);
+  kmselement_class->collect_media_stats_action =
+      GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_collect_media_stats_action);
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
   gst_element_class_set_details_simple (gstelement_class,
@@ -2754,10 +2770,4 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->stats = g_hash_table_new_full (g_direct_hash, g_direct_equal,
       NULL, (GDestroyNotify) rtp_session_stats_destroy);
-}
-
-static void
-kms_istats_interface_init (KmsIStatsInterface * iface)
-{
-  iface->stats = kms_base_rtp_endpoint_stats_action;
 }

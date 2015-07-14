@@ -70,6 +70,8 @@ struct _KmsElementClass
 
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
+  GstStructure * (*stats_action) (KmsElement * self, gchar * selector);
+  void (*collect_media_stats_action) (KmsElement * self, gboolean enable);
 };
 
 GType kms_element_get_type (void);

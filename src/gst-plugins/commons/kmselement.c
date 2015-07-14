@@ -23,6 +23,7 @@
 #include "kmselement.h"
 #include "kmsagnosticcaps.h"
 #include "kmsutils.h"
+#include "kmsistats.h"
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
@@ -31,8 +32,11 @@
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
 #define GST_CAT_DEFAULT kms_element_debug_category
 
+static void kms_istats_interface_init (KmsIStatsInterface * iface);
+
 G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
     GST_TYPE_BIN,
+    G_IMPLEMENT_INTERFACE (KMS_TYPE_ISTATS, kms_istats_interface_init);
     GST_DEBUG_CATEGORY_INIT (kms_element_debug_category, PLUGIN_NAME,
         0, "debug category for element"));
 
@@ -67,6 +71,7 @@ struct _KmsElementPrivate
   guint data_pad_count;
 
   gboolean accept_eos;
+  gboolean stats_enabled;
 
   GstElement *audio_agnosticbin;
   GstElement *video_agnosticbin;
@@ -100,6 +105,7 @@ enum
   PROP_AUDIO_CAPS,
   PROP_VIDEO_CAPS,
   PROP_TARGET_BITRATE,
+  PROP_MEDIA_STATS,
   PROP_LAST
 };
 
@@ -628,6 +634,17 @@ kms_element_set_property (GObject * object, guint property_id,
           DEFAULT_BITRATE_, self->priv->target_bitrate, NULL);
       KMS_ELEMENT_UNLOCK (self);
       break;
+    case PROP_MEDIA_STATS:{
+      gboolean enable = g_value_get_boolean (value);
+
+      KMS_ELEMENT_LOCK (self);
+      if (enable != self->priv->stats_enabled) {
+        self->priv->stats_enabled = enable;
+        KMS_ELEMENT_GET_CLASS (self)->collect_media_stats_action (self, enable);
+      }
+      KMS_ELEMENT_UNLOCK (self);
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -662,6 +679,11 @@ kms_element_get_property (GObject * object, guint property_id,
     case PROP_TARGET_BITRATE:
       KMS_ELEMENT_LOCK (self);
       g_value_set_int (value, self->priv->target_bitrate);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
+    case PROP_MEDIA_STATS:
+      KMS_ELEMENT_LOCK (self);
+      g_value_set_boolean (value, self->priv->stats_enabled);
       KMS_ELEMENT_UNLOCK (self);
       break;
     default:
@@ -819,6 +841,24 @@ kms_element_release_requested_srcpad_action (KmsElement * self,
   return released;
 }
 
+static GstStructure *
+kms_element_stats_action_impl (KmsElement * self, gchar * selector)
+{
+  GstStructure *stats;
+
+  stats = gst_structure_new_empty ("stats");
+
+  /* TODO: Provide media stats if enabled */
+
+  return stats;
+}
+
+static void
+kms_element_collect_media_stats_action_impl (KmsElement * self, gboolean enable)
+{
+  /* TODO: Make something */
+}
+
 static void
 kms_element_class_init (KmsElementClass * klass)
 {
@@ -873,7 +913,13 @@ kms_element_class_init (KmsElementClass * klass)
           "Configure the bitrate to media encoding",
           0, G_MAXINT, 0, G_PARAM_READWRITE));
 
+  g_object_class_override_property (gobject_class, PROP_MEDIA_STATS,
+      "media-stats");
+
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
+  klass->stats_action = GST_DEBUG_FUNCPTR (kms_element_stats_action_impl);
+  klass->collect_media_stats_action =
+      GST_DEBUG_FUNCPTR (kms_element_collect_media_stats_action_impl);
 
   /* set actions */
   element_signals[REQUEST_NEW_SRCPAD] =
@@ -944,4 +990,18 @@ kms_element_get_pad_type (KmsElement * self, GstPad * pad)
   gst_object_unref (templ);
 
   return type;
+}
+
+static GstStructure *
+kms_element_stats_action (KmsIStats * obj, gchar * selector)
+{
+  KmsElement *self = KMS_ELEMENT (obj);
+
+  return KMS_ELEMENT_GET_CLASS (self)->stats_action (self, selector);
+}
+
+static void
+kms_istats_interface_init (KmsIStatsInterface * iface)
+{
+  iface->stats = kms_element_stats_action;
 }
