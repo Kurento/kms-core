@@ -77,6 +77,23 @@ struct _KmsRTPSessionStats
   GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
 };
 
+typedef struct _KmsDepayloadProbe KmsDepayloadProbe;
+struct _KmsDepayloadProbe
+{
+  GstElement *depayloader;
+  KmsMediaType media;
+  gulong id;
+};
+
+typedef struct _KmsBaseRTPStats KmsBaseRTPStats;
+struct _KmsBaseRTPStats
+{
+  gboolean enabled;
+  GHashTable *rtp_stats;
+  GSList *probes;
+  GMutex mutex;
+};
+
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
@@ -118,7 +135,7 @@ struct _KmsBaseRtpEndpointPrivate
   KmsRembRemote *rm;
 
   /* RTP statistics */
-  GHashTable *stats;
+  KmsBaseRTPStats stats;
 };
 
 /* Signals and args */
@@ -158,6 +175,56 @@ enum
   PROP_LAST
 };
 
+static gulong
+element_add_data_probe (GstElement * e, const gchar * pad_name,
+    GstPadProbeCallback callback, gpointer user_data,
+    GDestroyNotify destroy_data)
+{
+  GstPad *pad;
+  gulong id;
+
+  pad = gst_element_get_static_pad (e, pad_name);
+  id = gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, callback,
+      user_data, destroy_data);
+  g_object_unref (pad);
+
+  return id;
+}
+
+static void
+element_remove_data_probe (GstElement * e, const gchar * pad_name, gulong id)
+{
+  GstPad *pad;
+
+  pad = gst_element_get_static_pad (e, pad_name);
+  gst_pad_remove_probe (pad, id);
+  g_object_unref (pad);
+}
+
+static void
+kms_payloader_probe_destroy (KmsDepayloadProbe * data)
+{
+  if (data->id != 0UL) {
+    element_remove_data_probe (data->depayloader, "sink", data->id);
+  }
+
+  g_clear_object (&data->depayloader);
+
+  g_slice_free (KmsDepayloadProbe, data);
+}
+
+static KmsDepayloadProbe *
+kms_depayloader_probe_new (GstElement * depayloader, KmsMediaType media)
+{
+  KmsDepayloadProbe *data;
+
+  data = g_slice_new0 (KmsDepayloadProbe);
+  data->depayloader = GST_ELEMENT (gst_object_ref (depayloader));
+  data->media = media;
+  return data;
+}
+
 static void
 update_buffer_latency_metadata (GstBuffer * buffer, KmsMediaType type)
 {
@@ -196,20 +263,6 @@ update_buffer_latency_metadata_cb (GstPad * pad, GstPadProbeInfo * info,
   }
 
   return GST_PAD_PROBE_OK;
-}
-
-static void
-element_add_data_probe (GstElement * e, const gchar * pad_name,
-    GstPadProbeCallback callback, gpointer user_data,
-    GDestroyNotify destroy_data)
-{
-  GstPad *pad;
-
-  pad = gst_element_get_static_pad (e, pad_name);
-  gst_pad_add_probe (pad,
-      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, callback,
-      user_data, destroy_data);
-  g_object_unref (pad);
 }
 
 /* Media handler management begin */
@@ -609,16 +662,21 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     return NULL;
   }
 
+  g_mutex_lock (&self->priv->stats.mutex);
+
   rtp_stats =
-      g_hash_table_lookup (self->priv->stats, GUINT_TO_POINTER (session_id));
+      g_hash_table_lookup (self->priv->stats.rtp_stats,
+      GUINT_TO_POINTER (session_id));
 
   if (rtp_stats == NULL) {
     rtp_stats = rtp_session_stats_new (rtpsession);
-    g_hash_table_insert (self->priv->stats, GUINT_TO_POINTER (session_id),
-        rtp_stats);
+    g_hash_table_insert (self->priv->stats.rtp_stats,
+        GUINT_TO_POINTER (session_id), rtp_stats);
   } else {
     GST_WARNING_OBJECT (self, "Session %u already created", session_id);
   }
+
+  g_mutex_unlock (&self->priv->stats.mutex);
 
   g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, "rtp-profile", rtp_profile, NULL);
@@ -1773,6 +1831,27 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
 }
 
 static void
+kms_base_rtp_endpoint_add_depayloader (KmsBaseRtpEndpoint * self,
+    GstElement * depayloader, KmsMediaType media)
+{
+  KmsDepayloadProbe *depay_probe;
+
+  depay_probe = kms_depayloader_probe_new (depayloader, media);
+
+  g_mutex_lock (&self->priv->stats.mutex);
+
+  if (self->priv->stats.enabled) {
+    depay_probe->id = element_add_data_probe (depayloader, "sink",
+        update_buffer_latency_metadata_cb, GUINT_TO_POINTER (media), NULL);
+  }
+
+  self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes,
+      depay_probe);
+
+  g_mutex_unlock (&self->priv->stats.mutex);
+}
+
+static void
 kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
     KmsBaseRtpEndpoint * self)
 {
@@ -1809,8 +1888,7 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
   if (depayloader != NULL) {
     GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
-    element_add_data_probe (depayloader, "sink",
-        update_buffer_latency_metadata_cb, GUINT_TO_POINTER (media), NULL);
+    kms_base_rtp_endpoint_add_depayloader (self, depayloader, media);
     gst_bin_add (GST_BIN (self), depayloader);
     gst_element_link_pads (depayloader, "src", agnostic, "sink");
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
@@ -1865,10 +1943,11 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
       kms_base_rtp_endpoint_change_latency_probe, NULL, NULL);
   g_object_unref (src_pad);
 
-  KMS_ELEMENT_LOCK (self);
+  g_mutex_lock (&self->priv->stats.mutex);
 
   rtp_stats =
-      g_hash_table_lookup (self->priv->stats, GUINT_TO_POINTER (session));
+      g_hash_table_lookup (self->priv->stats.rtp_stats,
+      GUINT_TO_POINTER (session));
 
   if (rtp_stats != NULL) {
     ssrc_stats = ssrc_stats_new (ssrc, jitterbuffer);
@@ -1877,14 +1956,14 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GST_ERROR_OBJECT (self, "Session %u exists for SSRC %u", session, ssrc);
   }
 
+  g_mutex_unlock (&self->priv->stats.mutex);
+
   if (session == VIDEO_RTP_SESSION) {
     gboolean rtcp_nack = kms_base_rtp_endpoint_is_video_rtcp_nack (self);
 
     g_object_set (jitterbuffer, "do-lost", TRUE,
         "do-retransmission", rtcp_nack, "rtx-next-seqnum", FALSE, NULL);
   }
-
-  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
@@ -2099,10 +2178,12 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
   KmsRTPSessionStats *rtp_stats;
   guint session_id;
 
+  g_mutex_lock (&self->priv->stats.mutex);
+
   if (selector == NULL) {
     /* No selector provided. All stats will be generated */
-    g_hash_table_foreach (self->priv->stats, (GHFunc) append_rtp_session_stats,
-        stats);
+    g_hash_table_foreach (self->priv->stats.rtp_stats,
+        (GHFunc) append_rtp_session_stats, stats);
     goto end;
   }
 
@@ -2115,7 +2196,7 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
     goto end;
   }
 
-  rtp_stats = g_hash_table_lookup (self->priv->stats,
+  rtp_stats = g_hash_table_lookup (self->priv->stats.rtp_stats,
       GUINT_TO_POINTER (session_id));
 
   if (rtp_stats == NULL) {
@@ -2126,6 +2207,8 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
   append_rtp_session_stats (GUINT_TO_POINTER (session_id), rtp_stats, stats);
 
 end:
+  g_mutex_unlock (&self->priv->stats.mutex);
+
   return stats;
 }
 
@@ -2298,11 +2381,22 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 }
 
 static void
+kms_base_rtp_endpoint_destroy_stats (KmsBaseRtpEndpoint * self)
+{
+  g_mutex_clear (&self->priv->stats.mutex);
+  g_hash_table_destroy (self->priv->stats.rtp_stats);
+  g_slist_free_full (self->priv->stats.probes,
+      (GDestroyNotify) kms_payloader_probe_destroy);
+}
+
+static void
 kms_base_rtp_endpoint_finalize (GObject * gobject)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
 
   GST_DEBUG_OBJECT (self, "finalize");
+
+  kms_base_rtp_endpoint_destroy_stats (self);
 
   if (self->priv->remb_params != NULL) {
     gst_structure_free (self->priv->remb_params);
@@ -2312,7 +2406,6 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   kms_remb_remote_destroy (self->priv->rm);
 
   g_hash_table_destroy (self->priv->conns);
-  g_hash_table_destroy (self->priv->stats);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
 }
@@ -2394,10 +2487,42 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 }
 
 static void
+kms_base_rtp_endpoint_enable_media_stats (KmsDepayloadProbe * probe,
+    KmsBaseRtpEndpoint * self)
+{
+  probe->id = element_add_data_probe (probe->depayloader, "sink",
+      update_buffer_latency_metadata_cb, GUINT_TO_POINTER (probe->media), NULL);
+}
+
+static void
+kms_base_rtp_endpoint_disable_media_stats (KmsDepayloadProbe * probe,
+    KmsBaseRtpEndpoint * self)
+{
+  if (probe->id != 0UL) {
+    element_remove_data_probe (probe->depayloader, "sink", probe->id);
+    probe->id = 0UL;
+  }
+}
+
+static void
 kms_base_rtp_endpoint_collect_media_stats_action (KmsElement * obj,
     gboolean enable)
 {
-  /* TODO: Active set/unset callbacks to set and get metadata */
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
+
+  g_mutex_lock (&self->priv->stats.mutex);
+
+  if (enable) {
+    g_slist_foreach (self->priv->stats.probes,
+        (GFunc) kms_base_rtp_endpoint_enable_media_stats, self);
+  } else {
+    g_slist_foreach (self->priv->stats.probes,
+        (GFunc) kms_base_rtp_endpoint_disable_media_stats, self);
+  }
+
+  self->priv->stats.enabled = enable;
+
+  g_mutex_unlock (&self->priv->stats.mutex);
 
   KMS_ELEMENT_CLASS
       (kms_base_rtp_endpoint_parent_class)->collect_media_stats_action (obj,
@@ -2716,6 +2841,15 @@ kms_base_rtp_endpoint_rtpbin_on_ssrc_active (GstElement * rtpbin,
 }
 
 static void
+kms_base_rtp_endpoint_init_stats (KmsBaseRtpEndpoint * self)
+{
+  self->priv->stats.enabled = FALSE;
+  self->priv->stats.rtp_stats = g_hash_table_new_full (g_direct_hash,
+      g_direct_equal, NULL, (GDestroyNotify) rtp_session_stats_destroy);
+  g_mutex_init (&self->priv->stats.mutex);
+}
+
+static void
 kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 {
   self->priv = KMS_BASE_RTP_ENDPOINT_GET_PRIVATE (self);
@@ -2768,6 +2902,5 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 
-  self->priv->stats = g_hash_table_new_full (g_direct_hash, g_direct_equal,
-      NULL, (GDestroyNotify) rtp_session_stats_destroy);
+  kms_base_rtp_endpoint_init_stats (self);
 }
