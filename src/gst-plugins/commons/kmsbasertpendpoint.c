@@ -584,6 +584,28 @@ kms_base_rtp_endpoint_get_connections (KmsBaseRtpEndpoint * self)
   return self->priv->conns;
 }
 
+static void
+kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
+    GstClockTimeDiff t, gpointer user_data)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+
+  GST_DEBUG_OBJECT (self, "Latency received");
+}
+
+static void
+kms_base_rtp_endpoint_set_connection_stats (KmsBaseRtpEndpoint * self,
+    KmsIRtpConnection * conn)
+{
+  kms_i_rtp_connection_set_latency_callback (conn,
+      kms_base_rtp_endpoint_latency_cb, self);
+
+  /* Active insertion of metadata if stats are enabled */
+  g_mutex_lock (&self->priv->stats.mutex);
+  kms_i_rtp_connection_collect_latency_stats (conn, self->priv->stats.enabled);
+  g_mutex_unlock (&self->priv->stats.mutex);
+}
+
 static KmsIRtpConnection *
 kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
     SdpMediaConfig * mconf)
@@ -618,6 +640,8 @@ kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
   }
 
   g_hash_table_insert (self->priv->conns, g_strdup (name), conn);
+
+  kms_base_rtp_endpoint_set_connection_stats (self, conn);
 
 end:
   g_free (name);
@@ -2390,6 +2414,22 @@ kms_base_rtp_endpoint_destroy_stats (KmsBaseRtpEndpoint * self)
 }
 
 static void
+kms_base_rtp_endpoint_enable_connection_stats (gpointer key, gpointer value,
+    gpointer user_data)
+{
+  kms_i_rtp_connection_collect_latency_stats (KMS_I_RTP_CONNECTION (value),
+      TRUE);
+}
+
+static void
+kms_base_rtp_endpoint_disable_connection_stats (gpointer key, gpointer value,
+    gpointer user_data)
+{
+  kms_i_rtp_connection_collect_latency_stats (KMS_I_RTP_CONNECTION (value),
+      FALSE);
+}
+
+static void
 kms_base_rtp_endpoint_finalize (GObject * gobject)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (gobject);
@@ -2404,6 +2444,9 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
 
   kms_remb_local_destroy (self->priv->rl);
   kms_remb_remote_destroy (self->priv->rm);
+
+  g_hash_table_foreach (self->priv->conns,
+      kms_base_rtp_endpoint_disable_connection_stats, NULL);
 
   g_hash_table_destroy (self->priv->conns);
 
@@ -2512,15 +2555,19 @@ kms_base_rtp_endpoint_collect_media_stats_action (KmsElement * obj,
 
   g_mutex_lock (&self->priv->stats.mutex);
 
+  self->priv->stats.enabled = enable;
+
   if (enable) {
     g_slist_foreach (self->priv->stats.probes,
         (GFunc) kms_base_rtp_endpoint_enable_media_stats, self);
+    g_hash_table_foreach (self->priv->conns,
+        kms_base_rtp_endpoint_enable_connection_stats, NULL);
   } else {
     g_slist_foreach (self->priv->stats.probes,
         (GFunc) kms_base_rtp_endpoint_disable_media_stats, self);
+    g_hash_table_foreach (self->priv->conns,
+        kms_base_rtp_endpoint_disable_connection_stats, NULL);
   }
-
-  self->priv->stats.enabled = enable;
 
   g_mutex_unlock (&self->priv->stats.mutex);
 
