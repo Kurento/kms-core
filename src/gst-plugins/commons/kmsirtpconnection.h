@@ -17,6 +17,7 @@
 #define __KMS_I_RTP_CONNECTION_H__
 
 #include <gst/gst.h>
+#include "kmsutils.h"
 
 G_BEGIN_DECLS
 
@@ -51,6 +52,9 @@ struct _KmsIRtpConnectionInterface
   GstPad * (*request_data_src) (KmsIRtpConnection *self);
   GstPad * (*request_data_sink) (KmsIRtpConnection *self);
 
+  void (*set_latency_callback) (KmsIRtpConnection *self, BufferLatencyCallback cb, gpointer user_data);
+  void (*collect_latency_stats) (KmsIRtpConnection *self, gboolean enable);
+
   /* Signals */
   void (*connected_signal) (KmsIRtpConnection * self);
 };
@@ -60,6 +64,10 @@ GType kms_i_rtp_connection_get_type (void);
 void kms_i_rtp_connection_add (KmsIRtpConnection *self, GstBin * bin, gboolean active);
 void kms_i_rtp_connection_src_sync_state_with_parent (KmsIRtpConnection *self);
 void kms_i_rtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *self);
+
+void kms_i_rtp_connection_set_latency_callback (KmsIRtpConnection *self, BufferLatencyCallback cb, gpointer user_data);
+void kms_i_rtp_connection_collect_latency_stats (KmsIRtpConnection *self, gboolean enable);
+
 GstPad * kms_i_rtp_connection_request_rtp_sink (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtp_src (KmsIRtpConnection *self);
 GstPad * kms_i_rtp_connection_request_rtcp_sink (KmsIRtpConnection *self);

@@ -137,6 +137,36 @@ kms_i_rtp_connection_connected_signal (KmsIRtpConnection * self)
       kms_i_rtp_connection_signals[SIGNAL_CONNECTED], 0);
 }
 
+void
+kms_i_rtp_connection_set_latency_callback (KmsIRtpConnection * self,
+    BufferLatencyCallback cb, gpointer user_data)
+{
+  g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
+
+  if (KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->set_latency_callback == NULL) {
+    GST_WARNING_OBJECT (self, "Do not support latency management");
+    return;
+  }
+
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->set_latency_callback (self, cb,
+      user_data);
+}
+
+void
+kms_i_rtp_connection_collect_latency_stats (KmsIRtpConnection * self,
+    gboolean enable)
+{
+  g_return_if_fail (KMS_IS_I_RTP_CONNECTION (self));
+
+  if (KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->collect_latency_stats == NULL) {
+    GST_WARNING_OBJECT (self, "Do not support latency management");
+    return;
+  }
+
+  KMS_I_RTP_CONNECTION_GET_INTERFACE (self)->collect_latency_stats (self,
+      enable);
+}
+
 /* KmsIRtpConnection end */
 
 /* KmsIRtcpMuxConnection begin */
