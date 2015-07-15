@@ -60,6 +60,12 @@ void kms_utils_remb_event_manager_set_callback (RembEventManager * manager, Remb
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();
 
+/* Macros used to calculate latency stats */
+#define KMS_UTILS_ALPHA 0.25
+#define KMS_CALCULATE_LATENCY_AVG(ti, ax) ({              \
+  (ti) * KMS_UTILS_ALPHA + (ax) * (1 - KMS_UTILS_ALPHA);  \
+})
+
 /* buffer latency */
 typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
 gulong kms_utils_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);

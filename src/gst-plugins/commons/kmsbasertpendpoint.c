@@ -92,6 +92,8 @@ struct _KmsBaseRTPStats
   GHashTable *rtp_stats;
   GSList *probes;
   GMutex mutex;
+  gdouble vi;
+  gdouble ai;
 };
 
 struct _KmsBaseRtpEndpointPrivate
@@ -578,6 +580,21 @@ kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self,
   return conn;
 }
 
+static gchar *
+str_media_type (KmsMediaType type)
+{
+  switch (type) {
+    case KMS_MEDIA_TYPE_VIDEO:
+      return "video";
+    case KMS_MEDIA_TYPE_AUDIO:
+      return "audio";
+    case KMS_MEDIA_TYPE_DATA:
+      return "data";
+    default:
+      return "<unsupported>";
+  }
+}
+
 GHashTable *
 kms_base_rtp_endpoint_get_connections (KmsBaseRtpEndpoint * self)
 {
@@ -589,8 +606,22 @@ kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
     GstClockTimeDiff t, gpointer user_data)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+  gdouble *prev;
 
-  GST_DEBUG_OBJECT (self, "Latency received");
+  switch (type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      prev = &self->priv->stats.ai;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      prev = &self->priv->stats.vi;
+      break;
+    default:
+      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%s)",
+          str_media_type (type));
+      return;
+  }
+
+  *prev = KMS_CALCULATE_LATENCY_AVG (t, *prev);
 }
 
 static void
@@ -2894,6 +2925,9 @@ kms_base_rtp_endpoint_init_stats (KmsBaseRtpEndpoint * self)
   self->priv->stats.rtp_stats = g_hash_table_new_full (g_direct_hash,
       g_direct_equal, NULL, (GDestroyNotify) rtp_session_stats_destroy);
   g_mutex_init (&self->priv->stats.mutex);
+
+  self->priv->stats.ai = 0.0;
+  self->priv->stats.vi = 0.0;
 }
 
 static void
