@@ -685,6 +685,8 @@ kms_base_sdp_endpoint_finalize (GObject * object)
 {
   KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
+  GST_DEBUG_OBJECT (self, "finalize");
+
   g_hash_table_destroy (self->priv->sessions);
   g_clear_object (&self->priv->first_negotiated_session);
 

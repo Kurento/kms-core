@@ -193,6 +193,8 @@ kms_sdp_session_finalize (GObject * object)
 {
   KmsSdpSession *self = KMS_SDP_SESSION (object);
 
+  GST_DEBUG_OBJECT (self, "finalize");
+
   if (self->local_sdp_ctx != NULL) {
     kms_sdp_message_context_destroy (self->local_sdp_ctx);
   }
