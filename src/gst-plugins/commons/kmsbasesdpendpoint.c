@@ -118,6 +118,8 @@ kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
 static const gchar *
 kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 {
+  KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
   gint id;
   gchar *ret = NULL;
   KmsSdpSession *sess;
@@ -131,7 +133,7 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
   }
 
   id = g_atomic_int_add (&self->priv->next_session_id, 1);
-  sess = kms_sdp_session_new (self, id);
+  sess = base_sdp_endpoint_class->create_session_internal (self, id);
 
   kms_sdp_agent_set_configure_media_callback (sess->agent,
       kms_base_sdp_endpoint_configure_media, sess, NULL);
@@ -373,6 +375,13 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint * self,
         "%s does not reimplement \"connect_input_elements\"",
         G_OBJECT_CLASS_NAME (base_sdp_endpoint_class));
   }
+}
+
+static KmsSdpSession *
+kms_base_sdp_endpoint_create_session_internal (KmsBaseSdpEndpoint * self,
+    gint id)
+{
+  return kms_sdp_session_new (self, id);
 }
 
 static void
@@ -715,6 +724,8 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
   /* Media handler management */
   klass->create_media_handler = kms_base_sdp_endpoint_create_media_handler_impl;
 
+  klass->create_session_internal =
+      kms_base_sdp_endpoint_create_session_internal;
   klass->start_transport_send = kms_base_sdp_endpoint_start_transport_send;
   klass->connect_input_elements = kms_base_sdp_endpoint_connect_input_elements;
 
