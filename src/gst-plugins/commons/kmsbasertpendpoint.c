@@ -1439,6 +1439,16 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
 /* Connect input elements end */
 
+static KmsSdpSession *
+kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp_ep,
+    gint id)
+{
+  KmsIRtpSessionManager *manager = KMS_I_RTP_SESSION_MANAGER (base_sdp_ep);
+  KmsBaseRtpSession *sess = kms_base_rtp_session_new (base_sdp_ep, id, manager);
+
+  return KMS_SDP_SESSION (sess);
+}
+
 static void
 complete_caps_with_fb (GstCaps * caps, const GstSDPMedia * media,
     const gchar * payload)
@@ -2361,6 +2371,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       kms_base_rtp_endpoint_create_bundle_connection_default;
 
   base_endpoint_class = KMS_BASE_SDP_ENDPOINT_CLASS (klass);
+  base_endpoint_class->create_session_internal =
+      kms_base_rtp_endpoint_create_session_internal;
   base_endpoint_class->start_transport_send =
       kms_base_rtp_endpoint_start_transport_send;
   base_endpoint_class->connect_input_elements =
