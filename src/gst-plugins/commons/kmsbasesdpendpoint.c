@@ -152,35 +152,17 @@ static gboolean
 kms_base_sdp_endpoint_release_session (KmsBaseSdpEndpoint * self,
     const gchar * sess_id)
 {
-  gpointer sess_ptr, key_ptr;
-  KmsSdpSession *sess, *neg_sess;
-  gchar *key;
+  KmsSdpSession *sess;
   gboolean ret;
 
   KMS_ELEMENT_LOCK (self);
 
   GST_DEBUG_OBJECT (self, "Release session with id '%s'", sess_id);
 
-  g_hash_table_lookup_extended (self->priv->sessions, sess_id, &key_ptr,
-      &sess_ptr);
-  sess = sess_ptr;
-  key = key_ptr;
+  sess = g_hash_table_lookup (self->priv->sessions, sess_id);
   if (sess == NULL) {
     GST_WARNING_OBJECT (self, "There is not session '%s'", sess_id);
     ret = FALSE;
-    goto end;
-  }
-
-  /* inmediate-TODO: disconnect and remove associated elements */
-
-  neg_sess = self->priv->first_negotiated_session;
-  if (neg_sess != NULL && sess->id == neg_sess->id) {
-    GST_DEBUG_OBJECT (self,
-        "Is the first negotiated session '%s'. Keeping associated SDP context",
-        sess_id);
-    g_hash_table_steal (self->priv->sessions, sess_id);
-    g_free (key);
-    ret = TRUE;
     goto end;
   }
 
