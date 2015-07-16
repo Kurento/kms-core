@@ -71,6 +71,16 @@ typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClock
 gulong kms_utils_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_utils_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data);
 
+typedef enum {
+  KMS_ELEMENT_MEDIA_STAT,
+  KMS_ENDPOINT_MEDIA_STAT
+} KmsMediaStatType;
+
+GstStructure * kms_utils_media_stats_new (KmsMediaStatType type, const gchar *id);
+void kms_utils_media_stats_add (GstStructure *stats, GstStructure *media_stats);
+GstStructure * kms_utils_media_stats_get_from_stats (GstStructure *stats);
+void kms_utils_media_stats_set_type (GstStructure *media_stats, KmsMediaStatType type);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)

@@ -1008,6 +1008,70 @@ kms_utils_add_buffer_latency_notification_probe (GstPad * pad,
       (GDestroyNotify) buffer_latency_data_destroy);
 }
 
+#define KMS_MEDIA_STATS_TAG "media-stats"
+#define KMS_MEDIA_ELEMENT_TAG "media-element"
+
+static const gchar *
+media_stats_type_to_string (KmsMediaStatType type)
+{
+  switch (type) {
+    case KMS_ELEMENT_MEDIA_STAT:
+      return "element";
+    case KMS_ENDPOINT_MEDIA_STAT:
+      return "endpoint";
+    default:
+      return NULL;
+  }
+}
+
+GstStructure *
+kms_utils_media_stats_new (KmsMediaStatType type, const gchar * id)
+{
+  return gst_structure_new (KMS_MEDIA_ELEMENT_TAG, "type", G_TYPE_STRING,
+      media_stats_type_to_string (type), "id", G_TYPE_STRING, id, NULL);
+}
+
+void
+kms_utils_media_stats_add (GstStructure * stats, GstStructure * media_stats)
+{
+  gst_structure_set (stats, KMS_MEDIA_STATS_TAG, GST_TYPE_STRUCTURE,
+      media_stats, NULL);
+}
+
+GstStructure *
+kms_utils_media_stats_get_from_stats (GstStructure * stats)
+{
+  GstStructure *media_stats;
+  const GValue *value;
+
+  if (!gst_structure_has_field (stats, KMS_MEDIA_STATS_TAG)) {
+    return NULL;
+  }
+
+  value = gst_structure_get_value (stats, KMS_MEDIA_STATS_TAG);
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
+    return NULL;
+  }
+
+  media_stats = (GstStructure *) gst_value_get_structure (value);
+
+  if (g_strcmp0 (KMS_MEDIA_ELEMENT_TAG,
+          gst_structure_get_name (media_stats)) != 0) {
+    return NULL;
+  }
+
+  return media_stats;
+}
+
+void
+kms_utils_media_stats_set_type (GstStructure * media_stats,
+    KmsMediaStatType type)
+{
+  gst_structure_set (media_stats, "type", G_TYPE_STRING,
+      media_stats_type_to_string (type), NULL);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

@@ -2546,7 +2546,8 @@ static GstStructure *
 kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats;
+  GstStructure *stats, *media_stats;
+  gboolean enabled;
 
   /* chain up */
   stats =
@@ -2554,8 +2555,29 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
       selector);
 
   kms_base_rtp_endpoint_add_rtp_stats (self, stats, selector);
-
   kms_base_rtp_endpoint_append_remb_stats (self, stats);
+
+  g_object_get (self, "media-stats", &enabled, NULL);
+
+  if (!enabled) {
+    return stats;
+  }
+
+  media_stats = kms_utils_media_stats_get_from_stats (stats);
+
+  if (media_stats == NULL) {
+    return stats;
+  }
+
+  /* Video and audio latencies are avery small values in */
+  /* nano seconds so there is no harm in casting them to */
+  /* uint64 even we might lose a bit of preccision.      */
+
+  gst_structure_set (media_stats, "video-e2e-latency", G_TYPE_UINT64,
+      (guint64) self->priv->stats.vi, "audio-e2e-latency", G_TYPE_UINT64,
+      (guint64) self->priv->stats.ai, NULL);
+
+  kms_utils_media_stats_set_type (media_stats, KMS_ENDPOINT_MEDIA_STAT);
 
   return stats;
 }

@@ -848,7 +848,17 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
 
   stats = gst_structure_new_empty ("stats");
 
-  /* TODO: Provide media stats if enabled */
+  if (self->priv->stats_enabled) {
+    GstStructure *media_stats;
+
+    media_stats = kms_utils_media_stats_new (KMS_ELEMENT_MEDIA_STAT,
+        self->priv->id);
+
+    /* TODO: Add element's stats */
+
+    kms_utils_media_stats_add (stats, media_stats);
+    gst_structure_free (media_stats);
+  }
 
   return stats;
 }
@@ -996,8 +1006,13 @@ static GstStructure *
 kms_element_stats_action (KmsIStats * obj, gchar * selector)
 {
   KmsElement *self = KMS_ELEMENT (obj);
+  GstStructure *stats;
 
-  return KMS_ELEMENT_GET_CLASS (self)->stats_action (self, selector);
+  KMS_ELEMENT_LOCK (self);
+  stats = KMS_ELEMENT_GET_CLASS (self)->stats_action (self, selector);
+  KMS_ELEMENT_UNLOCK (self);
+
+  return stats;
 }
 
 static void
