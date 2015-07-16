@@ -100,7 +100,7 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
     g_error_free (err);
-    kms_sdp_message_context_destroy (ctx);
+    kms_sdp_message_context_unref (ctx);
     goto end;
   }
 
@@ -196,11 +196,11 @@ kms_sdp_session_finalize (GObject * object)
   GST_DEBUG_OBJECT (self, "finalize");
 
   if (self->local_sdp_ctx != NULL) {
-    kms_sdp_message_context_destroy (self->local_sdp_ctx);
+    kms_sdp_message_context_unref (self->local_sdp_ctx);
   }
 
   if (self->remote_sdp_ctx != NULL) {
-    kms_sdp_message_context_destroy (self->remote_sdp_ctx);
+    kms_sdp_message_context_unref (self->remote_sdp_ctx);
   }
 
   g_clear_object (&self->ptmanager);

@@ -563,7 +563,8 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
   return ctx;
 
 error:
-  kms_sdp_message_context_destroy (ctx);
+  kms_sdp_message_context_unref (ctx);
+
   return NULL;
 }
 

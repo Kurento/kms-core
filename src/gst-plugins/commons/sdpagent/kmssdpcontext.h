@@ -33,9 +33,10 @@ typedef enum  {
 } KmsSdpMessageType;
 
 SdpMessageContext *kms_sdp_message_context_new (SdpIPv ipv, const gchar *addr, GError **error);
+SdpMessageContext * kms_sdp_message_context_ref (SdpMessageContext *ctx);
+void kms_sdp_message_context_unref (SdpMessageContext *ctx);
 SdpMessageContext *kms_sdp_message_context_new_from_sdp (GstSDPMessage *sdp, GError **error);
 gboolean kms_sdp_message_context_set_common_session_attributes (SdpMessageContext *ctx, const GstSDPMessage *msg, GError **error);
-void kms_sdp_message_context_destroy (SdpMessageContext *ctx);
 SdpMediaConfig * kms_sdp_message_context_add_media (SdpMessageContext *ctx, GstSDPMedia *media, GError **error);
 gint kms_sdp_media_config_get_id (SdpMediaConfig * mconf);
 const gchar* kms_sdp_media_config_get_mid (SdpMediaConfig * mconf);

@@ -16,6 +16,7 @@
 #include "config.h"
 #endif
 
+#include "kmsrefstruct.h"
 #include "sdp_utils.h"
 #include "constants.h"
 #include "kmsutils.h"
@@ -49,6 +50,7 @@ struct _SdpMediaConfig
 
 struct _SdpMessageContext
 {
+  KmsRefStruct ref;
   KmsSdpMessageType type;
   GstSDPMessage *msg;
   GSList *medias;               /* list of SdpMediaConfigs */
@@ -172,12 +174,34 @@ error:
   return FALSE;
 }
 
+static void
+kms_sdp_message_context_destroy (SdpMessageContext * ctx)
+{
+  if (ctx->msg != NULL) {
+    gst_sdp_message_free (ctx->msg);
+  }
+
+  g_hash_table_unref (ctx->mids);
+
+  g_slist_free_full (ctx->medias,
+      (GDestroyNotify) kms_sdp_context_destroy_media_config);
+
+  g_slist_free_full (ctx->groups,
+      (GDestroyNotify) kms_sdp_context_destroy_media_group);
+
+  g_slice_free (SdpMessageContext, ctx);
+}
+
 SdpMessageContext *
 kms_sdp_message_context_new (SdpIPv ipv, const gchar * addr, GError ** error)
 {
   SdpMessageContext *ctx;
 
   ctx = g_slice_new0 (SdpMessageContext);
+
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (ctx),
+      (GDestroyNotify) kms_sdp_message_context_destroy);
+
   gst_sdp_message_new (&ctx->msg);
   ctx->mids = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       (GDestroyNotify) kms_utils_destroy_guint);
@@ -189,6 +213,18 @@ kms_sdp_message_context_new (SdpIPv ipv, const gchar * addr, GError ** error)
   }
 
   return ctx;
+}
+
+SdpMessageContext *
+kms_sdp_message_context_ref (SdpMessageContext * ctx)
+{
+  return (SdpMessageContext *) kms_ref_struct_ref (KMS_REF_STRUCT_CAST (ctx));
+}
+
+void
+kms_sdp_message_context_unref (SdpMessageContext * ctx)
+{
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (ctx));
 }
 
 static gboolean
@@ -233,24 +269,6 @@ kms_sdp_message_context_set_common_session_attributes (SdpMessageContext * ctx,
   }
 
   return TRUE;
-}
-
-void
-kms_sdp_message_context_destroy (SdpMessageContext * ctx)
-{
-  if (ctx->msg != NULL) {
-    gst_sdp_message_free (ctx->msg);
-  }
-
-  g_hash_table_unref (ctx->mids);
-
-  g_slist_free_full (ctx->medias,
-      (GDestroyNotify) kms_sdp_context_destroy_media_config);
-
-  g_slist_free_full (ctx->groups,
-      (GDestroyNotify) kms_sdp_context_destroy_media_group);
-
-  g_slice_free (SdpMessageContext, ctx);
 }
 
 static gboolean
@@ -695,7 +713,7 @@ kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
   return ctx;
 
 error:
-  kms_sdp_message_context_destroy (ctx);
+  kms_sdp_message_context_unref (ctx);
   return NULL;
 }
 
