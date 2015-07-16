@@ -60,26 +60,10 @@ void kms_utils_remb_event_manager_set_callback (RembEventManager * manager, Remb
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();
 
-/* Macros used to calculate latency stats */
-#define KMS_UTILS_ALPHA 0.25
-#define KMS_CALCULATE_LATENCY_AVG(ti, ax) ({              \
-  (ti) * KMS_UTILS_ALPHA + (ax) * (1 - KMS_UTILS_ALPHA);  \
-})
-
 /* buffer latency */
 typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
 gulong kms_utils_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_utils_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data);
-
-typedef enum {
-  KMS_ELEMENT_MEDIA_STAT,
-  KMS_ENDPOINT_MEDIA_STAT
-} KmsMediaStatType;
-
-GstStructure * kms_utils_media_stats_new (KmsMediaStatType type, const gchar *id);
-void kms_utils_media_stats_add (GstStructure *stats, GstStructure *media_stats);
-GstStructure * kms_utils_media_stats_get_from_stats (GstStructure *stats);
-void kms_utils_media_stats_set_type (GstStructure *media_stats, KmsMediaStatType type);
 
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);

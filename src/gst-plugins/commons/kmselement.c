@@ -22,8 +22,9 @@
 #include "kms-core-marshal.h"
 #include "kmselement.h"
 #include "kmsagnosticcaps.h"
-#include "kmsutils.h"
 #include "kmsistats.h"
+#include "kmsstats.h"
+#include "kmsutils.h"
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
@@ -849,15 +850,14 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
   stats = gst_structure_new_empty ("stats");
 
   if (self->priv->stats_enabled) {
-    GstStructure *media_stats;
+    GstStructure *e_stats;
 
-    media_stats = kms_utils_media_stats_new (KMS_ELEMENT_MEDIA_STAT,
-        self->priv->id);
+    e_stats = kms_stats_element_stats_new (KMS_STATS_ELEMENT, self->priv->id);
 
     /* TODO: Add element's stats */
 
-    kms_utils_media_stats_add (stats, media_stats);
-    gst_structure_free (media_stats);
+    kms_stats_add (stats, e_stats);
+    gst_structure_free (e_stats);
   }
 
   return stats;

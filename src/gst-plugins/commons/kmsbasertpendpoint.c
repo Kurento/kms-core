@@ -32,6 +32,7 @@
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/video/video-event.h>
 #include "kmsbufferlacentymeta.h"
+#include "kmsstats.h"
 
 #define PLUGIN_NAME "base_rtp_endpoint"
 
@@ -621,7 +622,7 @@ kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
       return;
   }
 
-  *prev = KMS_CALCULATE_LATENCY_AVG (t, *prev);
+  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
 }
 
 static void
@@ -2546,7 +2547,7 @@ static GstStructure *
 kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats, *media_stats;
+  GstStructure *stats, *e_stats;
   gboolean enabled;
 
   /* chain up */
@@ -2563,9 +2564,9 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
     return stats;
   }
 
-  media_stats = kms_utils_media_stats_get_from_stats (stats);
+  e_stats = kms_stats_get_element_stats (stats);
 
-  if (media_stats == NULL) {
+  if (e_stats == NULL) {
     return stats;
   }
 
@@ -2573,11 +2574,11 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
   /* nano seconds so there is no harm in casting them to */
   /* uint64 even we might lose a bit of preccision.      */
 
-  gst_structure_set (media_stats, "video-e2e-latency", G_TYPE_UINT64,
+  gst_structure_set (e_stats, "video-e2e-latency", G_TYPE_UINT64,
       (guint64) self->priv->stats.vi, "audio-e2e-latency", G_TYPE_UINT64,
       (guint64) self->priv->stats.ai, NULL);
 
-  kms_utils_media_stats_set_type (media_stats, KMS_ENDPOINT_MEDIA_STAT);
+  kms_stats_set_type (e_stats, KMS_STATS_ENDPOINT);
 
   return stats;
 }
