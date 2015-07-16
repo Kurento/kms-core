@@ -20,19 +20,25 @@
 #define KMS_MEDIA_ELEMENT_TAG "media-element"
 #define KMS_ELEMENT_STATS_TAG "element-stats"
 
-typedef struct _BufferLatencyData
-{
-  GstPad *pad;
-  BufferLatencyCallback cb;
-  gpointer user_data;
-  GDestroyNotify destroy_data;
-} BufferLatencyData;
-
 typedef struct _BufferLatencyValues
 {
   gboolean valid;
   KmsMediaType type;
 } BufferLatencyValues;
+
+typedef struct _ProbeData ProbeData;
+typedef void (*BufferCb) (GstBuffer * buffer, ProbeData * pdata);
+
+typedef struct _ProbeData
+{
+  BufferCb invoke_cb;
+  gpointer invoke_data;
+  GDestroyNotify destroy_invoke;
+
+  GCallback cb;
+  gpointer user_data;
+  GDestroyNotify destroy_data;
+} ProbeData;
 
 static BufferLatencyValues *
 buffer_latency_values_new (gboolean is_valid, KmsMediaType type)
@@ -53,30 +59,73 @@ buffer_latency_values_destroy (BufferLatencyValues * blv)
   g_slice_free (BufferLatencyValues, blv);
 }
 
-static BufferLatencyData *
-buffer_latency_data_new (GstPad * pad, BufferLatencyCallback cb,
-    gpointer user_data, GDestroyNotify destroy_data)
+static ProbeData *
+probe_data_new (BufferCb invoke_cb, gpointer invoke_data,
+    GDestroyNotify destroy_invoke, GCallback cb, gpointer user_data,
+    GDestroyNotify destroy_data)
 {
-  BufferLatencyData *bl;
+  ProbeData *pdata;
 
-  bl = g_slice_new (BufferLatencyData);
+  pdata = g_slice_new (ProbeData);
 
-  bl->pad = pad;
-  bl->cb = cb;
-  bl->user_data = user_data;
-  bl->destroy_data = destroy_data;
+  pdata->invoke_cb = invoke_cb;
+  pdata->invoke_data = invoke_data;
+  pdata->destroy_invoke = destroy_invoke;
 
-  return bl;
+  pdata->cb = cb;
+  pdata->user_data = user_data;
+  pdata->destroy_data = destroy_data;
+
+  return pdata;
 }
 
 static void
-buffer_latency_data_destroy (BufferLatencyData * bl)
+probe_data_destroy (ProbeData * pdata)
 {
-  if (bl->user_data != NULL && bl->destroy_data != NULL) {
-    bl->destroy_data (bl->user_data);
+  if (pdata->user_data != NULL && pdata->destroy_data != NULL) {
+    pdata->destroy_data (pdata->user_data);
   }
 
-  g_slice_free (BufferLatencyData, bl);
+  if (pdata->invoke_data != NULL && pdata->destroy_invoke != NULL) {
+    pdata->destroy_invoke (pdata->invoke_data);
+  }
+
+  g_slice_free (ProbeData, pdata);
+}
+
+static void
+process_buffer (GstBuffer * buffer, gpointer user_data)
+{
+  ProbeData *pdata = user_data;
+
+  if (pdata->invoke_cb != NULL) {
+    pdata->invoke_cb (buffer, pdata);
+  }
+}
+
+static gboolean
+process_buffer_list_cb (GstBuffer ** buffer, guint idx, gpointer user_data)
+{
+  process_buffer (*buffer, user_data);
+
+  return TRUE;
+}
+
+static GstPadProbeReturn
+process_buffer_probe_cb (GstPad * pad, GstPadProbeInfo * info,
+    gpointer user_data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+    process_buffer (buffer, user_data);
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
+    gst_buffer_list_foreach (list, process_buffer_list_cb, user_data);
+  }
+
+  return GST_PAD_PROBE_OK;
 }
 
 static const gchar *
@@ -140,44 +189,39 @@ kms_stats_set_type (GstStructure * element_stats, KmsStatsType type)
 }
 
 static void
-add_buffer_latency_metadata (GstBuffer * buffer)
+buffer_latency_probe_cb (GstBuffer * buffer, ProbeData * pdata)
 {
+  BufferLatencyValues *blv = (BufferLatencyValues *) pdata->invoke_data;
   GstClockTime time;
 
   time = kms_utils_get_time_nsecs ();
 
-  kms_buffer_add_buffer_latency_meta (buffer, time, FALSE, 0);
+  kms_buffer_add_buffer_latency_meta (buffer, time, blv->valid, blv->type);
 }
 
-static gboolean
-add_buffer_list_latency_metadata (GstBuffer ** buffer, guint idx,
-    gpointer user_data)
+gulong
+kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid,
+    KmsMediaType type)
 {
-  add_buffer_latency_metadata (*buffer);
+  ProbeData *pdata;
 
-  return TRUE;
-}
+  BufferLatencyValues *blv;
 
-static GstPadProbeReturn
-add_buffer_latency_metadata_cb (GstPad * pad, GstPadProbeInfo * info,
-    gpointer user_data)
-{
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+  blv = buffer_latency_values_new (is_valid, type);
 
-    add_buffer_latency_metadata (buffer);
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+  pdata = probe_data_new (buffer_latency_probe_cb, blv,
+      (GDestroyNotify) buffer_latency_values_destroy, NULL, NULL, NULL);
 
-    gst_buffer_list_foreach (list, add_buffer_list_latency_metadata, NULL);
-  }
-
-  return GST_PAD_PROBE_OK;
+  return gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
 }
 
 static void
-calculate_buffer_latency (GstBuffer * buffer, BufferLatencyData * bl)
+buffer_latency_calculation_cb (GstBuffer * buffer, ProbeData * pdata)
 {
+  BufferLatencyCallback func = (BufferLatencyCallback) pdata->cb;
+  GstPad *pad = GST_PAD (pdata->invoke_data);
   KmsBufferLatencyMeta *meta;
   GstClockTimeDiff diff;
   GstClockTime now;
@@ -196,61 +240,21 @@ calculate_buffer_latency (GstBuffer * buffer, BufferLatencyData * bl)
   now = kms_utils_get_time_nsecs ();
   diff = GST_CLOCK_DIFF (meta->ts, now);
 
-  if (bl->cb != NULL) {
-    bl->cb (bl->pad, meta->type, diff, bl->user_data);
+  if (func != NULL) {
+    func (pad, meta->type, diff, pdata->user_data);
   }
-}
-
-static gboolean
-calculate_buffer_list_latency (GstBuffer ** buffer, guint idx,
-    gpointer user_data)
-{
-  calculate_buffer_latency (*buffer, user_data);
-
-  return TRUE;
-}
-
-gulong
-kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid,
-    KmsMediaType type)
-{
-  BufferLatencyValues *blv;
-
-  blv = buffer_latency_values_new (is_valid, type);
-
-  return gst_pad_add_probe (pad,
-      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-      add_buffer_latency_metadata_cb, blv,
-      (GDestroyNotify) buffer_latency_values_destroy);
-}
-
-static GstPadProbeReturn
-calculate_buffer_latency_metadata_cb (GstPad * pad, GstPadProbeInfo * info,
-    gpointer user_data)
-{
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
-
-    calculate_buffer_latency (buffer, user_data);
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
-
-    gst_buffer_list_foreach (list, calculate_buffer_list_latency, user_data);
-  }
-
-  return GST_PAD_PROBE_OK;
 }
 
 gulong
 kms_stats_add_buffer_latency_notification_probe (GstPad * pad,
     BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data)
 {
-  BufferLatencyData *bl;
+  ProbeData *pdata;
 
-  bl = buffer_latency_data_new (pad, cb, user_data, destroy_data);
+  pdata = probe_data_new (buffer_latency_calculation_cb, pad, NULL,
+      G_CALLBACK (cb), user_data, destroy_data);
 
   return gst_pad_add_probe (pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-      calculate_buffer_latency_metadata_cb, bl,
-      (GDestroyNotify) buffer_latency_data_destroy);
+      process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
 }
