@@ -87,7 +87,7 @@ struct _KmsBaseSdpEndpointPrivate
   gboolean configured;
   gint next_session_id;
   GHashTable *sessions;
-  KmsSdpSession *first_negotiated_session;
+  SdpMessageContext *first_neg_sdp_ctx;
 
   gboolean bundle;
   gboolean use_ipv6;
@@ -339,13 +339,13 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
 
 /* Media handler management end */
 
-KmsSdpSession *
-kms_base_sdp_endpoint_get_first_negotiated_session (KmsBaseSdpEndpoint * self)
+SdpMessageContext *
+kms_base_sdp_endpoint_get_first_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self)
 {
-  KmsSdpSession *ret;
+  SdpMessageContext *ret;
 
   KMS_ELEMENT_LOCK (self);
-  ret = self->priv->first_negotiated_session;
+  ret = self->priv->first_neg_sdp_ctx;
   KMS_ELEMENT_UNLOCK (self);
 
   return ret;
@@ -472,8 +472,9 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   }
 
   answer = kms_sdp_session_process_offer (sess, offer);
-  if (self->priv->first_negotiated_session == NULL) {
-    self->priv->first_negotiated_session = g_object_ref (sess);
+  if (self->priv->first_neg_sdp_ctx == NULL) {
+    self->priv->first_neg_sdp_ctx =
+        kms_sdp_message_context_ref (sess->neg_sdp_ctx);
   }
   kms_base_sdp_endpoint_start_media (self, sess, FALSE);
 
@@ -500,8 +501,9 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
   }
 
   kms_sdp_session_process_answer (sess, answer);
-  if (self->priv->first_negotiated_session == NULL) {
-    self->priv->first_negotiated_session = g_object_ref (sess);
+  if (self->priv->first_neg_sdp_ctx == NULL) {
+    self->priv->first_neg_sdp_ctx =
+        kms_sdp_message_context_ref (sess->neg_sdp_ctx);
   }
   kms_base_sdp_endpoint_start_media (self, sess, TRUE);
 
@@ -688,7 +690,10 @@ kms_base_sdp_endpoint_finalize (GObject * object)
   GST_DEBUG_OBJECT (self, "finalize");
 
   g_hash_table_destroy (self->priv->sessions);
-  g_clear_object (&self->priv->first_negotiated_session);
+
+  if (self->priv->first_neg_sdp_ctx != NULL) {
+    kms_sdp_message_context_unref (self->priv->first_neg_sdp_ctx);
+  }
 
   if (self->priv->audio_codecs != NULL) {
     g_array_free (self->priv->audio_codecs, TRUE);

@@ -85,7 +85,7 @@ GType kms_base_sdp_endpoint_get_type (void);
 
 GHashTable * kms_base_sdp_endpoint_get_sessions (KmsBaseSdpEndpoint * self);
 KmsSdpSession * kms_base_sdp_endpoint_get_session (KmsBaseSdpEndpoint * self, const gchar *sess_id);
-KmsSdpSession * kms_base_sdp_endpoint_get_first_negotiated_session (KmsBaseSdpEndpoint * self);
+SdpMessageContext * kms_base_sdp_endpoint_get_first_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self);
 
 G_END_DECLS
 #endif /* __KMS_BASE_SDP_ENDPOINT_H__ */
