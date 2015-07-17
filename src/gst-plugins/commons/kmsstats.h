@@ -37,6 +37,7 @@ void kms_stats_set_type (GstStructure *element_stats, KmsStatsType type);
 /* buffer latency */
 typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
 gulong kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
+gulong kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data);
 
 typedef struct _KmsStatsProbe KmsStatsProbe;

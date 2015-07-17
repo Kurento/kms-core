@@ -224,6 +224,38 @@ kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid,
 }
 
 static void
+buffer_update_latency_probe_cb (GstBuffer * buffer, ProbeData * pdata)
+{
+  BufferLatencyValues *blv = (BufferLatencyValues *) pdata->invoke_data;
+  KmsBufferLatencyMeta *meta;
+
+  meta = kms_buffer_get_buffer_latency_meta (buffer);
+
+  if (meta != NULL) {
+    meta->type = blv->type;
+    meta->valid = blv->valid;
+  }
+}
+
+gulong
+kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid,
+    KmsMediaType type)
+{
+  ProbeData *pdata;
+
+  BufferLatencyValues *blv;
+
+  blv = buffer_latency_values_new (is_valid, type);
+
+  pdata = probe_data_new (buffer_update_latency_probe_cb, blv,
+      (GDestroyNotify) buffer_latency_values_destroy, NULL, NULL, NULL);
+
+  return gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
+}
+
+static void
 buffer_latency_calculation_cb (GstBuffer * buffer, ProbeData * pdata)
 {
   BufferLatencyCallback func = (BufferLatencyCallback) pdata->cb;
