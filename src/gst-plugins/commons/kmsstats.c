@@ -20,6 +20,12 @@
 #define KMS_MEDIA_ELEMENT_TAG "media-element"
 #define KMS_ELEMENT_STATS_TAG "element-stats"
 
+struct _KmsStatsProbe
+{
+  GstPad *pad;
+  gulong probe_id;
+};
+
 typedef struct _BufferLatencyValues
 {
   gboolean valid;
@@ -257,4 +263,50 @@ kms_stats_add_buffer_latency_notification_probe (GstPad * pad,
   return gst_pad_add_probe (pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
+}
+
+KmsStatsProbe *
+kms_stats_probe_new (GstPad * pad)
+{
+  KmsStatsProbe *probe;
+
+  probe = g_slice_new0 (KmsStatsProbe);
+  probe->pad = GST_PAD (g_object_ref (pad));
+
+  return probe;
+}
+
+void
+kms_stats_probe_destroy (KmsStatsProbe * probe)
+{
+  kms_stats_probe_remove (probe);
+
+  g_object_unref (probe->pad);
+
+  g_slice_free (KmsStatsProbe, probe);
+}
+
+void
+kms_stats_probe_add (KmsStatsProbe * probe, BufferLatencyCallback callback,
+    gpointer user_data, GDestroyNotify destroy_data)
+{
+  kms_stats_probe_remove (probe);
+
+  probe->probe_id = kms_stats_add_buffer_latency_notification_probe (probe->pad,
+      callback, user_data, destroy_data);
+}
+
+void
+kms_stats_probe_remove (KmsStatsProbe * probe)
+{
+  if (probe->probe_id != 0UL) {
+    gst_pad_remove_probe (probe->pad, probe->probe_id);
+    probe->probe_id = 0UL;
+  }
+}
+
+gboolean
+kms_stats_probe_watches (KmsStatsProbe * probe, GstPad * pad)
+{
+  return pad == probe->pad;
 }
