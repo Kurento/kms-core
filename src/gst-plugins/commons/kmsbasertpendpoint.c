@@ -178,23 +178,6 @@ enum
   PROP_LAST
 };
 
-static gulong
-element_add_data_probe (GstElement * e, const gchar * pad_name,
-    GstPadProbeCallback callback, gpointer user_data,
-    GDestroyNotify destroy_data)
-{
-  GstPad *pad;
-  gulong id;
-
-  pad = gst_element_get_static_pad (e, pad_name);
-  id = gst_pad_add_probe (pad,
-      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, callback,
-      user_data, destroy_data);
-  g_object_unref (pad);
-
-  return id;
-}
-
 static void
 element_remove_data_probe (GstElement * e, const gchar * pad_name, gulong id)
 {
@@ -226,46 +209,6 @@ kms_depayloader_probe_new (GstElement * depayloader, KmsMediaType media)
   data->depayloader = GST_ELEMENT (gst_object_ref (depayloader));
   data->media = media;
   return data;
-}
-
-static void
-update_buffer_latency_metadata (GstBuffer * buffer, KmsMediaType type)
-{
-  KmsBufferLatencyMeta *meta;
-
-  meta = kms_buffer_get_buffer_latency_meta (buffer);
-
-  if (meta != NULL) {
-    meta->type = type;
-    meta->valid = TRUE;
-  }
-}
-
-static gboolean
-update_buffer_list_latency_metadata (GstBuffer ** buffer, guint idx,
-    gpointer user_data)
-{
-  update_buffer_latency_metadata (*buffer, GPOINTER_TO_UINT (user_data));
-
-  return TRUE;
-}
-
-static GstPadProbeReturn
-update_buffer_latency_metadata_cb (GstPad * pad, GstPadProbeInfo * info,
-    gpointer user_data)
-{
-  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
-
-    update_buffer_latency_metadata (buffer, GPOINTER_TO_UINT (user_data));
-  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
-
-    gst_buffer_list_foreach (list, update_buffer_list_latency_metadata,
-        user_data);
-  }
-
-  return GST_PAD_PROBE_OK;
 }
 
 /* Media handler management begin */
@@ -1897,8 +1840,11 @@ kms_base_rtp_endpoint_add_depayloader (KmsBaseRtpEndpoint * self,
   g_mutex_lock (&self->priv->stats.mutex);
 
   if (self->priv->stats.enabled) {
-    depay_probe->id = element_add_data_probe (depayloader, "sink",
-        update_buffer_latency_metadata_cb, GUINT_TO_POINTER (media), NULL);
+    GstPad *pad = gst_element_get_static_pad (depayloader, "sink");
+
+    depay_probe->id = kms_stats_add_buffer_update_latency_meta_probe (pad,
+        TRUE, media);
+    g_object_unref (pad);
   }
 
   self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes,
@@ -2587,8 +2533,12 @@ static void
 kms_base_rtp_endpoint_enable_media_stats (KmsDepayloadProbe * probe,
     KmsBaseRtpEndpoint * self)
 {
-  probe->id = element_add_data_probe (probe->depayloader, "sink",
-      update_buffer_latency_metadata_cb, GUINT_TO_POINTER (probe->media), NULL);
+  GstPad *pad;
+
+  pad = gst_element_get_static_pad (probe->depayloader, "sink");
+  probe->id = kms_stats_add_buffer_update_latency_meta_probe (pad, TRUE,
+      probe->media);
+  g_object_unref (pad);
 }
 
 static void
