@@ -214,7 +214,7 @@ typedef struct _ConnectPayloaderData
 } ConnectPayloaderData;
 
 static void
-connect_payloader_data_destroy (gpointer data, GClosure * closure)
+connect_payloader_data_destroy (gpointer data)
 {
   g_slice_free (ConnectPayloaderData, data);
 }
