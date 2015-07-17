@@ -2493,7 +2493,7 @@ static GstStructure *
 kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats, *e_stats;
+  GstStructure *stats, *rtp_stats, *e_stats;
   gboolean enabled;
 
   /* chain up */
@@ -2501,8 +2501,11 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
       KMS_ELEMENT_CLASS (kms_base_rtp_endpoint_parent_class)->stats_action (obj,
       selector);
 
-  kms_base_rtp_endpoint_add_rtp_stats (self, stats, selector);
-  kms_base_rtp_endpoint_append_remb_stats (self, stats);
+  rtp_stats = gst_structure_new_empty (KMS_RTP_STRUCT_NAME);
+  kms_base_rtp_endpoint_add_rtp_stats (self, rtp_stats, selector);
+  kms_base_rtp_endpoint_append_remb_stats (self, rtp_stats);
+  gst_structure_set (stats, KMS_RTC_STATISTICS_FIELD, GST_TYPE_STRUCTURE,
+      rtp_stats, NULL);
 
   g_object_get (self, "media-stats", &enabled, NULL);
 

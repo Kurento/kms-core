@@ -17,9 +17,6 @@
 #include "kmsutils.h"
 #include "kmsbufferlacentymeta.h"
 
-#define KMS_MEDIA_ELEMENT_TAG "media-element"
-#define KMS_ELEMENT_STATS_TAG "element-stats"
-
 struct _KmsStatsProbe
 {
   GstPad *pad;
@@ -150,14 +147,15 @@ element_stats_type_to_string (KmsStatsType type)
 GstStructure *
 kms_stats_element_stats_new (KmsStatsType type, const gchar * id)
 {
-  return gst_structure_new (KMS_ELEMENT_STATS_TAG, "type", G_TYPE_STRING,
-      element_stats_type_to_string (type), "id", G_TYPE_STRING, id, NULL);
+  return gst_structure_new (KMS_ELEMENT_STATS_STRUCT_NAME, "type",
+      G_TYPE_STRING, element_stats_type_to_string (type), "id", G_TYPE_STRING,
+      id, NULL);
 }
 
 void
 kms_stats_add (GstStructure * stats, GstStructure * element_stats)
 {
-  gst_structure_set (stats, KMS_MEDIA_ELEMENT_TAG, GST_TYPE_STRUCTURE,
+  gst_structure_set (stats, KMS_MEDIA_ELEMENT_FIELD, GST_TYPE_STRUCTURE,
       element_stats, NULL);
 }
 
@@ -167,11 +165,11 @@ kms_stats_get_element_stats (GstStructure * stats)
   GstStructure *element_stats;
   const GValue *value;
 
-  if (!gst_structure_has_field (stats, KMS_MEDIA_ELEMENT_TAG)) {
+  if (!gst_structure_has_field (stats, KMS_MEDIA_ELEMENT_FIELD)) {
     return NULL;
   }
 
-  value = gst_structure_get_value (stats, KMS_MEDIA_ELEMENT_TAG);
+  value = gst_structure_get_value (stats, KMS_MEDIA_ELEMENT_FIELD);
 
   if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
     return NULL;
@@ -179,7 +177,7 @@ kms_stats_get_element_stats (GstStructure * stats)
 
   element_stats = (GstStructure *) gst_value_get_structure (value);
 
-  if (g_strcmp0 (KMS_ELEMENT_STATS_TAG,
+  if (g_strcmp0 (KMS_ELEMENT_STATS_STRUCT_NAME,
           gst_structure_get_name (element_stats)) != 0) {
     return NULL;
   }

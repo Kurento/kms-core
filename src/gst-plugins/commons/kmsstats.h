@@ -18,6 +18,13 @@
 #include "gst/gst.h"
 #include "kmsmediatype.h"
 
+G_BEGIN_DECLS
+
+#define KMS_MEDIA_ELEMENT_FIELD "media-element"
+#define KMS_RTC_STATISTICS_FIELD "rtc-statistics"
+#define KMS_ELEMENT_STATS_STRUCT_NAME "element-stats"
+#define KMS_RTP_STRUCT_NAME "rtp-stats"
+
 /* Macros used to calculate latency stats */
 #define KMS_STATS_ALPHA 0.25
 #define KMS_STATS_CALCULATE_LATENCY_AVG(ti, ax) ({        \
@@ -49,5 +56,7 @@ void kms_stats_probe_add (KmsStatsProbe *probe, BufferLatencyCallback callback,
   gpointer user_data, GDestroyNotify destroy_data);
 void kms_stats_probe_remove (KmsStatsProbe *probe);
 gboolean kms_stats_probe_watches (KmsStatsProbe *probe, GstPad *pad);
+
+G_END_DECLS
 
 #endif /* __KMS_STATS_H__ */

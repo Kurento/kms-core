@@ -17,12 +17,14 @@
 #include "StatsType.hpp"
 #include "RTCInboundRTPStreamStats.hpp"
 #include "RTCOutboundRTPStreamStats.hpp"
+#include "kmsstats.h"
 
 #define GST_CAT_DEFAULT kurento_statistics
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoStatistics"
 
 #define UUID_STR_SIZE 37 /* 36-byte string (plus tailing '\0') */
+
 #define KMS_STATISTIC_FIELD_PREFIX_SESSION "session-"
 #define KMS_STATISTIC_FIELD_PREFIX_SSRC "ssrc-"
 
@@ -198,10 +200,10 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
   }
 }
 
-std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
-      double timestamp, const GstStructure *stats)
+static void
+collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
+                 &statsReport, double timestamp, const GstStructure *stats)
 {
-  std::map <std::string, std::shared_ptr<Stats>> statsReport;
   gint i, n;
 
   n = gst_structure_n_fields (stats);
@@ -232,6 +234,40 @@ std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
 
     collectRTCRTPStreamStats (statsReport, timestamp,
                               gst_value_get_structure (value) );
+  }
+}
+
+std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
+      double timestamp, const GstStructure *stats)
+{
+  std::map <std::string, std::shared_ptr<Stats>> statsReport;
+  gint i, n;
+
+  n = gst_structure_n_fields (stats);
+
+  for (i = 0; i < n; i++) {
+    std::shared_ptr<RTCStats> rtcStats;
+    const GValue *value;
+    const gchar *name;
+
+    name = gst_structure_nth_field_name (stats, i);
+    value = gst_structure_get_value (stats, name);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+      gchar *str_val;
+
+      str_val = g_strdup_value_contents (value);
+      GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+      g_free (str_val);
+
+      continue;
+    }
+
+    if (g_strcmp0 (name, KMS_RTC_STATISTICS_FIELD) == 0) {
+      collectRTCStats (statsReport, timestamp, gst_value_get_structure (value) );
+    } else {
+      GST_DEBUG ("Ignored stats field %s", name);
+    }
   }
 
   return statsReport;
