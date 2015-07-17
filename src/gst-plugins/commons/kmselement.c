@@ -63,6 +63,13 @@ typedef struct _PendingSrcPad
   gchar *desc;
 } PendingSrcPad;
 
+typedef struct _KmsElementStats
+{
+  GSList *probes;
+  gdouble vi;
+  gdouble ai;
+} KmsElementStats;
+
 struct _KmsElementPrivate
 {
   gchar *id;
@@ -85,6 +92,9 @@ struct _KmsElementPrivate
   GHashTable *pendingpads;
 
   gint target_bitrate;
+
+  /* Statistics */
+  KmsElementStats stats;
 };
 
 /* Signals and args */
@@ -451,6 +461,48 @@ get_pad_name (KmsElementPadType type, const gchar * description)
   }
 }
 
+static void
+kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
+    GstClockTimeDiff t, gpointer user_data)
+{
+  KmsElement *self = KMS_ELEMENT (user_data);
+
+  gdouble *prev;
+
+  switch (type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      prev = &self->priv->stats.ai;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      prev = &self->priv->stats.vi;
+      break;
+    default:
+      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%d)", type);
+      return;
+  }
+
+  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
+}
+
+static void
+kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad)
+{
+  KmsStatsProbe *s_probe;
+
+  s_probe = kms_stats_probe_new (pad);
+
+  KMS_ELEMENT_LOCK (self);
+
+  self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes,
+      s_probe);
+
+  if (self->priv->stats_enabled) {
+    kms_stats_probe_add (s_probe, kms_element_calculate_stats, self, NULL);
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+}
+
 GstPad *
 kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
     KmsElementPadType type, const gchar * description)
@@ -486,6 +538,7 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   }
 
   if (gst_element_add_pad (GST_ELEMENT (self), pad)) {
+    kms_element_set_sink_input_stats (self, pad);
     return pad;
   }
 
@@ -494,11 +547,34 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   return NULL;
 }
 
+static gint
+find_stat_probe (KmsStatsProbe * probe, GstPad * pad)
+{
+  return (kms_stats_probe_watches (probe, pad)) ? 0 : 1;
+}
+
 void
 kms_element_remove_sink (KmsElement * self, GstPad * pad)
 {
+  GSList *l;
+
   g_return_if_fail (self);
   g_return_if_fail (pad);
+
+  KMS_ELEMENT_LOCK (self);
+
+  l = g_slist_find_custom (self->priv->stats.probes, pad,
+      (GCompareFunc) find_stat_probe);
+
+  if (l != NULL) {
+    KmsStatsProbe *probe = l->data;
+
+    self->priv->stats.probes = g_slist_remove (self->priv->stats.probes,
+        l->data);
+    kms_stats_probe_destroy (probe);
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
 
   // TODO: Unlink correctly pad before removing it
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
@@ -694,11 +770,20 @@ kms_element_get_property (GObject * object, guint property_id,
 }
 
 static void
+kms_element_destroy_stats (KmsElement * self)
+{
+  g_slist_free_full (self->priv->stats.probes,
+      (GDestroyNotify) kms_stats_probe_destroy);
+}
+
+static void
 kms_element_finalize (GObject * object)
 {
   KmsElement *element = KMS_ELEMENT (object);
 
   GST_DEBUG_OBJECT (object, "finalize");
+
+  kms_element_destroy_stats (element);
 
   g_free (element->priv->id);
 
@@ -854,7 +939,13 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
 
     e_stats = kms_stats_element_stats_new (KMS_STATS_ELEMENT, self->priv->id);
 
-    /* TODO: Add element's stats */
+    /* Video and audio latencies are measured in nano seconds. They */
+    /* are such an small values so there is no harm in casting them */
+    /* to uint64 even we might lose a bit of preccision.            */
+
+    gst_structure_set (e_stats, "input-video-latency", G_TYPE_UINT64,
+        (guint64) self->priv->stats.vi, "input-audio-latency", G_TYPE_UINT64,
+        (guint64) self->priv->stats.ai, NULL);
 
     kms_stats_add (stats, e_stats);
     gst_structure_free (e_stats);
@@ -864,9 +955,27 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
 }
 
 static void
+kms_element_enable_media_stats (KmsStatsProbe * probe, KmsElement * self)
+{
+  kms_stats_probe_add (probe, kms_element_calculate_stats, self, NULL);
+}
+
+static void
+kms_element_disable_media_stats (KmsStatsProbe * probe, KmsElement * self)
+{
+  kms_stats_probe_remove (probe);
+}
+
+static void
 kms_element_collect_media_stats_action_impl (KmsElement * self, gboolean enable)
 {
-  /* TODO: Make something */
+  if (enable) {
+    g_slist_foreach (self->priv->stats.probes,
+        (GFunc) kms_element_enable_media_stats, self);
+  } else {
+    g_slist_foreach (self->priv->stats.probes,
+        (GFunc) kms_element_disable_media_stats, self);
+  }
 }
 
 static void
@@ -956,6 +1065,13 @@ kms_element_class_init (KmsElementClass * klass)
 }
 
 static void
+kms_element_init_stats (KmsElement * self)
+{
+  self->priv->stats.ai = 0.0;
+  self->priv->stats.vi = 0.0;
+}
+
+static void
 kms_element_init (KmsElement * element)
 {
   g_rec_mutex_init (&element->mutex);
@@ -971,6 +1087,8 @@ kms_element_init (KmsElement * element)
 
   element->priv->pendingpads = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) destroy_pendingpads);
+
+  kms_element_init_stats (element);
 }
 
 KmsElementPadType
