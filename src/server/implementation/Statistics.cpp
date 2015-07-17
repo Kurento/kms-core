@@ -17,6 +17,8 @@
 #include "StatsType.hpp"
 #include "RTCInboundRTPStreamStats.hpp"
 #include "RTCOutboundRTPStreamStats.hpp"
+#include "ElementStats.hpp"
+#include "EndpointStats.hpp"
 #include "kmsstats.h"
 
 #define GST_CAT_DEFAULT kurento_statistics
@@ -237,6 +239,52 @@ collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
   }
 }
 
+static void
+collectElementStats (std::map <std::string, std::shared_ptr<Stats>>
+                     &statsReport, double timestamp, const GstStructure *stats)
+{
+  std::shared_ptr<Stats> elementStats;
+  guint64 input_video, input_audio;
+  KmsStatsType type;
+  gchar *id;
+
+  type = kms_stats_get_type (stats);
+
+  switch (type) {
+  case KMS_STATS_ELEMENT:
+  case KMS_STATS_ENDPOINT:
+    break;
+
+  default:
+    GST_WARNING ("Unsupported stats type %d", type);
+    return;
+  }
+
+  /* Media element stat */
+  gst_structure_get (stats, "id", G_TYPE_STRING, &id, "input-video-latency",
+                     G_TYPE_UINT64, &input_video, "input-audio-latency", G_TYPE_UINT64,
+                     &input_audio, NULL);
+
+  if (type == KMS_STATS_ELEMENT) {
+    elementStats = std::make_shared <ElementStats> (id,
+                   std::make_shared <StatsType> (StatsType::element), timestamp, input_audio,
+                   input_video);
+  } else {
+    guint64 video, audio;
+
+    gst_structure_get (stats, "video-e2e-latency", G_TYPE_UINT64, &video,
+                       "audio-e2e-latency", G_TYPE_UINT64, &audio, NULL);
+
+    elementStats = std::make_shared <EndpointStats> (id,
+                   std::make_shared <StatsType> (StatsType::endpoint), timestamp,
+                   input_audio, input_video, audio, video);
+  }
+
+  g_free (id);
+
+  statsReport[elementStats->getId()] = elementStats;
+}
+
 std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
       double timestamp, const GstStructure *stats)
 {
@@ -265,6 +313,8 @@ std::map <std::string, std::shared_ptr<Stats>> createStatsReport (
 
     if (g_strcmp0 (name, KMS_RTC_STATISTICS_FIELD) == 0) {
       collectRTCStats (statsReport, timestamp, gst_value_get_structure (value) );
+    } else if (g_strcmp0 (name, KMS_MEDIA_ELEMENT_FIELD) == 0) {
+      collectElementStats (statsReport, timestamp, gst_value_get_structure (value) );
     } else {
       GST_DEBUG ("Ignored stats field %s", name);
     }

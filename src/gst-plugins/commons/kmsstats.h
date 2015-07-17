@@ -32,6 +32,7 @@ G_BEGIN_DECLS
 })
 
 typedef enum {
+  KMS_STATS_UNKNOWN,
   KMS_STATS_ELEMENT,
   KMS_STATS_ENDPOINT
 } KmsStatsType;
@@ -40,6 +41,7 @@ GstStructure * kms_stats_element_stats_new (KmsStatsType type, const gchar *id);
 void kms_stats_add (GstStructure *stats, GstStructure *element_stats);
 GstStructure * kms_stats_get_element_stats (GstStructure *stats);
 void kms_stats_set_type (GstStructure *element_stats, KmsStatsType type);
+KmsStatsType kms_stats_get_type (const GstStructure *element_stats);
 
 /* buffer latency */
 typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
