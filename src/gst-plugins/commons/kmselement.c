@@ -485,11 +485,24 @@ kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
 }
 
 static void
-kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad)
+kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
+    KmsElementPadType type)
 {
   KmsStatsProbe *s_probe;
+  KmsMediaType media_type;
 
-  s_probe = kms_stats_probe_new (pad);
+  switch (type) {
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      media_type = KMS_MEDIA_TYPE_AUDIO;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      media_type = KMS_MEDIA_TYPE_VIDEO;
+      break;
+    default:
+      GST_DEBUG ("No stats collected for pad type %d", type);
+      return;
+  }
+
+  s_probe = kms_stats_probe_new (pad, media_type);
 
   KMS_ELEMENT_LOCK (self);
 
@@ -497,7 +510,8 @@ kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad)
       s_probe);
 
   if (self->priv->stats_enabled) {
-    kms_stats_probe_add (s_probe, kms_element_calculate_stats, self, NULL);
+    kms_stats_probe_add_latency (s_probe, kms_element_calculate_stats, self,
+        NULL);
   }
 
   KMS_ELEMENT_UNLOCK (self);
@@ -538,7 +552,7 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   }
 
   if (gst_element_add_pad (GST_ELEMENT (self), pad)) {
-    kms_element_set_sink_input_stats (self, pad);
+    kms_element_set_sink_input_stats (self, pad, type);
     return pad;
   }
 
@@ -957,7 +971,7 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
 static void
 kms_element_enable_media_stats (KmsStatsProbe * probe, KmsElement * self)
 {
-  kms_stats_probe_add (probe, kms_element_calculate_stats, self, NULL);
+  kms_stats_probe_add_latency (probe, kms_element_calculate_stats, self, NULL);
 }
 
 static void

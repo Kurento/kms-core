@@ -52,10 +52,11 @@ gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLate
 typedef struct _KmsStatsProbe KmsStatsProbe;
 typedef void (*StatsProbeCallback) (GstBuffer *buff, gpointer user_data);
 
-KmsStatsProbe * kms_stats_probe_new (GstPad *pad);
+KmsStatsProbe * kms_stats_probe_new (GstPad *pad, KmsMediaType type);
 void kms_stats_probe_destroy (KmsStatsProbe *probe);
-void kms_stats_probe_add (KmsStatsProbe *probe, BufferLatencyCallback callback,
+void kms_stats_probe_add_latency (KmsStatsProbe *probe, BufferLatencyCallback callback,
   gpointer user_data, GDestroyNotify destroy_data);
+void kms_stats_probe_latency_meta_set_valid (KmsStatsProbe *probe, gboolean is_valid);
 void kms_stats_probe_remove (KmsStatsProbe *probe);
 gboolean kms_stats_probe_watches (KmsStatsProbe *probe, GstPad *pad);
 

@@ -20,6 +20,7 @@
 struct _KmsStatsProbe
 {
   GstPad *pad;
+  KmsMediaType type;
   gulong probe_id;
 };
 
@@ -329,12 +330,13 @@ kms_stats_add_buffer_latency_notification_probe (GstPad * pad,
 }
 
 KmsStatsProbe *
-kms_stats_probe_new (GstPad * pad)
+kms_stats_probe_new (GstPad * pad, KmsMediaType type)
 {
   KmsStatsProbe *probe;
 
   probe = g_slice_new0 (KmsStatsProbe);
   probe->pad = GST_PAD (g_object_ref (pad));
+  probe->type = type;
 
   return probe;
 }
@@ -350,13 +352,24 @@ kms_stats_probe_destroy (KmsStatsProbe * probe)
 }
 
 void
-kms_stats_probe_add (KmsStatsProbe * probe, BufferLatencyCallback callback,
-    gpointer user_data, GDestroyNotify destroy_data)
+kms_stats_probe_add_latency (KmsStatsProbe * probe,
+    BufferLatencyCallback callback, gpointer user_data,
+    GDestroyNotify destroy_data)
 {
   kms_stats_probe_remove (probe);
 
   probe->probe_id = kms_stats_add_buffer_latency_notification_probe (probe->pad,
       callback, user_data, destroy_data);
+}
+
+void
+kms_stats_probe_latency_meta_set_valid (KmsStatsProbe * probe,
+    gboolean is_valid)
+{
+  kms_stats_probe_remove (probe);
+
+  probe->probe_id = kms_stats_add_buffer_update_latency_meta_probe (probe->pad,
+      is_valid, probe->type);
 }
 
 void

@@ -78,14 +78,6 @@ struct _KmsRTPSessionStats
   GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
 };
 
-typedef struct _KmsDepayloadProbe KmsDepayloadProbe;
-struct _KmsDepayloadProbe
-{
-  GstElement *depayloader;
-  KmsMediaType media;
-  gulong id;
-};
-
 typedef struct _KmsBaseRTPStats KmsBaseRTPStats;
 struct _KmsBaseRTPStats
 {
@@ -177,39 +169,6 @@ enum
   PROP_REMB_PARAMS,
   PROP_LAST
 };
-
-static void
-element_remove_data_probe (GstElement * e, const gchar * pad_name, gulong id)
-{
-  GstPad *pad;
-
-  pad = gst_element_get_static_pad (e, pad_name);
-  gst_pad_remove_probe (pad, id);
-  g_object_unref (pad);
-}
-
-static void
-kms_payloader_probe_destroy (KmsDepayloadProbe * data)
-{
-  if (data->id != 0UL) {
-    element_remove_data_probe (data->depayloader, "sink", data->id);
-  }
-
-  g_clear_object (&data->depayloader);
-
-  g_slice_free (KmsDepayloadProbe, data);
-}
-
-static KmsDepayloadProbe *
-kms_depayloader_probe_new (GstElement * depayloader, KmsMediaType media)
-{
-  KmsDepayloadProbe *data;
-
-  data = g_slice_new0 (KmsDepayloadProbe);
-  data->depayloader = GST_ELEMENT (gst_object_ref (depayloader));
-  data->media = media;
-  return data;
-}
 
 /* Media handler management begin */
 static void
@@ -1834,25 +1793,23 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
 }
 
 static void
-kms_base_rtp_endpoint_add_depayloader (KmsBaseRtpEndpoint * self,
+kms_base_rtp_endpoint_update_stats (KmsBaseRtpEndpoint * self,
     GstElement * depayloader, KmsMediaType media)
 {
-  KmsDepayloadProbe *depay_probe;
+  KmsStatsProbe *probe;
+  GstPad *pad;
 
-  depay_probe = kms_depayloader_probe_new (depayloader, media);
+  pad = gst_element_get_static_pad (depayloader, "sink");
+  probe = kms_stats_probe_new (pad, media);
+  g_object_unref (pad);
 
   g_mutex_lock (&self->priv->stats.mutex);
 
   if (self->priv->stats.enabled) {
-    GstPad *pad = gst_element_get_static_pad (depayloader, "sink");
-
-    depay_probe->id = kms_stats_add_buffer_update_latency_meta_probe (pad,
-        TRUE, media);
-    g_object_unref (pad);
+    kms_stats_probe_latency_meta_set_valid (probe, TRUE);
   }
 
-  self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes,
-      depay_probe);
+  self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes, probe);
 
   g_mutex_unlock (&self->priv->stats.mutex);
 }
@@ -1894,7 +1851,7 @@ kms_base_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
   if (depayloader != NULL) {
     GST_DEBUG_OBJECT (self, "Found depayloader %" GST_PTR_FORMAT, depayloader);
-    kms_base_rtp_endpoint_add_depayloader (self, depayloader, media);
+    kms_base_rtp_endpoint_update_stats (self, depayloader, media);
     gst_bin_add (GST_BIN (self), depayloader);
     gst_element_link_pads (depayloader, "src", agnostic, "sink");
     gst_element_link_pads (rtpbin, GST_OBJECT_NAME (pad), depayloader, "sink");
@@ -2392,7 +2349,7 @@ kms_base_rtp_endpoint_destroy_stats (KmsBaseRtpEndpoint * self)
   g_mutex_clear (&self->priv->stats.mutex);
   g_hash_table_destroy (self->priv->stats.rtp_stats);
   g_slist_free_full (self->priv->stats.probes,
-      (GDestroyNotify) kms_payloader_probe_destroy);
+      (GDestroyNotify) kms_stats_probe_destroy);
 }
 
 static void
@@ -2537,25 +2494,17 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 }
 
 static void
-kms_base_rtp_endpoint_enable_media_stats (KmsDepayloadProbe * probe,
+kms_base_rtp_endpoint_enable_media_stats (KmsStatsProbe * probe,
     KmsBaseRtpEndpoint * self)
 {
-  GstPad *pad;
-
-  pad = gst_element_get_static_pad (probe->depayloader, "sink");
-  probe->id = kms_stats_add_buffer_update_latency_meta_probe (pad, TRUE,
-      probe->media);
-  g_object_unref (pad);
+  kms_stats_probe_latency_meta_set_valid (probe, TRUE);
 }
 
 static void
-kms_base_rtp_endpoint_disable_media_stats (KmsDepayloadProbe * probe,
+kms_base_rtp_endpoint_disable_media_stats (KmsStatsProbe * probe,
     KmsBaseRtpEndpoint * self)
 {
-  if (probe->id != 0UL) {
-    element_remove_data_probe (probe->depayloader, "sink", probe->id);
-    probe->id = 0UL;
-  }
+  kms_stats_probe_remove (probe);
 }
 
 static void
