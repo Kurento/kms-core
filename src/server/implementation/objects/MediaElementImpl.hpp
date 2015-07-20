@@ -47,6 +47,10 @@ public:
     return element;
   };
 
+  virtual std::map <std::string, std::shared_ptr<Stats>> getStats ();
+  virtual std::map <std::string, std::shared_ptr<Stats>> getStats (
+        std::shared_ptr<MediaType> mediaType);
+
   virtual std::vector<std::shared_ptr<ElementConnectionData>>
       getSourceConnections ();
   virtual std::vector<std::shared_ptr<ElementConnectionData>>
@@ -110,6 +114,9 @@ protected:
   GstBus *bus;
   gulong handlerId;
 
+  virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
+                                &report, const GstStructure *stats, double timestamp);
+
 private:
   std::recursive_timed_mutex sourcesMutex;
   std::recursive_timed_mutex sinksMutex;
@@ -127,6 +134,8 @@ private:
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
+  std::map <std::string, std::shared_ptr<Stats>> generateStats (
+        const gchar *selector);
 
   class StaticConstructor
   {

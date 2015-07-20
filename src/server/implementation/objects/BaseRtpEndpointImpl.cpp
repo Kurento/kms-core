@@ -11,7 +11,12 @@
 #include <MediaType.hpp>
 
 #include "RembParams.hpp"
-#include "Statistics.hpp"
+
+#include "StatsType.hpp"
+#include "RTCInboundRTPStreamStats.hpp"
+#include "RTCOutboundRTPStreamStats.hpp"
+#include "EndpointStats.hpp"
+#include "kmsstats.h"
 
 #define GST_CAT_DEFAULT kurento_base_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -22,6 +27,13 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_CONNECTION_DISCONNECTED 0
 #define KMS_CONNECTION_CONNECTED 1
 #define REMB_PARAMS "remb-params"
+
+#define KMS_STATISTIC_FIELD_PREFIX_SESSION "session-"
+#define KMS_STATISTIC_FIELD_PREFIX_SSRC "ssrc-"
+
+/* Fixed point conversion macros */
+#define FRIC        65536.                  /* 2^16 as a double */
+#define FP2D(r)     ((double)(r) / FRIC)
 
 namespace kurento
 {
@@ -175,49 +187,6 @@ void BaseRtpEndpointImpl::setMaxVideoSendBandwidth (int maxVideoSendBandwidth)
   g_object_set (element, "max-video-send-bandwidth", maxVideoSendBandwidth, NULL);
 }
 
-static std::map <std::string, std::shared_ptr<Stats>>
-    generateStats (GstElement *element, const gchar *selector)
-{
-  std::map <std::string, std::shared_ptr<Stats>> statsReport;
-  GstStructure *stats;
-
-  g_signal_emit_by_name (element, "stats", selector, &stats);
-
-  statsReport = stats::createStatsReport (time (NULL), stats);
-
-  gst_structure_free (stats);
-
-  return statsReport;
-}
-
-std::map <std::string, std::shared_ptr<Stats>>
-    BaseRtpEndpointImpl::getStats ()
-{
-  return generateStats (getGstreamerElement(), NULL);
-}
-
-std::map <std::string, std::shared_ptr<Stats>>
-    BaseRtpEndpointImpl::getStats (std::shared_ptr<MediaType> mediaType)
-{
-  const gchar *selector = NULL;
-
-  switch (mediaType->getValue () ) {
-  case MediaType::AUDIO:
-    selector = "audio";
-    break;
-
-  case MediaType::VIDEO:
-    selector = "video";
-    break;
-
-  default:
-    throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
-                            "Unsupported media type: " + mediaType->getString() );
-  }
-
-  return generateStats (getGstreamerElement(), selector);
-}
-
 std::shared_ptr<MediaState>
 BaseRtpEndpointImpl::getMediaState ()
 {
@@ -347,6 +316,263 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 
   g_object_set (G_OBJECT (element), REMB_PARAMS, params, NULL);
   gst_structure_free (params);
+}
+
+/******************/
+/* RTC statistics */
+/******************/
+static std::shared_ptr<RTCInboundRTPStreamStats>
+createRTCInboundRTPStreamStats (const GstStructure *stats)
+{
+  guint64 bytesReceived, packetsReceived;
+  guint jitter, fractionLost, pliCount, firCount, remb;
+  gint packetLost, clock_rate;
+  float jitterSec;
+
+  packetLost = jitter = fractionLost = pliCount = firCount = remb =
+                                         clock_rate = 0;
+  bytesReceived = packetsReceived = G_GUINT64_CONSTANT (0);
+  jitterSec = 0.0;
+
+  gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
+                     "octets-received", G_TYPE_UINT64, &bytesReceived,
+                     "sent-rb-packetslost", G_TYPE_INT, &packetLost,
+                     "sent-rb-fractionlost", G_TYPE_UINT, &fractionLost,
+                     "clock-rate", G_TYPE_INT, &clock_rate,
+                     "jitter", G_TYPE_UINT, &jitter, NULL);
+
+  /* jitter is computed in timestamp units. Convert it to seconds */
+  if (clock_rate > 0) {
+    jitterSec = (float) jitter / clock_rate;
+  }
+
+  /* Next fields are only available with PLI and FIR statistics patches so */
+  /* hey are prone to fail if these patches are not applied in Gstreamer */
+  if (!gst_structure_get (stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
+                          "sent-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
+    GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
+  }
+
+  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+    GST_TRACE ("No remb stats collected");
+  }
+
+  return std::make_shared <RTCInboundRTPStreamStats> ("",
+         std::make_shared <StatsType> (StatsType::inboundrtp), 0.0, "",
+         "", false, "", "", "", firCount, pliCount, 0, 0, remb,
+         packetLost, (float) fractionLost, packetsReceived, bytesReceived,
+         jitterSec);
+}
+
+static std::shared_ptr<RTCOutboundRTPStreamStats>
+createRTCOutboundRTPStreamStats (const GstStructure *stats)
+{
+  guint64 bytesSent, packetsSent, bitRate;
+  guint pliCount, firCount, remb, rtt, fractionLost;
+  float roundTripTime;
+  gint packetLost;
+
+  bytesSent = packetsSent = bitRate = G_GUINT64_CONSTANT (0);
+  pliCount = firCount = remb = rtt = 0;
+  roundTripTime = 0.0;
+
+  gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
+                     "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
+                     G_TYPE_UINT64, &bitRate, "round-trip-time", G_TYPE_UINT,
+                     &rtt, "outbound-fraction-lost", G_TYPE_UINT, &fractionLost,
+                     "outbound-packet-lost", G_TYPE_INT, &packetLost, NULL);
+
+  /* the round-trip time (in NTP Short Format, 16.16 fixed point) */
+  roundTripTime = FP2D (rtt);
+
+  /* Next fields are only available with PLI and FIR statistics patches so */
+  /* hey are prone to fail if these patches are not applied in Gstreamer */
+  if (!gst_structure_get (stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
+                          "recv-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
+    GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
+  }
+
+  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+    GST_TRACE ("No remb stats collected");
+  }
+
+  return std::make_shared <RTCOutboundRTPStreamStats> ("",
+         std::make_shared <StatsType> (StatsType::outboundrtp), 0.0, "",
+         "", false, "", "", "", firCount, pliCount, 0, 0, remb, packetLost,
+         (float) fractionLost, packetsSent, bytesSent, (float) bitRate,
+         roundTripTime);
+}
+
+static std::shared_ptr<RTCRTPStreamStats>
+createRTCRTPStreamStats (guint nackSent, guint nackRecv,
+                         const GstStructure *stats)
+{
+  std::shared_ptr<RTCRTPStreamStats> rtcStats;
+  gboolean isInternal;
+  gchar *ssrcStr, *id;
+  uint ssrc, nackCount;
+
+  gst_structure_get (stats, "ssrc", G_TYPE_UINT, &ssrc, "internal",
+                     G_TYPE_BOOLEAN, &isInternal, "id", G_TYPE_STRING, &id, NULL);
+
+  ssrcStr = g_strdup_printf ("%u", ssrc);
+
+  if (isInternal) {
+    /* Local SSRC */
+    rtcStats = createRTCOutboundRTPStreamStats (stats);
+    nackCount = nackRecv;
+  } else {
+    /* Remote SSRC */
+    rtcStats = createRTCInboundRTPStreamStats (stats);
+    nackCount = nackSent;
+  }
+
+  rtcStats->setNackCount (nackCount);
+  rtcStats->setSsrc (ssrcStr);
+  rtcStats->setId (id);
+
+  g_free (ssrcStr);
+  g_free (id);
+
+  return rtcStats;
+}
+
+static void
+collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
+                          &statsReport, double timestamp, const GstStructure *stats)
+{
+  guint nackSent, nackRecv;
+  gint i, n;
+
+  nackSent = nackRecv = 0;
+
+  gst_structure_get (stats, "sent-nack-count", G_TYPE_UINT, &nackSent,
+                     "recv-nack-count", G_TYPE_UINT, &nackRecv, NULL);
+
+  n = gst_structure_n_fields (stats);
+
+  for (i = 0; i < n; i++) {
+    std::shared_ptr<RTCStats> rtcStats;
+    const GValue *value;
+    const gchar *name;
+
+    name = gst_structure_nth_field_name (stats, i);
+
+    if (!g_str_has_prefix (name, KMS_STATISTIC_FIELD_PREFIX_SSRC) ) {
+      continue;
+    }
+
+    value = gst_structure_get_value (stats, name);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+      gchar *str_val;
+
+      str_val = g_strdup_value_contents (value);
+      GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+      g_free (str_val);
+
+      continue;
+    }
+
+    rtcStats = createRTCRTPStreamStats (nackSent, nackRecv,
+                                        gst_value_get_structure (value) );
+
+    rtcStats->setTimestamp (timestamp);
+
+    statsReport[rtcStats->getId ()] = rtcStats;
+  }
+}
+
+static void
+collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
+                 &statsReport, double timestamp, const GstStructure *stats)
+{
+  gint i, n;
+
+  n = gst_structure_n_fields (stats);
+
+  for (i = 0; i < n; i++) {
+    std::shared_ptr<RTCStats> rtcStats;
+    const GValue *value;
+    const gchar *name;
+
+    name = gst_structure_nth_field_name (stats, i);
+
+    if (!g_str_has_prefix (name, KMS_STATISTIC_FIELD_PREFIX_SESSION) ) {
+      GST_DEBUG ("Ignoring field %s", name);
+      continue;
+    }
+
+    value = gst_structure_get_value (stats, name);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+      gchar *str_val;
+
+      str_val = g_strdup_value_contents (value);
+      GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+      g_free (str_val);
+
+      continue;
+    }
+
+    collectRTCRTPStreamStats (statsReport, timestamp,
+                              gst_value_get_structure (value) );
+  }
+}
+
+static const GstStructure *
+get_structure_by_name (const GstStructure *stats, const gchar *name)
+{
+  const GValue *value;
+
+  value = gst_structure_get_value (stats, name);
+
+  if (value == NULL) {
+    return NULL;
+  }
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+    g_free (str_val);
+
+    return NULL;
+  }
+
+  return gst_value_get_structure (value);
+}
+
+void
+BaseRtpEndpointImpl::fillStatsReport (std::map
+                                      <std::string, std::shared_ptr<Stats>>
+                                      &report, const GstStructure *stats, double timestamp)
+{
+  const GstStructure *e_stats, *rtc_stats;
+
+  e_stats = get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
+
+  if (e_stats != NULL) {
+    std::shared_ptr<Stats> endpointStats;
+    guint64 v_e2e, a_e2e;
+
+    gst_structure_get (e_stats, "video-e2e-latency", G_TYPE_UINT64, &v_e2e,
+                       "audio-e2e-latency", G_TYPE_UINT64, &a_e2e, NULL);
+    endpointStats = std::make_shared <EndpointStats> (getId (),
+                    std::make_shared <StatsType> (StatsType::endpoint), timestamp,
+                    0.0, 0.0, a_e2e, v_e2e);
+
+    report[getId ()] = endpointStats;
+  }
+
+  rtc_stats = get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);
+
+  if (rtc_stats != NULL) {
+    collectRTCStats (report, timestamp, rtc_stats );
+  }
+
+  SdpEndpointImpl::fillStatsReport (report, stats, timestamp);
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;

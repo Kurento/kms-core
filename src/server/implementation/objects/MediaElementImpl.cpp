@@ -15,6 +15,9 @@
 #include "kmselement.h"
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
+#include <StatsType.hpp>
+#include "ElementStats.hpp"
+#include "kmsstats.h"
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -882,6 +885,94 @@ std::string MediaElementImpl::getGstreamerDot()
 void MediaElementImpl::setOutputBitrate (int bitrate)
 {
   g_object_set (G_OBJECT (element), TARGET_BITRATE, bitrate, NULL);
+}
+
+std::map <std::string, std::shared_ptr<Stats>>
+    MediaElementImpl::generateStats (const gchar *selector)
+{
+  std::map <std::string, std::shared_ptr<Stats>> statsReport;
+  GstStructure *stats;
+
+  g_signal_emit_by_name (getGstreamerElement(), "stats", selector, &stats);
+
+  fillStatsReport (statsReport, stats, time (NULL) );
+
+  gst_structure_free (stats);
+
+  return statsReport;
+}
+
+std::map <std::string, std::shared_ptr<Stats>>
+    MediaElementImpl::getStats ()
+{
+  return generateStats (NULL);
+}
+
+std::map <std::string, std::shared_ptr<Stats>>
+    MediaElementImpl::getStats (std::shared_ptr<MediaType> mediaType)
+{
+  const gchar *selector = NULL;
+
+  switch (mediaType->getValue () ) {
+  case MediaType::AUDIO:
+    selector = "audio";
+    break;
+
+  case MediaType::VIDEO:
+    selector = "video";
+    break;
+
+  default:
+    throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
+                            "Unsupported media type: " + mediaType->getString() );
+  }
+
+  return generateStats (selector);
+}
+
+void
+MediaElementImpl::fillStatsReport (std::map
+                                   <std::string, std::shared_ptr<Stats>>
+                                   &report, const GstStructure *stats, double timestamp)
+{
+  std::shared_ptr<Stats> elementStats;
+  guint64 input_video, input_audio;
+  const GValue *value;
+
+  value = gst_structure_get_value (stats, KMS_MEDIA_ELEMENT_FIELD);
+
+  if (value == NULL) {
+    /* No element stats available */
+    return;
+  }
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", KMS_MEDIA_ELEMENT_FIELD,
+                 str_val);
+    g_free (str_val);
+
+    return;
+  }
+
+  /* Get common element base parameters */
+  gst_structure_get (gst_value_get_structure (value), "input-video-latency",
+                     G_TYPE_UINT64, &input_video, "input-audio-latency", G_TYPE_UINT64,
+                     &input_audio, NULL);
+
+  if (report.find (getId () ) != report.end() ) {
+    std::shared_ptr<ElementStats> eStats =
+      std::dynamic_pointer_cast <ElementStats> (report[getId ()]);
+    eStats->setInputAudioLatency (input_audio);
+    eStats->setInputVideoLatency (input_video);
+  } else {
+    elementStats = std::make_shared <ElementStats> (getId (),
+                   std::make_shared <StatsType> (StatsType::element), timestamp,
+                   input_audio, input_video);
+    report[getId ()] = elementStats;
+  }
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;

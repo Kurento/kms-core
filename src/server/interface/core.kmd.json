@@ -406,22 +406,6 @@
         }
       ],
       "methods": [
-        {
-          "name": "getStats",
-          "doc": "Provides statistics collected for this endpoint",
-          "params": [
-            {
-              "name": "mediaType",
-              "doc": "One of :rom:attr:`MediaType.AUDIO` or :rom:attr:`MediaType.VIDEO`",
-              "type": "MediaType",
-              "optional": true
-            }
-          ],
-          "return" : {
-            "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
-            "type": "Stats<>"
-          }
-        }
       ],
       "events": [
         "MediaStateChanged",
@@ -584,6 +568,22 @@
               "type": "int"
             }
           ]
+        },
+        {
+          "name": "getStats",
+          "doc": "Provides statistics collected for this endpoint",
+          "params": [
+            {
+              "name": "mediaType",
+              "doc": "One of :rom:attr:`MediaType.AUDIO` or :rom:attr:`MediaType.VIDEO`",
+              "type": "MediaType",
+              "optional": true
+            }
+          ],
+          "return" : {
+            "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
+            "type": "Stats<>"
+          }
         }
       ],
       "events": [

@@ -18,7 +18,6 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/WorkerPool.cpp
   implementation/UUIDGenerator.cpp
   implementation/RegisterParent.cpp
-  implementation/Statistics.cpp
   implementation/DotGraph.cpp
 )
 
@@ -31,7 +30,6 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/WorkerPool.hpp
   implementation/UUIDGenerator.hpp
   implementation/RegisterParent.hpp
-  implementation/Statistics.hpp
   implementation/DotGraph.hpp
   implementation/SignalHandler.hpp
 )
