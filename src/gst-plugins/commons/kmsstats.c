@@ -132,35 +132,6 @@ process_buffer_probe_cb (GstPad * pad, GstPadProbeInfo * info,
   return GST_PAD_PROBE_OK;
 }
 
-#define KMS_STATS_TYPE_UNKNOWN "unknown"
-#define KMS_STATS_TYPE_ELEMENT "element"
-#define KMS_STATS_TYPE_ENDPOINT "endpoint"
-
-const gchar *
-kms_stats_type_to_string (KmsStatsType type)
-{
-  switch (type) {
-    case KMS_STATS_ELEMENT:
-      return KMS_STATS_TYPE_ELEMENT;
-    case KMS_STATS_ENDPOINT:
-      return KMS_STATS_TYPE_ENDPOINT;
-    default:
-      return KMS_STATS_TYPE_UNKNOWN;
-  }
-}
-
-static KmsStatsType
-string_to_element_stats_type (const gchar * str_type)
-{
-  if (g_strcmp0 (str_type, KMS_STATS_TYPE_ELEMENT) == 0) {
-    return KMS_STATS_ELEMENT;
-  } else if (g_strcmp0 (str_type, KMS_STATS_TYPE_ENDPOINT) == 0) {
-    return KMS_STATS_ENDPOINT;
-  } else {
-    return KMS_STATS_UNKNOWN;
-  }
-}
-
 GstStructure *
 kms_stats_get_element_stats (GstStructure * stats)
 {
@@ -185,30 +156,6 @@ kms_stats_get_element_stats (GstStructure * stats)
   }
 
   return element_stats;
-}
-
-void
-kms_stats_set_type (GstStructure * element_stats, KmsStatsType type)
-{
-  gst_structure_set (element_stats, "type", G_TYPE_STRING,
-      kms_stats_type_to_string (type), NULL);
-}
-
-KmsStatsType
-kms_stats_get_type (const GstStructure * element_stats)
-{
-  KmsStatsType type;
-  gchar *str_type;
-
-  if (!gst_structure_get (element_stats, "type", G_TYPE_STRING, &str_type,
-          NULL)) {
-    return KMS_STATS_UNKNOWN;
-  }
-
-  type = string_to_element_stats_type (str_type);
-  g_free (str_type);
-
-  return type;
 }
 
 static void

@@ -111,7 +111,6 @@ static guint element_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
-  PROP_ELEMENT_ID,
   PROP_ACCEPT_EOS,
   PROP_AUDIO_CAPS,
   PROP_VIDEO_CAPS,
@@ -699,12 +698,6 @@ kms_element_set_property (GObject * object, guint property_id,
   KmsElement *self = KMS_ELEMENT (object);
 
   switch (property_id) {
-    case PROP_ELEMENT_ID:
-      KMS_ELEMENT_LOCK (self);
-      g_free (self->priv->id);
-      self->priv->id = g_strdup (g_value_get_string (value));
-      KMS_ELEMENT_UNLOCK (self);
-      break;
     case PROP_ACCEPT_EOS:
       KMS_ELEMENT_LOCK (self);
       self->priv->accept_eos = g_value_get_boolean (value);
@@ -749,11 +742,6 @@ kms_element_get_property (GObject * object, guint property_id,
   KmsElement *self = KMS_ELEMENT (object);
 
   switch (property_id) {
-    case PROP_ELEMENT_ID:
-      KMS_ELEMENT_LOCK (self);
-      g_value_set_string (value, self->priv->id);
-      KMS_ELEMENT_UNLOCK (self);
-      break;
     case PROP_ACCEPT_EOS:
       KMS_ELEMENT_LOCK (self);
       g_value_set_boolean (value, self->priv->accept_eos);
@@ -798,8 +786,6 @@ kms_element_finalize (GObject * object)
   GST_DEBUG_OBJECT (object, "finalize");
 
   kms_element_destroy_stats (element);
-
-  g_free (element->priv->id);
 
   /* free resources allocated by this object */
   g_hash_table_unref (element->priv->pendingpads);
@@ -951,17 +937,14 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
   if (self->priv->stats_enabled) {
     GstStructure *e_stats;
 
-    e_stats = gst_structure_new (KMS_ELEMENT_STATS_STRUCT_NAME, "type",
-        G_TYPE_STRING, kms_stats_type_to_string (KMS_STATS_ELEMENT), "id",
-        G_TYPE_STRING, self->priv->id, NULL);
-
     /* Video and audio latencies are measured in nano seconds. They */
     /* are such an small values so there is no harm in casting them */
     /* to uint64 even we might lose a bit of preccision.            */
 
-    gst_structure_set (e_stats, "input-video-latency", G_TYPE_UINT64,
-        (guint64) self->priv->stats.vi, "input-audio-latency", G_TYPE_UINT64,
-        (guint64) self->priv->stats.ai, NULL);
+    e_stats = gst_structure_new (KMS_ELEMENT_STATS_STRUCT_NAME,
+        "input-video-latency", G_TYPE_UINT64, (guint64) self->priv->stats.vi,
+        "input-audio-latency", G_TYPE_UINT64, (guint64) self->priv->stats.ai,
+        NULL);
 
     gst_structure_set (stats, KMS_MEDIA_ELEMENT_FIELD, GST_TYPE_STRUCTURE,
         e_stats, NULL);
@@ -1022,12 +1005,6 @@ kms_element_class_init (KmsElementClass * klass)
       gst_static_pad_template_get (&data_src_factory));
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&sink_factory));
-
-  g_object_class_install_property (gobject_class, PROP_ELEMENT_ID,
-      g_param_spec_string ("element-id",
-          "Element identifier", "Element identifier",
-          NULL,
-          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_ACCEPT_EOS,
       g_param_spec_boolean ("accept-eos",

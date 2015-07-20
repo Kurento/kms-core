@@ -2488,8 +2488,6 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
       (guint64) self->priv->stats.vi, "audio-e2e-latency", G_TYPE_UINT64,
       (guint64) self->priv->stats.ai, NULL);
 
-  kms_stats_set_type (e_stats, KMS_STATS_ENDPOINT);
-
   return stats;
 }
 

@@ -69,7 +69,6 @@ generate_code (
       ${gstreamer-1.5_LIBRARIES}
       ${KmsJsonRpc_LIBRARIES}
       kmsutils
-      kmsgstcommons
   MODULE_EXTRA_INCLUDE_DIRS
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${gstreamer-1.5_INCLUDE_DIRS}

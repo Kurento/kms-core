@@ -31,17 +31,7 @@ G_BEGIN_DECLS
   (ti) * KMS_STATS_ALPHA + (ax) * (1 - KMS_STATS_ALPHA);  \
 })
 
-typedef enum {
-  KMS_STATS_UNKNOWN,
-  KMS_STATS_ELEMENT,
-  KMS_STATS_ENDPOINT
-} KmsStatsType;
-
-const gchar * kms_stats_type_to_string (KmsStatsType type);
-
 GstStructure * kms_stats_get_element_stats (GstStructure *stats);
-void kms_stats_set_type (GstStructure *element_stats, KmsStatsType type);
-KmsStatsType kms_stats_get_type (const GstStructure *element_stats);
 
 /* buffer latency */
 typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
@@ -50,7 +40,6 @@ gulong kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is
 gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data);
 
 typedef struct _KmsStatsProbe KmsStatsProbe;
-typedef void (*StatsProbeCallback) (GstBuffer *buff, gpointer user_data);
 
 KmsStatsProbe * kms_stats_probe_new (GstPad *pad, KmsMediaType type);
 void kms_stats_probe_destroy (KmsStatsProbe *probe);
