@@ -37,8 +37,8 @@ typedef enum {
   KMS_STATS_ENDPOINT
 } KmsStatsType;
 
-GstStructure * kms_stats_element_stats_new (KmsStatsType type, const gchar *id);
-void kms_stats_add (GstStructure *stats, GstStructure *element_stats);
+const gchar * kms_stats_type_to_string (KmsStatsType type);
+
 GstStructure * kms_stats_get_element_stats (GstStructure *stats);
 void kms_stats_set_type (GstStructure *element_stats, KmsStatsType type);
 KmsStatsType kms_stats_get_type (const GstStructure *element_stats);

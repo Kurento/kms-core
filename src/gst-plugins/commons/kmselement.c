@@ -951,7 +951,9 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
   if (self->priv->stats_enabled) {
     GstStructure *e_stats;
 
-    e_stats = kms_stats_element_stats_new (KMS_STATS_ELEMENT, self->priv->id);
+    e_stats = gst_structure_new (KMS_ELEMENT_STATS_STRUCT_NAME, "type",
+        G_TYPE_STRING, kms_stats_type_to_string (KMS_STATS_ELEMENT), "id",
+        G_TYPE_STRING, self->priv->id, NULL);
 
     /* Video and audio latencies are measured in nano seconds. They */
     /* are such an small values so there is no harm in casting them */
@@ -961,7 +963,9 @@ kms_element_stats_action_impl (KmsElement * self, gchar * selector)
         (guint64) self->priv->stats.vi, "input-audio-latency", G_TYPE_UINT64,
         (guint64) self->priv->stats.ai, NULL);
 
-    kms_stats_add (stats, e_stats);
+    gst_structure_set (stats, KMS_MEDIA_ELEMENT_FIELD, GST_TYPE_STRUCTURE,
+        e_stats, NULL);
+
     gst_structure_free (e_stats);
   }
 

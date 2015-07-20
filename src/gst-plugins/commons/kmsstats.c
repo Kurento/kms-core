@@ -136,8 +136,8 @@ process_buffer_probe_cb (GstPad * pad, GstPadProbeInfo * info,
 #define KMS_STATS_TYPE_ELEMENT "element"
 #define KMS_STATS_TYPE_ENDPOINT "endpoint"
 
-static const gchar *
-element_stats_type_to_string (KmsStatsType type)
+const gchar *
+kms_stats_type_to_string (KmsStatsType type)
 {
   switch (type) {
     case KMS_STATS_ELEMENT:
@@ -159,21 +159,6 @@ string_to_element_stats_type (const gchar * str_type)
   } else {
     return KMS_STATS_UNKNOWN;
   }
-}
-
-GstStructure *
-kms_stats_element_stats_new (KmsStatsType type, const gchar * id)
-{
-  return gst_structure_new (KMS_ELEMENT_STATS_STRUCT_NAME, "type",
-      G_TYPE_STRING, element_stats_type_to_string (type), "id", G_TYPE_STRING,
-      id, NULL);
-}
-
-void
-kms_stats_add (GstStructure * stats, GstStructure * element_stats)
-{
-  gst_structure_set (stats, KMS_MEDIA_ELEMENT_FIELD, GST_TYPE_STRUCTURE,
-      element_stats, NULL);
 }
 
 GstStructure *
@@ -206,7 +191,7 @@ void
 kms_stats_set_type (GstStructure * element_stats, KmsStatsType type)
 {
   gst_structure_set (element_stats, "type", G_TYPE_STRING,
-      element_stats_type_to_string (type), NULL);
+      kms_stats_type_to_string (type), NULL);
 }
 
 KmsStatsType
