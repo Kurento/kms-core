@@ -36,11 +36,14 @@ GST_DEBUG_CATEGORY_STATIC (kms_dummy_src_debug_category);
   )                                       \
 )
 
+#define DEFAULT_AUDIO_FREQ 440
+
 struct _KmsDummySrcPrivate
 {
   gboolean video;
   gboolean audio;
   gboolean data;
+  gdouble audio_freq;
   GstElement *videoappsrc;
   GstElement *audioappsrc;
   GstElement *dataappsrc;
@@ -59,6 +62,7 @@ enum
   PROP_DATA,
   PROP_AUDIO,
   PROP_VIDEO,
+  PROP_AUDIO_FREQ,
   N_PROPERTIES
 };
 
@@ -149,7 +153,7 @@ kms_dummy_src_set_property (GObject * object, guint property_id,
         self->priv->audioappsrc =
             gst_element_factory_make ("audiotestsrc", NULL);
         g_object_set (G_OBJECT (self->priv->audioappsrc), "is-live", TRUE,
-            NULL);
+            "freq", self->priv->audio_freq, NULL);
         gst_bin_add (GST_BIN (self), self->priv->audioappsrc);
         gst_element_link_pads (self->priv->audioappsrc, "src", agnosticbin,
             "sink");
@@ -173,6 +177,14 @@ kms_dummy_src_set_property (GObject * object, guint property_id,
         gst_element_link_pads (self->priv->videoappsrc, "src", agnosticbin,
             "sink");
         gst_element_sync_state_with_parent (self->priv->videoappsrc);
+      }
+      break;
+    case PROP_AUDIO_FREQ:
+      self->priv->audio_freq = g_value_get_double (value);
+
+      if (self->priv->audioappsrc) {
+        g_object_set (self->priv->audioappsrc, "freq", self->priv->audio_freq,
+            NULL);
       }
       break;
     default:
@@ -235,6 +247,10 @@ kms_dummy_src_class_init (KmsDummySrcClass * klass)
       "Video", "Provides video on TRUE", FALSE,
       (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
+  obj_properties[PROP_AUDIO_FREQ] = g_param_spec_double ("audio-freq",
+      "Audio frequesncy", "Sets audio frequency when audio is enabled", 0,
+      20000, DEFAULT_AUDIO_FREQ, (G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
+
   g_object_class_install_properties (gobject_class,
       N_PROPERTIES, obj_properties);
 
@@ -245,6 +261,8 @@ static void
 kms_dummy_src_init (KmsDummySrc * self)
 {
   self->priv = KMS_DUMMY_SRC_GET_PRIVATE (self);
+
+  self->priv->audio_freq = DEFAULT_AUDIO_FREQ;
 }
 
 gboolean
