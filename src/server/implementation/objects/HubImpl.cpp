@@ -23,8 +23,7 @@ HubImpl::HubImpl (const boost::property_tree::ptree &config,
   element = gst_element_factory_make (factoryName.c_str(), NULL);
 
   g_object_ref (element);
-  gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
-  gst_element_sync_state_with_parent (element);
+  pipe->addElement (element);
 }
 
 HubImpl::~HubImpl()

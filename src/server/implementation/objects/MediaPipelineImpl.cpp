@@ -7,6 +7,7 @@
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
 #include <SignalHandler.hpp>
+#include <commons/kmselement.h>
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -128,6 +129,75 @@ std::string MediaPipelineImpl::getGstreamerDot (
 std::string MediaPipelineImpl::getGstreamerDot()
 {
   return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
+}
+
+bool
+MediaPipelineImpl::getLatencyStats ()
+{
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+  return latencyStats;
+}
+
+void
+MediaPipelineImpl::setLatencyStats (bool latencyStats)
+{
+  GstIterator *it;
+  gboolean done = FALSE;
+  GValue item = G_VALUE_INIT;
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+
+  if (this->latencyStats == latencyStats) {
+    return;
+  }
+
+  this->latencyStats = latencyStats;
+  it = gst_bin_iterate_elements (GST_BIN (pipeline) );
+
+  while (!done) {
+    switch (gst_iterator_next (it, &item) ) {
+    case GST_ITERATOR_OK: {
+      GstElement *element = GST_ELEMENT (g_value_get_object (&item) );
+
+      if (KMS_IS_ELEMENT (element) ) {
+        g_object_set (element, "media-stats", latencyStats, NULL);
+      }
+
+      g_value_reset (&item);
+      break;
+    }
+
+    case GST_ITERATOR_RESYNC:
+      gst_iterator_resync (it);
+      break;
+
+    case GST_ITERATOR_ERROR:
+    case GST_ITERATOR_DONE:
+      done = TRUE;
+      break;
+    }
+  }
+
+  g_value_unset (&item);
+  gst_iterator_free (it);
+}
+
+bool
+MediaPipelineImpl::addElement (GstElement *element)
+{
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+  bool ret;
+
+  if (KMS_IS_ELEMENT (element) ) {
+    g_object_set (element, "media-stats", latencyStats, NULL);
+  }
+
+  ret = gst_bin_add (GST_BIN (pipeline), element);
+
+  if (ret) {
+    gst_element_sync_state_with_parent (element);
+  }
+
+  return ret;
 }
 
 MediaObjectImpl *

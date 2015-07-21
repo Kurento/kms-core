@@ -33,6 +33,9 @@ public:
   virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>
                                        details);
 
+  virtual bool getLatencyStats ();
+  virtual void setLatencyStats (bool latencyStats);
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
@@ -42,6 +45,9 @@ public:
                        Json::Value &response);
 
   virtual void Serialize (JsonSerializer &serializer);
+
+  bool addElement (GstElement *element);
+
 protected:
   virtual void postConstructor ();
 private:
@@ -49,6 +55,9 @@ private:
   GstElement *pipeline;
 
   gulong busMessageHandler;
+
+  std::recursive_mutex recMutex;
+  bool latencyStats = false;
 
   void busMessage (GstMessage *message);
 

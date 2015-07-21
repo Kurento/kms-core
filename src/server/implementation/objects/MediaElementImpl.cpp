@@ -357,8 +357,7 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                                         G_CALLBACK (_media_element_pad_added), this);
 
   g_object_ref (element);
-  gst_bin_add (GST_BIN ( pipe->getPipeline() ), element);
-  gst_element_sync_state_with_parent (element);
+  pipe->addElement (element);
 
   //read default configuration for output bitrate
   try {

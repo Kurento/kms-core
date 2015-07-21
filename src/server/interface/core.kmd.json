@@ -275,6 +275,14 @@
         "params": [
         ]
       },
+      "properties": [
+        {
+          "name": "latencyStats",
+          "doc" : "If statistics about pipeline latency are enabled for all mediaElements",
+          "type": "boolean",
+          "defaultValue": false
+        }
+      ],
       "methods": [
         {
           "name": "getGstreamerDot",
