@@ -73,7 +73,6 @@ set(KMS_COMMONS_SOURCES
   kmsbasehub.c
   kmsuriendpoint.c
   kmsrefstruct.c
-  kmsistats.c
   kmsbufferlacentymeta.c
   kmsserializablemeta.c
   kmsstats.c
@@ -96,7 +95,6 @@ set(KMS_COMMONS_HEADERS
   kmsmediatype.h
   kmsuriendpoint.h
   kmsrefstruct.h
-  kmsistats.h
   kmsbufferlacentymeta.h
   kmsserializablemeta.h
   kmsstats.h

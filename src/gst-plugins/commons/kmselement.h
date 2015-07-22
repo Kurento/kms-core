@@ -67,11 +67,11 @@ struct _KmsElementClass
   /* actions */
   gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
   gboolean (*release_requested_srcpad) (KmsElement *self, const gchar *pad_name);
+  GstStructure * (*stats) (KmsElement * self, gchar * selector);
 
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
-  GstStructure * (*stats_action) (KmsElement * self, gchar * selector);
-  void (*collect_media_stats_action) (KmsElement * self, gboolean enable);
+  void (*collect_media_stats) (KmsElement * self, gboolean enable);
 };
 
 GType kms_element_get_type (void);

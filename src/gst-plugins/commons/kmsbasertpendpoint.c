@@ -2451,7 +2451,7 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
 }
 
 static GstStructure *
-kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
+kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
   GstStructure *stats, *rtp_stats, *e_stats;
@@ -2459,7 +2459,7 @@ kms_base_rtp_endpoint_stats_action (KmsElement * obj, gchar * selector)
 
   /* chain up */
   stats =
-      KMS_ELEMENT_CLASS (kms_base_rtp_endpoint_parent_class)->stats_action (obj,
+      KMS_ELEMENT_CLASS (kms_base_rtp_endpoint_parent_class)->stats (obj,
       selector);
 
   rtp_stats = gst_structure_new_empty (KMS_RTP_STRUCT_NAME);
@@ -2506,8 +2506,7 @@ kms_base_rtp_endpoint_disable_media_stats (KmsStatsProbe * probe,
 }
 
 static void
-kms_base_rtp_endpoint_collect_media_stats_action (KmsElement * obj,
-    gboolean enable)
+kms_base_rtp_endpoint_collect_media_stats (KmsElement * obj, gboolean enable)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
 
@@ -2530,8 +2529,7 @@ kms_base_rtp_endpoint_collect_media_stats_action (KmsElement * obj,
   g_mutex_unlock (&self->priv->stats.mutex);
 
   KMS_ELEMENT_CLASS
-      (kms_base_rtp_endpoint_parent_class)->collect_media_stats_action (obj,
-      enable);
+      (kms_base_rtp_endpoint_parent_class)->collect_media_stats (obj, enable);
 }
 
 static void
@@ -2549,10 +2547,9 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   object_class->get_property = kms_bse_rtp_endpoint_get_property;
 
   kmselement_class = KMS_ELEMENT_CLASS (klass);
-  kmselement_class->stats_action =
-      GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_stats_action);
-  kmselement_class->collect_media_stats_action =
-      GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_collect_media_stats_action);
+  kmselement_class->stats = GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_stats);
+  kmselement_class->collect_media_stats =
+      GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_collect_media_stats);
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
   gst_element_class_set_details_simple (gstelement_class,

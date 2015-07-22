@@ -22,7 +22,6 @@
 #include "kms-core-marshal.h"
 #include "kmselement.h"
 #include "kmsagnosticcaps.h"
-#include "kmsistats.h"
 #include "kmsstats.h"
 #include "kmsutils.h"
 
@@ -33,11 +32,8 @@
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
 #define GST_CAT_DEFAULT kms_element_debug_category
 
-static void kms_istats_interface_init (KmsIStatsInterface * iface);
-
 G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
     GST_TYPE_BIN,
-    G_IMPLEMENT_INTERFACE (KMS_TYPE_ISTATS, kms_istats_interface_init);
     GST_DEBUG_CATEGORY_INIT (kms_element_debug_category, PLUGIN_NAME,
         0, "debug category for element"));
 
@@ -103,6 +99,7 @@ enum
   /* Actions */
   REQUEST_NEW_SRCPAD,
   RELEASE_REQUESTED_SRCPAD,
+  STATS,
   LAST_SIGNAL
 };
 
@@ -724,7 +721,7 @@ kms_element_set_property (GObject * object, guint property_id,
       KMS_ELEMENT_LOCK (self);
       if (enable != self->priv->stats_enabled) {
         self->priv->stats_enabled = enable;
-        KMS_ELEMENT_GET_CLASS (self)->collect_media_stats_action (self, enable);
+        KMS_ELEMENT_GET_CLASS (self)->collect_media_stats (self, enable);
       }
       KMS_ELEMENT_UNLOCK (self);
       break;
@@ -928,7 +925,7 @@ kms_element_release_requested_srcpad_action (KmsElement * self,
 }
 
 static GstStructure *
-kms_element_stats_action_impl (KmsElement * self, gchar * selector)
+kms_element_stats_impl (KmsElement * self, gchar * selector)
 {
   GstStructure *stats;
 
@@ -968,7 +965,7 @@ kms_element_disable_media_stats (KmsStatsProbe * probe, KmsElement * self)
 }
 
 static void
-kms_element_collect_media_stats_action_impl (KmsElement * self, gboolean enable)
+kms_element_collect_media_stats_impl (KmsElement * self, gboolean enable)
 {
   if (enable) {
     g_slist_foreach (self->priv->stats.probes,
@@ -1027,13 +1024,14 @@ kms_element_class_init (KmsElementClass * klass)
           "Configure the bitrate to media encoding",
           0, G_MAXINT, 0, G_PARAM_READWRITE));
 
-  g_object_class_override_property (gobject_class, PROP_MEDIA_STATS,
-      "media-stats");
+  g_object_class_install_property (gobject_class, PROP_MEDIA_STATS,
+      g_param_spec_boolean ("media-stats", "Media stats",
+          "Indicates wheter this element is collecting stats or not",
+          FALSE, G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
-  klass->stats_action = GST_DEBUG_FUNCPTR (kms_element_stats_action_impl);
-  klass->collect_media_stats_action =
-      GST_DEBUG_FUNCPTR (kms_element_collect_media_stats_action_impl);
+  klass->collect_media_stats =
+      GST_DEBUG_FUNCPTR (kms_element_collect_media_stats_impl);
 
   /* set actions */
   element_signals[REQUEST_NEW_SRCPAD] =
@@ -1051,10 +1049,18 @@ kms_element_class_init (KmsElementClass * klass)
       G_STRUCT_OFFSET (KmsElementClass, release_requested_srcpad), NULL, NULL,
       __kms_core_marshal_BOOLEAN__STRING, G_TYPE_BOOLEAN, 1, G_TYPE_STRING);
 
+  element_signals[STATS] =
+      g_signal_new ("stats", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+      G_STRUCT_OFFSET (KmsElementClass, stats),
+      NULL, NULL, __kms_core_marshal_BOXED__STRING, GST_TYPE_STRUCTURE, 1,
+      G_TYPE_STRING);
+
   klass->request_new_srcpad =
       GST_DEBUG_FUNCPTR (kms_element_request_new_srcpad_action);
   klass->release_requested_srcpad =
       GST_DEBUG_FUNCPTR (kms_element_release_requested_srcpad_action);
+  klass->stats = GST_DEBUG_FUNCPTR (kms_element_stats_impl);
 
   g_type_class_add_private (klass, sizeof (KmsElementPrivate));
 }
@@ -1113,23 +1119,4 @@ kms_element_get_pad_type (KmsElement * self, GstPad * pad)
   gst_object_unref (templ);
 
   return type;
-}
-
-static GstStructure *
-kms_element_stats_action (KmsIStats * obj, gchar * selector)
-{
-  KmsElement *self = KMS_ELEMENT (obj);
-  GstStructure *stats;
-
-  KMS_ELEMENT_LOCK (self);
-  stats = KMS_ELEMENT_GET_CLASS (self)->stats_action (self, selector);
-  KMS_ELEMENT_UNLOCK (self);
-
-  return stats;
-}
-
-static void
-kms_istats_interface_init (KmsIStatsInterface * iface)
-{
-  iface->stats = kms_element_stats_action;
 }
