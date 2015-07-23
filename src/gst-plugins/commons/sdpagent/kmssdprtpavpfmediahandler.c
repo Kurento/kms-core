@@ -357,7 +357,7 @@ kms_sdp_rtp_avpf_media_handler_filter_rtcp_fb_attrs (KmsSdpMediaHandler *
 
 GstSDPMedia *
 kms_sdp_rtp_avpf_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GError ** error)
+    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
 {
   GstSDPMedia *m;
 
@@ -380,7 +380,7 @@ kms_sdp_rtp_avpf_media_handler_create_answer (KmsSdpMediaHandler * handler,
   }
 
   if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->intersect_sdp_medias (handler,
-          offer, m, error)) {
+          offer, m, ctx, error)) {
     goto error;
   }
 
@@ -405,7 +405,7 @@ kms_sdp_rtp_avpf_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
 static gboolean
 kms_sdp_rtp_avpf_media_handler_can_insert_attribute (KmsSdpMediaHandler *
     handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer)
+    GstSDPMedia * answer, SdpMessageContext * ctx)
 {
   if (g_strcmp0 (attr->key, SDP_MEDIA_RTCP_FB) == 0) {
     /* ignore */
@@ -413,7 +413,7 @@ kms_sdp_rtp_avpf_media_handler_can_insert_attribute (KmsSdpMediaHandler *
   }
 
   if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
-      (handler, offer, attr, answer)) {
+      (handler, offer, attr, answer, ctx)) {
     return FALSE;
   }
 
@@ -425,6 +425,7 @@ struct intersect_data
   KmsSdpMediaHandler *handler;
   const GstSDPMedia *offer;
   GstSDPMedia *answer;
+  SdpMessageContext *ctx;
 };
 
 static gboolean
@@ -433,8 +434,9 @@ instersect_rtp_avpf_media_attr (const GstSDPAttribute * attr,
 {
   struct intersect_data *data = (struct intersect_data *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
+          handler)->can_insert_attribute (data->handler, data->offer, attr,
+          data->answer, data->ctx)) {
     return FALSE;
   }
 
@@ -449,12 +451,14 @@ instersect_rtp_avpf_media_attr (const GstSDPAttribute * attr,
 
 static gboolean
 kms_sdp_rtp_avpf_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
-    handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+    handler, const GstSDPMedia * offer, GstSDPMedia * answer,
+    SdpMessageContext * ctx, GError ** error)
 {
   struct intersect_data data = {
     .handler = handler,
     .offer = offer,
-    .answer = answer
+    .answer = answer,
+    .ctx = ctx
   };
 
   if (!sdp_utils_intersect_media_attributes (offer,

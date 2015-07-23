@@ -45,6 +45,7 @@ GstSDPMedia * kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf);
 gboolean kms_sdp_media_config_is_inactive (SdpMediaConfig * mconf);
 GstSDPMessage * kms_sdp_message_context_pack (SdpMessageContext *ctx, GError **error);
 SdpMediaGroup * kms_sdp_message_context_create_group (SdpMessageContext *ctx, guint gid);
+gboolean kms_sdp_message_context_has_groups (SdpMessageContext *ctx);
 gint kms_sdp_media_group_get_id (SdpMediaGroup *group);
 SdpMediaGroup * kms_sdp_message_context_get_group (SdpMessageContext *ctx, guint gid);
 gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMediaConfig *media, GError **error);

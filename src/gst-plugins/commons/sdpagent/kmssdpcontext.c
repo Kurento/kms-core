@@ -468,6 +468,12 @@ kms_sdp_message_context_create_group (SdpMessageContext * ctx, guint gid)
   return group;
 }
 
+gboolean
+kms_sdp_message_context_has_groups (SdpMessageContext * ctx)
+{
+  return g_slist_length (ctx->groups) > 0;
+}
+
 gint
 kms_sdp_media_group_get_id (SdpMediaGroup * group)
 {

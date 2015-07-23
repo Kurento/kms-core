@@ -35,18 +35,18 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpMediaHandler, kms_sdp_media_handler,
 #define DEFAULT_ADDR_TYPE "IP4"
 
 typedef gboolean (*KmsSdpAcceptAttributeFunc) (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media);
+    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx);
 
 static gboolean
 default_accept_attribute (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media)
+    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
 {
   return TRUE;
 }
 
 static gboolean
 accept_fmtp_attribute (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media)
+    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
 {
   guint i, len;
   gchar **fmtp;
@@ -72,6 +72,13 @@ accept_fmtp_attribute (const GstSDPMedia * offer,
   return ret;
 }
 
+static gboolean
+accept_mid_attribute (const GstSDPMedia * offer,
+    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
+{
+  return kms_sdp_message_context_has_groups (ctx);
+}
+
 typedef struct _KmsSdpSupportedAttrType
 {
   const gchar *name;
@@ -84,7 +91,7 @@ static KmsSdpSupportedAttrType attributes[] = {
   {"fmtp", accept_fmtp_attribute},
   {"lang", default_accept_attribute},
   {"maxptime", default_accept_attribute},
-  {"mid", default_accept_attribute},
+  {"mid", accept_mid_attribute},
   {"ptime", default_accept_attribute},
   {"quality", default_accept_attribute},
   {"setup", default_accept_attribute}
@@ -191,7 +198,7 @@ kms_sdp_media_handler_create_offer_impl (KmsSdpMediaHandler * handler,
 
 static GstSDPMedia *
 kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GError ** error)
+    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
       "Not implemented");
@@ -239,7 +246,7 @@ is_direction_attr_present (const GstSDPMedia * media)
 static gboolean
 kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * media)
+    GstSDPMedia * media, SdpMessageContext * ctx)
 {
   guint i, len;
 
@@ -255,7 +262,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
 
   for (i = 0; i < len; i++) {
     if (g_strcmp0 (attr->key, attributes[i].name) == 0) {
-      return attributes[i].accept (offer, attr, media);
+      return attributes[i].accept (offer, attr, media, ctx);
     }
   }
 
@@ -264,7 +271,8 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
 
 static gboolean
 kms_sdp_media_handler_intersect_sdp_medias_impl (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+    const GstSDPMedia * offer, GstSDPMedia * answer, SdpMessageContext * ctx,
+    GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
       "Not implemented");
@@ -389,12 +397,12 @@ kms_sdp_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
 GstSDPMedia *
 kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GError ** error)
+    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
-      offer, error);
+      ctx, offer, error);
 }
 
 void

@@ -101,13 +101,13 @@ kms_sdp_rtp_media_handler_set_property (GObject * object, guint prop_id,
 static gboolean
 kms_sdp_rtp_media_handler_can_insert_attribute (KmsSdpMediaHandler *
     handler, const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer)
+    GstSDPMedia * answer, SdpMessageContext * ctx)
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
   if (g_strcmp0 (attr->key, "rtcp-mux") != 0) {
     return KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->can_insert_attribute
-        (handler, offer, attr, answer);
+        (handler, offer, attr, answer, ctx);
   }
 
   if (!self->priv->rtcp_mux) {
@@ -126,6 +126,7 @@ struct IntersectAttrData
   KmsSdpMediaHandler *handler;
   const GstSDPMedia *offer;
   GstSDPMedia *answer;
+  SdpMessageContext *ctx;
 };
 
 static gboolean
@@ -133,8 +134,9 @@ instersect_rtp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 {
   struct IntersectAttrData *data = (struct IntersectAttrData *) user_data;
 
-  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->handler)->
-      can_insert_attribute (data->handler, data->offer, attr, data->answer)) {
+  if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (data->
+          handler)->can_insert_attribute (data->handler, data->offer, attr,
+          data->answer, data->ctx)) {
     return FALSE;
   }
 
@@ -149,12 +151,14 @@ instersect_rtp_media_attr (const GstSDPAttribute * attr, gpointer user_data)
 
 static gboolean
 kms_sdp_rtp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
+    const GstSDPMedia * offer, GstSDPMedia * answer, SdpMessageContext * ctx,
+    GError ** error)
 {
   struct IntersectAttrData data = {
     .handler = handler,
     .offer = offer,
-    .answer = answer
+    .answer = answer,
+    .ctx = ctx
   };
 
   if (!sdp_utils_intersect_media_attributes (offer,

@@ -490,7 +490,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   }
 
   answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
-      media, err);
+      data->ctx, media, err);
 
   if (answer_media == NULL) {
     return FALSE;
@@ -526,10 +526,12 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 {
   struct SdpAnswerData data;
   SdpMessageContext *ctx;
+  gboolean bundle;
   SdpIPv ipv;
 
   SDP_AGENT_LOCK (agent);
   ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
+  bundle = g_slist_length (agent->priv->groups) > 0;
   SDP_AGENT_UNLOCK (agent);
 
   ctx = kms_sdp_message_context_new (ipv, agent->priv->addr, error);
@@ -539,7 +541,8 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
 
-  if (!kms_sdp_message_context_parse_groups_from_offer (ctx, offer, error)) {
+  if (bundle
+      && !kms_sdp_message_context_parse_groups_from_offer (ctx, offer, error)) {
     goto error;
   }
 

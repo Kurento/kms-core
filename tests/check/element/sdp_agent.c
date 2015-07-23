@@ -383,7 +383,7 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
     }
 
     /* This negotiation should only have 5 attributes */
-    fail_if (gst_sdp_media_attributes_len (media) != 5);
+    fail_if (gst_sdp_media_attributes_len (media) != 4);
   }
   g_object_unref (answerer);
 
@@ -687,8 +687,27 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   g_object_unref (answerer);
 }
 
-GST_END_TEST static void
-test_bundle_group (void)
+GST_END_TEST static gboolean
+check_mid_attr (const GstSDPMedia * media, gpointer user_data)
+{
+  gboolean expected = *((gboolean *) user_data);
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_media_get_attribute (media, i);
+
+    fail_if (g_strcmp0 (a->key, "mid") == 0 && !expected);
+  }
+
+  return TRUE;
+}
+
+static void
+test_bundle_group (gboolean expected_bundle)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
@@ -727,14 +746,26 @@ test_bundle_group (void)
   /* Add audio to bundle group */
   fail_unless (kms_sdp_agent_add_handler_to_group (offerer, gid, hid));
 
+  if (expected_bundle) {
+    gid = kms_sdp_agent_crate_bundle_group (answerer);
+  }
+
   /* re-use handler for video in answerer */
   g_object_ref (handler);
   hid = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (hid < 0);
 
+  if (expected_bundle) {
+    fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, hid));
+  }
+
   g_object_ref (handler);
   hid = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (hid < 0);
+
+  if (expected_bundle) {
+    fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, hid));
+  }
 
   ctx = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
@@ -759,6 +790,14 @@ test_bundle_group (void)
   /* Same number of medias must be in answer */
   fail_if (gst_sdp_message_medias_len (offer) !=
       gst_sdp_message_medias_len (answer));
+
+  if (!expected_bundle) {
+    fail_if (gst_sdp_message_get_attribute_val (answer, "group") != NULL);
+  } else {
+    fail_if (gst_sdp_message_get_attribute_val (answer, "group") == NULL);
+  }
+
+  sdp_utils_for_each_media (answer, check_mid_attr, &expected_bundle);
 
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);
@@ -846,10 +885,12 @@ test_group_with_pattern (const gchar * sdp_pattern,
 {
   KmsSdpMediaHandler *handler;
   KmsSdpAgent *answerer;
-  gint id;
+  gint gid, hid;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  gid = kms_sdp_agent_crate_bundle_group (answerer);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
@@ -857,13 +898,17 @@ test_group_with_pattern (const gchar * sdp_pattern,
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
-  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
-  fail_if (id < 0);
+  hid = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (hid < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, hid));
 
   /* re-use handler for audio */
   g_object_ref (handler);
-  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
-  fail_if (id < 0);
+  hid = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (hid < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, hid));
 
   test_sdp_pattern_offer (sdp_pattern, answerer, func, NULL);
 
@@ -963,7 +1008,8 @@ sdp_agent_test_bundle_group_without_answerer_handlers ()
 
 GST_START_TEST (sdp_agent_test_bundle_group)
 {
-  test_bundle_group ();
+  test_bundle_group (FALSE);
+  test_bundle_group (TRUE);
   test_group_with_pattern (sdp_no_bundle_group_str, check_no_group_attr, NULL);
   test_group_with_pattern (sdp_bundle_group_str, check_fmt_group_attr, NULL);
   sdp_agent_test_bundle_group_without_answerer_handlers ();

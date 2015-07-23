@@ -18,6 +18,8 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include "kmssdpcontext.h"
+
 G_BEGIN_DECLS
 
 #define KMS_TYPE_SDP_MEDIA_HANDLER \
@@ -71,13 +73,13 @@ struct _KmsSdpMediaHandlerClass
 
   /* public methods */
   GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
-  GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GError **error);
+  GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, SdpMessageContext *ctx, const GstSDPMedia * offer, GError **error);
   void (*add_bandwidth) (KmsSdpMediaHandler *handler, const gchar *bwtype, guint bandwidth);
   gboolean (*manage_protocol) (KmsSdpMediaHandler *handler, const gchar *protocol);
 
   /* private methods */
-  gboolean (*can_insert_attribute) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer);
-  gboolean (*intersect_sdp_medias) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
+  gboolean (*can_insert_attribute) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer, SdpMessageContext *ctx);
+  gboolean (*intersect_sdp_medias) (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GstSDPMedia * answer, SdpMessageContext *ctx, GError **error);
 
   gboolean (*init_offer) (KmsSdpMediaHandler *handler, const gchar * media, GstSDPMedia * offer, GError **error);
   gboolean (*add_offer_attributes) (KmsSdpMediaHandler *handler, GstSDPMedia * offer, GError **error);
@@ -89,7 +91,7 @@ struct _KmsSdpMediaHandlerClass
 GType kms_sdp_media_handler_get_type ();
 
 GstSDPMedia * kms_sdp_media_handler_create_offer (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
-GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, const GstSDPMedia * offer, GError **error);
+GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, SdpMessageContext *ctx, const GstSDPMedia * offer, GError **error);
 void kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler *handler, const gchar *bwtype, guint bandwidth);
 gboolean kms_sdp_media_handler_manage_protocol (KmsSdpMediaHandler *handler, const gchar *protocol);
 
