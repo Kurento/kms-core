@@ -75,6 +75,7 @@ typedef struct _KmsRTPSessionStats KmsRTPSessionStats;
 struct _KmsRTPSessionStats
 {
   GObject *rtp_session;
+  GstSDPDirection direction;
   GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
 };
 
@@ -261,12 +262,13 @@ ssrc_stats_destroy (KmsSSRCStats * stats)
 }
 
 static KmsRTPSessionStats *
-rtp_session_stats_new (GObject * rtp_session)
+rtp_session_stats_new (GObject * rtp_session, GstSDPDirection direction)
 {
   KmsRTPSessionStats *stats;
 
   stats = g_slice_new0 (KmsRTPSessionStats);
   stats->rtp_session = g_object_ref (rtp_session);
+  stats->direction = direction;
 
   return stats;
 }
@@ -603,7 +605,8 @@ assign_uuid (GObject * ssrc)
 
 static GObject *
 kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
-    guint session_id, const gchar * rtpbin_pad_name, guint rtp_profile)
+    guint session_id, const gchar * rtpbin_pad_name, guint rtp_profile,
+    GstSDPDirection direction)
 {
   GstElement *rtpbin = self->priv->rtpbin;
   KmsRTPSessionStats *rtp_stats;
@@ -627,7 +630,7 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
       GUINT_TO_POINTER (session_id));
 
   if (rtp_stats == NULL) {
-    rtp_stats = rtp_session_stats_new (rtpsession);
+    rtp_stats = rtp_session_stats_new (rtpsession, direction);
     g_hash_table_insert (self->priv->stats.rtp_stats,
         GUINT_TO_POINTER (session_id), rtp_stats);
   } else {
@@ -668,6 +671,7 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
   const gchar *proto_str = gst_sdp_media_get_proto (media);
   const gchar *media_str = gst_sdp_media_get_media (media);
   const gchar *rtpbin_pad_name = NULL;
+  GstSDPDirection dir;
   guint session_id;
   GObject *rtpsession;
   GstStructure *sdes = NULL;
@@ -692,10 +696,14 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
     return FALSE;
   }
 
+  dir =
+      sdp_utils_media_config_get_direction (kms_sdp_media_config_get_sdp_media
+      (mconf));
+
   rtpsession =
       kms_base_rtp_endpoint_create_rtp_session (self, session_id,
       rtpbin_pad_name,
-      kms_base_rtp_endpoint_media_proto_to_rtp_profile (self, proto_str));
+      kms_base_rtp_endpoint_media_proto_to_rtp_profile (self, proto_str), dir);
   if (rtpsession == NULL) {
     GST_WARNING_OBJECT (self,
         "Cannot create RTP Session'%" G_GUINT32_FORMAT "'", session_id);
@@ -2045,6 +2053,23 @@ set_outbound_additional_params (const GstStructure * session_stats,
       "outbound-packet-lost", G_TYPE_INT, packet_lost, NULL);
 }
 
+static gboolean
+filter_rtp_source (GstSDPDirection direction, gboolean internal)
+{
+  switch (direction) {
+    case SENDONLY:
+      /* filter non internal sources */
+      return !internal;
+    case RECVONLY:
+      /* filter internal sources */
+      return internal;
+    case SENDRECV:
+      return FALSE;
+    default:
+      return TRUE;
+  }
+}
+
 static void
 append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     GstStructure * stats)
@@ -2079,27 +2104,10 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
 
-    id = g_object_get_data (source, KMS_KEY_ID);
-
-    if (id == NULL) {
-      assign_uuid (source);
-      id = g_object_get_data (source, KMS_KEY_ID);
-    }
-
     g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
-    gst_structure_set (ssrc_stats, "id", G_TYPE_STRING, id, NULL);
-
-    jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, ssrc);
-
-    if (jitter_buffer != NULL) {
-      ssrc_stats_add_jitter_stats (ssrc_stats, jitter_buffer);
-    }
+    gst_structure_get (ssrc_stats, "internal", G_TYPE_BOOLEAN, &internal, NULL);
 
     name = g_strdup_printf ("ssrc-%u", ssrc);
-    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, ssrc_stats,
-        NULL);
-
-    gst_structure_get (ssrc_stats, "internal", G_TYPE_BOOLEAN, &internal, NULL);
 
     if (internal) {
       if (ssrc_id == NULL) {
@@ -2113,6 +2121,30 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
           "rb-fractionlost", G_TYPE_UINT, &f_lost, "rb-packetslost", G_TYPE_INT,
           &p_lost, NULL);
     }
+
+    if (filter_rtp_source (rtp_stats->direction, internal)) {
+      gst_structure_free (ssrc_stats);
+      g_free (name);
+      continue;
+    }
+
+    id = g_object_get_data (source, KMS_KEY_ID);
+
+    if (id == NULL) {
+      assign_uuid (source);
+      id = g_object_get_data (source, KMS_KEY_ID);
+    }
+
+    gst_structure_set (ssrc_stats, "id", G_TYPE_STRING, id, NULL);
+
+    jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, ssrc);
+
+    if (jitter_buffer != NULL) {
+      ssrc_stats_add_jitter_stats (ssrc_stats, jitter_buffer);
+    }
+
+    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, ssrc_stats,
+        NULL);
 
     gst_structure_free (ssrc_stats);
     g_free (name);

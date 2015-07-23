@@ -137,6 +137,28 @@ sdp_utils_media_get_ssrc (const GstSDPMedia * media)
   return ssrc;
 }
 
+GstSDPDirection
+sdp_utils_media_config_get_direction (const GstSDPMedia * media)
+{
+  GstSDPDirection dir = SENDRECV;
+
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (media);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_media_get_attribute (media, i);
+
+    if (sdp_utils_attribute_is_direction (a, &dir)) {
+      break;
+    }
+  }
+
+  return dir;
+}
+
 /**
  * Returns : a string or NULL if any.
  */
