@@ -183,7 +183,7 @@ ModuleManager::getFactory (std::string factoryName)
   } catch (std::exception &e) {
     GST_ERROR ("Factory %s not found: %s", factoryName.c_str(), e.what() );
     throw kurento::KurentoException (MEDIA_OBJECT_NOT_AVAILABLE, "Factory '" +
-                                     factoryName + "'' not found");
+                                     factoryName + "' not found");
   }
 }
 
