@@ -1755,8 +1755,12 @@ complete_caps_with_fb (GstCaps * caps, const GstSDPMedia * media,
     }
   }
 
-  gst_caps_set_simple (caps, "rtcp-fb-ccm-fir",
-      G_TYPE_BOOLEAN, fir, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, pli, NULL);
+  if (fir) {
+    gst_caps_set_simple (caps, "rtcp-fb-ccm-fir", G_TYPE_BOOLEAN, fir, NULL);
+  }
+  if (pli) {
+    gst_caps_set_simple (caps, "rtcp-fb-nack-pli", G_TYPE_BOOLEAN, pli, NULL);
+  }
 }
 
 static GstCaps *
