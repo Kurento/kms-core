@@ -49,6 +49,10 @@ GST_DEBUG_CATEGORY_STATIC (kms_audio_mixer_debug_category);
   )                                        \
 )
 
+#define KEY_TEE "tee_key"
+#define KEY_FAKESINK "fakesink_key"
+#define KEY_PAD "pad_key"
+
 struct _KmsAudioMixerPrivate
 {
   GRecMutex mutex;
@@ -262,42 +266,43 @@ static void
 kms_audio_mixer_remove_sometimes_src_pad (KmsAudioMixer * self,
     GstElement * adder)
 {
-  GstProxyPad *internal;
-  GstPad *srcpad, *peer;
+  GstPad *pad;
 
-  srcpad = gst_element_get_static_pad (adder, "src");
-  peer = gst_pad_get_peer (srcpad);
-  if (peer == NULL)
-    goto end_phase_1;
+  pad = g_object_get_data (G_OBJECT (adder), KEY_PAD);
+  g_object_set_data (G_OBJECT (adder), KEY_PAD, NULL);
 
-  internal = gst_proxy_pad_get_internal ((GstProxyPad *) peer);
-  if (internal == NULL)
-    goto end_phase_2;
+  if (!pad) {
+    return;
+  }
 
-  gst_ghost_pad_set_target (GST_GHOST_PAD (internal), NULL);
+  gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
 
   if (GST_STATE (self) < GST_STATE_PAUSED
       || GST_STATE_PENDING (self) < GST_STATE_PAUSED
       || GST_STATE_TARGET (self) < GST_STATE_PAUSED) {
-    gst_pad_set_active (GST_PAD (internal), FALSE);
+    gst_pad_set_active (GST_PAD (pad), FALSE);
   }
 
-  GST_DEBUG ("Removing source pad %" GST_PTR_FORMAT, internal);
+  GST_DEBUG ("Removing source pad %" GST_PTR_FORMAT, pad);
 
-  gst_element_remove_pad (GST_ELEMENT (self), GST_PAD (internal));
-  gst_object_unref (internal);
+  gst_element_remove_pad (GST_ELEMENT (self), GST_PAD (pad));
+}
 
-end_phase_2:
-  gst_object_unref (peer);
-
-end_phase_1:
-  gst_object_unref (srcpad);
+static void
+remove_element (GstBin * bin, GstElement * element)
+{
+  gst_object_ref (element);
+  gst_element_set_locked_state (element, TRUE);
+  gst_element_set_state (element, GST_STATE_NULL);
+  gst_bin_remove (bin, element);
+  gst_object_unref (element);
 }
 
 static gboolean
 remove_adder (GstElement * adder)
 {
   KmsAudioMixer *self;
+  GstElement *fakesink, *tee;
 
   self = (KmsAudioMixer *) gst_element_get_parent (adder);
   if (self == NULL) {
@@ -309,11 +314,18 @@ remove_adder (GstElement * adder)
 
   kms_audio_mixer_remove_sometimes_src_pad (self, adder);
 
-  gst_object_ref (adder);
-  gst_element_set_locked_state (adder, TRUE);
-  gst_element_set_state (adder, GST_STATE_NULL);
-  gst_bin_remove (GST_BIN (self), adder);
-  gst_object_unref (adder);
+  tee = g_object_get_data (G_OBJECT (adder), KEY_TEE);
+  fakesink = g_object_get_data (G_OBJECT (adder), KEY_FAKESINK);
+
+  remove_element (GST_BIN (self), adder);
+
+  if (tee) {
+    remove_element (GST_BIN (self), tee);
+  }
+
+  if (fakesink) {
+    remove_element (GST_BIN (self), fakesink);
+  }
 
   gst_object_unref (self);
 
@@ -856,8 +868,8 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
 {
   GstPad *srcpad = NULL, *pad, *sinkpad = NULL;
   GstElement *adder;
-  GstElement *audiotestsrc, *capsfilter;
-  GstCaps *filtercaps;
+  GstElement *audiotestsrc;
+  GstElement *tee, *fakesink;
   gchar *srcname;
   gint id;
 
@@ -867,25 +879,22 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
   }
 
   adder = gst_element_factory_make ("audiomixer", NULL);
+  tee = gst_element_factory_make ("tee", NULL);
+  fakesink = gst_element_factory_make ("fakesink", NULL);
+
+  g_object_set (tee, "allow-not-linked", TRUE, NULL);
+  g_object_set (fakesink, "sync", FALSE, "async", FALSE, NULL);
+
   g_object_set_data_full (G_OBJECT (adder), KEY_SINK_PAD_NAME,
       g_strdup (padname), g_free);
   audiotestsrc = gst_element_factory_make ("audiotestsrc", NULL);
   g_object_set (audiotestsrc, "is-live", TRUE, "wave", /*silence */ 4, NULL);
 
-  capsfilter = gst_element_factory_make ("capsfilter", NULL);
-  filtercaps =
-      gst_caps_new_simple ("audio/x-raw", "format", G_TYPE_STRING, "S16LE",
-      "rate", G_TYPE_INT, 480000, "channels", G_TYPE_INT, 2, NULL);
-  g_object_set (G_OBJECT (capsfilter), "caps", filtercaps, NULL);
-  gst_caps_unref (filtercaps);
+  gst_bin_add_many (GST_BIN (self), audiotestsrc, adder, tee, fakesink, NULL);
 
-  gst_bin_add_many (GST_BIN (self), audiotestsrc, capsfilter, adder, NULL);
-
-  gst_element_link_many (audiotestsrc, capsfilter, NULL);
-
-  srcpad = gst_element_get_static_pad (capsfilter, "src");
+  srcpad = gst_element_get_static_pad (audiotestsrc, "src");
   if (srcpad == NULL) {
-    GST_ERROR ("Could not get src pad in %" GST_PTR_FORMAT, capsfilter);
+    GST_ERROR ("Could not get src pad in %" GST_PTR_FORMAT, audiotestsrc);
     goto no_audiotestsrc;
   }
 
@@ -904,6 +913,8 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
     gst_element_release_request_pad (adder, sinkpad);
   }
 
+  gst_element_link_many (adder, tee, fakesink, NULL);
+
 no_audiotestsrc:
   if (srcpad != NULL) {
     g_object_unref (srcpad);
@@ -914,6 +925,8 @@ no_audiotestsrc:
 
   gst_element_sync_state_with_parent (adder);
   gst_element_sync_state_with_parent (audiotestsrc);
+  gst_element_sync_state_with_parent (fakesink);
+  gst_element_sync_state_with_parent (tee);
 
   KMS_AUDIO_MIXER_LOCK (self);
 
@@ -921,10 +934,14 @@ no_audiotestsrc:
   g_hash_table_insert (self->priv->adders, g_strdup (padname), adder);
 
   srcname = g_strdup_printf ("src_%u", id);
-  srcpad = gst_element_get_static_pad (adder, "src");
+  srcpad = gst_element_get_request_pad (tee, "src_%u");
   pad = gst_ghost_pad_new (srcname, srcpad);
   g_free (srcname);
   gst_object_unref (srcpad);
+
+  g_object_set_data (G_OBJECT (adder), KEY_TEE, tee);
+  g_object_set_data (G_OBJECT (adder), KEY_FAKESINK, fakesink);
+  g_object_set_data (G_OBJECT (adder), KEY_PAD, pad);
 
   if (GST_STATE (self) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (self) >= GST_STATE_PAUSED
