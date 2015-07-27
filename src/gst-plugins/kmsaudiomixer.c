@@ -90,37 +90,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsAudioMixer, kms_audio_mixer,
     GST_DEBUG_CATEGORY_INIT (kms_audio_mixer_debug_category,
         PLUGIN_NAME, 0, "debug category for " PLUGIN_NAME " element"));
 
-typedef struct _KmsAudioMixerData
-{
-  KmsRefStruct parent;
-  KmsAudioMixer *audiomixer;
-  GstElement *agnosticbin;
-  GstElement *adder;
-} KmsAudioMixerData;
-
-#define KMS_AUDIO_MIXER_DATA_REF(data) \
-  kms_ref_struct_ref (KMS_REF_STRUCT_CAST (data))
-#define KMS_AUDIO_MIXER_DATA_UNREF(data) \
-  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (data))
-
-static void
-kms_destroy_audio_mixer_data (KmsAudioMixerData * data)
-{
-  g_slice_free (KmsAudioMixerData, data);
-}
-
-static KmsAudioMixerData *
-kms_create_audio_mixer_data ()
-{
-  KmsAudioMixerData *data;
-
-  data = g_slice_new0 (KmsAudioMixerData);
-  kms_ref_struct_init (KMS_REF_STRUCT_CAST (data),
-      (GDestroyNotify) kms_destroy_audio_mixer_data);
-
-  return data;
-}
-
 static GstPadProbeReturn
 cb_latency (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
@@ -534,68 +503,7 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
   gst_element_sync_state_with_parent (agnosticbin);
 }
 
-struct callback_counter
-{
-  guint count;
-  gpointer data;
-  GDestroyNotify notif;
-  GMutex mutex;
-};
-
-struct callback_counter *
-create_callback_counter (gpointer data, GDestroyNotify notif)
-{
-  struct callback_counter *counter;
-
-  counter = g_slice_new (struct callback_counter);
-
-  g_mutex_init (&counter->mutex);
-  counter->notif = notif;
-  counter->data = data;
-  counter->count = 1;
-
-  return counter;
-}
-
 static void
-callback_count_inc (struct callback_counter *counter)
-{
-  g_mutex_lock (&counter->mutex);
-  counter->count++;
-  g_mutex_unlock (&counter->mutex);
-}
-
-static void
-callback_count_dec (struct callback_counter *counter)
-{
-  g_mutex_lock (&counter->mutex);
-  counter->count--;
-  if (counter->count > 0) {
-    g_mutex_unlock (&counter->mutex);
-    return;
-  }
-
-  g_mutex_unlock (&counter->mutex);
-  g_mutex_clear (&counter->mutex);
-
-  if (counter->notif)
-    counter->notif (counter->data);
-
-  g_slice_free (struct callback_counter, counter);
-}
-
-static GstPadProbeReturn
-event_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
-{
-  if (GST_EVENT_TYPE (GST_PAD_PROBE_INFO_DATA (info)) != GST_EVENT_EOS)
-    return GST_PAD_PROBE_OK;
-
-  gst_pad_remove_probe (pad, GST_PAD_PROBE_INFO_ID (info));
-
-  return GST_PAD_PROBE_DROP;
-}
-
-void
 unlink_agnosticbin_source (const GValue * item, gpointer user_data)
 {
   GstElement *agnosticbin = GST_ELEMENT (user_data);
@@ -679,67 +587,7 @@ kms_audio_mixer_remove_elements (KmsAudioMixer * self,
   }
 }
 
-static gboolean
-remove_elements_cb (KmsAudioMixerData * sync)
-{
-  kms_audio_mixer_remove_elements (sync->audiomixer, sync->agnosticbin,
-      sync->adder);
-
-  return G_SOURCE_REMOVE;
-}
-
 static void
-agnosticbin_counter_done (KmsAudioMixerData * sync)
-{
-  /* All EOS on agnosticbin are been received */
-  /* We can not access to some GstPad functions because of mutex deadlocks */
-  /* So we are going to manage all the stuff in a separate thread */
-  kms_loop_idle_add_full (sync->audiomixer->priv->loop, G_PRIORITY_DEFAULT,
-      (GSourceFunc) remove_elements_cb, KMS_AUDIO_MIXER_DATA_REF (sync),
-      (GDestroyNotify) kms_ref_struct_unref);
-
-  KMS_AUDIO_MIXER_DATA_UNREF (sync);
-}
-
-void
-install_EOS_probe_on_srcpad (const GValue * item, gpointer user_data)
-{
-  struct callback_counter *counter = user_data;
-  GstPad *srcpad;
-
-  srcpad = g_value_get_object (item);
-
-  /* install new probe for EOS */
-  callback_count_inc (counter);
-  gst_pad_add_probe (srcpad, GST_PAD_PROBE_TYPE_BLOCK |
-      GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, event_probe_cb, counter,
-      (GDestroyNotify) callback_count_dec);
-}
-
-static void
-agnosticbin_set_EOS_cb (KmsAudioMixerData * sync)
-{
-  struct callback_counter *counter;
-  GstIterator *it;
-  GstElement *agnostic;
-
-  agnostic = sync->agnosticbin;
-  counter =
-      create_callback_counter (KMS_AUDIO_MIXER_DATA_REF (sync),
-      (GDestroyNotify) agnosticbin_counter_done);
-
-  it = gst_element_iterate_src_pads (agnostic);
-
-  while (gst_iterator_foreach (it, install_EOS_probe_on_srcpad,
-          counter) == GST_ITERATOR_RESYNC) {
-    gst_iterator_resync (it);
-  }
-
-  callback_count_dec (counter);
-  gst_iterator_free (it);
-}
-
-void
 unlink_adder_sink (const GValue * item, gpointer user_data)
 {
   GstElement *adder = GST_ELEMENT (user_data);
@@ -795,28 +643,6 @@ unlink_adder_sources (GstElement * adder)
 }
 
 static void
-kms_audio_mixer_unlink_pad_in_playing (KmsAudioMixer * self, GstPad * pad,
-    GstElement * agnosticbin, GstElement * adder)
-{
-  KmsAudioMixerData *sync;
-
-  sync = kms_create_audio_mixer_data ();
-  sync->audiomixer = self;
-  sync->adder = adder;
-  sync->agnosticbin = agnosticbin;
-
-  agnosticbin_set_EOS_cb (sync);
-  KMS_AUDIO_MIXER_DATA_UNREF (sync);
-
-  /* push EOS into the element, the probe will be fired when the */
-  /* EOS leaves the effect and it has thus drained all of its data */
-  if (GST_PAD_IS_FLUSHING (pad)) {
-    gst_pad_send_event (pad, gst_event_new_flush_stop (FALSE));
-  }
-  gst_pad_send_event (pad, gst_event_new_eos ());
-}
-
-static void
 unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
 {
   GstElement *agnostic = NULL, *adder = NULL, *typefind = NULL, *parent;
@@ -869,7 +695,7 @@ unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
       gst_bin_remove (GST_BIN (self), typefind);
       gst_object_unref (typefind);
     } else {
-      kms_audio_mixer_unlink_pad_in_playing (self, pad, agnostic, adder);
+      kms_audio_mixer_remove_elements (self, agnostic, adder);
     }
   } else {
     kms_audio_mixer_remove_elements (self, agnostic, adder);
