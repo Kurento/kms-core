@@ -266,13 +266,22 @@ static void
 kms_audio_mixer_remove_sometimes_src_pad (KmsAudioMixer * self,
     GstElement * adder)
 {
-  GstPad *pad;
+  GstPad *pad, *peer = NULL, *adder_src;
 
   pad = g_object_get_data (G_OBJECT (adder), KEY_PAD);
   g_object_set_data (G_OBJECT (adder), KEY_PAD, NULL);
 
   if (!pad) {
     return;
+  }
+
+  adder_src = gst_element_get_static_pad (adder, "src");
+  if (adder_src) {
+    peer = gst_pad_get_peer (adder_src);
+
+    if (peer) {
+      gst_pad_send_event (peer, gst_event_new_flush_start ());
+    }
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
@@ -286,6 +295,15 @@ kms_audio_mixer_remove_sometimes_src_pad (KmsAudioMixer * self,
   GST_DEBUG ("Removing source pad %" GST_PTR_FORMAT, pad);
 
   gst_element_remove_pad (GST_ELEMENT (self), GST_PAD (pad));
+
+  if (peer) {
+    gst_pad_send_event (peer, gst_event_new_flush_stop (FALSE));
+    g_object_unref (peer);
+  }
+
+  if (adder_src) {
+    g_object_unref (adder_src);
+  }
 }
 
 static void
