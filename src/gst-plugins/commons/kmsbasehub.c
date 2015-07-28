@@ -347,6 +347,18 @@ remove_unlinked_pad (GstPad * pad, GstPad * peer, gpointer user_data)
   g_object_unref (parent);
 }
 
+static void
+set_target_cb (GstPad * pad, GstPad * peer, gpointer target)
+{
+  gst_ghost_pad_set_target (GST_GHOST_PAD (pad), GST_PAD (target));
+}
+
+static void
+remove_target_cb (GstPad * pad, GstPad * peer, gpointer data)
+{
+  gst_ghost_pad_set_target (GST_GHOST_PAD (pad), NULL);
+}
+
 static gboolean
 kms_base_hub_link_src_pad (KmsBaseHub * hub, const gchar * gp_name,
     const gchar * template_name, GstElement * internal_element,
@@ -384,7 +396,10 @@ kms_base_hub_link_src_pad (KmsBaseHub * hub, const gchar * gp_name,
     templ =
         gst_element_class_get_pad_template (GST_ELEMENT_CLASS
         (G_OBJECT_GET_CLASS (hub)), template_name);
-    gp = gst_ghost_pad_new_from_template (gp_name, target, templ);
+    gp = gst_ghost_pad_new_no_target_from_template (gp_name, templ);
+    g_signal_connect_object (gp, "linked", G_CALLBACK (set_target_cb), target,
+        0);
+    g_signal_connect (gp, "unlinked", G_CALLBACK (remove_target_cb), NULL);
 
     if (GST_STATE (hub) >= GST_STATE_PAUSED
         || GST_STATE_PENDING (hub) >= GST_STATE_PAUSED
