@@ -27,9 +27,6 @@
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
 
-#define KMS_LABEL_AUDIOMIXER "audiomixer"
-#define KMS_LABEL_AGNOSTICBIN "agnosticbin"
-#define KMS_LABEL_ADDER "adder"
 #define LATENCY 250             //ms
 
 #define KMS_AUDIO_MIXER_LOCK(mixer) \
