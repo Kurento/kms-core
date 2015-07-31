@@ -74,7 +74,7 @@ kms_recording_profile_create_mp4_profile (gboolean has_audio,
 
   if (has_video) {
     GstCaps *vc = gst_caps_from_string ("video/x-h264, "
-        "stream-format=(string)avc, alignment=(string)au, profile=(string)baseline");
+        "stream-format=(string)avc, alignment=(string)au");
 
     gst_encoding_container_profile_add_profile (cprof, (GstEncodingProfile *)
         gst_encoding_video_profile_new (vc, NULL, NULL, 0));
