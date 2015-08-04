@@ -1018,35 +1018,6 @@ kms_base_rtp_endpoint_add_connection (KmsBaseRtpEndpoint * self,
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
-static gint
-get_abs_send_time_id (SdpMediaConfig * mconf)
-{
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
-  guint a;
-
-  for (a = 0;; a++) {
-    const gchar *attr;
-    gchar **tokens;
-
-    attr = gst_sdp_media_get_attribute_val_n (media, EXT_MAP, a);
-    if (attr == NULL) {
-      break;
-    }
-
-    tokens = g_strsplit (attr, " ", 0);
-    if (g_strcmp0 (RTP_HDR_EXT_ABS_SEND_TIME_URI, tokens[1]) == 0) {
-      gint ret = atoi (tokens[0]);
-
-      g_strfreev (tokens);
-      return ret;
-    }
-
-    g_strfreev (tokens);
-  }
-
-  return -1;
-}
-
 static gboolean
 kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
     const gchar * rtp_session, SdpMediaConfig * mconf, gboolean active)
@@ -1060,7 +1031,7 @@ kms_base_rtp_endpoint_add_connection_for_session (KmsBaseRtpEndpoint * self,
     return FALSE;
   }
 
-  abs_send_time_id = get_abs_send_time_id (mconf);
+  abs_send_time_id = kms_sdp_media_config_get_abs_send_time_id (mconf);
 
   if (group != NULL) {          /* bundle */
     kms_base_rtp_endpoint_add_bundle_connection (self, conn, active);

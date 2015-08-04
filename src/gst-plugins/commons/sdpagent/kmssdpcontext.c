@@ -17,9 +17,11 @@
 #endif
 
 #include "sdp_utils.h"
+#include "constants.h"
 #include "kmsutils.h"
 #include "kmssdpagent.h"
 #include "kmssdpcontext.h"
+#include <stdlib.h>
 
 #define GST_CAT_DEFAULT sdp_context
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -363,6 +365,35 @@ gboolean
 kms_sdp_media_config_is_inactive (SdpMediaConfig * mconf)
 {
   return gst_sdp_media_get_port (mconf->media) == 0;
+}
+
+gint
+kms_sdp_media_config_get_abs_send_time_id (SdpMediaConfig * mconf)
+{
+  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
+  guint a;
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+    gchar **tokens;
+
+    attr = gst_sdp_media_get_attribute_val_n (media, EXT_MAP, a);
+    if (attr == NULL) {
+      break;
+    }
+
+    tokens = g_strsplit (attr, " ", 0);
+    if (g_strcmp0 (RTP_HDR_EXT_ABS_SEND_TIME_URI, tokens[1]) == 0) {
+      gint ret = atoi (tokens[0]);
+
+      g_strfreev (tokens);
+      return ret;
+    }
+
+    g_strfreev (tokens);
+  }
+
+  return -1;
 }
 
 static gboolean
