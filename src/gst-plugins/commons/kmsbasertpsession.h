@@ -52,6 +52,14 @@ struct _KmsBaseRtpSession
   KmsIRtpSessionManager *manager;
   GHashTable *conns;
   KmsConnectionState conn_state;
+
+  SdpMediaConfig *audio_neg_mconf;
+  guint32 local_audio_ssrc; /* inmediate-TODO: set */
+  guint32 remote_audio_ssrc;
+
+  SdpMediaConfig *video_neg_mconf;
+  guint32 local_video_ssrc; /* inmediate-TODO: set */
+  guint32 remote_video_ssrc;
 };
 
 struct _KmsBaseRtpSessionClass
@@ -68,6 +76,8 @@ GType kms_base_rtp_session_get_type (void);
 KmsBaseRtpSession * kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager);
 KmsIRtpConnection * kms_base_rtp_session_get_connection_by_name (KmsBaseRtpSession * self, const gchar * name);
 KmsIRtpConnection * kms_base_rtp_session_get_connection (KmsBaseRtpSession * self, SdpMediaConfig * mconf);
+
+void kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self, gboolean offerer);
 
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_SESSION_H__ */
