@@ -14,6 +14,7 @@
  */
 
 #include "kmsutils.h"
+#include "constants.h"
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
 
@@ -825,6 +826,29 @@ kms_utils_get_time_nsecs ()
 }
 
 /* time end */
+
+/* RTP connection begin */
+gchar *
+kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mconf)
+{
+  SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
+  gchar *conn_name;
+
+  if (group != NULL) {
+    gint gid = kms_sdp_media_group_get_id (group);
+
+    conn_name =
+        g_strdup_printf ("%s%" G_GINT32_FORMAT, BUNDLE_STREAM_NAME, gid);
+  } else {
+    gint mid = kms_sdp_media_config_get_id (mconf);
+
+    conn_name = g_strdup_printf ("%" G_GINT32_FORMAT, mid);
+  }
+
+  return conn_name;
+}
+
+/* RTP connection end */
 
 static void init_debug (void) __attribute__ ((constructor));
 

@@ -19,6 +19,7 @@
 #include "kmssdpagent.h"
 #include "sdp_utils.h"
 #include "kmssdprtpavpfmediahandler.h"
+#include "constants.h"
 
 #define OBJECT_NAME "rtpavpfmediahandler"
 
@@ -36,14 +37,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpAvpfMediaHandler,
 
 #define DEFAULT_SDP_MEDIA_RTP_AVPF_NACK TRUE
 #define DEFAULT_SDP_MEDIA_RTP_GOOG_REMB TRUE
-
-/* inmediate-TODO: into a RTP/RTCP constants file */
-#define SDP_MEDIA_RTCP_FB "rtcp-fb"
-#define SDP_MEDIA_RTCP_FB_NACK "nack"
-#define SDP_MEDIA_RTCP_FB_CCM "ccm"
-#define SDP_MEDIA_RTCP_FB_GOOG_REMB "goog-remb"
-#define SDP_MEDIA_RTCP_FB_PLI "pli"
-#define SDP_MEDIA_RTCP_FB_FIR "fir"
 
 static gchar *video_rtcp_fb_enc[] = {
   "VP8",

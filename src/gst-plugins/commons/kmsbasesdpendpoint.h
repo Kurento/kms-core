@@ -81,6 +81,7 @@ struct _KmsBaseSdpEndpointClass
 
 GType kms_base_sdp_endpoint_get_type (void);
 
+GHashTable * kms_base_sdp_endpoint_get_sessions (KmsBaseSdpEndpoint * self);
 KmsSdpSession * kms_base_sdp_endpoint_get_session (KmsBaseSdpEndpoint * self, const gchar *sess_id);
 KmsSdpSession * kms_base_sdp_endpoint_get_first_negotiated_session (KmsBaseSdpEndpoint * self);
 

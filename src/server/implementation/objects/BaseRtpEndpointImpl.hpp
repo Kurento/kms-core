@@ -76,7 +76,7 @@ private:
   std::recursive_mutex mutex;
 
   void updateMediaState (guint new_state);
-  void updateConnectionState (guint new_state);
+  void updateConnectionState (gchar *sessId, guint new_state);
 
   class StaticConstructor
   {

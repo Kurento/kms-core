@@ -846,6 +846,12 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
   self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }
 
+GHashTable *
+kms_base_sdp_endpoint_get_sessions (KmsBaseSdpEndpoint * self)
+{
+  return self->priv->sessions;
+}
+
 KmsSdpSession *
 kms_base_sdp_endpoint_get_session (KmsBaseSdpEndpoint * self,
     const gchar * sess_id)

@@ -60,6 +60,10 @@ struct _KmsSdpSession
 struct _KmsSdpSessionClass
 {
   GstBinClass parent_class;
+
+  /* private */
+  /* virtual methods */
+  void (*post_constructor) (KmsSdpSession * self, KmsBaseSdpEndpoint * ep, guint id);
 };
 
 GType kms_sdp_session_get_type (void);

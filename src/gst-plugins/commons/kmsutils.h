@@ -17,6 +17,7 @@
 
 #include "gst/gst.h"
 #include "kmsmediatype.h"
+#include "sdpagent/kmssdpcontext.h"
 
 typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer data);
 typedef void (*KmsPadCallback) (GstPad * pad, gpointer data);
@@ -61,6 +62,9 @@ void kms_utils_remb_event_manager_set_callback (RembEventManager * manager, Remb
 
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();
+
+/* RTP connection */
+gchar * kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mconf);
 
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);

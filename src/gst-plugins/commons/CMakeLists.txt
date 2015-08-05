@@ -64,6 +64,7 @@ set(KMS_COMMONS_SOURCES
   kmsrtcp.c
   kmsremb.c
   kmssdpsession.c
+  kmsbasertpsession.c
   kmsirtpconnection.c
   kmsbasertpendpoint.c
   kmsbasesdpendpoint.c
@@ -84,6 +85,7 @@ set(KMS_COMMONS_HEADERS
   kmsrtcp.h
   kmsremb.h
   kmssdpsession.h
+  kmsbasertpsession.h
   kmsirtpconnection.h
   kmsbasertpendpoint.h
   kmsbasesdpendpoint.h

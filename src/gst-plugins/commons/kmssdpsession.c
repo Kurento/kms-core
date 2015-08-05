@@ -18,6 +18,7 @@
 #endif
 
 #include "kmssdpsession.h"
+#include "kmsutils.h"
 
 #define GST_DEFAULT_NAME "kmssdpsession"
 #define GST_CAT_DEFAULT kms_sdp_session_debug
@@ -30,15 +31,14 @@ KmsSdpSession *
 kms_sdp_session_new (KmsBaseSdpEndpoint * ep, guint id)
 {
   GObject *obj;
-  KmsSdpSession *sess;
+  KmsSdpSession *self;
 
   obj = g_object_new (KMS_TYPE_SDP_SESSION, NULL);
-  sess = KMS_SDP_SESSION (obj);
-  sess->id = id;
-  sess->id_str = g_strdup_printf ("%s-sess%d", GST_ELEMENT_NAME (ep), id);
-  sess->ep = ep;
+  self = KMS_SDP_SESSION (obj);
+  KMS_SDP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor (self, ep,
+      id);
 
-  return sess;
+  return self;
 }
 
 GstSDPMessage *
@@ -210,6 +210,15 @@ kms_sdp_session_finalize (GObject * object)
 }
 
 static void
+kms_sdp_session_post_constructor (KmsSdpSession * self, KmsBaseSdpEndpoint * ep,
+    guint id)
+{
+  self->id = id;
+  self->id_str = g_strdup_printf ("%s-sess%d", GST_ELEMENT_NAME (ep), id);
+  self->ep = ep;
+}
+
+static void
 kms_sdp_session_init (KmsSdpSession * self)
 {
   self->agent = kms_sdp_agent_new ();
@@ -226,6 +235,8 @@ kms_sdp_session_class_init (KmsSdpSessionClass * klass)
       GST_DEFAULT_NAME);
 
   gobject_class->finalize = kms_sdp_session_finalize;
+
+  klass->post_constructor = kms_sdp_session_post_constructor;
 
   gst_element_class_set_details_simple (gstelement_class,
       "SdpSession",

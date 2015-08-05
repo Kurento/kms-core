@@ -51,9 +51,9 @@ void BaseRtpEndpointImpl::postConstructor ()
 
   connStateChangedHandlerId = register_signal_handler (G_OBJECT (element),
                               "connection-state-changed",
-                              std::function <void (GstElement *, guint) > (std::bind (
+                              std::function <void (GstElement *, gchar *, guint) > (std::bind (
                                     &BaseRtpEndpointImpl::updateConnectionState, this,
-                                    std::placeholders::_2) ),
+                                    std::placeholders::_2, std::placeholders::_3) ),
                               std::dynamic_pointer_cast<BaseRtpEndpointImpl>
                               (shared_from_this() ) );
 }
@@ -116,7 +116,7 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
 }
 
 void
-BaseRtpEndpointImpl::updateConnectionState (guint new_state)
+BaseRtpEndpointImpl::updateConnectionState (gchar *sessId, guint new_state)
 {
   std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<ConnectionState> old_state = current_conn_state;

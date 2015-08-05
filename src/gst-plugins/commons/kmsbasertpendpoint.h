@@ -62,6 +62,7 @@ struct _KmsBaseRtpEndpointClass
     gboolean local);
   void (*media_state_changed) (KmsBaseRtpEndpoint * self, KmsMediaState new_state);
 
+  KmsConnectionState (*get_connection_state) (KmsBaseRtpEndpoint * self, const gchar * sess_id);
   void (*connection_state_changed) (KmsBaseRtpEndpoint * self, KmsConnectionState new_state);
 
   gboolean (*request_local_key_frame) (KmsBaseRtpEndpoint * self);
@@ -73,9 +74,6 @@ struct _KmsBaseRtpEndpointClass
 };
 
 GType kms_base_rtp_endpoint_get_type (void);
-
-KmsIRtpConnection * kms_base_rtp_endpoint_get_connection (KmsBaseRtpEndpoint * self, KmsSdpSession *sess, SdpMediaConfig *mconf);
-GHashTable * kms_base_rtp_endpoint_get_connections (KmsBaseRtpEndpoint * self);
 
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_ENDPOINT_H__ */
