@@ -18,7 +18,6 @@
 #endif
 
 #include "kmssdpsession.h"
-#include "sdpagent/kmssdppayloadmanager.h"
 
 #define GST_DEFAULT_NAME "kmssdpsession"
 #define GST_CAT_DEFAULT kms_sdp_session_debug
@@ -26,23 +25,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define kms_sdp_session_parent_class parent_class
 G_DEFINE_TYPE (KmsSdpSession, kms_sdp_session, GST_TYPE_BIN);
-
-#define KMS_SDP_SESSION_GET_PRIVATE(obj) ( \
-  G_TYPE_INSTANCE_GET_PRIVATE (            \
-    (obj),                                 \
-    KMS_TYPE_SDP_SESSION,                  \
-    KmsSdpSessionPrivate                   \
-  )                                        \
-)
-
-struct _KmsSdpSessionPrivate
-{
-  KmsSdpAgent *agent;
-  KmsSdpPayloadManager *ptmanager;
-  SdpMessageContext *local_sdp_ctx;
-  SdpMessageContext *remote_sdp_ctx;
-  SdpMessageContext *neg_sdp_ctx;
-};
 
 KmsSdpSession *
 kms_sdp_session_new ()
@@ -65,7 +47,7 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
 
   GST_DEBUG_OBJECT (self, "Generate offer");
 
-  ctx = kms_sdp_agent_create_offer (self->priv->agent, &err);
+  ctx = kms_sdp_agent_create_offer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
     g_error_free (err);
@@ -80,7 +62,7 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  self->priv->local_sdp_ctx = ctx;
+  self->local_sdp_ctx = ctx;
 
 end:
   return offer;
@@ -102,9 +84,9 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     goto end;
   }
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  self->priv->remote_sdp_ctx = ctx;
+  self->remote_sdp_ctx = ctx;
 
-  ctx = kms_sdp_agent_create_answer (self->priv->agent, offer, &err);
+  ctx = kms_sdp_agent_create_answer (self->agent, offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
     g_error_free (err);
@@ -120,8 +102,8 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  self->priv->local_sdp_ctx = ctx;
-  self->priv->neg_sdp_ctx = ctx;
+  self->local_sdp_ctx = ctx;
+  self->neg_sdp_ctx = ctx;
 
 end:
   return answer;
@@ -135,7 +117,7 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
 
   GST_DEBUG_OBJECT (self, "Process answer");
 
-  if (self->priv->local_sdp_ctx == NULL) {
+  if (self->local_sdp_ctx == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
     return;
@@ -149,38 +131,58 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  self->priv->remote_sdp_ctx = ctx;
-  self->priv->neg_sdp_ctx = ctx;
+  self->remote_sdp_ctx = ctx;
+  self->neg_sdp_ctx = ctx;
 }
 
-SdpMessageContext *
-kms_sdp_session_get_local_sdp_ctx (KmsSdpSession * self)
+GstSDPMessage *
+kms_sdp_session_get_local_sdp (KmsSdpSession * self)
 {
-  return self->priv->local_sdp_ctx;
+  GstSDPMessage *sdp = NULL;
+  GError *err = NULL;
+
+  GST_DEBUG_OBJECT (self, "Get local SDP");
+
+  if (self->local_sdp_ctx != NULL) {
+    sdp = kms_sdp_message_context_pack (self->local_sdp_ctx, &err);
+    if (err != NULL) {
+      GST_ERROR_OBJECT (self, "Error packing local SDP (%s)", err->message);
+      g_error_free (err);
+    }
+  }
+
+  return sdp;
 }
 
-SdpMessageContext *
-kms_sdp_session_get_remote_sdp_ctx (KmsSdpSession * self)
+GstSDPMessage *
+kms_sdp_session_get_remote_sdp (KmsSdpSession * self)
 {
-  return self->priv->remote_sdp_ctx;
-}
+  GstSDPMessage *sdp = NULL;
+  GError *err = NULL;
 
-SdpMessageContext *
-kms_sdp_session_get_neg_sdp_ctx (KmsSdpSession * self)
-{
-  return self->priv->neg_sdp_ctx;
+  GST_DEBUG_OBJECT (self, "Get remote SDP");
+
+  if (self->remote_sdp_ctx != NULL) {
+    sdp = kms_sdp_message_context_pack (self->remote_sdp_ctx, &err);
+    if (err != NULL) {
+      GST_ERROR_OBJECT (self, "Error packing remote SDP (%s)", err->message);
+      g_error_free (err);
+    }
+  }
+
+  return sdp;
 }
 
 void
 kms_sdp_session_set_use_ipv6 (KmsSdpSession * self, gboolean use_ipv6)
 {
-  g_object_set (self->priv->agent, "use-ipv6", use_ipv6, NULL);
+  g_object_set (self->agent, "use-ipv6", use_ipv6, NULL);
 }
 
 void
 kms_sdp_session_set_addr (KmsSdpSession * self, const gchar * addr)
 {
-  g_object_set (self->priv->agent, "addr", addr, NULL);
+  g_object_set (self->agent, "addr", addr, NULL);
 }
 
 static void
@@ -188,16 +190,16 @@ kms_sdp_session_finalize (GObject * object)
 {
   KmsSdpSession *self = KMS_SDP_SESSION (object);
 
-  if (self->priv->local_sdp_ctx != NULL) {
-    kms_sdp_message_context_destroy (self->priv->local_sdp_ctx);
+  if (self->local_sdp_ctx != NULL) {
+    kms_sdp_message_context_destroy (self->local_sdp_ctx);
   }
 
-  if (self->priv->remote_sdp_ctx != NULL) {
-    kms_sdp_message_context_destroy (self->priv->remote_sdp_ctx);
+  if (self->remote_sdp_ctx != NULL) {
+    kms_sdp_message_context_destroy (self->remote_sdp_ctx);
   }
 
-  g_clear_object (&self->priv->ptmanager);
-  g_clear_object (&self->priv->agent);
+  g_clear_object (&self->ptmanager);
+  g_clear_object (&self->agent);
 
   /* chain up */
   G_OBJECT_CLASS (kms_sdp_session_parent_class)->finalize (object);
@@ -206,10 +208,8 @@ kms_sdp_session_finalize (GObject * object)
 static void
 kms_sdp_session_init (KmsSdpSession * self)
 {
-  self->priv = KMS_SDP_SESSION_GET_PRIVATE (self);
-
-  self->priv->agent = kms_sdp_agent_new ();     /* TODO: sendonly for multisender case */
-  self->priv->ptmanager = kms_sdp_payload_manager_new ();
+  self->agent = kms_sdp_agent_new ();
+  self->ptmanager = kms_sdp_payload_manager_new ();
 }
 
 static void
@@ -228,6 +228,4 @@ kms_sdp_session_class_init (KmsSdpSessionClass * klass)
       "Generic",
       "Base bin to manage elements related with a SDP session.",
       "Miguel París Díaz <mparisdiaz@gmail.com>");
-
-  g_type_class_add_private (klass, sizeof (KmsSdpSessionPrivate));
 }

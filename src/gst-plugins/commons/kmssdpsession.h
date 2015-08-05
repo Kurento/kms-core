@@ -18,6 +18,7 @@
 
 #include <gst/gst.h>
 #include "sdpagent/kmssdpagent.h"
+#include "sdpagent/kmssdppayloadmanager.h"
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
@@ -35,13 +36,16 @@ G_BEGIN_DECLS
 
 typedef struct _KmsSdpSession KmsSdpSession;
 typedef struct _KmsSdpSessionClass KmsSdpSessionClass;
-typedef struct _KmsSdpSessionPrivate KmsSdpSessionPrivate;
 
 struct _KmsSdpSession
 {
   GstBin parent;
 
-  KmsSdpSessionPrivate *priv;
+  KmsSdpAgent *agent;
+  KmsSdpPayloadManager *ptmanager;
+  SdpMessageContext *local_sdp_ctx;
+  SdpMessageContext *remote_sdp_ctx;
+  SdpMessageContext *neg_sdp_ctx;
 };
 
 struct _KmsSdpSessionClass
@@ -55,9 +59,8 @@ KmsSdpSession * kms_sdp_session_new ();
 GstSDPMessage * kms_sdp_session_generate_offer (KmsSdpSession * self);
 GstSDPMessage * kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer);
 void kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer);
-SdpMessageContext * kms_sdp_session_get_local_sdp_ctx (KmsSdpSession * self);
-SdpMessageContext * kms_sdp_session_get_remote_sdp_ctx (KmsSdpSession * self);
-SdpMessageContext * kms_sdp_session_get_neg_sdp_ctx (KmsSdpSession * self);
+GstSDPMessage * kms_sdp_session_get_local_sdp (KmsSdpSession * self);
+GstSDPMessage * kms_sdp_session_get_remote_sdp (KmsSdpSession * self);
 void kms_sdp_session_set_use_ipv6 (KmsSdpSession * self, gboolean use_ipv6);
 void kms_sdp_session_set_addr (KmsSdpSession *self, const gchar * addr);
 
