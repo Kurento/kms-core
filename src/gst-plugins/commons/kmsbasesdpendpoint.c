@@ -134,6 +134,9 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 
   id = g_atomic_int_add (&self->priv->next_session_id, 1);
   sess = base_sdp_endpoint_class->create_session_internal (self, id);
+  g_object_ref (sess);
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (sess));
+  gst_element_sync_state_with_parent (GST_ELEMENT (sess));
 
   kms_sdp_agent_set_configure_media_callback (sess->agent,
       kms_base_sdp_endpoint_configure_media, sess, NULL);
@@ -167,6 +170,9 @@ kms_base_sdp_endpoint_release_session (KmsBaseSdpEndpoint * self,
     ret = FALSE;
     goto end;
   }
+
+  gst_element_set_state (GST_ELEMENT (sess), GST_STATE_NULL);
+  gst_bin_remove (GST_BIN (self), GST_ELEMENT (sess));
 
   ret = g_hash_table_remove (self->priv->sessions, sess_id);
 
