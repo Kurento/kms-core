@@ -482,7 +482,7 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
     return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (neg_sess->negotiated_ctx);
+  item = kms_sdp_message_context_get_medias (neg_sess->neg_sdp_ctx);
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
     GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
@@ -1323,9 +1323,9 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, KmsSdpSession * sess, gboolean offerer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
-  GSList *item = kms_sdp_message_context_get_medias (sess->negotiated_ctx);
+  GSList *item = kms_sdp_message_context_get_medias (sess->neg_sdp_ctx);
   GSList *remote_media_list =
-      kms_sdp_message_context_get_medias (sess->remote_ctx);
+      kms_sdp_message_context_get_medias (sess->remote_sdp_ctx);
 
   kms_base_rtp_endpoint_check_conn_status (self);
 
@@ -1686,8 +1686,7 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
     base_endpoint, KmsSdpSession * sess)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_endpoint);
-  const GSList *item =
-      kms_sdp_message_context_get_medias (sess->negotiated_ctx);
+  const GSList *item = kms_sdp_message_context_get_medias (sess->neg_sdp_ctx);
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
@@ -1759,7 +1758,7 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
     return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (neg_sess->negotiated_ctx);
+  item = kms_sdp_message_context_get_medias (neg_sess->neg_sdp_ctx);
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *mconf = item->data;
     GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);

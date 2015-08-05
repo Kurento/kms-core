@@ -18,12 +18,11 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 #include "kmselement.h"
-#include "sdpagent/kmssdpagent.h"
-#include "sdpagent/kmssdpcontext.h"
-#include "sdpagent/kmssdppayloadmanager.h"
-#include "kmsrefstruct.h"
+#include "kmssdpsession.h"
 
 G_BEGIN_DECLS
+
+typedef struct _KmsSdpSession KmsSdpSession;
 
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_BASE_SDP_ENDPOINT \
@@ -46,22 +45,6 @@ typedef struct _KmsBaseSdpEndpointClass KmsBaseSdpEndpointClass;
   (g_rec_mutex_lock (&KMS_BASE_SDP_ENDPOINT_CAST ((elem))->media_mutex))
 #define KMS_BASE_SDP_ENDPOINT_UNLOCK(elem) \
   (g_rec_mutex_unlock (&KMS_BASE_SDP_ENDPOINT_CAST ((elem))->media_mutex))
-
-typedef struct _KmsSdpSession
-{
-  KmsRefStruct ref;
-
-  guint id;
-  gchar *id_str;
-
-  KmsBaseSdpEndpoint *sdp_ep;
-  KmsSdpAgent *agent;
-  KmsSdpPayloadManager *ptmanager;
-
-  SdpMessageContext *local_ctx;
-  SdpMessageContext *remote_ctx;
-  SdpMessageContext *negotiated_ctx;
-} KmsSdpSession;
 
 struct _KmsBaseSdpEndpoint
 {

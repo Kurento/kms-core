@@ -19,8 +19,12 @@
 #include <gst/gst.h>
 #include "sdpagent/kmssdpagent.h"
 #include "sdpagent/kmssdppayloadmanager.h"
+#include "kmsbasesdpendpoint.h"
 
 G_BEGIN_DECLS
+
+typedef struct _KmsBaseSdpEndpoint KmsBaseSdpEndpoint;
+
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_SDP_SESSION \
   (kms_sdp_session_get_type())
@@ -41,6 +45,11 @@ struct _KmsSdpSession
 {
   GstBin parent;
 
+  guint id;
+  gchar *id_str;
+  KmsBaseSdpEndpoint * ep;
+
+  /* SDP management */
   KmsSdpAgent *agent;
   KmsSdpPayloadManager *ptmanager;
   SdpMessageContext *local_sdp_ctx;
@@ -55,7 +64,7 @@ struct _KmsSdpSessionClass
 
 GType kms_sdp_session_get_type (void);
 
-KmsSdpSession * kms_sdp_session_new ();
+KmsSdpSession * kms_sdp_session_new (KmsBaseSdpEndpoint * ep, guint id);
 GstSDPMessage * kms_sdp_session_generate_offer (KmsSdpSession * self);
 GstSDPMessage * kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer);
 void kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer);

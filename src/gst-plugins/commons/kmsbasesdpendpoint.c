@@ -38,6 +38,9 @@ G_DEFINE_TYPE (KmsBaseSdpEndpoint, kms_base_sdp_endpoint, KMS_TYPE_ELEMENT);
   )                                               \
 )
 
+static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
+    self, KmsSdpSession * sess);
+
 #define USE_IPV6_DEFAULT FALSE
 #define MAX_VIDEO_RECV_BW_DEFAULT 500
 
@@ -101,61 +104,15 @@ struct _KmsBaseSdpEndpointPrivate
 
 /* KmsSdpSession begin */
 
-static void
-kms_sdp_session_destroy (gpointer data, GClosure * closure)
-{
-  KmsSdpSession *sess = (KmsSdpSession *) data;
-
-  if (sess->local_ctx != NULL) {
-    kms_sdp_message_context_destroy (sess->local_ctx);
-  }
-
-  if (sess->remote_ctx != NULL) {
-    kms_sdp_message_context_destroy (sess->remote_ctx);
-  }
-
-  g_free (sess->id_str);
-  g_clear_object (&sess->ptmanager);
-  g_clear_object (&sess->agent);
-
-  g_slice_free (KmsSdpSession, sess);
-}
-
-static KmsSdpSession *
-kms_sdp_session_new (KmsBaseSdpEndpoint * sdp_ep, guint id)
-{
-  KmsSdpSession *sess;
-
-  sess = g_slice_new0 (KmsSdpSession);
-
-  kms_ref_struct_init (KMS_REF_STRUCT_CAST (sess),
-      (GDestroyNotify) kms_sdp_session_destroy);
-
-  sess->id = id;
-  sess->id_str = g_strdup_printf ("%s-sess%d", GST_ELEMENT_NAME (sdp_ep), id);
-
-  sess->sdp_ep = sdp_ep;
-  sess->agent = kms_sdp_agent_new ();
-
-  g_object_set (sess->agent, "use-ipv6", sdp_ep->priv->use_ipv6, NULL);
-  if (sdp_ep->priv->addr != NULL) {
-    g_object_set (sess->agent, "addr", sdp_ep->priv->addr, NULL);
-  }
-
-  sess->ptmanager = kms_sdp_payload_manager_new ();
-
-  return sess;
-}
-
 static gboolean
 kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
     SdpMediaConfig * mconf, gpointer user_data)
 {
-  KmsSdpSession *sess = (KmsSdpSession *) user_data;
+  KmsSdpSession *sess = KMS_SDP_SESSION (user_data);
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
-      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (sess->sdp_ep));
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (sess->ep));
 
-  return base_sdp_endpoint_class->configure_media (sess->sdp_ep, sess, mconf);
+  return base_sdp_endpoint_class->configure_media (sess->ep, sess, mconf);
 }
 
 static const gchar *
@@ -472,9 +429,7 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self,
     const gchar * sess_id)
 {
   KmsSdpSession *sess;
-  SdpMessageContext *ctx = NULL;
   GstSDPMessage *offer = NULL;
-  GError *err = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -490,24 +445,7 @@ kms_base_sdp_endpoint_generate_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  ctx = kms_sdp_agent_create_offer (sess->agent, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error generating offer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    goto end;
-  }
-
-  offer = kms_sdp_message_context_pack (ctx, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error generating offer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    goto end;
-  }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  sess->local_ctx = ctx;
+  offer = kms_sdp_session_generate_offer (sess);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -520,9 +458,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     const gchar * sess_id, GstSDPMessage * offer)
 {
   KmsSdpSession *sess;
-  SdpMessageContext *ctx = NULL;
   GstSDPMessage *answer = NULL;
-  GError *err = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -538,38 +474,10 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing offer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    goto end;
+  answer = kms_sdp_session_process_offer (sess, offer);
+  if (self->priv->first_negotiated_session == NULL) {
+    self->priv->first_negotiated_session = g_object_ref (sess);
   }
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  sess->remote_ctx = ctx;
-
-  ctx = kms_sdp_agent_create_answer (sess->agent, offer, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing offer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    goto end;
-  }
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing offer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    kms_sdp_message_context_destroy (ctx);
-    goto end;
-  }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  sess->local_ctx = ctx;
-  sess->negotiated_ctx = ctx;
-  self->priv->first_negotiated_session =
-      (KmsSdpSession *) kms_ref_struct_ref (KMS_REF_STRUCT_CAST (sess));
   kms_base_sdp_endpoint_start_media (self, sess, FALSE);
 
 end:
@@ -583,8 +491,6 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     const gchar * sess_id, GstSDPMessage * answer)
 {
   KmsSdpSession *sess;
-  SdpMessageContext *ctx;
-  GError *err = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -596,27 +502,10 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (sess->local_ctx == NULL) {
-    // TODO: This should raise an error
-    GST_ERROR_OBJECT (self,
-        "Answer received without a local offer generated for session '%s'",
-        sess_id);
-    goto end;
+  kms_sdp_session_process_answer (sess, answer);
+  if (self->priv->first_negotiated_session == NULL) {
+    self->priv->first_negotiated_session = g_object_ref (sess);
   }
-
-  ctx = kms_sdp_message_context_new_from_sdp (answer, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing answer for session '%s' (%s)",
-        sess_id, err->message);
-    g_error_free (err);
-    goto end;
-  }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  sess->remote_ctx = ctx;
-  sess->negotiated_ctx = ctx;
-  self->priv->first_negotiated_session =
-      (KmsSdpSession *) kms_ref_struct_ref (KMS_REF_STRUCT_CAST (sess));
   kms_base_sdp_endpoint_start_media (self, sess, TRUE);
 
 end:
@@ -629,7 +518,6 @@ kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self,
 {
   KmsSdpSession *sess;
   GstSDPMessage *sdp = NULL;
-  GError *err = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -641,15 +529,7 @@ kms_base_sdp_endpoint_get_local_sdp (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (sess->local_ctx != NULL) {
-    sdp = kms_sdp_message_context_pack (sess->local_ctx, &err);
-    if (err != NULL) {
-      GST_ERROR_OBJECT (self, "Error packing local SDP for session '%s' (%s)",
-          sess_id, err->message);
-      g_error_free (err);
-      goto end;
-    }
-  }
+  sdp = kms_sdp_session_get_local_sdp (sess);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -663,7 +543,6 @@ kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self,
 {
   KmsSdpSession *sess;
   GstSDPMessage *sdp = NULL;
-  GError *err = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -675,15 +554,7 @@ kms_base_sdp_endpoint_get_remote_sdp (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (sess->remote_ctx != NULL) {
-    sdp = kms_sdp_message_context_pack (sess->remote_ctx, &err);
-    if (err != NULL) {
-      GST_ERROR_OBJECT (self, "Error packing remote SDP for session '%s' (%s)",
-          sess_id, err->message);
-      g_error_free (err);
-      goto end;
-    }
-  }
+  sdp = kms_sdp_session_get_remote_sdp (sess);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -818,11 +689,7 @@ kms_base_sdp_endpoint_finalize (GObject * object)
   KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (object);
 
   g_hash_table_destroy (self->priv->sessions);
-
-  if (self->priv->first_negotiated_session != NULL) {
-    kms_ref_struct_unref (KMS_REF_STRUCT_CAST (self->
-            priv->first_negotiated_session));
-  }
+  g_clear_object (&self->priv->first_negotiated_session);
 
   if (self->priv->audio_codecs != NULL) {
     g_array_free (self->priv->audio_codecs, TRUE);
@@ -992,7 +859,7 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
   self->priv->addr = DEFAULT_ADDR;
   self->priv->sessions =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-      (GDestroyNotify) kms_ref_struct_unref);
+      (GDestroyNotify) g_object_unref);
 
   self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
 }

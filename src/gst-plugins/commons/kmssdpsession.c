@@ -27,13 +27,16 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 G_DEFINE_TYPE (KmsSdpSession, kms_sdp_session, GST_TYPE_BIN);
 
 KmsSdpSession *
-kms_sdp_session_new ()
+kms_sdp_session_new (KmsBaseSdpEndpoint * ep, guint id)
 {
   GObject *obj;
   KmsSdpSession *sess;
 
   obj = g_object_new (KMS_TYPE_SDP_SESSION, NULL);
   sess = KMS_SDP_SESSION (obj);
+  sess->id = id;
+  sess->id_str = g_strdup_printf ("%s-sess%d", GST_ELEMENT_NAME (ep), id);
+  sess->ep = ep;
 
   return sess;
 }
@@ -200,6 +203,7 @@ kms_sdp_session_finalize (GObject * object)
 
   g_clear_object (&self->ptmanager);
   g_clear_object (&self->agent);
+  g_free (self->id_str);
 
   /* chain up */
   G_OBJECT_CLASS (kms_sdp_session_parent_class)->finalize (object);
