@@ -718,7 +718,7 @@ kms_base_rtp_endpoint_media_proto_to_rtp_profile (KmsBaseRtpEndpoint * self,
 
 static gboolean
 kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf)
+    KmsBaseRtpSession * base_rtp_sess, SdpMediaConfig * mconf)
 {
   GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *proto_str = gst_sdp_media_get_proto (media);
@@ -775,8 +775,10 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
 
   if (session_id == AUDIO_RTP_SESSION) {
     self->priv->local_audio_ssrc = ssrc;
+    base_rtp_sess->local_audio_ssrc = ssrc;
   } else if (session_id == VIDEO_RTP_SESSION) {
     self->priv->local_video_ssrc = ssrc;
+    base_rtp_sess->local_video_ssrc = ssrc;
   }
 
   return TRUE;
@@ -795,7 +797,7 @@ kms_base_rtp_endpoint_configure_media (KmsBaseSdpEndpoint *
     return FALSE;
   }
 
-  return kms_base_rtp_endpoint_configure_rtp_media (self, mconf);
+  return kms_base_rtp_endpoint_configure_rtp_media (self, base_rtp_sess, mconf);
 }
 
 /* Configure media SDP end */
