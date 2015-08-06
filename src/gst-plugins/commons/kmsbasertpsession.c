@@ -260,7 +260,6 @@ static void
 rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
     KmsBaseRtpSession * self)
 {
-  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self);
   const gchar *rtp_pad_name = GST_OBJECT_NAME (pad);
   gchar *rtcp_pad_name;
   SdpMediaConfig *mconf;
@@ -269,8 +268,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
       pad, ssrc);
 
-  /* TODO: lock per session */
-  KMS_ELEMENT_LOCK (sdp_sess->ep);
+  KMS_SDP_SESSION_LOCK (self);
 
   if (self->remote_audio_ssrc == ssrc
       || ssrcs_are_mapped (ssrcdemux, self->local_audio_ssrc, ssrc)) {
@@ -300,7 +298,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   g_object_unref (sink);
 
 end:
-  KMS_ELEMENT_UNLOCK (sdp_sess->ep);
+  KMS_SDP_SESSION_UNLOCK (self);
 }
 
 static void

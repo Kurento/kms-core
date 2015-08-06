@@ -41,9 +41,16 @@ typedef struct _KmsBaseSdpEndpoint KmsBaseSdpEndpoint;
 typedef struct _KmsSdpSession KmsSdpSession;
 typedef struct _KmsSdpSessionClass KmsSdpSessionClass;
 
+#define KMS_SDP_SESSION_LOCK(sess) \
+  (g_rec_mutex_lock (&KMS_SDP_SESSION_CAST ((sess))->mutex))
+#define KMS_SDP_SESSION_UNLOCK(sess) \
+  (g_rec_mutex_unlock (&KMS_SDP_SESSION_CAST ((sess))->mutex))
+
 struct _KmsSdpSession
 {
   GstBin parent;
+
+  GRecMutex mutex;
 
   guint id;
   gchar *id_str;

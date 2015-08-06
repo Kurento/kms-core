@@ -207,6 +207,8 @@ kms_sdp_session_finalize (GObject * object)
   g_clear_object (&self->agent);
   g_free (self->id_str);
 
+  g_rec_mutex_clear (&self->mutex);
+
   /* chain up */
   G_OBJECT_CLASS (kms_sdp_session_parent_class)->finalize (object);
 }
@@ -223,6 +225,8 @@ kms_sdp_session_post_constructor (KmsSdpSession * self, KmsBaseSdpEndpoint * ep,
 static void
 kms_sdp_session_init (KmsSdpSession * self)
 {
+  g_rec_mutex_init (&self->mutex);
+
   self->agent = kms_sdp_agent_new ();
   self->ptmanager = kms_sdp_payload_manager_new ();
 }

@@ -839,7 +839,9 @@ kms_base_rtp_endpoint_get_connection_state (KmsBaseRtpEndpoint * self,
     goto end;
   }
 
+  KMS_SDP_SESSION_LOCK (sess);
   ret = sess->conn_state;
+  KMS_SDP_SESSION_UNLOCK (sess);
 
 end:
   KMS_ELEMENT_UNLOCK (self);
@@ -857,7 +859,7 @@ kms_base_rtp_endpoint_update_conn_state (KmsBaseRtpEndpoint * self,
   gboolean emit = FALSE;
   KmsConnectionState new_state = KMS_CONNECTION_STATE_CONNECTED;
 
-  KMS_ELEMENT_LOCK (self);
+  KMS_SDP_SESSION_LOCK (sess);
 
   g_hash_table_iter_init (&iter, sess->conns);
   while (g_hash_table_iter_next (&iter, &key, &v)) {
@@ -877,7 +879,7 @@ kms_base_rtp_endpoint_update_conn_state (KmsBaseRtpEndpoint * self,
     emit = TRUE;
   }
 
-  KMS_ELEMENT_UNLOCK (self);
+  KMS_SDP_SESSION_UNLOCK (sess);
 
   if (emit) {
     g_signal_emit (G_OBJECT (self), obj_signals[CONNECTION_STATE_CHANGED], 0,
@@ -903,7 +905,7 @@ kms_base_rtp_endpoint_check_conn_status (KmsBaseRtpEndpoint * self,
   GHashTableIter iter;
   gpointer key, v;
 
-  KMS_ELEMENT_LOCK (self);
+  KMS_SDP_SESSION_LOCK (sess);
 
   g_hash_table_iter_init (&iter, sess->conns);
   while (g_hash_table_iter_next (&iter, &key, &v)) {
@@ -913,7 +915,7 @@ kms_base_rtp_endpoint_check_conn_status (KmsBaseRtpEndpoint * self,
         G_CALLBACK (kms_base_rtp_endpoint_connected_cb), sess, NULL, 0);
   }
 
-  KMS_ELEMENT_UNLOCK (self);
+  KMS_SDP_SESSION_UNLOCK (sess);
 
   kms_base_rtp_endpoint_update_conn_state (self, sess);
 }
