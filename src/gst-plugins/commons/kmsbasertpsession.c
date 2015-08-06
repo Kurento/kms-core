@@ -117,7 +117,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
       pad, ssrc);
 
-  /* inmediate-TODO: lock per session */
+  /* TODO: lock per session */
   KMS_ELEMENT_LOCK (sdp_sess->ep);
 
   if (self->remote_audio_ssrc == ssrc
@@ -205,7 +205,6 @@ kms_base_rtp_session_add_bundle_connection (KmsBaseRtpSession * self,
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
-/* inmediate-TODO: add when conn is "connected" */
 static void
 kms_base_rtp_session_add_connection_sink (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, SdpMediaConfig * mconf)
@@ -400,7 +399,6 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
       active);
 }
 
-/* inmediate-TODO: check relationship with kms_webrtc_endpoint_start_transport_send*/
 void
 kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
     gboolean offerer)
