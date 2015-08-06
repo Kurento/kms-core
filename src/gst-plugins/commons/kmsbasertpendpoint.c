@@ -839,9 +839,7 @@ kms_base_rtp_endpoint_get_connection_state (KmsBaseRtpEndpoint * self,
     goto end;
   }
 
-  KMS_SDP_SESSION_LOCK (sess);
-  ret = sess->conn_state;
-  KMS_SDP_SESSION_UNLOCK (sess);
+  g_object_get (sess, "connection-state", &ret, NULL);
 
 end:
   KMS_ELEMENT_UNLOCK (self);

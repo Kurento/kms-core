@@ -43,6 +43,14 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_CONNECTION_STATE KMS_CONNECTION_STATE_DISCONNECTED
+
+enum
+{
+  PROP_0,
+  PROP_CONNECTION_STATE
+};
+
 KmsBaseRtpSession *
 kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
     KmsIRtpSessionManager * manager)
@@ -693,6 +701,26 @@ kms_base_rtp_session_disable_connections_stats (KmsBaseRtpSession * self)
 }
 
 static void
+kms_base_rtp_session_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (object);
+
+  KMS_SDP_SESSION_LOCK (self);
+
+  switch (property_id) {
+    case PROP_CONNECTION_STATE:
+      g_value_set_enum (value, self->conn_state);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+
+  KMS_SDP_SESSION_UNLOCK (self);
+}
+
+static void
 kms_base_rtp_session_finalize (GObject * object)
 {
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (object);
@@ -733,6 +761,7 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       GST_DEFAULT_NAME);
 
   gobject_class->finalize = kms_base_rtp_session_finalize;
+  gobject_class->get_property = kms_base_rtp_session_get_property;
 
   klass->post_constructor = kms_base_rtp_session_post_constructor;
 
@@ -748,6 +777,11 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       "Generic",
       "Base bin to manage elements related with a RTP session.",
       "Miguel París Díaz <mparisdiaz@gmail.com>");
+
+  g_object_class_install_property (gobject_class, PROP_CONNECTION_STATE,
+      g_param_spec_enum ("connection-state", "Connection state",
+          "Connection state", KMS_TYPE_CONNECTION_STATE,
+          DEFAULT_CONNECTION_STATE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   obj_signals[CONNECTION_STATE_CHANGED] =
       g_signal_new ("connection-state-changed",
