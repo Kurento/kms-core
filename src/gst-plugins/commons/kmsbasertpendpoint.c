@@ -1300,10 +1300,17 @@ static KmsSdpSession *
 kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp_ep,
     gint id)
 {
-  KmsIRtpSessionManager *manager = KMS_I_RTP_SESSION_MANAGER (base_sdp_ep);
-  KmsBaseRtpSession *sess = kms_base_rtp_session_new (base_sdp_ep, id, manager);
+  KmsBaseSdpEndpointClass *klass =
+      KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_ep));
 
-  return KMS_SDP_SESSION (sess);
+  if (klass->create_session_internal ==
+      kms_base_rtp_endpoint_create_session_internal) {
+    GST_WARNING_OBJECT (base_sdp_ep,
+        "%s does not reimplement 'create_session_internal'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
 }
 
 static void
