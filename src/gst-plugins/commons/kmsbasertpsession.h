@@ -73,6 +73,8 @@ struct _KmsBaseRtpSessionClass
   KmsIRtpConnection * (*create_connection) (KmsBaseRtpSession *self, SdpMediaConfig * mconf, const gchar *name);
   KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpSession *self, const gchar *name);
   KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpSession *self, const gchar *name);
+
+  void (*connection_state_changed) (KmsBaseRtpSession * self, KmsConnectionState new_state);
 };
 
 GType kms_base_rtp_session_get_type (void);

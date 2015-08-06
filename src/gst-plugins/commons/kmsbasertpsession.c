@@ -22,6 +22,9 @@
 #include "kmsutils.h"
 #include "sdp_utils.h"
 
+#include "kms-core-enumtypes.h"
+#include "kms-core-marshal.h"
+
 #define GST_DEFAULT_NAME "kmsbasertpsession"
 #define GST_CAT_DEFAULT kms_base_rtp_session_debug
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -31,6 +34,14 @@ G_DEFINE_TYPE (KmsBaseRtpSession, kms_base_rtp_session, KMS_TYPE_SDP_SESSION);
 
 #define BUNDLE_CONN_ADDED "bundle-conn-added"
 #define RTCP_DEMUX_PEER "rtcp-demux-peer"
+
+enum
+{
+  CONNECTION_STATE_CHANGED,
+  LAST_SIGNAL
+};
+
+static guint obj_signals[LAST_SIGNAL] = { 0 };
 
 KmsBaseRtpSession *
 kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
@@ -149,7 +160,7 @@ str_media_type (KmsMediaType type)
 }
 
 static void
-kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
+kms_base_rtp_session_latency_cb (GstPad * pad, KmsMediaType type,
     GstClockTimeDiff t, gpointer user_data)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
@@ -172,11 +183,11 @@ kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
 }
 
 static void
-kms_base_rtp_endpoint_set_connection_stats (KmsBaseRtpSession * self,
+kms_base_rtp_session_set_connection_stats (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn)
 {
   kms_i_rtp_connection_set_latency_callback (conn,
-      kms_base_rtp_endpoint_latency_cb, self);
+      kms_base_rtp_session_latency_cb, self);
 
   /* Active insertion of metadata if stats are enabled */
   g_mutex_lock (&self->priv->stats.mutex);
@@ -220,7 +231,7 @@ kms_base_rtp_session_create_connection (KmsBaseRtpSession * self,
 
 /* inmediate-TODO: reenable */
 #if 0
-  kms_base_rtp_endpoint_set_connection_stats (self, conn);
+  kms_base_rtp_session_set_connection_stats (self, conn);
 #endif
 
 end:
@@ -549,6 +560,71 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
       active);
 }
 
+static void
+kms_base_rtp_session_update_conn_state (KmsBaseRtpSession * self)
+{
+  GHashTableIter iter;
+  gpointer key, v;
+  gboolean emit = FALSE;
+  KmsConnectionState new_state = KMS_CONNECTION_STATE_CONNECTED;
+
+  KMS_SDP_SESSION_LOCK (self);
+
+  g_hash_table_iter_init (&iter, self->conns);
+  while (g_hash_table_iter_next (&iter, &key, &v)) {
+    KmsIRtpConnection *conn = KMS_I_RTP_CONNECTION (v);
+    gboolean connected;
+
+    g_object_get (conn, "connected", &connected, NULL);
+    if (!connected) {
+      new_state = KMS_CONNECTION_STATE_DISCONNECTED;
+      break;
+    }
+  }
+
+  if (self->conn_state != new_state) {
+    GST_DEBUG_OBJECT (self, "Connection state changed to '%d'", new_state);
+    self->conn_state = new_state;
+    emit = TRUE;
+  }
+
+  KMS_SDP_SESSION_UNLOCK (self);
+
+  if (emit) {
+    g_signal_emit (G_OBJECT (self), obj_signals[CONNECTION_STATE_CHANGED], 0,
+        new_state);
+  }
+}
+
+static void
+kms_base_rtp_session_connected_cb (KmsIRtpConnection * conn, gpointer user_data)
+{
+  KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (user_data);
+
+  kms_base_rtp_session_update_conn_state (self);
+}
+
+static void
+kms_base_rtp_session_check_conn_status (KmsBaseRtpSession * self)
+{
+  GHashTableIter iter;
+  gpointer key, v;
+
+  KMS_SDP_SESSION_LOCK (self);
+
+  g_hash_table_iter_init (&iter, self->conns);
+  while (g_hash_table_iter_next (&iter, &key, &v)) {
+    KmsIRtpConnection *conn = KMS_I_RTP_CONNECTION (v);
+
+    g_signal_connect_data (conn, "connected",
+        G_CALLBACK (kms_base_rtp_session_connected_cb), self, NULL, 0);
+  }
+
+  KMS_SDP_SESSION_UNLOCK (self);
+
+  kms_base_rtp_session_update_conn_state (self);
+}
+
 void
 kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
     gboolean offerer)
@@ -557,6 +633,8 @@ kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
   GSList *item = kms_sdp_message_context_get_medias (sdp_sess->neg_sdp_ctx);
   GSList *remote_media_list =
       kms_sdp_message_context_get_medias (sdp_sess->remote_sdp_ctx);
+
+  kms_base_rtp_session_check_conn_status (self);
 
   for (; item != NULL; item = g_slist_next (item)) {
     SdpMediaConfig *neg_mconf = item->data;
@@ -593,7 +671,7 @@ kms_base_rtp_session_enable_connection_stats (gpointer key, gpointer value,
 }
 
 static void
-kms_base_rtp_endpoint_disable_connection_stats (gpointer key, gpointer value,
+kms_base_rtp_session_disable_connection_stats (gpointer key, gpointer value,
     gpointer user_data)
 {
   kms_i_rtp_connection_collect_latency_stats (KMS_I_RTP_CONNECTION (value),
@@ -611,7 +689,7 @@ void
 kms_base_rtp_session_disable_connections_stats (KmsBaseRtpSession * self)
 {
   g_hash_table_foreach (self->conns,
-      kms_base_rtp_endpoint_disable_connection_stats, NULL);
+      kms_base_rtp_session_disable_connection_stats, NULL);
 }
 
 static void
@@ -670,4 +748,12 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       "Generic",
       "Base bin to manage elements related with a RTP session.",
       "Miguel París Díaz <mparisdiaz@gmail.com>");
+
+  obj_signals[CONNECTION_STATE_CHANGED] =
+      g_signal_new ("connection-state-changed",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsBaseRtpSessionClass, connection_state_changed), NULL,
+      NULL, __kms_core_marshal_VOID__STRING_ENUM, G_TYPE_NONE, 1,
+      KMS_TYPE_CONNECTION_STATE);
 }
