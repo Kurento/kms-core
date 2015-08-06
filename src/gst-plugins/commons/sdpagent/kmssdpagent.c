@@ -727,7 +727,7 @@ kms_sdp_agent_new ()
   return agent;
 }
 
-/* inmediate-TODO: rename to _add_media_handler */
+/* TODO: rename to _add_media_handler */
 gint
 kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
