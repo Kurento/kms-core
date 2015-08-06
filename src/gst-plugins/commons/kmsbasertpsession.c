@@ -366,8 +366,6 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
   GstSDPMedia *remote_media = kms_sdp_media_config_get_sdp_media (remote_mconf);
   const gchar *remote_proto_str = gst_sdp_media_get_proto (remote_media);
   const gchar *remote_media_str = gst_sdp_media_get_media (remote_media);
-
-  const gchar *rtp_session_str;
   gboolean active;
 
   if (g_strcmp0 (neg_proto_str, remote_proto_str) != 0) {
@@ -391,11 +389,8 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
     return FALSE;
   }
 
-  /* inmediate-TODO: rtp_session_str should not be needed */
-  rtp_session_str =
-      kms_base_rtp_session_process_remote_ssrc (self, remote_media, neg_mconf);
-
-  if (rtp_session_str == NULL) {
+  if (kms_base_rtp_session_process_remote_ssrc (self, remote_media,
+          neg_mconf) == NULL) {
     return TRUE;                /* It cannot be managed here but could be managed by the child class */
   }
 
