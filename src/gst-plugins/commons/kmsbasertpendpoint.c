@@ -1298,9 +1298,9 @@ kms_base_rtp_endpoint_connect_input_elements (KmsBaseSdpEndpoint *
 
 /* Connect input elements end */
 
-static KmsSdpSession *
+static void
 kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp_ep,
-    gint id)
+    gint id, KmsSdpSession ** sess)
 {
   KmsBaseSdpEndpointClass *klass =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (base_sdp_ep));
@@ -1311,8 +1311,6 @@ kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp_ep,
         "%s does not reimplement 'create_session_internal'",
         G_OBJECT_CLASS_NAME (klass));
   }
-
-  return NULL;
 }
 
 static void

@@ -70,7 +70,7 @@ struct _KmsBaseSdpEndpointClass
   GstSDPMessage *(*get_remote_sdp) (KmsBaseSdpEndpoint * self, const gchar *sess_id);
 
   /* virtual methods */
-  KmsSdpSession * (*create_session_internal) (KmsBaseSdpEndpoint * self, gint id);
+  void (*create_session_internal) (KmsBaseSdpEndpoint * self, gint id, KmsSdpSession **sess);
   void (*release_session_internal) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess);
   void (*start_transport_send) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess, gboolean offerer);
   void (*connect_input_elements) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess);

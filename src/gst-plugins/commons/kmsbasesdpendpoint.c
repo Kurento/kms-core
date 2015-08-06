@@ -122,7 +122,7 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
   gint id;
   gchar *ret = NULL;
-  KmsSdpSession *sess;
+  KmsSdpSession *sess = NULL;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -133,7 +133,7 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
   }
 
   id = g_atomic_int_add (&self->priv->next_session_id, 1);
-  sess = base_sdp_endpoint_class->create_session_internal (self, id);
+  base_sdp_endpoint_class->create_session_internal (self, id, &sess);
   g_object_ref (sess);
   gst_bin_add (GST_BIN (self), GST_ELEMENT (sess));
   gst_element_sync_state_with_parent (GST_ELEMENT (sess));
@@ -383,11 +383,11 @@ kms_base_sdp_endpoint_connect_input_elements (KmsBaseSdpEndpoint * self,
   }
 }
 
-static KmsSdpSession *
+static void
 kms_base_sdp_endpoint_create_session_internal (KmsBaseSdpEndpoint * self,
-    gint id)
+    gint id, KmsSdpSession ** sess)
 {
-  return kms_sdp_session_new (self, id);
+  *sess = kms_sdp_session_new (self, id);
 }
 
 static void
