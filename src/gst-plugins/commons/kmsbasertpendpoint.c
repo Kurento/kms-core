@@ -2194,7 +2194,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
 }
 
 static void
-kms_bse_rtp_endpoint_get_property (GObject * object, guint property_id,
+kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (object);
@@ -2478,7 +2478,7 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   object_class->dispose = kms_base_rtp_endpoint_dispose;
   object_class->finalize = kms_base_rtp_endpoint_finalize;
   object_class->set_property = kms_base_rtp_endpoint_set_property;
-  object_class->get_property = kms_bse_rtp_endpoint_get_property;
+  object_class->get_property = kms_base_rtp_endpoint_get_property;
 
   kmselement_class = KMS_ELEMENT_CLASS (klass);
   kmselement_class->stats = GST_DEBUG_FUNCPTR (kms_base_rtp_endpoint_stats);
