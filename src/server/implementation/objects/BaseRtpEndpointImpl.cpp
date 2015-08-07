@@ -78,6 +78,10 @@ BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
   if (mediaStateChangedHandlerId > 0) {
     unregister_signal_handler (element, mediaStateChangedHandlerId);
   }
+
+  if (connStateChangedHandlerId > 0) {
+    unregister_signal_handler (element, connStateChangedHandlerId);
+  }
 }
 
 void
