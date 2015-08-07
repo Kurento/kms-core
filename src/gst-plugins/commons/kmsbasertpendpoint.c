@@ -93,28 +93,62 @@ struct _KmsBaseRTPStats
   gdouble ai;
 };
 
+/* RtpMediaConfig begin */
+
+typedef struct _RtpMediaConfig
+{
+  KmsRefStruct ref;
+
+  guint local_ssrc;
+  guint ssrc;
+  gboolean actived;
+
+  GstElement *payloader;
+  gboolean payloader_connected;
+} RtpMediaConfig;
+
+static void
+rtp_media_config_destroy (RtpMediaConfig * config)
+{
+  g_clear_object (&config->payloader);
+  g_slice_free (RtpMediaConfig, config);
+}
+
+void
+rtp_media_config_unref (RtpMediaConfig * config)
+{
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (config));
+}
+
+static RtpMediaConfig *
+rtp_media_config_new ()
+{
+  RtpMediaConfig *config;
+
+  config = g_slice_new0 (RtpMediaConfig);
+
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (config),
+      (GDestroyNotify) rtp_media_config_destroy);
+
+  config->payloader = NULL;
+  config->payloader_connected = FALSE;
+
+  return config;
+}
+
+/* RtpMediaConfig end */
+
 struct _KmsBaseRtpEndpointPrivate
 {
   GstElement *rtpbin;
   KmsMediaState media_state;
-  gboolean audio_actived;
-  gboolean video_actived;
 
   gboolean rtcp_mux;
   gboolean rtcp_nack;
   gboolean rtcp_remb;
 
-  GstElement *audio_payloader;
-  GstElement *video_payloader;
-
-  gboolean audio_payloader_connected;
-  gboolean video_payloader_connected;
-
-  guint local_audio_ssrc;
-  guint audio_ssrc;
-
-  guint local_video_ssrc;
-  guint video_ssrc;
+  RtpMediaConfig *audio_config;
+  RtpMediaConfig *video_config;
 
   gint32 target_bitrate;
   guint min_video_recv_bw;
@@ -334,7 +368,7 @@ kms_base_rtp_endpoint_config_rtp_hdr_ext (KmsBaseRtpEndpoint * self,
     return;
   }
 
-  pad = gst_element_get_static_pad (self->priv->video_payloader, "src");
+  pad = gst_element_get_static_pad (self->priv->video_config->payloader, "src");
   if (pad == NULL) {
     GST_WARNING_OBJECT (self, "No RTP pad to configure hdrext probe.");
     return;
@@ -629,10 +663,10 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
   gst_structure_free (sdes);
 
   if (session_id == AUDIO_RTP_SESSION) {
-    self->priv->local_audio_ssrc = ssrc;
+    self->priv->audio_config->local_ssrc = ssrc;
     base_rtp_sess->local_audio_ssrc = ssrc;
   } else if (session_id == VIDEO_RTP_SESSION) {
-    self->priv->local_video_ssrc = ssrc;
+    self->priv->video_config->local_ssrc = ssrc;
     base_rtp_sess->local_video_ssrc = ssrc;
   }
 
@@ -690,7 +724,7 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpSession * sess,
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
       kms_remb_remote_create (rtpsession, VIDEO_RTP_SESSION,
-      self->priv->local_video_ssrc, self->priv->min_video_send_bw,
+      self->priv->video_config->local_ssrc, self->priv->min_video_send_bw,
       self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
   g_object_unref (rtpsession);
@@ -1171,15 +1205,15 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    self->priv->audio_payloader = payloader;
-    connected_flag = &self->priv->audio_payloader_connected;
+    self->priv->audio_config->payloader = payloader;
+    connected_flag = &self->priv->audio_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_AUDIO;
     rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    self->priv->video_payloader = payloader;
+    self->priv->video_config->payloader = payloader;
     /* TODO: check if is needed for audio  */
     kms_base_rtp_endpoint_config_rtp_hdr_ext (self, mconf);
-    connected_flag = &self->priv->video_payloader_connected;
+    connected_flag = &self->priv->video_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_VIDEO;
     rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
   } else {
@@ -1512,13 +1546,14 @@ kms_base_rtp_endpoint_stop_signal (KmsBaseRtpEndpoint * self, guint session,
 
   KMS_ELEMENT_LOCK (self);
 
-  if (ssrc == self->priv->audio_ssrc || ssrc == self->priv->video_ssrc) {
+  if (ssrc == self->priv->audio_config->ssrc
+      || ssrc == self->priv->video_config->ssrc) {
     local = FALSE;
 
-    if (self->priv->audio_ssrc == ssrc)
-      self->priv->audio_ssrc = 0;
-    else if (self->priv->video_ssrc == ssrc)
-      self->priv->video_ssrc = 0;
+    if (self->priv->audio_config->ssrc == ssrc)
+      self->priv->audio_config->ssrc = 0;
+    else if (self->priv->video_config->ssrc == ssrc)
+      self->priv->video_config->ssrc = 0;
   }
 
   KMS_ELEMENT_UNLOCK (self);
@@ -1918,22 +1953,22 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 
   GST_DEBUG_OBJECT (self, "dispose");
 
-  g_clear_object (&self->priv->audio_payloader);
-  g_clear_object (&self->priv->video_payloader);
-
-  if (self->priv->audio_ssrc != 0) {
+  if (self->priv->audio_config->ssrc != 0) {
     kms_base_rtp_endpoint_stop_signal (self, AUDIO_RTP_SESSION,
-        self->priv->audio_ssrc);
+        self->priv->audio_config->ssrc);
     g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STOP], 0,
         KMS_MEDIA_TYPE_AUDIO, TRUE);
   }
 
-  if (self->priv->video_ssrc != 0) {
+  if (self->priv->video_config->ssrc != 0) {
     kms_base_rtp_endpoint_stop_signal (self, VIDEO_RTP_SESSION,
-        self->priv->video_ssrc);
+        self->priv->video_config->ssrc);
     g_signal_emit (G_OBJECT (self), obj_signals[MEDIA_STOP], 0,
         KMS_MEDIA_TYPE_VIDEO, TRUE);
   }
+
+  rtp_media_config_unref (self->priv->audio_config);
+  rtp_media_config_unref (self->priv->video_config);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->dispose (gobject);
 }
@@ -2289,18 +2324,18 @@ kms_base_rtp_endpoint_rtpbin_on_new_ssrc (GstElement * rtpbin, guint session,
 
   switch (session) {
     case AUDIO_RTP_SESSION:
-      if (self->priv->audio_ssrc != 0) {
+      if (self->priv->audio_config->ssrc != 0) {
         break;
       }
 
-      self->priv->audio_ssrc = ssrc;
+      self->priv->audio_config->ssrc = ssrc;
       break;
     case VIDEO_RTP_SESSION:
-      if (self->priv->video_ssrc != 0) {
+      if (self->priv->video_config->ssrc != 0) {
         break;
       }
 
-      self->priv->video_ssrc = ssrc;
+      self->priv->video_config->ssrc = ssrc;
       break;
     default:
       GST_WARNING_OBJECT (self, "No media supported for session %u", session);
@@ -2322,16 +2357,16 @@ kms_base_rtp_endpoint_set_media_state (KmsBaseRtpEndpoint * self, guint session,
 
   switch (session) {
     case AUDIO_RTP_SESSION:
-      self->priv->audio_actived = actived;
+      self->priv->audio_config->actived = actived;
       break;
     case VIDEO_RTP_SESSION:
-      self->priv->video_actived = actived;
+      self->priv->video_config->actived = actived;
       break;
     default:
       GST_WARNING_OBJECT (self, "No media supported for session %u", session);
   }
 
-  if (self->priv->audio_actived || self->priv->video_actived) {
+  if (self->priv->audio_config->actived || self->priv->video_config->actived) {
     /* There is still a media connection alive */
     new_state = KMS_MEDIA_STATE_CONNECTED;
   } else {
@@ -2385,7 +2420,8 @@ kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes (GstElement * rtpbin, guint session,
 
   KMS_ELEMENT_LOCK (self);
 
-  if (ssrc != self->priv->audio_ssrc && ssrc != self->priv->video_ssrc) {
+  if (ssrc != self->priv->audio_config->ssrc
+      && ssrc != self->priv->video_config->ssrc) {
     GST_WARNING_OBJECT (self, "SSRC %u not valid", ssrc);
     KMS_ELEMENT_UNLOCK (self);
     return;
@@ -2481,11 +2517,8 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   gst_bin_add (GST_BIN (self), self->priv->rtpbin);
 
-  self->priv->audio_payloader = NULL;
-  self->priv->video_payloader = NULL;
-
-  self->priv->audio_payloader_connected = FALSE;
-  self->priv->video_payloader_connected = FALSE;
+  self->priv->audio_config = rtp_media_config_new ();
+  self->priv->video_config = rtp_media_config_new ();
 
   kms_base_rtp_endpoint_init_stats (self);
 }
