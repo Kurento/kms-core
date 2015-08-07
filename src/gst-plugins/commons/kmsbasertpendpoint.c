@@ -1108,17 +1108,25 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
     gboolean * connected_flag, const gchar * rtpbin_pad_name)
 {
   GstElement *rtpbin = self->priv->rtpbin;
-  GstElement *rtprtxqueue = gst_element_factory_make ("rtprtxqueue", NULL);
+  GstElement *src_element;
 
-  g_object_set (rtprtxqueue, "max-size-packets", 512, NULL);
-
+  src_element = payloader;
   g_object_ref (payloader);
-  gst_bin_add_many (GST_BIN (self), payloader, rtprtxqueue, NULL);
+  gst_bin_add (GST_BIN (self), payloader);
   gst_element_sync_state_with_parent (payloader);
-  gst_element_sync_state_with_parent (rtprtxqueue);
 
-  gst_element_link (payloader, rtprtxqueue);
-  gst_element_link_pads (rtprtxqueue, "src", rtpbin, rtpbin_pad_name);
+  /* TODO: add rtxqueue if the media has "nack" instead base on the media type */
+  if (g_strcmp0 (VIDEO_RTPBIN_SEND_RTP_SINK, rtpbin_pad_name) == 0) {
+    GstElement *rtprtxqueue = gst_element_factory_make ("rtprtxqueue", NULL);
+
+    src_element = rtprtxqueue;
+    g_object_set (rtprtxqueue, "max-size-packets", 512, NULL);
+    gst_bin_add (GST_BIN (self), rtprtxqueue);
+    gst_element_sync_state_with_parent (rtprtxqueue);
+    gst_element_link (payloader, rtprtxqueue);
+  }
+
+  gst_element_link_pads (src_element, "src", rtpbin, rtpbin_pad_name);
 
   kms_base_rtp_endpoint_connect_payloader_async (self, conn, payloader,
       connected_flag, type);
