@@ -181,6 +181,16 @@ kms_sdp_session_set_use_ipv6 (KmsSdpSession * self, gboolean use_ipv6)
   g_object_set (self->agent, "use-ipv6", use_ipv6, NULL);
 }
 
+gboolean
+kms_sdp_session_get_use_ipv6 (KmsSdpSession * self)
+{
+  gboolean ret;
+
+  g_object_get (self->agent, "use-ipv6", &ret, NULL);
+
+  return ret;
+}
+
 void
 kms_sdp_session_set_addr (KmsSdpSession * self, const gchar * addr)
 {
