@@ -134,6 +134,8 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 
   id = g_atomic_int_add (&self->priv->next_session_id, 1);
   base_sdp_endpoint_class->create_session_internal (self, id, &sess);
+  kms_sdp_session_set_use_ipv6 (sess, self->priv->use_ipv6);
+
   g_object_ref (sess);
   gst_bin_add (GST_BIN (self), GST_ELEMENT (sess));
   gst_element_sync_state_with_parent (GST_ELEMENT (sess));
