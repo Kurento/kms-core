@@ -36,6 +36,7 @@ G_BEGIN_DECLS
 #define RTCP_MUX "rtcp-mux"
 
 #define RTCP_MIN_INTERVAL 500 /* ms */
+#define RTP_RTX_SIZE 512 /* packets */
 
 /* rtpbin pad names */
 #define RTPBIN_RECV_RTP_SINK "recv_rtp_sink_"
