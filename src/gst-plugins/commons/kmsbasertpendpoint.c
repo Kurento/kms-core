@@ -43,8 +43,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
 #define KMS_KEY_ID "kms-key-id"
 
-#define PAYLOADER_MTU 1200
-
 G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
     KMS_TYPE_BASE_SDP_ENDPOINT,
     GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME));
@@ -1444,7 +1442,6 @@ gst_base_rtp_get_payloader_for_caps (GstCaps * caps)
   }
 
   payloader = gst_element_factory_create (factory, NULL);
-  g_object_set (payloader, "mtu", PAYLOADER_MTU, NULL);
 
   pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (payloader), "pt");
   if (pspec != NULL && G_PARAM_SPEC_VALUE_TYPE (pspec) == G_TYPE_UINT) {
