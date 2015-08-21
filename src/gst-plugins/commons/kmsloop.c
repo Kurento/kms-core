@@ -305,3 +305,24 @@ kms_loop_timeout_add (KmsLoop * self, guint interval, GSourceFunc function,
   return kms_loop_timeout_add_full (self, G_PRIORITY_DEFAULT, interval,
       function, data, NULL);
 }
+
+gboolean
+kms_loop_remove (KmsLoop * self, guint source_id)
+{
+  GSource *source;
+
+  source = g_main_context_find_source_by_id (self->priv->context, source_id);
+
+  if (source == NULL) {
+    return FALSE;
+  }
+
+  g_source_destroy (source);
+  return TRUE;
+}
+
+gboolean
+kms_loop_is_current_thread (KmsLoop * self)
+{
+  return (g_thread_self () == self->priv->thread);
+}

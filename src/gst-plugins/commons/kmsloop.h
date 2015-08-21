@@ -79,5 +79,12 @@ guint kms_loop_timeout_add (KmsLoop *self, guint interval, GSourceFunc function,
 guint kms_loop_timeout_add_full (KmsLoop *self, gint priority, guint interval,
   GSourceFunc function, gpointer data, GDestroyNotify notify);
 
+gboolean kms_loop_remove (KmsLoop *self, guint source_id);
+
+#define KMS_LOOP_IS_CURRENT_THREAD(loop) \
+  kms_loop_is_current_thread(loop)
+
+gboolean kms_loop_is_current_thread (KmsLoop *self);
+
 G_END_DECLS
 #endif
