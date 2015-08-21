@@ -971,7 +971,119 @@ GST_START_TEST (h264_encoding_odd_dimension)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST
+GST_END_TEST;
+
+static GstPadProbeReturn
+event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
+{
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_CUSTOM_UPSTREAM) {
+    const GstStructure *st = gst_event_get_structure (event);
+    gboolean key_frame_requested =
+        g_strcmp0 (gst_structure_get_name (st), "GstForceKeyUnit") == 0;
+
+    fail_if (key_frame_requested);
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+change_dimension (gpointer pipeline)
+{
+  GstCaps *caps =
+      gst_caps_from_string
+      ("video/x-raw,format=(string)I420,width=(int)640,height=(int)480");
+  GstElement *capsfilter =
+      gst_bin_get_by_name (GST_BIN (pipeline), "capsfilter");
+  GstElement *vp8caps;
+  GstPad *sink;
+
+  vp8caps = gst_bin_get_by_name (GST_BIN (pipeline), "vp8caps");
+  sink = gst_element_get_static_pad (vp8caps, "sink");
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_BOTH, event_probe, NULL,
+      NULL);
+  g_object_unref (sink);
+  g_object_unref (vp8caps);
+
+  g_object_set (capsfilter, "caps", caps, NULL);
+
+  g_object_unref (capsfilter);
+  gst_caps_unref (caps);
+}
+
+static GstPadProbeReturn
+sink_probe (GstPad * pad, GstPadProbeInfo * info, gpointer pipeline)
+{
+  GstEvent *event = gst_pad_probe_info_get_event (info);
+  static gboolean first = TRUE;
+
+  if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
+    if (first) {
+      first = FALSE;
+    } else {
+      g_idle_add (quit_main_loop_idle, loop);
+    }
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+start_on_handoff (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
+    gpointer data)
+{
+  static guint count = 0;
+
+  if (count > 20) {
+    g_object_set (fakesink, "signal-handoffs", FALSE, NULL);
+    change_dimension (GST_ELEMENT_PARENT (fakesink));
+  }
+
+  count++;
+}
+
+GST_START_TEST (video_dimension_change)
+{
+  GstElement *fakesink;
+  GstPad *sink;
+  GstElement *pipeline =
+      gst_parse_launch
+      ("videotestsrc is-live=true ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,width=(int)320,height=(int)240 ! agnosticbin ! capsfilter name=vp8caps caps=video/x-vp8 ! agnosticbin ! fakesink async=true sync=true name=sink signal-handoffs=true",
+      NULL);
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
+  sink = gst_element_get_static_pad (fakesink, "sink");
+  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, sink_probe,
+      pipeline, NULL);
+  g_object_unref (sink);
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (start_on_handoff), loop);
+
+  g_object_unref (fakesink);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST;
 /*
  * End of test cases
  */
@@ -998,6 +1110,7 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, input_caps_reconfiguration);
   tcase_add_test (tc_chain, encoded_input_n_encoded_output);
   tcase_add_test (tc_chain, h264_encoding_odd_dimension);
+  tcase_add_test (tc_chain, video_dimension_change);
 
   return s;
 }
