@@ -40,6 +40,7 @@ typedef enum
   VP8,
   X264,
   OPENH264,
+  OPUS,
   UNSUPPORTED
 } EncoderType;
 
@@ -77,6 +78,11 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
           "bitrate", target_bitrate, NULL);
       break;
     }
+    case OPUS:
+    {
+      g_object_set (G_OBJECT (encoder), "inband-fec", TRUE, NULL);
+      break;
+    }
     default:
       GST_DEBUG ("Codec %" GST_PTR_FORMAT
           " not configured because it is not supported", encoder);
@@ -97,6 +103,8 @@ kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
     self->priv->enc_type = X264;
   } else if (g_str_has_prefix (name, "openh264enc")) {
     self->priv->enc_type = OPENH264;
+  } else if (g_str_has_prefix (name, "opusenc")) {
+    self->priv->enc_type = OPUS;
   } else {
     self->priv->enc_type = UNSUPPORTED;
   }
