@@ -23,7 +23,8 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaElementImpl"
 
-#define TARGET_BITRATE "output-bitrate"
+#define MIN_OUTPUT_BITRATE "min-output-bitrate"
+#define MAX_OUTPUT_BITRATE "max-output-bitrate"
 
 namespace kurento
 {
@@ -363,7 +364,8 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
   try {
     int bitrate = getConfigValue<int, MediaElement> ("outputBitrate");
     GST_DEBUG ("Output bitrate configured to %d bps", bitrate);
-    g_object_set (G_OBJECT (element), TARGET_BITRATE, bitrate, NULL);
+    g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
+                  MAX_OUTPUT_BITRATE, bitrate, NULL);
   } catch (boost::property_tree::ptree_error &e) {
   }
 
@@ -881,7 +883,8 @@ std::string MediaElementImpl::getGstreamerDot()
 
 void MediaElementImpl::setOutputBitrate (int bitrate)
 {
-  g_object_set (G_OBJECT (element), TARGET_BITRATE, bitrate, NULL);
+  g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
+                MAX_OUTPUT_BITRATE, bitrate, NULL);
 }
 
 std::map <std::string, std::shared_ptr<Stats>>

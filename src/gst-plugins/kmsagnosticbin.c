@@ -970,18 +970,39 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   switch (property_id) {
-    case PROP_MIN_BITRATE:
+    case PROP_MIN_BITRATE:{
+      gint v;
+
+      v = g_value_get_int (value);
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      self->priv->min_bitrate = g_value_get_int (value);
-      GST_DEBUG ("min_bitrate configured %d", self->priv->min_bitrate);
+      if (v > self->priv->max_bitrate) {
+        v = self->priv->max_bitrate;
+
+        GST_WARNING_OBJECT (self,
+            "Setting min-bitrate bigger than max-bitrate");
+      }
+
+      self->priv->min_bitrate = v;
+      GST_DEBUG_OBJECT (self, "min_bitrate configured %d",
+          self->priv->min_bitrate);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
-    case PROP_MAX_BITRATE:
+    }
+    case PROP_MAX_BITRATE:{
+      gint v;
+
+      v = g_value_get_int (value);
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      self->priv->max_bitrate = g_value_get_int (value);
+      if (v < self->priv->min_bitrate) {
+        v = self->priv->min_bitrate;
+
+        GST_WARNING_OBJECT (self, "Setting max-bitrate less than min-bitrate");
+      }
+      self->priv->max_bitrate = v;
       GST_DEBUG ("max_bitrate configured %d", self->priv->max_bitrate);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
