@@ -51,6 +51,7 @@ struct _KmsEncTreeBinClass
 GType kms_enc_tree_bin_get_type (void);
 
 KmsEncTreeBin * kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate, gint min_bitrate, gint max_bitrate);
+void kms_enc_tree_bin_set_bitrate_limits (KmsEncTreeBin *self, gint min_bitrate, gint max_bitrate);
 
 G_END_DECLS
 #endif /* __KMS_ENC_TREE_BIN_H__ */

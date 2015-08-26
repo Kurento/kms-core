@@ -963,6 +963,20 @@ kms_agnostic_bin2_finalize (GObject * object)
   G_OBJECT_CLASS (kms_agnostic_bin2_parent_class)->finalize (object);
 }
 
+static void
+kms_agnostic_bin_set_encoders_bitrate (KmsAgnosticBin2 * self)
+{
+  GList *bins, *l;
+
+  bins = g_hash_table_get_values (self->priv->bins);
+  for (l = bins; l != NULL; l = l->next) {
+    if (KMS_IS_ENC_TREE_BIN (l->data)) {
+      kms_enc_tree_bin_set_bitrate_limits (KMS_ENC_TREE_BIN (l->data),
+          self->priv->min_bitrate, self->priv->max_bitrate);
+    }
+  }
+}
+
 void
 kms_agnostic_bin2_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
@@ -985,6 +999,7 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
       self->priv->min_bitrate = v;
       GST_DEBUG_OBJECT (self, "min_bitrate configured %d",
           self->priv->min_bitrate);
+      kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     }
@@ -1000,6 +1015,7 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
       }
       self->priv->max_bitrate = v;
       GST_DEBUG ("max_bitrate configured %d", self->priv->max_bitrate);
+      kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     }

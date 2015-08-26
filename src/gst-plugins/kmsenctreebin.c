@@ -61,6 +61,15 @@ struct _KmsEncTreeBinPrivate
   gint min_bitrate;
 };
 
+void
+kms_enc_tree_bin_set_bitrate_limits (KmsEncTreeBin * self, gint min_bitrate,
+    gint max_bitrate)
+{
+  // TODO: Think about adding a mutex here
+  self->priv->max_bitrate = max_bitrate;
+  self->priv->min_bitrate = min_bitrate;
+}
+
 static void
 configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
 {
