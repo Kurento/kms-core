@@ -57,18 +57,11 @@ struct _KmsEncTreeBinPrivate
   gint remb_bitrate;
   gint tag_bitrate;
 
+  gint current_bitrate;
+
   gint max_bitrate;
   gint min_bitrate;
 };
-
-void
-kms_enc_tree_bin_set_bitrate_limits (KmsEncTreeBin * self, gint min_bitrate,
-    gint max_bitrate)
-{
-  // TODO: Think about adding a mutex here
-  self->priv->max_bitrate = max_bitrate;
-  self->priv->min_bitrate = min_bitrate;
-}
 
 static void
 configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
@@ -173,14 +166,24 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
 static gint
 kms_enc_tree_bin_get_bitrate (KmsEncTreeBin * self)
 {
+  gint bitrate;
+
   if (self->priv->remb_bitrate <= 0) {
-    return KMS_ENC_TREE_BIN_LIMIT (self, self->priv->tag_bitrate);
+    bitrate = KMS_ENC_TREE_BIN_LIMIT (self, self->priv->tag_bitrate);
   } else if (self->priv->tag_bitrate <= 0) {
-    return KMS_ENC_TREE_BIN_LIMIT (self, self->priv->remb_bitrate);
+    bitrate = KMS_ENC_TREE_BIN_LIMIT (self, self->priv->remb_bitrate);
   } else {
-    return KMS_ENC_TREE_BIN_LIMIT (self, MIN (self->priv->remb_bitrate,
+    bitrate = KMS_ENC_TREE_BIN_LIMIT (self, MIN (self->priv->remb_bitrate,
             self->priv->tag_bitrate));
   }
+
+  if (bitrate <= 0) {
+    bitrate = self->priv->current_bitrate;
+  } else {
+    self->priv->current_bitrate = bitrate;
+  }
+
+  return bitrate;
 }
 
 static void
@@ -235,6 +238,17 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
       GST_DEBUG ("Not setting bitrate, encoder not supported");
       break;
   }
+}
+
+void
+kms_enc_tree_bin_set_bitrate_limits (KmsEncTreeBin * self, gint min_bitrate,
+    gint max_bitrate)
+{
+  // TODO: Think about adding a mutex here
+  self->priv->max_bitrate = max_bitrate;
+  self->priv->min_bitrate = min_bitrate;
+
+  kms_enc_tree_bin_set_target_bitrate (self);
 }
 
 static void
@@ -334,6 +348,8 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *output_tee, *capsfilter = NULL;
 
+  self->priv->current_bitrate = target_bitrate;
+
   kms_enc_tree_bin_create_encoder_for_caps (self, caps, target_bitrate);
 
   if (self->priv->enc == NULL) {
@@ -402,14 +418,14 @@ kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate,
   KmsEncTreeBin *enc;
 
   enc = g_object_new (KMS_TYPE_ENC_TREE_BIN, NULL);
-  if (!kms_enc_tree_bin_configure (KMS_ENC_TREE_BIN (enc), caps,
-          target_bitrate)) {
+  enc->priv->max_bitrate = max_bitrate;
+  enc->priv->min_bitrate = min_bitrate;
+
+  target_bitrate = KMS_ENC_TREE_BIN_LIMIT (enc, target_bitrate);
+  if (!kms_enc_tree_bin_configure (enc, caps, target_bitrate)) {
     g_object_unref (enc);
     return NULL;
   }
-
-  enc->priv->max_bitrate = max_bitrate;
-  enc->priv->min_bitrate = min_bitrate;
 
   return enc;
 }
@@ -424,6 +440,9 @@ kms_enc_tree_bin_init (KmsEncTreeBin * self)
 
   self->priv->remb_bitrate = -1;
   self->priv->tag_bitrate = -1;
+
+  self->priv->max_bitrate = G_MAXINT;
+  self->priv->min_bitrate = 0;
 }
 
 static void
