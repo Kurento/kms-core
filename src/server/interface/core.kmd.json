@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "6.0.1-dev",
+  "version": "6.1.0-dev",
   "code": {
     "kmd": {
       "java": {
@@ -568,7 +568,7 @@
         },
         {
           "name": "setOutputBitrate",
-          "doc": "Allows change the target bitrate for the media output, if the media is encoded using VP8 or H264. This method only works if it is called before the media starts to flow.",
+          "doc": "@deprecated\nAllows change the target bitrate for the media output, if the media is encoded using VP8 or H264. This method only works if it is called before the media starts to flow.",
           "params": [
             {
               "name": "bitrate",
@@ -592,6 +592,18 @@
             "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
             "type": "Stats<>"
           }
+        }
+      ],
+      "properties": [
+        {
+          "name": "minOuputBitrate",
+          "doc": "Minimum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
+          "type": "int"
+        },
+        {
+          "name": "maxOuputBitrate",
+          "doc": "Maximum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "type": "int"
         }
       ],
       "events": [

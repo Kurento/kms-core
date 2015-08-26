@@ -96,6 +96,12 @@ public:
 
   virtual void setOutputBitrate (int bitrate);
 
+  virtual int getMinOuputBitrate ();
+  virtual void setMinOuputBitrate (int minOuputBitrate);
+
+  virtual int getMaxOuputBitrate ();
+  virtual void setMaxOuputBitrate (int maxOuputBitrate);
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);

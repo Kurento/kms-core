@@ -883,8 +883,40 @@ std::string MediaElementImpl::getGstreamerDot()
 
 void MediaElementImpl::setOutputBitrate (int bitrate)
 {
+  GST_WARNING ("setOutputBitrate method is deprecated, use properties "
+               "minOutputBitrate and maxOutputBitrate");
   g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
                 MAX_OUTPUT_BITRATE, bitrate, NULL);
+}
+
+int MediaElementImpl::getMinOuputBitrate ()
+{
+  gint bitrate;
+
+  g_object_get (G_OBJECT (element), MIN_OUTPUT_BITRATE, &bitrate, NULL);
+
+  return bitrate;
+}
+
+void MediaElementImpl::setMinOuputBitrate (int minOuputBitrate)
+{
+  g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, minOuputBitrate,
+                NULL);
+}
+
+int MediaElementImpl::getMaxOuputBitrate ()
+{
+  gint bitrate;
+
+  g_object_get (G_OBJECT (element), MAX_OUTPUT_BITRATE, &bitrate, NULL);
+
+  return bitrate;
+}
+
+void MediaElementImpl::setMaxOuputBitrate (int maxOuputBitrate)
+{
+  g_object_set (G_OBJECT (element), MAX_OUTPUT_BITRATE, maxOuputBitrate,
+                NULL);
 }
 
 std::map <std::string, std::shared_ptr<Stats>>
