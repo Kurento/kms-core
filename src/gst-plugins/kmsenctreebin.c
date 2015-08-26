@@ -193,7 +193,7 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
       if (last_br != new_br) {
         GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
             target_bitrate);
-        g_object_set (self->priv->enc, "target-bitrate", new_br, NULL);
+        g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
       break;
     }
