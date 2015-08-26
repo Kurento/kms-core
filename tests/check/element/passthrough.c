@@ -22,6 +22,8 @@
 #define AUDIO_SINK "audio-sink"
 #define VIDEO_SINK "video-sink"
 
+#define BITRATE 500000
+
 static gboolean
 quit_main_loop_idle (gpointer data)
 {
@@ -56,6 +58,28 @@ bus_msg (GstBus * bus, GstMessage * msg, gpointer pipe)
     }
     default:
       break;
+  }
+}
+
+static void
+fakesink_hand_off_check_size (GstElement * fakesink, GstBuffer * buf,
+    GstPad * pad, gpointer data)
+{
+  static int count = 0;
+  static gsize size = 0;
+  GMainLoop *loop = (GMainLoop *) data;
+
+  size += gst_buffer_get_size (buf);
+
+  if (count++ >= 60) {
+    gsize bitrate = size * 8 / (count / 30);
+
+    // TODO: Count for size
+    GST_INFO ("Bitrate is: %ld bits", bitrate);
+
+    fail_if (abs (bitrate - BITRATE) > BITRATE * 0.15);
+    g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
+    g_idle_add (quit_main_loop_idle, loop);
   }
 }
 
@@ -236,7 +260,64 @@ GST_START_TEST (check_connecion)
   g_main_loop_unref (loop);
 }
 
-GST_END_TEST
+GST_END_TEST;
+
+GST_START_TEST (check_bitrate)
+{
+  GMainLoop *loop = g_main_loop_new (NULL, TRUE);
+  GstElement *pipeline = gst_pipeline_new (__FUNCTION__);
+  GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
+  GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+  GstElement *passthrough = gst_element_factory_make ("passthrough", NULL);
+  GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
+  GstCaps *caps = gst_caps_from_string ("video/x-vp8,framerate=30/1");
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  g_object_set (G_OBJECT (fakesink), "sync", TRUE, "signal-handoffs", TRUE,
+      "async", FALSE, NULL);
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off_check_size), loop);
+
+  g_object_set (capsfilter, "caps", caps, NULL);
+  gst_caps_unref (caps);
+
+  g_object_set (passthrough, "min-output-bitrate", BITRATE,
+      "max-output-bitrate", BITRATE, NULL);
+
+  mark_point ();
+  gst_bin_add_many (GST_BIN (pipeline), passthrough, capsfilter, fakesink,
+      NULL);
+  gst_element_link (capsfilter, fakesink);
+  mark_point ();
+  connect_sink_async (passthrough, videotestsrc, pipeline, "sink_video");
+  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, capsfilter);
+  g_signal_connect (passthrough, "pad-added",
+      G_CALLBACK (connect_sink_on_srcpad_added), NULL);
+  fail_unless (kms_element_request_srcpad (passthrough,
+          KMS_ELEMENT_PAD_TYPE_VIDEO));
+  mark_point ();
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_END_TEST;
 /* Suite initialization */
 static Suite *
 passthrough_suite (void)
@@ -246,6 +327,7 @@ passthrough_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, check_connecion);
+  tcase_add_test (tc_chain, check_bitrate);
 
   return s;
 }
