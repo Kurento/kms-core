@@ -60,6 +60,8 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define CONFIGURED_KEY "kms-configured-key"
 
 #define TARGET_BITRATE_DEFAULT 300000
+#define MIN_BITRATE_DEFAULT 0
+#define MAX_BITRATE_DEFAULT G_MAXINT
 
 struct _KmsAgnosticBin2Private
 {
@@ -78,13 +80,15 @@ struct _KmsAgnosticBin2Private
 
   GThreadPool *remove_pool;
 
-  gint default_bitrate;
+  gint max_bitrate;
+  gint min_bitrate;
 };
 
 enum
 {
   PROP_0,
-  PROP_DEFAULT_BITRATE,
+  PROP_MIN_BITRATE,
+  PROP_MAX_BITRATE,
   N_PROPERTIES
 };
 
@@ -562,7 +566,9 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return dec_bin;
   }
 
-  enc_bin = kms_enc_tree_bin_new (caps, self->priv->default_bitrate);
+  enc_bin =
+      kms_enc_tree_bin_new (caps, TARGET_BITRATE_DEFAULT,
+      self->priv->min_bitrate, self->priv->max_bitrate);
   if (enc_bin == NULL) {
     return NULL;
   }
@@ -964,10 +970,16 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   switch (property_id) {
-    case PROP_DEFAULT_BITRATE:
+    case PROP_MIN_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      self->priv->default_bitrate = g_value_get_int (value);
-      GST_DEBUG ("default bitrate configured %d", self->priv->default_bitrate);
+      self->priv->min_bitrate = g_value_get_int (value);
+      GST_DEBUG ("min_bitrate configured %d", self->priv->min_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    case PROP_MAX_BITRATE:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      self->priv->max_bitrate = g_value_get_int (value);
+      GST_DEBUG ("max_bitrate configured %d", self->priv->max_bitrate);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     default:
@@ -983,9 +995,14 @@ kms_agnostic_bin2_get_property (GObject * object, guint property_id,
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   switch (property_id) {
-    case PROP_DEFAULT_BITRATE:
+    case PROP_MIN_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      g_value_set_int (value, self->priv->default_bitrate);
+      g_value_set_int (value, self->priv->min_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    case PROP_MAX_BITRATE:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      g_value_set_int (value, self->priv->max_bitrate);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     default:
@@ -1024,10 +1041,15 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
   gstelement_class->release_pad =
       GST_DEBUG_FUNCPTR (kms_agnostic_bin2_release_pad);
 
-  g_object_class_install_property (gobject_class, PROP_DEFAULT_BITRATE,
-      g_param_spec_int ("default-bitrate", "default bitrate",
-          "Configure the default bitrate to media encoding",
-          0, G_MAXINT, 0, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_MIN_BITRATE,
+      g_param_spec_int ("min-bitrate", "min bitrate",
+          "Configure the min bitrate to media encoding",
+          0, G_MAXINT, MIN_BITRATE_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_MAX_BITRATE,
+      g_param_spec_int ("max-bitrate", "max bitrate",
+          "Configure the max bitrate to media encoding",
+          0, G_MAXINT, MAX_BITRATE_DEFAULT, G_PARAM_READWRITE));
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
@@ -1093,7 +1115,8 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->bins =
       g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   g_rec_mutex_init (&self->priv->thread_mutex);
-  self->priv->default_bitrate = TARGET_BITRATE_DEFAULT;
+  self->priv->min_bitrate = MIN_BITRATE_DEFAULT;
+  self->priv->max_bitrate = MAX_BITRATE_DEFAULT;
 }
 
 gboolean

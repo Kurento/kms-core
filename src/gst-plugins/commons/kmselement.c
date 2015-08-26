@@ -27,7 +27,8 @@
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
-#define DEFAULT_BITRATE_ "default-bitrate"
+#define MAX_BITRATE "max-bitrate"
+#define MIN_BITRATE "min-bitrate"
 
 GST_DEBUG_CATEGORY_STATIC (kms_element_debug_category);
 #define GST_CAT_DEFAULT kms_element_debug_category
@@ -712,7 +713,8 @@ kms_element_set_property (GObject * object, guint property_id,
       KMS_ELEMENT_LOCK (self);
       self->priv->target_bitrate = g_value_get_int (value);
       g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
-          DEFAULT_BITRATE_, self->priv->target_bitrate, NULL);
+          MIN_BITRATE, self->priv->target_bitrate, MAX_BITRATE,
+          self->priv->target_bitrate, NULL);
       KMS_ELEMENT_UNLOCK (self);
       break;
     case PROP_MEDIA_STATS:{

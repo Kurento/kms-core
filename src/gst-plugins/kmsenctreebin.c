@@ -35,6 +35,9 @@ G_DEFINE_TYPE (KmsEncTreeBin, kms_enc_tree_bin, KMS_TYPE_TREE_BIN);
   )                                         \
 )
 
+#define KMS_ENC_TREE_BIN_LIMIT(obj, value) \
+  MAX((obj)->priv->min_bitrate,MIN((obj)->priv->max_bitrate, (value)))
+
 typedef enum
 {
   VP8,
@@ -53,6 +56,9 @@ struct _KmsEncTreeBinPrivate
 
   gint remb_bitrate;
   gint tag_bitrate;
+
+  gint max_bitrate;
+  gint min_bitrate;
 };
 
 static void
@@ -159,11 +165,12 @@ static gint
 kms_enc_tree_bin_get_bitrate (KmsEncTreeBin * self)
 {
   if (self->priv->remb_bitrate <= 0) {
-    return self->priv->tag_bitrate;
+    return KMS_ENC_TREE_BIN_LIMIT (self, self->priv->tag_bitrate);
   } else if (self->priv->tag_bitrate <= 0) {
-    return self->priv->remb_bitrate;
+    return KMS_ENC_TREE_BIN_LIMIT (self, self->priv->remb_bitrate);
   } else {
-    return MIN (self->priv->remb_bitrate, self->priv->tag_bitrate);
+    return KMS_ENC_TREE_BIN_LIMIT (self, MIN (self->priv->remb_bitrate,
+            self->priv->tag_bitrate));
   }
 }
 
@@ -380,9 +387,10 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 }
 
 KmsEncTreeBin *
-kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate)
+kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate,
+    gint min_bitrate, gint max_bitrate)
 {
-  GObject *enc;
+  KmsEncTreeBin *enc;
 
   enc = g_object_new (KMS_TYPE_ENC_TREE_BIN, NULL);
   if (!kms_enc_tree_bin_configure (KMS_ENC_TREE_BIN (enc), caps,
@@ -391,7 +399,10 @@ kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate)
     return NULL;
   }
 
-  return KMS_ENC_TREE_BIN (enc);
+  enc->priv->max_bitrate = max_bitrate;
+  enc->priv->min_bitrate = min_bitrate;
+
+  return enc;
 }
 
 static void
