@@ -53,14 +53,12 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
   ctx = kms_sdp_agent_create_offer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
-    g_error_free (err);
     goto end;
   }
 
   offer = kms_sdp_message_context_pack (ctx, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
-    g_error_free (err);
     goto end;
   }
 
@@ -68,6 +66,8 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
   self->local_sdp_ctx = ctx;
 
 end:
+  g_clear_error (&err);
+
   return offer;
 }
 
@@ -83,7 +83,6 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    g_error_free (err);
     goto end;
   }
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
@@ -92,14 +91,12 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   ctx = kms_sdp_agent_create_answer (self->agent, offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    g_error_free (err);
     goto end;
   }
 
   answer = kms_sdp_message_context_pack (ctx, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    g_error_free (err);
     kms_sdp_message_context_unref (ctx);
     goto end;
   }
@@ -109,6 +106,8 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   self->neg_sdp_ctx = ctx;
 
 end:
+  g_clear_error (&err);
+
   return answer;
 }
 
