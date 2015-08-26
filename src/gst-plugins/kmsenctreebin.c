@@ -257,7 +257,6 @@ bitrate_callback (RembEventManager * remb_manager, guint bitrate,
 {
   KmsEncTreeBin *self = user_data;
 
-  // TODO: Get min of remb and tag
   if (bitrate != 0) {
     self->priv->remb_bitrate = bitrate;
     kms_enc_tree_bin_set_target_bitrate (self);
