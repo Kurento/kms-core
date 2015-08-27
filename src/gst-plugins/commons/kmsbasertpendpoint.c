@@ -2751,18 +2751,6 @@ kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes (GstElement * rtpbin, guint session,
 }
 
 static void
-kms_base_rtp_endpoint_rtpbin_on_sender_timeout (GstElement * rtpbin,
-    guint session, guint ssrc, gpointer user_data)
-{
-  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
-
-  kms_base_rtp_endpoint_set_media_state (self, session,
-      KMS_MEDIA_STATE_DISCONNECTED);
-
-  kms_base_rtp_endpoint_stop_signal (self, session, ssrc);
-}
-
-static void
 kms_base_rtp_endpoint_rtpbin_on_timeout (GstElement * rtpbin,
     guint session, guint ssrc, gpointer user_data)
 {
@@ -2822,9 +2810,6 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_ssrc), self);
   g_signal_connect (self->priv->rtpbin, "on-bye-timeout",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_timeout), self);
-  g_signal_connect (self->priv->rtpbin, "on-sender-timeout",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_sender_timeout), self);
-
   g_signal_connect (self->priv->rtpbin, "new-jitterbuffer",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer), self);
 
