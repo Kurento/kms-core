@@ -128,7 +128,7 @@ kms_utils_caps_are_video (const GstCaps * caps)
 }
 
 gboolean
-kms_utils_is_raw_caps (const GstCaps * caps)
+kms_utils_caps_are_raw (const GstCaps * caps)
 {
   gboolean ret;
   GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
