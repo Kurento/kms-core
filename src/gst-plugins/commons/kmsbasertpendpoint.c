@@ -59,7 +59,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define RTCP_DEMUX_PEER "rtcp-demux-peer"
 
 #define JB_INITIAL_LATENCY 0
-#define JB_READY_LATENCY 1500
+#define JB_READY_AUDIO_LATENCY 200
+#define JB_READY_VIDEO_LATENCY 1500
 
 typedef struct _KmsSSRCStats KmsSSRCStats;
 struct _KmsSSRCStats
@@ -1789,11 +1790,13 @@ end:
 
 static GstPadProbeReturn
 kms_base_rtp_endpoint_change_latency_probe (GstPad * pad,
-    GstPadProbeInfo * info, gpointer gp)
+    GstPadProbeInfo * info, gpointer user_data)
 {
   GstElement *jitterbuffer = GST_PAD_PARENT (pad);
+  gint latency = GPOINTER_TO_INT (user_data);
 
-  g_object_set (jitterbuffer, "latency", JB_READY_LATENCY, NULL);
+  GST_DEBUG_OBJECT (jitterbuffer, "Setting latency to: %d", latency);
+  g_object_set (jitterbuffer, "latency", latency, NULL);
 
   return GST_PAD_PROBE_REMOVE;
 }
@@ -1813,7 +1816,10 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   src_pad = gst_element_get_static_pad (jitterbuffer, "src");
   gst_pad_add_probe (src_pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
-      kms_base_rtp_endpoint_change_latency_probe, NULL, NULL);
+      kms_base_rtp_endpoint_change_latency_probe,
+      GINT_TO_POINTER (session ==
+          VIDEO_RTP_SESSION ? JB_READY_VIDEO_LATENCY : JB_READY_AUDIO_LATENCY),
+      NULL);
   g_object_unref (src_pad);
 
   g_mutex_lock (&self->priv->stats.mutex);
