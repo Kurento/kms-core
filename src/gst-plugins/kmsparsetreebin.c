@@ -103,7 +103,7 @@ bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
       timediff = buffer->pts - self->priv->last_buffer_pts;
     }
 
-    if (GST_CLOCK_TIME_IS_VALID (timediff)) {
+    if (timediff > 0) {
       bitrate = (gst_buffer_get_size (buffer) * GST_SECOND * 8) / timediff;
 
       self->priv->bitrate_mean = (self->priv->bitrate_mean * 7 + bitrate) / 8;
