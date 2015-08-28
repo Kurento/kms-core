@@ -269,6 +269,18 @@ kms_enc_tree_bin_set_bitrate_limits (KmsEncTreeBin * self, gint min_bitrate,
   kms_enc_tree_bin_set_target_bitrate (self);
 }
 
+gint
+kms_enc_tree_bin_get_min_bitrate (KmsEncTreeBin * self)
+{
+  return self->priv->min_bitrate;
+}
+
+gint
+kms_enc_tree_bin_get_max_bitrate (KmsEncTreeBin * self)
+{
+  return self->priv->max_bitrate;
+}
+
 static void
 bitrate_callback (RembEventManager * remb_manager, guint bitrate,
     gpointer user_data)
