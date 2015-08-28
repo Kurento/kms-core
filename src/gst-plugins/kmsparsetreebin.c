@@ -165,7 +165,7 @@ kms_parse_tree_bin_configure (KmsParseTreeBin * self, const GstCaps * caps)
 
   kms_tree_bin_set_input_element (tree_bin, self->priv->parser);
   output_tee = kms_tree_bin_get_output_tee (tree_bin);
-  if (kms_utils_caps_are_raw (caps)) {
+  if (!kms_utils_caps_are_raw (caps) && kms_utils_caps_are_video (caps)) {
     GstPad *sink = gst_element_get_static_pad (output_tee, "sink");
 
     gst_pad_add_probe (sink,
