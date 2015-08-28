@@ -89,8 +89,6 @@ struct _KmsBaseRTPStats
   GHashTable *rtp_stats;
   GSList *probes;
   GMutex mutex;
-  gdouble vi;
-  gdouble ai;
 };
 
 /* RtpMediaConfig begin */
@@ -1279,10 +1277,18 @@ kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
     gint id, KmsSdpSession ** sess)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp);
+  gboolean media_stats;
 
   if (*sess == NULL) {
     /* Media not supported */
     return;
+  }
+
+  g_object_get (base_sdp, "media-stats", &media_stats, NULL);
+
+  if (media_stats) {
+    kms_base_rtp_session_enable_connections_stats (KMS_BASE_RTP_SESSION
+        (*sess));
   }
 
   g_signal_connect (*sess, "connection-state-changed",
@@ -2079,11 +2085,27 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
   }
 }
 
+static void
+kms_base_rtp_endpoint_collect_connections_stats (gpointer key, gpointer value,
+    gpointer user_data)
+{
+  KmsBaseRtpSession *session = KMS_BASE_RTP_SESSION (value);
+  GstStructure *sessions, *stats;
+
+  g_object_get (session, "stats", &stats, NULL);
+  sessions = GST_STRUCTURE_CAST (user_data);
+
+  gst_structure_set (sessions, gst_structure_get_name (stats),
+      GST_TYPE_STRUCTURE, stats, NULL);
+  gst_structure_free (stats);
+}
+
 static GstStructure *
 kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats, *rtp_stats, *e_stats;
+  GstStructure *stats, *rtp_stats, *e_stats, *session_stats;
+  GHashTable *sessions;
   gboolean enabled;
 
   /* chain up */
@@ -2096,6 +2118,7 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
   kms_base_rtp_endpoint_append_remb_stats (self, rtp_stats);
   gst_structure_set (stats, KMS_RTC_STATISTICS_FIELD, GST_TYPE_STRUCTURE,
       rtp_stats, NULL);
+  gst_structure_free (rtp_stats);
 
   g_object_get (self, "media-stats", &enabled, NULL);
 
@@ -2109,13 +2132,20 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
     return stats;
   }
 
-  /* Video and audio latencies are avery small values in */
-  /* nano seconds so there is no harm in casting them to */
-  /* uint64 even we might lose a bit of preccision.      */
+  sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT (self));
 
-  gst_structure_set (e_stats, "video-e2e-latency", G_TYPE_UINT64,
-      (guint64) self->priv->stats.vi, "audio-e2e-latency", G_TYPE_UINT64,
-      (guint64) self->priv->stats.ai, NULL);
+  if (g_hash_table_size (sessions) == 0) {
+    GST_DEBUG_OBJECT (self, "No sessions to report");
+    return stats;
+  }
+
+  session_stats = gst_structure_new_empty (KMS_SESSIONS_STRUCT_NAME);
+  g_hash_table_foreach (sessions,
+      kms_base_rtp_endpoint_collect_connections_stats, session_stats);
+
+  gst_structure_set (e_stats, gst_structure_get_name (session_stats),
+      GST_TYPE_STRUCTURE, session_stats, NULL);
+  gst_structure_free (session_stats);
 
   return stats;
 }
@@ -2142,6 +2172,7 @@ kms_base_rtp_endpoint_collect_media_stats (KmsElement * obj, gboolean enable)
   GHashTable *sessions;
 
   KMS_ELEMENT_LOCK (self);
+
   sessions = kms_base_sdp_endpoint_get_sessions (base_endpoint);
 
   g_mutex_lock (&self->priv->stats.mutex);
@@ -2471,9 +2502,6 @@ kms_base_rtp_endpoint_init_stats (KmsBaseRtpEndpoint * self)
   self->priv->stats.rtp_stats = g_hash_table_new_full (g_direct_hash,
       g_direct_equal, NULL, (GDestroyNotify) rtp_session_stats_destroy);
   g_mutex_init (&self->priv->stats.mutex);
-
-  self->priv->stats.ai = 0.0;
-  self->priv->stats.vi = 0.0;
 }
 
 static void

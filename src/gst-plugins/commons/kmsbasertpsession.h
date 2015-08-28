@@ -44,6 +44,7 @@ typedef struct _KmsIRtpSessionManager KmsIRtpSessionManager;
 
 typedef struct _KmsBaseRtpSession KmsBaseRtpSession;
 typedef struct _KmsBaseRtpSessionClass KmsBaseRtpSessionClass;
+typedef struct _KmsBaseRTPSessionStats KmsBaseRTPSessionStats;
 
 struct _KmsBaseRtpSession
 {
@@ -60,6 +61,8 @@ struct _KmsBaseRtpSession
   SdpMediaConfig *video_neg_mconf;
   guint32 local_video_ssrc;
   guint32 remote_video_ssrc;
+
+  KmsBaseRTPSessionStats *stats;
 };
 
 struct _KmsBaseRtpSessionClass

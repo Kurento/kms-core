@@ -548,6 +548,59 @@ get_structure_by_name (const GstStructure *stats, const gchar *name)
   return gst_value_get_structure (value);
 }
 
+static void
+collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
+                      &statsReport, std::string id, const GstStructure *stats,
+                      double timestamp)
+{
+  const GstStructure *sessions, *session_stats;
+  std::shared_ptr<Stats> endpointStats;
+  guint64 v_e2e, a_e2e;
+  const GValue *value;
+  const gchar *name;
+  gint n;
+
+  sessions = get_structure_by_name (stats, KMS_SESSIONS_STRUCT_NAME);
+
+  if (sessions == NULL) {
+    GST_WARNING ("No session stats reported");
+    return;
+  }
+
+  n = gst_structure_n_fields (sessions);
+
+  if (n == 0) {
+    GST_WARNING ("No end to end latency stats reported");
+    return;
+  } else if (n > 1) {
+    GST_WARNING ("Multi-session stats reported. "
+                 "Only the first one will be reported");
+  }
+
+  name = gst_structure_nth_field_name (sessions, 0);
+  value = gst_structure_get_value (sessions, name);
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+    g_free (str_val);
+
+    return;
+  }
+
+  session_stats = gst_value_get_structure (value);
+  gst_structure_get (session_stats, "video-e2e-latency", G_TYPE_UINT64, &v_e2e,
+                     "audio-e2e-latency", G_TYPE_UINT64, &a_e2e, NULL);
+
+  endpointStats = std::make_shared <EndpointStats> (id,
+                  std::make_shared <StatsType> (StatsType::endpoint), timestamp, 0.0, 0.0,
+                  a_e2e, v_e2e);
+
+  statsReport[id] = endpointStats;
+}
+
 void
 BaseRtpEndpointImpl::fillStatsReport (std::map
                                       <std::string, std::shared_ptr<Stats>>
@@ -558,16 +611,7 @@ BaseRtpEndpointImpl::fillStatsReport (std::map
   e_stats = get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
 
   if (e_stats != NULL) {
-    std::shared_ptr<Stats> endpointStats;
-    guint64 v_e2e, a_e2e;
-
-    gst_structure_get (e_stats, "video-e2e-latency", G_TYPE_UINT64, &v_e2e,
-                       "audio-e2e-latency", G_TYPE_UINT64, &a_e2e, NULL);
-    endpointStats = std::make_shared <EndpointStats> (getId (),
-                    std::make_shared <StatsType> (StatsType::endpoint), timestamp,
-                    0.0, 0.0, a_e2e, v_e2e);
-
-    report[getId ()] = endpointStats;
+    collectEndpointStats (report, getId (), e_stats, timestamp);
   }
 
   rtc_stats = get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);

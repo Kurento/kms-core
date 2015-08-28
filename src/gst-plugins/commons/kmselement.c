@@ -468,7 +468,6 @@ kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
     GstClockTimeDiff t, gpointer user_data)
 {
   KmsElement *self = KMS_ELEMENT (user_data);
-
   gdouble *prev;
 
   switch (type) {
