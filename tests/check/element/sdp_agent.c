@@ -2448,6 +2448,71 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   g_object_unref (answerer);
 }
 
+GST_END_TEST
+    static const gchar *sdp_udp_tls_rtp_savpf_offer_str = "v=0\r\n"
+    "o=- 0 0 IN IP4 0.0.0.0\r\n"
+    "s=TestSession\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=2873397496 2873404696\r\n"
+    "m=audio 9 UDP/TLS/RTP/SAVPF 0 96 97\r\n" "a=rtpmap:0 PCMU/8000\r\n"
+    "a=rtpmap:96 opus/48000/2\r\n" "a=rtpmap:97 AMR/8000/1\r\n" "a=rtcp-mux\r\n"
+    "m=video 9 UDP/TLS/RTP/SAVPF 98 99 1001 101\r\n"
+    "a=rtpmap:98 H263-1998/90000\r\n" "a=rtpmap:99 VP8/90000\r\n"
+    "a=rtpmap:100 MP4V-ES/90000\r\n" "a=rtpmap:101 H264/90000\r\n"
+    "a=rtcp-mux\r\n";
+
+GST_START_TEST (sdp_agent_udp_tls_rtp_savpf_negotiation)
+{
+  KmsSdpAgent *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          sdp_udp_tls_rtp_savpf_offer_str, -1, offer) == GST_SDP_OK);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  check_all_is_negotiated (offer, answer);
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (answerer);
+}
+
 GST_END_TEST static Suite *
 sdp_agent_suite (void)
 {
@@ -2477,6 +2542,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_dynamic_pts);
   tcase_add_test (tc_chain, sdp_agent_test_optional_enc_parameters);
   tcase_add_test (tc_chain, sdp_agent_regression_tests);
+  tcase_add_test (tc_chain, sdp_agent_udp_tls_rtp_savpf_negotiation);
 
   return s;
 }
