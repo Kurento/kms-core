@@ -495,151 +495,6 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
   return FALSE;
 }
 
-/* Connection management begin */
-
-static KmsIRtpConnection *
-kms_base_rtp_endpoint_create_connection_default (KmsBaseRtpEndpoint * self,
-    KmsSdpSession * sess, SdpMediaConfig * mconf, const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_connection ==
-      kms_base_rtp_endpoint_create_connection_default) {
-    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIRtcpMuxConnection *
-kms_base_rtp_endpoint_create_rtcp_mux_connection_default (KmsBaseRtpEndpoint *
-    self, KmsSdpSession * sess, const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_rtcp_mux_connection ==
-      kms_base_rtp_endpoint_create_rtcp_mux_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'create_rtcp_mux_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static KmsIBundleConnection *
-kms_base_rtp_endpoint_create_bundle_connection_default (KmsBaseRtpEndpoint *
-    self, KmsSdpSession * sess, const gchar * name)
-{
-  KmsBaseRtpEndpointClass *klass =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-
-  if (klass->create_bundle_connection ==
-      kms_base_rtp_endpoint_create_bundle_connection_default) {
-    GST_WARNING_OBJECT (self,
-        "%s does not reimplement 'create_bundle_connection'",
-        G_OBJECT_CLASS_NAME (klass));
-  }
-
-  return NULL;
-}
-
-static gchar *
-str_media_type (KmsMediaType type)
-{
-  switch (type) {
-    case KMS_MEDIA_TYPE_VIDEO:
-      return "video";
-    case KMS_MEDIA_TYPE_AUDIO:
-      return "audio";
-    case KMS_MEDIA_TYPE_DATA:
-      return "data";
-    default:
-      return "<unsupported>";
-  }
-}
-
-static void
-kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
-    GstClockTimeDiff t, gpointer user_data)
-{
-  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
-  gdouble *prev;
-
-  switch (type) {
-    case KMS_MEDIA_TYPE_AUDIO:
-      prev = &self->priv->stats.ai;
-      break;
-    case KMS_MEDIA_TYPE_VIDEO:
-      prev = &self->priv->stats.vi;
-      break;
-    default:
-      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%s)",
-          str_media_type (type));
-      return;
-  }
-
-  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
-}
-
-static void
-kms_base_rtp_endpoint_set_connection_stats (KmsBaseRtpEndpoint * self,
-    KmsIRtpConnection * conn)
-{
-  kms_i_rtp_connection_set_latency_callback (conn,
-      kms_base_rtp_endpoint_latency_cb, self);
-
-  /* Active insertion of metadata if stats are enabled */
-  g_mutex_lock (&self->priv->stats.mutex);
-  kms_i_rtp_connection_collect_latency_stats (conn, self->priv->stats.enabled);
-  g_mutex_unlock (&self->priv->stats.mutex);
-}
-
-static KmsIRtpConnection *
-kms_base_rtp_endpoint_create_connection (KmsBaseRtpEndpoint * self,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
-{
-  KmsBaseRtpEndpointClass *base_rtp_class =
-      KMS_BASE_RTP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
-  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (sess);
-  gchar *name = kms_utils_create_connection_name_from_media_config (mconf);
-  SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
-  KmsIRtpConnection *conn;
-
-  conn = kms_base_rtp_session_get_connection_by_name (sess, name);
-  if (conn != NULL) {
-    GST_DEBUG_OBJECT (self, "Re-using connection '%s'", name);
-    goto end;
-  }
-
-  if (group != NULL) {          /* bundle */
-    conn =
-        KMS_I_RTP_CONNECTION (base_rtp_class->create_bundle_connection (self,
-            sdp_sess, name));
-  } else {
-    if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
-      conn =
-          KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
-          (self, sdp_sess, name));
-    } else {
-      conn = base_rtp_class->create_connection (self, sdp_sess, mconf, name);
-    }
-  }
-
-  g_hash_table_insert (sess->conns, g_strdup (name), conn);
-  kms_base_rtp_endpoint_set_connection_stats (self, conn);
-
-end:
-  g_free (name);
-
-  return conn;
-}
-
-/* Connection management end */
-
 /* Configure media SDP begin */
 static void
 assign_uuid (GObject * ssrc)
@@ -792,7 +647,7 @@ kms_base_rtp_endpoint_configure_media (KmsBaseSdpEndpoint *
   KmsBaseRtpSession *base_rtp_sess = KMS_BASE_RTP_SESSION (sess);
   KmsIRtpConnection *conn;
 
-  conn = kms_base_rtp_endpoint_create_connection (self, base_rtp_sess, mconf);
+  conn = kms_base_rtp_session_create_connection (base_rtp_sess, mconf);
   if (conn == NULL) {
     return FALSE;
   }
@@ -2359,13 +2214,6 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
   klass->get_connection_state = kms_base_rtp_endpoint_get_connection_state;
   klass->request_local_key_frame =
       kms_base_rtp_endpoint_request_local_key_frame;
-
-  /* Connection management */
-  klass->create_connection = kms_base_rtp_endpoint_create_connection_default;
-  klass->create_rtcp_mux_connection =
-      kms_base_rtp_endpoint_create_rtcp_mux_connection_default;
-  klass->create_bundle_connection =
-      kms_base_rtp_endpoint_create_bundle_connection_default;
 
   base_endpoint_class = KMS_BASE_SDP_ENDPOINT_CLASS (klass);
   base_endpoint_class->create_session_internal =

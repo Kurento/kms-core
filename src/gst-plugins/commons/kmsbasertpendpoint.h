@@ -66,11 +66,6 @@ struct _KmsBaseRtpEndpointClass
   void (*connection_state_changed) (KmsBaseRtpEndpoint * self, KmsConnectionState new_state);
 
   gboolean (*request_local_key_frame) (KmsBaseRtpEndpoint * self);
-
-  /* virtual methods */
-  KmsIRtpConnection * (*create_connection) (KmsBaseRtpEndpoint * self, KmsSdpSession *sess, SdpMediaConfig * mconf, const gchar *name);
-  KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpEndpoint * self, KmsSdpSession *sess, const gchar *name);
-  KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpEndpoint * self, KmsSdpSession *sess, const gchar *name);
 };
 
 GType kms_base_rtp_endpoint_get_type (void);

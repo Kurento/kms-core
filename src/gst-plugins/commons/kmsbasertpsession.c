@@ -47,6 +47,8 @@ kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
   return self;
 }
 
+/* Connection management begin */
+
 KmsIRtpConnection *
 kms_base_rtp_session_get_connection_by_name (KmsBaseRtpSession * self,
     const gchar * name)
@@ -78,6 +80,156 @@ kms_base_rtp_session_get_connection (KmsBaseRtpSession * self,
 
   return conn;
 }
+
+static KmsIRtpConnection *
+kms_base_rtp_session_create_connection_default (KmsBaseRtpSession * self,
+    SdpMediaConfig * mconf, const gchar * name)
+{
+  KmsBaseRtpSessionClass *klass =
+      KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_connection ==
+      kms_base_rtp_session_create_connection_default) {
+    GST_WARNING_OBJECT (self, "%s does not reimplement 'create_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIRtcpMuxConnection *
+kms_base_rtp_session_create_rtcp_mux_connection_default (KmsBaseRtpSession *
+    self, const gchar * name)
+{
+  KmsBaseRtpSessionClass *klass =
+      KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_rtcp_mux_connection ==
+      kms_base_rtp_session_create_rtcp_mux_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'create_rtcp_mux_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+static KmsIBundleConnection *
+kms_base_rtp_session_create_bundle_connection_default (KmsBaseRtpSession *
+    self, const gchar * name)
+{
+  KmsBaseRtpSessionClass *klass =
+      KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
+
+  if (klass->create_bundle_connection ==
+      kms_base_rtp_session_create_bundle_connection_default) {
+    GST_WARNING_OBJECT (self,
+        "%s does not reimplement 'create_bundle_connection'",
+        G_OBJECT_CLASS_NAME (klass));
+  }
+
+  return NULL;
+}
+
+/* inmediate-TODO: reenable */
+#if 0
+static gchar *
+str_media_type (KmsMediaType type)
+{
+  switch (type) {
+    case KMS_MEDIA_TYPE_VIDEO:
+      return "video";
+    case KMS_MEDIA_TYPE_AUDIO:
+      return "audio";
+    case KMS_MEDIA_TYPE_DATA:
+      return "data";
+    default:
+      return "<unsupported>";
+  }
+}
+
+static void
+kms_base_rtp_endpoint_latency_cb (GstPad * pad, KmsMediaType type,
+    GstClockTimeDiff t, gpointer user_data)
+{
+  KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (user_data);
+  gdouble *prev;
+
+  switch (type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      prev = &self->priv->stats.ai;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      prev = &self->priv->stats.vi;
+      break;
+    default:
+      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%s)",
+          str_media_type (type));
+      return;
+  }
+
+  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
+}
+
+static void
+kms_base_rtp_endpoint_set_connection_stats (KmsBaseRtpSession * self,
+    KmsIRtpConnection * conn)
+{
+  kms_i_rtp_connection_set_latency_callback (conn,
+      kms_base_rtp_endpoint_latency_cb, self);
+
+  /* Active insertion of metadata if stats are enabled */
+  g_mutex_lock (&self->priv->stats.mutex);
+  kms_i_rtp_connection_collect_latency_stats (conn, self->priv->stats.enabled);
+  g_mutex_unlock (&self->priv->stats.mutex);
+}
+#endif
+
+KmsIRtpConnection *
+kms_base_rtp_session_create_connection (KmsBaseRtpSession * self,
+    SdpMediaConfig * mconf)
+{
+  KmsBaseRtpSessionClass *base_rtp_class =
+      KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
+  gchar *name = kms_utils_create_connection_name_from_media_config (mconf);
+  SdpMediaGroup *group = kms_sdp_media_config_get_group (mconf);
+  KmsIRtpConnection *conn;
+
+  conn = kms_base_rtp_session_get_connection_by_name (self, name);
+  if (conn != NULL) {
+    GST_DEBUG_OBJECT (self, "Re-using connection '%s'", name);
+    goto end;
+  }
+
+  if (group != NULL) {          /* bundle */
+    conn =
+        KMS_I_RTP_CONNECTION (base_rtp_class->create_bundle_connection (self,
+            name));
+  } else {
+    if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
+      conn =
+          KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
+          (self, name));
+    } else {
+      conn = base_rtp_class->create_connection (self, mconf, name);
+    }
+  }
+
+  /* TODO: check if conn is NULL */
+  g_hash_table_insert (self->conns, g_strdup (name), conn);
+
+/* inmediate-TODO: reenable */
+#if 0
+  kms_base_rtp_endpoint_set_connection_stats (self, conn);
+#endif
+
+end:
+  g_free (name);
+
+  return conn;
+}
+
+/* Connection management end */
 
 /* Start Transport Send begin */
 
@@ -507,6 +659,13 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
   gobject_class->finalize = kms_base_rtp_session_finalize;
 
   klass->post_constructor = kms_base_rtp_session_post_constructor;
+
+  /* Connection management */
+  klass->create_connection = kms_base_rtp_session_create_connection_default;
+  klass->create_rtcp_mux_connection =
+      kms_base_rtp_session_create_rtcp_mux_connection_default;
+  klass->create_bundle_connection =
+      kms_base_rtp_session_create_bundle_connection_default;
 
   gst_element_class_set_details_simple (gstelement_class,
       "BaseRtpSession",
