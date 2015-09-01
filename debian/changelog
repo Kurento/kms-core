@@ -1,3 +1,100 @@
+kms-core-6.0 (6.1.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+  * dummysrc: Add audio frequency property
+
+  [ Santiago Carot-Nemesio ]
+  * core.kmd.json: Add new classes to provide the stats mesured by media elements
+  * kmselement: Add element-id property.
+  * kmsistats: Include support to enable/disable mesurements of media stats
+  * kmselement: Move implementation of stats interface to kmselement
+  * kmsbasertpendpoint: Enable/disable collection of media statistics
+  * kmsirtpconnection: Add methods to set latency meta
+  * kmsbasertpendpoint: Enable/disable insertion of latency metada
+  * kmsbasertpendpoint: Calculate end-to-end latency average
+  * basertpendpoint: Provide end to end latency in the stats
+  * kmsstats: Move stats stuff into a separate file
+  * kmsstats: Code refactorization
+  * kmsstats: Add common utilities for stats management
+  * kmselement: Enable/disable input media stats
+  * kmsstats: Add update metadata latency function
+  * kmsbasertpendpoint: Use common stats function
+  * Statistics: Move rtp statistics into a rtc-statistics section
+  * Statistics: Annunce end point stats
+
+  [ Jose Antonio Santos Cadenas ]
+  * ModuleManager: Fix printed error format
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Do not negotiate BUNDLE if it is not supported
+
+  [ Miguel París Díaz ]
+  * kmsbasertpendpoint: fix fir/pli caps setting
+
+  [ Santiago Carot-Nemesio ]
+  * kmselement, kmsbasertpendpoint: Use common stats utilities to enable/disable stats
+  * kmsstats: Avoid usage of wrapper functions
+  * core.kmd.json: Move getStats to MediaElement
+  * Stats: Remove unrequired stuff that new Statistics hierarchy makes no longer required
+  * core.kmd.json: Add latencyStats property in MediaPipeline to enable/disable latency stats
+  * kmsistats: Remove interface.
+  * kmsbasertpendpoint: Filter rtpsources provided in stats
+
+  [ Jose Antonio Santos Cadenas ]
+  * audiomixer: Avoid leaking media when audiotestsrc is connected
+  * audiomixer: Do not release audiomixer when its src pad is working
+  * audiomixer: Agnosticbin can be release directly without sending eos
+  * basehub: Do not set target of source pads until they are linked
+  * audiomixer: Fix concurrency problems while adding new connections
+  * audiomixer: Remove useless defines
+  * recordingprofile: Do not force baseline format
+
+  [ Miguel París Díaz ]
+  * kmsbasertpendpoint: set RTP payloader MTU size to 1200
+  * Revert "kmsbasertpendpoint: set RTP payloader MTU size to 1200"
+  * constants: useful common file for storing constants
+  * sdp_utils: move some utilities here
+  * kmssdpcontext: move some utilities here
+  * kmsbasertpendpoint: remove unnecesary param from destroy func
+
+  [ Jose Antonio Santos Cadenas ]
+  * agnosticbin: Avoid reconstruction when dimensions or framerate changes
+  * dectreebin: Configure opusdecoder correctly to enable fec and plc
+  * enctreebin: Configure opus encoder correctly to enable inband fec
+
+  [ Miguel París Díaz ]
+  * kmssdpagent: change inmediate-TODO with TODO
+  * kmsbasertpendpoint: fix typo
+  * BaseRtpEndpointImpl: unregister connStateChanged handler
+
+  [ Jose Antonio Santos Cadenas ]
+  * enctreebin: Fix property name for x264enc
+  * parsetreebin: Perform bitrate calculation and push tag events
+  * enctreebin: Use tag events to set encoding target bitrate
+  * enctreebin: Configure max-bitrate and min-bitrate
+  * kmselement: Change target bitrate property by min and max bitrate
+  * agnosticbin: Dynamically change encoders bitrate limits
+  * enctreebin: Keep encoding bitrate between limits
+  * enctreebin: Remove old TODO
+  * MediaElement: Add minOutputBitrate and maxOutputBitrate
+  * passthrough: Test kmselement encoding properties
+  * basertpendpoint: Reduce jitterbuffer latency for audio
+  * audiomixer: Configure latency to a higher value
+  * kmsutils: Change function name to keep consistency
+
+  [ Santiago Carot-Nemesio ]
+  * kmsbasertpendpoint: Do not notify media state changes when a source becomes receiver.
+
+  [ Jose Antonio Santos Cadenas ]
+  * parsetreebin: Avoid divide by zero exception
+  * parsetreebin: Only perform bitrate calculation for not raw video
+  * Prepare release 6.1.0
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Tue, 01 Sep 2015 14:40:59 +0200
+
 kms-core-6.0 (6.0.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
