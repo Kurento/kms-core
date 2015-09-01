@@ -246,7 +246,7 @@ kms_base_rtp_endpoint_rtp_hdr_ext_set_time (guint8 * data)
   guint value;
 
   current_time = kms_utils_get_time_nsecs ();
-  ms = current_time / 1000000;
+  ms = GST_TIME_AS_MSECONDS (current_time);
   value = (((ms << 18) / 1000) & 0x00ffffff);
 
   data[0] = (guint8) (value >> 16);
