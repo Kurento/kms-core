@@ -442,6 +442,36 @@ kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
 /* Start Transport Send end */
 
 static void
+kms_base_rtp_session_enable_connection_stats (gpointer key, gpointer value,
+    gpointer user_data)
+{
+  kms_i_rtp_connection_collect_latency_stats (KMS_I_RTP_CONNECTION (value),
+      TRUE);
+}
+
+static void
+kms_base_rtp_endpoint_disable_connection_stats (gpointer key, gpointer value,
+    gpointer user_data)
+{
+  kms_i_rtp_connection_collect_latency_stats (KMS_I_RTP_CONNECTION (value),
+      FALSE);
+}
+
+void
+kms_base_rtp_session_enable_connections_stats (KmsBaseRtpSession * self)
+{
+  g_hash_table_foreach (self->conns,
+      kms_base_rtp_session_enable_connection_stats, NULL);
+}
+
+void
+kms_base_rtp_session_disable_connections_stats (KmsBaseRtpSession * self)
+{
+  g_hash_table_foreach (self->conns,
+      kms_base_rtp_endpoint_disable_connection_stats, NULL);
+}
+
+static void
 kms_base_rtp_session_finalize (GObject * object)
 {
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (object);

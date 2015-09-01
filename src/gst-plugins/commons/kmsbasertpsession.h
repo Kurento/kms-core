@@ -79,5 +79,8 @@ KmsIRtpConnection * kms_base_rtp_session_get_connection (KmsBaseRtpSession * sel
 
 void kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self, gboolean offerer);
 
+void kms_base_rtp_session_enable_connections_stats (KmsBaseRtpSession * self);
+void kms_base_rtp_session_disable_connections_stats (KmsBaseRtpSession * self);
+
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_SESSION_H__ */
