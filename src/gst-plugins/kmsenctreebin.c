@@ -77,8 +77,9 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
     }
     case X264:
     {
-      g_object_set (G_OBJECT (encoder), "speed-preset", 1 /* ultrafast */ ,
-          "threads", (guint) 1, "bitrate", target_bitrate / 1000, NULL);
+      g_object_set (G_OBJECT (encoder), "speed-preset", 3 /* veryfast */ ,
+          "threads", (guint) 1, "bitrate", target_bitrate / 1000, "key-int-max",
+          60, "tune", 4 /* zero-latency */ , NULL);
       break;
     }
     case OPENH264:
