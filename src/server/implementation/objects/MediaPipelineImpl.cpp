@@ -7,7 +7,7 @@
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
 #include <SignalHandler.hpp>
-#include <commons/kmselement.h>
+#include "kmselement.h"
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
