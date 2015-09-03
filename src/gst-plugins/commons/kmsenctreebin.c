@@ -70,22 +70,39 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
   switch (type) {
     case VP8:
     {
-      g_object_set (G_OBJECT (encoder), "deadline", G_GINT64_CONSTANT (200000),
-          "threads", 1, "cpu-used", 16, "resize-allowed", TRUE,
-          "target-bitrate", target_bitrate, "end-usage", /* cbr */ 1, NULL);
+      /* *INDENT-OFF* */
+      g_object_set (G_OBJECT (encoder),
+                    "deadline", G_GINT64_CONSTANT (200000),
+                    "threads", 1,
+                    "cpu-used", 16,
+                    "resize-allowed", TRUE,
+                    "target-bitrate", target_bitrate,
+                    "end-usage", /* cbr */ 1,
+                    NULL);
+      /* *INDENT-ON* */
       break;
     }
     case X264:
     {
-      g_object_set (G_OBJECT (encoder), "speed-preset", 3 /* veryfast */ ,
-          "threads", (guint) 1, "bitrate", target_bitrate / 1000, "key-int-max",
-          60, "tune", 4 /* zero-latency */ , NULL);
+      /* *INDENT-OFF* */
+      g_object_set (G_OBJECT (encoder),
+                    "speed-preset", /* veryfast */ 3,
+                    "threads", (guint) 1,
+                    "bitrate", target_bitrate / 1000,
+                    "key-int-max", 60,
+                    "tune", /* zero-latency */ 4,
+                    NULL);
+      /* *INDENT-ON* */
       break;
     }
     case OPENH264:
     {
-      g_object_set (G_OBJECT (encoder), "rate-control", 1 /* bitrate */ ,
-          "bitrate", target_bitrate, NULL);
+      /* *INDENT-OFF* */
+      g_object_set (G_OBJECT (encoder),
+                    "rate-control", /* bitrate */ 1,
+                    "bitrate", target_bitrate,
+                    NULL);
+      /* *INDENT-ON* */
       break;
     }
     case OPUS:
