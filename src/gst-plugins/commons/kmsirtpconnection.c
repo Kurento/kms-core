@@ -43,6 +43,10 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
   g_object_interface_install_property (iface, g_param_spec_boolean ("added",
           "Added", "Indicates if connection is already added", FALSE,
           G_PARAM_READWRITE));
+
+  g_object_interface_install_property (iface, g_param_spec_boolean ("is-client",
+          "Is client", "True when connection is client", FALSE,
+          G_PARAM_READABLE));
 }
 
 void
