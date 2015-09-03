@@ -697,27 +697,37 @@ static void
 remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
     guint ssrc)
 {
-  RembHashValue *last_value, *value;
+  RembHashValue *last_value;
+  GstClockTime time = kms_utils_get_time_nsecs ();
+  gboolean new_br = TRUE;
 
   g_mutex_lock (&manager->mutex);
   last_value = g_hash_table_lookup (manager->remb_hash,
       GUINT_TO_POINTER (ssrc));
 
-  if (last_value != NULL && bitrate == last_value->bitrate) {
+  if (last_value != NULL) {
+    new_br = bitrate != last_value->bitrate;
+    last_value->bitrate = bitrate;
     last_value->ts = kms_utils_get_time_nsecs ();
-    goto end;
-  }
-
-  value = remb_hash_value_create (bitrate);
-  g_hash_table_insert (manager->remb_hash, GUINT_TO_POINTER (ssrc), value);
-
-  if (bitrate > manager->remb_min) {
-    remb_event_manager_calc_min (manager, bitrate);
   } else {
-    remb_event_manager_set_min (manager, bitrate);
+    RembHashValue *value;
+
+    value = remb_hash_value_create (bitrate);
+    g_hash_table_insert (manager->remb_hash, GUINT_TO_POINTER (ssrc), value);
   }
 
-end:
+  if (bitrate < manager->remb_min) {
+    remb_event_manager_set_min (manager, bitrate);
+  } else {
+    gboolean calc_min;
+
+    calc_min = new_br && (bitrate > manager->remb_min);
+    calc_min = calc_min
+        || (time - manager->oldest_remb_time > manager->clear_interval);
+    if (calc_min) {
+      remb_event_manager_calc_min (manager, bitrate);
+    }
+  }
 
   GST_TRACE_OBJECT (manager->pad, "remb_min: %" G_GUINT32_FORMAT,
       manager->remb_min);

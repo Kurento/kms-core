@@ -80,6 +80,54 @@ GST_START_TEST (check_min_br_update)
 
 GST_END_TEST;
 
+/*
+ * Check that repeated high bitrate is took into account
+ * and minimum value is updated after a lower bitrate
+ * is removed in the clearing time.
+ */
+GST_START_TEST (check_take_into_account_after_clear_time)
+{
+  GstPad *pad;
+  RembEventManager *manager;
+  GstEvent *event;
+  guint min_br;
+  GstClockTime v;
+
+  pad = gst_pad_new (NULL, GST_PAD_SRC);
+  gst_pad_set_active (pad, TRUE);
+  manager = kms_utils_remb_event_manager_create (pad);
+  kms_utils_remb_event_manager_set_callback (manager, bitrate_cb, &min_br,
+      NULL);
+
+  /* SSRC_1: set min */
+  event = kms_utils_remb_event_upstream_new (100, 1);
+  gst_pad_send_event (pad, event);
+  fail_unless (min_br == 100);
+
+  /* SSRC_2: not update min */
+  event = kms_utils_remb_event_upstream_new (200, 2);
+  gst_pad_send_event (pad, event);
+  fail_unless (min_br == 100);
+
+  kms_utils_remb_event_manager_set_clear_interval (manager, 5000);
+  v = kms_utils_remb_event_manager_get_clear_interval (manager);
+  fail_unless (v == 5000);
+
+  kms_utils_remb_event_manager_set_clear_interval (manager, 50);
+  v = kms_utils_remb_event_manager_get_clear_interval (manager);
+  fail_unless (v == 50);
+
+  /* SSRC_2: clear entries and update min */
+  event = kms_utils_remb_event_upstream_new (200, 2);
+  gst_pad_send_event (pad, event);
+  fail_unless (min_br == 200);
+
+  kms_utils_remb_event_manager_destroy (manager);
+  g_object_unref (pad);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 rembmanager_suite (void)
@@ -89,6 +137,7 @@ rembmanager_suite (void)
 
   suite_add_tcase (s, tc_chain);
   tcase_add_test (tc_chain, check_min_br_update);
+  tcase_add_test (tc_chain, check_take_into_account_after_clear_time);
 
   return s;
 }
