@@ -609,7 +609,7 @@ struct _RembEventManager
   GHashTable *remb_hash;
   GstPad *pad;
   gulong probe_id;
-  GstClockTime oldest_remb_value;
+  GstClockTime oldest_remb_time;
 
   /* Callback */
   RembBitrateUpdatedCallback callback;
@@ -682,7 +682,7 @@ remb_event_manager_calc_min (RembEventManager * manager)
     oldest_time = MIN (oldest_time, ts);
   }
 
-  manager->oldest_remb_value = oldest_time;
+  manager->oldest_remb_time = oldest_time;
   remb_event_manager_set_min (manager, remb_min);
 }
 
@@ -748,7 +748,7 @@ kms_utils_remb_event_manager_create (GstPad * pad)
   manager->pad = g_object_ref (pad);
   manager->probe_id = gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
       remb_probe, manager, NULL);
-  manager->oldest_remb_value = kms_utils_get_time_nsecs ();
+  manager->oldest_remb_time = kms_utils_get_time_nsecs ();
 
   return manager;
 }
@@ -788,7 +788,7 @@ kms_utils_remb_event_manager_get_min (RembEventManager * manager)
   guint ret;
 
   g_mutex_lock (&manager->mutex);
-  if (time - manager->oldest_remb_value > REMB_HASH_CLEAR_INTERVAL) {
+  if (time - manager->oldest_remb_time > REMB_HASH_CLEAR_INTERVAL) {
     remb_event_manager_calc_min (manager);
   }
 
