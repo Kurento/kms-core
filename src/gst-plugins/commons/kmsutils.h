@@ -59,6 +59,8 @@ void kms_utils_remb_event_manager_destroy (RembEventManager * manager);
 void kms_utils_remb_event_manager_pointer_destroy (gpointer manager);
 guint kms_utils_remb_event_manager_get_min (RembEventManager * manager);
 void kms_utils_remb_event_manager_set_callback (RembEventManager * manager, RembBitrateUpdatedCallback cb, gpointer data, GDestroyNotify destroy_notify);
+void kms_utils_remb_event_manager_set_clear_interval (RembEventManager * manager, GstClockTime interval);
+GstClockTime kms_utils_remb_event_manager_get_clear_interval (RembEventManager * manager);
 
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();

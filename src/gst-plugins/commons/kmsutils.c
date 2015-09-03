@@ -548,7 +548,7 @@ kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop,
 /* REMB event begin */
 
 #define KMS_REMB_EVENT_NAME "REMB"
-#define REMB_HASH_CLEAR_INTERVAL 10 * GST_SECOND
+#define DEFAULT_CLEAR_INTERVAL 10 * GST_SECOND
 
 GstEvent *
 kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc)
@@ -610,6 +610,7 @@ struct _RembEventManager
   GstPad *pad;
   gulong probe_id;
   GstClockTime oldest_remb_time;
+  GstClockTime clear_interval;
 
   /* Callback */
   RembBitrateUpdatedCallback callback;
@@ -654,7 +655,7 @@ remb_event_manager_set_min (RembEventManager * manager, guint min)
 }
 
 static void
-remb_event_manager_calc_min (RembEventManager * manager)
+remb_event_manager_calc_min (RembEventManager * manager, guint default_min)
 {
   guint remb_min = 0;
   GstClockTime time = kms_utils_get_time_nsecs ();
@@ -667,7 +668,7 @@ remb_event_manager_calc_min (RembEventManager * manager)
     guint br = ((RembHashValue *) v)->bitrate;
     GstClockTime ts = ((RembHashValue *) v)->ts;
 
-    if (time - ts > REMB_HASH_CLEAR_INTERVAL) {
+    if (time - ts > manager->clear_interval) {
       GST_TRACE ("Remove entry %" G_GUINT32_FORMAT, GPOINTER_TO_UINT (key));
       g_hash_table_iter_remove (&iter);
       continue;
@@ -680,6 +681,12 @@ remb_event_manager_calc_min (RembEventManager * manager)
     }
 
     oldest_time = MIN (oldest_time, ts);
+  }
+
+  if (remb_min == 0 && default_min > 0) {
+    GST_DEBUG_OBJECT (manager->pad, "Setting default value: %" G_GUINT32_FORMAT,
+        default_min);
+    remb_min = default_min;
   }
 
   manager->oldest_remb_time = oldest_time;
@@ -705,7 +712,7 @@ remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
   g_hash_table_insert (manager->remb_hash, GUINT_TO_POINTER (ssrc), value);
 
   if (bitrate > manager->remb_min) {
-    remb_event_manager_calc_min (manager);
+    remb_event_manager_calc_min (manager, bitrate);
   } else {
     remb_event_manager_set_min (manager, bitrate);
   }
@@ -749,6 +756,7 @@ kms_utils_remb_event_manager_create (GstPad * pad)
   manager->probe_id = gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
       remb_probe, manager, NULL);
   manager->oldest_remb_time = kms_utils_get_time_nsecs ();
+  manager->clear_interval = DEFAULT_CLEAR_INTERVAL;
 
   return manager;
 }
@@ -788,8 +796,8 @@ kms_utils_remb_event_manager_get_min (RembEventManager * manager)
   guint ret;
 
   g_mutex_lock (&manager->mutex);
-  if (time - manager->oldest_remb_time > REMB_HASH_CLEAR_INTERVAL) {
-    remb_event_manager_calc_min (manager);
+  if (time - manager->oldest_remb_time > manager->clear_interval) {
+    remb_event_manager_calc_min (manager, 0);
   }
 
   ret = manager->remb_min;
@@ -809,6 +817,19 @@ kms_utils_remb_event_manager_set_callback (RembEventManager * manager,
   manager->user_data_destroy = destroy_notify;
   manager->callback = cb;
   g_mutex_unlock (&manager->mutex);
+}
+
+void
+kms_utils_remb_event_manager_set_clear_interval (RembEventManager * manager,
+    GstClockTime interval)
+{
+  manager->clear_interval = interval;
+}
+
+GstClockTime
+kms_utils_remb_event_manager_get_clear_interval (RembEventManager * manager)
+{
+  return manager->clear_interval;
 }
 
 /* REMB event end */
