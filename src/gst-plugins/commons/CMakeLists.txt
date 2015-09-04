@@ -92,6 +92,10 @@ set(KMS_COMMONS_SOURCES
   kmsbufferlacentymeta.c
   kmsserializablemeta.c
   kmsstats.c
+  kmstreebin.c
+  kmsdectreebin.c
+  kmsenctreebin.c
+  kmsparsetreebin.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -117,6 +121,10 @@ set(KMS_COMMONS_HEADERS
   kmsbufferlacentymeta.h
   kmsserializablemeta.h
   kmsstats.h
+  kmstreebin.h
+  kmsdectreebin.h
+  kmsenctreebin.h
+  kmsparsetreebin.h
 )
 
 set(ENUM_HEADERS
