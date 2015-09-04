@@ -50,6 +50,14 @@ target_link_libraries(kmsrefstruct
   ${gstreamer-1.5_LIBRARIES}
 )
 
+set_target_properties(kmsrefstruct PROPERTIES PUBLIC_HEADER kmsrefstruct.h)
+
+install(
+  TARGETS kmsrefstruct
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
+)
+
 add_library(kmsutils ${KMS_UTILS})
 
 target_link_libraries(kmsutils
