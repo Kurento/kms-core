@@ -26,7 +26,7 @@ set(KMS_SDP_AGENT_HEADERS
 
 add_library(kmssdpagent SHARED ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
 
-add_dependencies(kmssdpagent kmsutils sdputils)
+add_dependencies(kmssdpagent kmsutils sdputils kmsrefstruct)
 
 set_target_properties(kmssdpagent PROPERTIES PUBLIC_HEADER "${KMS_SDP_AGENT_HEADERS}")
 
@@ -41,6 +41,7 @@ target_link_libraries(kmssdpagent
   ${gstreamer-pbutils-1.5_LIBRARIES}
   kmsutils
   sdputils
+  kmsrefstruct
 )
 
 install(

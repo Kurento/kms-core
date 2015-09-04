@@ -44,6 +44,12 @@ set(KMS_UTILS
   kmsutils.c kmsutils.h
 )
 
+add_library(kmsrefstruct kmsrefstruct.c kmsrefstruct.h)
+
+target_link_libraries(kmsrefstruct
+  ${gstreamer-1.5_LIBRARIES}
+)
+
 add_library(kmsutils ${KMS_UTILS})
 
 target_link_libraries(kmsutils
@@ -75,7 +81,6 @@ set(KMS_COMMONS_SOURCES
   kmshubport.c
   kmsbasehub.c
   kmsuriendpoint.c
-  kmsrefstruct.c
   kmsbufferlacentymeta.c
   kmsserializablemeta.c
   kmsstats.c
@@ -101,7 +106,6 @@ set(KMS_COMMONS_HEADERS
   kmsuriendpointstate.h
   kmsmediatype.h
   kmsuriendpoint.h
-  kmsrefstruct.h
   kmsbufferlacentymeta.h
   kmsserializablemeta.h
   kmsstats.h
@@ -124,11 +128,12 @@ add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
 
-add_dependencies(kmsgstcommons kmsutils sdputils)
+add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
 
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
+  kmsrefstruct
   kmssdpagent
   ${gstreamer-1.5_LIBRARIES}
   ${gstreamer-base-1.5_LIBRARIES}
