@@ -72,11 +72,13 @@ struct _KmsElementClass
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
   void (*collect_media_stats) (KmsElement * self, gboolean enable);
+  GstElement * (*create_output_element) (KmsElement * self);
 };
 
 GType kms_element_get_type (void);
 
 /* Private methods */
+/* TODO: rename "agnosticbin" to "output_element"*/
 GstElement * kms_element_get_audio_agnosticbin (KmsElement * self);
 GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 GstElement * kms_element_get_data_tee (KmsElement * self);

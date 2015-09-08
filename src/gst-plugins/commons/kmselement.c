@@ -348,7 +348,7 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   }
 
   self->priv->audio_agnosticbin =
-      gst_element_factory_make ("agnosticbin", NULL);
+      KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
 
   gst_bin_add (GST_BIN (self), self->priv->audio_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
@@ -370,7 +370,7 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   }
 
   self->priv->video_agnosticbin =
-      gst_element_factory_make ("agnosticbin", NULL);
+      KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
 
   gst_bin_add (GST_BIN (self), self->priv->video_agnosticbin);
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
@@ -1010,6 +1010,12 @@ kms_element_collect_media_stats_impl (KmsElement * self, gboolean enable)
   }
 }
 
+static GstElement *
+kms_element_create_output_element_default (KmsElement * self)
+{
+  return gst_element_factory_make ("agnosticbin", NULL);
+}
+
 static void
 kms_element_class_init (KmsElementClass * klass)
 {
@@ -1071,6 +1077,8 @@ kms_element_class_init (KmsElementClass * klass)
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
   klass->collect_media_stats =
       GST_DEBUG_FUNCPTR (kms_element_collect_media_stats_impl);
+  klass->create_output_element =
+      GST_DEBUG_FUNCPTR (kms_element_create_output_element_default);
 
   /* set actions */
   element_signals[REQUEST_NEW_SRCPAD] =
