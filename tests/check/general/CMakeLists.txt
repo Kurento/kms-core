@@ -28,4 +28,13 @@ target_link_libraries(test_refcounts
                       ${gstreamer-check-1.5_LIBRARIES}
                       kmsgstcommons)
 
-
+add_test_program (test_rembmanager rembmanager.c)
+add_dependencies(test_rembmanager ${LIBRARY_NAME}plugins kmsgstcommons)
+target_include_directories(test_rembmanager PRIVATE
+                           ${gstreamer-1.5_INCLUDE_DIRS}
+                           ${gstreamer-check-1.5_INCLUDE_DIRS}
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/")
+target_link_libraries(test_rembmanager
+                      ${gstreamer-1.5_LIBRARIES}
+                      ${gstreamer-check-1.5_LIBRARIES}
+                      kmsgstcommons)
