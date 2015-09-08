@@ -881,6 +881,23 @@ kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mconf)
 
 /* RTP connection end */
 
+gboolean
+kms_utils_contains_proto (const gchar * search_term, const gchar * proto)
+{
+  gchar *pattern;
+  GRegex *regex;
+  gboolean ret;
+
+  pattern = g_strdup_printf ("(%s|.+/%s|%s/.+|.+/%s/.+)", proto, proto, proto,
+      proto);
+  regex = g_regex_new (pattern, 0, 0, NULL);
+  ret = g_regex_match (regex, search_term, G_REGEX_MATCH_ANCHORED, NULL);
+  g_regex_unref (regex);
+  g_free (pattern);
+
+  return ret;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

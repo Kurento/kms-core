@@ -561,7 +561,7 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
     return FALSE;
   }
 
-  if (!g_str_has_prefix (neg_proto_str, "RTP")) {
+  if (!kms_utils_contains_proto (neg_proto_str, "RTP")) {
     GST_DEBUG_OBJECT (self, "'%s' protocol does not need RTP connection",
         neg_proto_str);
     /* It cannot be managed here but could be managed by the child class */

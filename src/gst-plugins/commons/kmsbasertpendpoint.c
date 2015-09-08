@@ -199,6 +199,22 @@ enum
   PROP_LAST
 };
 
+static gboolean
+is_proto (const gchar * term, const gchar * opt, const gchar * proto)
+{
+  gchar *pattern;
+  GRegex *regex;
+  gboolean ret;
+
+  pattern = g_strdup_printf ("(%s)?%s", opt, proto);
+  regex = g_regex_new (pattern, 0, 0, NULL);
+  ret = g_regex_match (regex, term, G_REGEX_MATCH_ANCHORED, NULL);
+  g_regex_unref (regex);
+  g_free (pattern);
+
+  return ret;
+}
+
 /* RTP hdrext begin */
 
 typedef struct _HdrExtData
@@ -595,7 +611,7 @@ kms_base_rtp_endpoint_media_proto_to_rtp_profile (KmsBaseRtpEndpoint * self,
     return GST_RTP_PROFILE_AVPF;
   } else if (g_strcmp0 (proto, "RTP/SAVP") == 0) {
     return GST_RTP_PROFILE_SAVP;
-  } else if (g_strcmp0 (proto, "RTP/SAVPF") == 0) {
+  } else if (is_proto (proto, "UDP/TLS/", "RTP/SAVPF")) {
     return GST_RTP_PROFILE_SAVPF;
   } else {
     GST_WARNING_OBJECT (self, "Unknown protocol '%s'", proto);
@@ -619,7 +635,7 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
   guint ssrc;
   gchar *str;
 
-  if (!g_str_has_prefix (proto_str, "RTP")) {
+  if (!kms_utils_contains_proto (proto_str, "RTP")) {
     GST_DEBUG_OBJECT (self, "'%s' protocol not need RTP session", proto_str);
     return TRUE;
   }
