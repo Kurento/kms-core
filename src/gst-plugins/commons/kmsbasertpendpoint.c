@@ -64,7 +64,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 )
 
 #define JB_INITIAL_LATENCY 0
-#define JB_READY_AUDIO_LATENCY 200
+#define JB_READY_AUDIO_LATENCY 100
 #define JB_READY_VIDEO_LATENCY 1500
 
 typedef struct _KmsSSRCStats KmsSSRCStats;
