@@ -27,7 +27,7 @@
 #define PLUGIN_NAME "kmsaudiomixer"
 #define KEY_SINK_PAD_NAME "kms-key-sink-pad-name"
 
-#define LATENCY 600             //ms
+#define LATENCY 150             //ms
 
 #define KMS_AUDIO_MIXER_LOCK(mixer) \
   (g_rec_mutex_lock (&(mixer)->priv->mutex))
