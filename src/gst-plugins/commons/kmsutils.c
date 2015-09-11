@@ -898,6 +898,30 @@ kms_utils_contains_proto (const gchar * search_term, const gchar * proto)
   return ret;
 }
 
+const GstStructure *
+kms_utils_get_structure_by_name (const GstStructure * str, const gchar * name)
+{
+  const GValue *value;
+
+  value = gst_structure_get_value (str, name);
+
+  if (value == NULL) {
+    return NULL;
+  }
+
+  if (!GST_VALUE_HOLDS_STRUCTURE (value)) {
+    gchar *str_val;
+
+    str_val = g_strdup_value_contents (value);
+    GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
+    g_free (str_val);
+
+    return NULL;
+  }
+
+  return gst_value_get_structure (value);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

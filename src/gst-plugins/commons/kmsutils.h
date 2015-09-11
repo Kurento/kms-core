@@ -19,6 +19,8 @@
 #include "kmsmediatype.h"
 #include "sdpagent/kmssdpcontext.h"
 
+G_BEGIN_DECLS
+
 typedef void (*KmsPadIterationAction) (GstPad * pad, gpointer data);
 typedef void (*KmsPadCallback) (GstPad * pad, gpointer data);
 
@@ -69,6 +71,7 @@ GstClockTime kms_utils_get_time_nsecs ();
 gchar * kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mconf);
 
 gboolean kms_utils_contains_proto (const gchar *search_term, const gchar *proto);
+const GstStructure * kms_utils_get_structure_by_name (const GstStructure *str, const gchar *name);
 
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
@@ -77,5 +80,7 @@ KMS_UTILS_DESTROY_H (gsize)
 KMS_UTILS_DESTROY_H (GstClockTime)
 KMS_UTILS_DESTROY_H (gfloat)
 KMS_UTILS_DESTROY_H (guint)
+
+G_END_DECLS
 
 #endif /* __KMS_UTILS_H__ */

@@ -17,6 +17,7 @@
 #include "RTCOutboundRTPStreamStats.hpp"
 #include "EndpointStats.hpp"
 #include "kmsstats.h"
+#include "kmsutils.h"
 
 #define GST_CAT_DEFAULT kurento_base_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -524,30 +525,6 @@ collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
   }
 }
 
-static const GstStructure *
-get_structure_by_name (const GstStructure *stats, const gchar *name)
-{
-  const GValue *value;
-
-  value = gst_structure_get_value (stats, name);
-
-  if (value == NULL) {
-    return NULL;
-  }
-
-  if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
-    gchar *str_val;
-
-    str_val = g_strdup_value_contents (value);
-    GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
-    g_free (str_val);
-
-    return NULL;
-  }
-
-  return gst_value_get_structure (value);
-}
-
 static void
 collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
                       &statsReport, std::string id, const GstStructure *stats,
@@ -560,7 +537,7 @@ collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
   const gchar *name;
   gint n;
 
-  sessions = get_structure_by_name (stats, KMS_SESSIONS_STRUCT_NAME);
+  sessions = kms_utils_get_structure_by_name (stats, KMS_SESSIONS_STRUCT_NAME);
 
   if (sessions == NULL) {
     GST_WARNING ("No session stats reported");
@@ -608,13 +585,13 @@ BaseRtpEndpointImpl::fillStatsReport (std::map
 {
   const GstStructure *e_stats, *rtc_stats;
 
-  e_stats = get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
+  e_stats = kms_utils_get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
 
   if (e_stats != NULL) {
     collectEndpointStats (report, getId (), e_stats, timestamp);
   }
 
-  rtc_stats = get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);
+  rtc_stats = kms_utils_get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);
 
   if (rtc_stats != NULL) {
     collectRTCStats (report, timestamp, rtc_stats );
