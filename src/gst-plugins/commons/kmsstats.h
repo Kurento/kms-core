@@ -22,9 +22,11 @@ G_BEGIN_DECLS
 
 #define KMS_MEDIA_ELEMENT_FIELD "media-element"
 #define KMS_RTC_STATISTICS_FIELD "rtc-statistics"
+#define KMS_DATA_SESSION_STATISTICS_FIELD "data-session-statistics"
 #define KMS_ELEMENT_STATS_STRUCT_NAME "element-stats"
 #define KMS_RTP_STRUCT_NAME "rtp-stats"
 #define KMS_SESSIONS_STRUCT_NAME "session-stats"
+#define KMS_DATA_SESSION_STRUCT_NAME "data-session-stats"
 
 /* Macros used to calculate latency stats */
 #define KMS_STATS_ALPHA 0.25

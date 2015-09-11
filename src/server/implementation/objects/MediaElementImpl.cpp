@@ -954,6 +954,10 @@ std::map <std::string, std::shared_ptr<Stats>>
     selector = "video";
     break;
 
+  case MediaType::DATA:
+    selector = "data";
+    break;
+
   default:
     throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
                             "Unsupported media type: " + mediaType->getString() );
