@@ -9,6 +9,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmssdpsctpmediahandler.c
   kmsisdppayloadmanager.c
   kmssdppayloadmanager.c
+  kmsisdpmediaextension.c
 )
 
 set(KMS_SDP_AGENT_HEADERS
@@ -22,6 +23,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmssdpsctpmediahandler.h
   kmsisdppayloadmanager.h
   kmssdppayloadmanager.h
+  kmsisdpmediaextension.h
 )
 
 add_library(kmssdpagent SHARED ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
