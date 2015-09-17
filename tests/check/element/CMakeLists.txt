@@ -5,6 +5,7 @@ set(ALL_TESTS
   hubport
   filterelement
   agnosticbin
+  agnosticbin_negotiation
   agnosticbin3
   audiomixerbin
   #audiomixer
