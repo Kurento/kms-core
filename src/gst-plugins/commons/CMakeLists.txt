@@ -66,6 +66,7 @@ target_link_libraries(kmsutils
   ${gstreamer-sdp-1.5_LIBRARIES}
   ${gstreamer-pbutils-1.5_LIBRARIES}
   ${gstreamer-video-1.5_LIBRARIES}
+  ${uuid_LIBRARIES}
 )
 
 install(
@@ -156,7 +157,6 @@ target_link_libraries(kmsgstcommons
   ${gstreamer-sdp-1.5_LIBRARIES}
   ${gstreamer-pbutils-1.5_LIBRARIES}
   ${gstreamer-rtp-1.5_LIBRARIES}
-  ${uuid_LIBRARIES}
 )
 
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")

@@ -20,7 +20,6 @@
 #include "kmsbasertpsession.h"
 #include "constants.h"
 
-#include <uuid/uuid.h>
 #include <stdlib.h>
 
 #include "kms-core-enumtypes.h"
@@ -42,8 +41,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_rtp_endpoint_debug
 
 #define kms_base_rtp_endpoint_parent_class parent_class
-#define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
-#define KMS_KEY_ID "kms-key-id"
 
 static void
 kms_i_rtp_session_manager_interface_init (KmsIRtpSessionManagerInterface *
@@ -544,21 +541,6 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 }
 
 /* Configure media SDP begin */
-static void
-assign_uuid (GObject * ssrc)
-{
-  gchar *uuid_str;
-  uuid_t uuid;
-
-  uuid_str = (gchar *) g_malloc0 (UUID_STR_SIZE);
-  uuid_generate (uuid);
-  uuid_unparse (uuid, uuid_str);
-
-  /* Assign a unique ID to each SSRC which will */
-  /* be provided in statistics */
-  g_object_set_data_full (ssrc, KMS_KEY_ID, uuid_str, g_free);
-}
-
 static GObject *
 kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     guint session_id, const gchar * rtpbin_pad_name, guint rtp_profile,
@@ -1722,7 +1704,7 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     GValue *val;
     gchar *name;
     guint ssrc;
-    gchar *id;
+    const gchar *id;
 
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
@@ -1751,11 +1733,11 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
       continue;
     }
 
-    id = g_object_get_data (source, KMS_KEY_ID);
+    id = kms_utils_get_uuid (source);
 
     if (id == NULL) {
-      assign_uuid (source);
-      id = g_object_get_data (source, KMS_KEY_ID);
+      kms_utils_set_uuid (source);
+      id = kms_utils_get_uuid (source);
     }
 
     gst_structure_set (ssrc_stats, "id", G_TYPE_STRING, id, NULL);

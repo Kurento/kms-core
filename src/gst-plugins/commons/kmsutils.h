@@ -73,6 +73,9 @@ gchar * kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mco
 gboolean kms_utils_contains_proto (const gchar *search_term, const gchar *proto);
 const GstStructure * kms_utils_get_structure_by_name (const GstStructure *str, const gchar *name);
 
+void kms_utils_set_uuid (GObject *obj);
+const gchar * kms_utils_get_uuid (GObject *obj);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)

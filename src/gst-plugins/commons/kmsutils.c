@@ -17,6 +17,7 @@
 #include "constants.h"
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
+#include <uuid/uuid.h>
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -24,6 +25,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define LAST_KEY_FRAME_REQUEST_TIME "kmslastkeyframe"
 
 #define DEFAULT_KEYFRAME_DISPERSION GST_SECOND  /* 1s */
+
+#define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
+#define KMS_KEY_ID "kms-key-id"
 
 static gboolean
 debug_graph (gpointer bin)
@@ -916,6 +920,27 @@ kms_utils_get_structure_by_name (const GstStructure * str, const gchar * name)
   }
 
   return gst_value_get_structure (value);
+}
+
+void
+kms_utils_set_uuid (GObject * obj)
+{
+  gchar *uuid_str;
+  uuid_t uuid;
+
+  uuid_str = (gchar *) g_malloc0 (UUID_STR_SIZE);
+  uuid_generate (uuid);
+  uuid_unparse (uuid, uuid_str);
+
+  /* Assign a unique ID to each SSRC which will */
+  /* be provided in statistics */
+  g_object_set_data_full (obj, KMS_KEY_ID, uuid_str, g_free);
+}
+
+const gchar *
+kms_utils_get_uuid (GObject * obj)
+{
+  return (const gchar *) g_object_get_data (obj, KMS_KEY_ID);
 }
 
 static void init_debug (void) __attribute__ ((constructor));
