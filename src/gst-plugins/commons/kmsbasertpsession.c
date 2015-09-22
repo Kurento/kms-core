@@ -287,9 +287,12 @@ ssrcs_are_mapped (GstElement * ssrcdemux,
 static void
 kms_base_rtp_session_link_pads (GstPad * src, GstPad * sink)
 {
-  if (gst_pad_link_full (src, sink, GST_PAD_LINK_CHECK_CAPS) != GST_PAD_LINK_OK) {
+  GstPadLinkReturn ret;
+
+  ret = gst_pad_link_full (src, sink, GST_PAD_LINK_CHECK_CAPS);
+  if (ret != GST_PAD_LINK_OK) {
     GST_ERROR ("Error linking pads (src: %" GST_PTR_FORMAT ", sink: %"
-        GST_PTR_FORMAT ")", src, sink);
+        GST_PTR_FORMAT "), ret: '%s'", src, sink, gst_pad_link_get_name (ret));
   }
 }
 
