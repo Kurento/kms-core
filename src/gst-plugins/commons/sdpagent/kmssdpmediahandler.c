@@ -121,6 +121,7 @@ struct _KmsSdpMediaHandlerPrivate
   gchar *addr;
   gchar *addr_type;
   GArray *bwtypes;
+  GSList *extensions;
 };
 
 static void
@@ -182,6 +183,7 @@ kms_sdp_media_handler_finalize (GObject * object)
   g_free (self->priv->addr_type);
 
   g_array_free (self->priv->bwtypes, TRUE);
+  g_slist_free_full (self->priv->extensions, g_object_unref);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -225,6 +227,15 @@ kms_sdp_media_handler_manage_protocol_impl (KmsSdpMediaHandler * handler,
 }
 
 static gboolean
+kms_sdp_media_handler_add_media_extension_impl (KmsSdpMediaHandler * handler,
+    KmsISdpMediaExtension * ext)
+{
+  handler->priv->extensions = g_slist_append (handler->priv->extensions, ext);
+
+  return TRUE;
+}
+
+static gboolean
 is_direction_attr_present (const GstSDPMedia * media)
 {
   guint i, len;
@@ -249,6 +260,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
     GstSDPMedia * media, SdpMessageContext * ctx)
 {
   guint i, len;
+  GSList *l;
 
   if (sdp_utils_is_attribute_in_media (media, attr)) {
     return FALSE;
@@ -263,6 +275,15 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
   for (i = 0; i < len; i++) {
     if (g_strcmp0 (attr->key, attributes[i].name) == 0) {
       return attributes[i].accept (offer, attr, media, ctx);
+    }
+  }
+
+  for (l = handler->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpMediaExtension *ext = KMS_I_SDP_MEDIA_EXTENSION (l->data);
+
+    if (kms_i_sdp_media_extension_can_insert_attribute (ext, offer, attr, media,
+            ctx)) {
+      return TRUE;
     }
   }
 
@@ -294,6 +315,8 @@ static gboolean
 kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
     GstSDPMedia * offer, GError ** error)
 {
+  GError *err = NULL;
+  GSList *l;
   gint i;
 
   /* Add bandwidth attributes */
@@ -302,6 +325,15 @@ kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
 
     bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, i);
     gst_sdp_media_add_bandwidth (offer, bw->bwtype, bw->bandwidth);
+  }
+
+  for (l = handler->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpMediaExtension *ext = KMS_I_SDP_MEDIA_EXTENSION (l->data);
+
+    if (!kms_i_sdp_media_extension_add_offer_attributes (ext, offer, &err)) {
+      GST_ERROR_OBJECT (ext, "%s", err->message);
+      g_clear_error (&err);
+    }
   }
 
   return TRUE;
@@ -321,6 +353,8 @@ static gboolean
 kms_sdp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
+  GError *err = NULL;
+  GSList *l;
   gint i;
 
   /* Add bandwidth attributes */
@@ -329,6 +363,16 @@ kms_sdp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler * handler,
 
     bw = &g_array_index (handler->priv->bwtypes, GstSDPBandwidth, i);
     gst_sdp_media_add_bandwidth (answer, bw->bwtype, bw->bandwidth);
+  }
+
+  for (l = handler->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpMediaExtension *ext = KMS_I_SDP_MEDIA_EXTENSION (l->data);
+
+    if (!kms_i_sdp_media_extension_add_answer_attributes (ext, offer, answer,
+            &err)) {
+      GST_ERROR_OBJECT (ext, "%s", err->message);
+      g_clear_error (&err);
+    }
   }
 
   return TRUE;
@@ -362,6 +406,7 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;
   klass->add_bandwidth = kms_sdp_media_handler_add_bandwidth_impl;
   klass->manage_protocol = kms_sdp_media_handler_manage_protocol_impl;
+  klass->add_media_extension = kms_sdp_media_handler_add_media_extension_impl;
 
   klass->can_insert_attribute = kms_sdp_media_handler_can_insert_attribute_impl;
   klass->intersect_sdp_medias = kms_sdp_media_handler_intersect_sdp_medias_impl;
@@ -423,4 +468,16 @@ kms_sdp_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->manage_protocol (handler,
       protocol);
+}
+
+gboolean
+kms_sdp_media_handler_add_media_extension (KmsSdpMediaHandler * handler,
+    KmsISdpMediaExtension * ext)
+{
+  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), FALSE);
+  g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
+
+  return
+      KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_media_extension (handler,
+      ext);
 }
