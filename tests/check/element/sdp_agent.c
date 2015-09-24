@@ -2916,7 +2916,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   gchar *sdp_str = NULL, *session;
   SdpMessageContext *ctx;
   const GstSDPOrigin *o;
-  guint64 v1, v2, v3;
+  guint64 v1, v2, v3, v4, v5;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -2996,7 +2996,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   offer = kms_sdp_message_context_pack (ctx, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("Last Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
@@ -3011,6 +3011,69 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   gst_sdp_message_free (offer);
 
+  /* We add a new media, this should re-use the slot used by audio0 */
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  o = gst_sdp_message_get_origin (offer);
+  v4 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  /* sdp is should have changed */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v3 + 1 == v4);
+
+  fail_if (check_if_media_is_removed (offer, 0));
+  fail_if (check_if_media_is_removed (offer, 1));
+  fail_if (check_if_media_is_removed (offer, 2));
+
+  gst_sdp_message_free (offer);
+
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  /* Add another media, this should go to the last place */
+  /* re-use handler for audio */
+  g_object_ref (handler);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Last Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  o = gst_sdp_message_get_origin (offer);
+  v5 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  /* sdp is should have changed */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v4 + 1 == v5);
+
+  fail_if (check_if_media_is_removed (offer, 0));
+  fail_if (check_if_media_is_removed (offer, 1));
+  fail_if (check_if_media_is_removed (offer, 2));
+  fail_if (check_if_media_is_removed (offer, 3));
+
+  gst_sdp_message_free (offer);
   g_object_unref (offerer);
   g_free (session);
 }
@@ -3053,7 +3116,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   gchar *sdp_str = NULL, *session;
   SdpMessageContext *ctx;
   const GstSDPOrigin *o;
-  guint64 v1, v2, v3;
+  guint64 v1, v2, v3, v4, v5;
   gboolean check_bundle = TRUE;
 
   offerer = kms_sdp_agent_new ();
@@ -3179,6 +3242,80 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   kms_sdp_agent_set_local_description (offerer, ctx);
 
   gst_sdp_message_free (offer);
+
+  /* We add a new media, this should re-use the slot used by audio0 */
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  o = gst_sdp_message_get_origin (offer);
+  v4 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  /* sdp is should have changed */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v3 + 1 == v4);
+
+  fail_if (!check_if_in_bundle_group (offer, "video0"));
+  fail_if (check_if_in_bundle_group (offer, "audio0"));
+  fail_if (check_if_in_bundle_group (offer, "application0"));
+  fail_if (check_if_media_is_removed (offer, 0));
+  fail_if (check_if_media_is_removed (offer, 1));
+  fail_if (check_if_media_is_removed (offer, 2));
+
+  gst_sdp_message_free (offer);
+
+  /* Add another media, this should go to the last place */
+  /* re-use handler for video */
+  g_object_ref (handler);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (offerer, gid, id));
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Last Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  o = gst_sdp_message_get_origin (offer);
+  v5 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  /* sdp is should have changed */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v4 + 1 == v5);
+
+  fail_if (!check_if_in_bundle_group (offer, "video0"));
+  fail_if (check_if_in_bundle_group (offer, "audio0"));
+  fail_if (check_if_in_bundle_group (offer, "application0"));
+  fail_if (!check_if_in_bundle_group (offer, "video1"));
+  fail_if (check_if_media_is_removed (offer, 0));
+  fail_if (check_if_media_is_removed (offer, 1));
+  fail_if (check_if_media_is_removed (offer, 2));
+  fail_if (check_if_media_is_removed (offer, 2));
+
+  gst_sdp_message_free (offer);
+
   g_object_unref (offerer);
   g_free (session);
 }

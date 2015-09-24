@@ -332,6 +332,39 @@ kms_sdp_agent_origin_init (KmsSdpAgent * agent, GstSDPOrigin * o,
 }
 
 static gint
+is_disabled_handler (SdpHandler * handler, gconstpointer * data)
+{
+  if (handler->disabled) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+static void
+kms_sdp_agent_add_sdp_handler (KmsSdpAgent * agent, SdpHandler * handler)
+{
+  GSList *l;
+
+  l = g_slist_find_custom (agent->priv->handlers, NULL,
+      (GCompareFunc) is_disabled_handler);
+
+  if (l == NULL) {
+    /* No inactive handlers */
+    agent->priv->handlers = g_slist_append (agent->priv->handlers, handler);
+  } else {
+    SdpHandler *old_handler = l->data;
+
+    /* rfc3264 [8.1] */
+    /* New media streams are created by new additional media descriptions */
+    /* below the existing ones, or by reusing the "slot" used by an old   */
+    /* media stream which had been disabled by setting its port to zero.  */
+    sdp_handler_destroy (old_handler);
+    l->data = handler;
+  }
+}
+
+static gint
 kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
@@ -354,7 +387,7 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   id = agent->priv->hids++;
   sdp_handler = sdp_handler_new (id, media, handler);
 
-  agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
+  kms_sdp_agent_add_sdp_handler (agent, sdp_handler);
 
   if (agent->priv->use_ipv6) {
     addr_type = ORIGIN_ATTR_ADDR_TYPE_IP6;
