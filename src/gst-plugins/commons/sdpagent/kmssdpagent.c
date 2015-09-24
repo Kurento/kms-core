@@ -743,6 +743,12 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   SdpHandler *sdp_handler;
   GError **err = data->err;
 
+  if (gst_sdp_media_get_port (media) == 0) {
+    /* RFC rfc3264 [8.2]: A stream that is offered with a port */
+    /* of zero MUST be marked with port zero in the answer     */
+    goto answer;
+  }
+
   SDP_AGENT_LOCK (agent);
 
   sdp_handler = kms_sdp_agent_get_handler_for_media (agent, media);
