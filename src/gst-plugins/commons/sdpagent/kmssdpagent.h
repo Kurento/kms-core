@@ -32,6 +32,7 @@ typedef enum
   SDP_AGENT_INVALID_MEDIA,
   SDP_AGENT_INVALID_PARAMETER,
   SDP_AGENT_INVALID_PROTOCOL,
+  SDP_AGENT_INVALID_STATE,
   SDP_AGENT_UNEXPECTED_ERROR
 } SdpAgentError;
 
@@ -91,8 +92,10 @@ struct _KmsSdpAgentClass
   gint (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
   SdpMessageContext *(*create_offer) (KmsSdpAgent * agent, GError **error);
   SdpMessageContext *(*create_answer) (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-  void (*set_local_description) (KmsSdpAgent * agent, SdpMessageContext * description);
-  void (*set_remote_description) (KmsSdpAgent * agent, GstSDPMessage * description);
+  SdpMessageContext *(*generate_answer) (KmsSdpAgent * agent, GError **error);
+  gboolean (*cancel_offer) (KmsSdpAgent * agent, GError **error);
+  gboolean (*set_local_description) (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
+  gboolean (*set_remote_description) (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
   gint (*crate_bundle_group) (KmsSdpAgent * agent);
   gboolean (*add_handler_to_group) (KmsSdpAgent * agent, guint gid, guint mid);
   gboolean (*remove_handler_from_group) (KmsSdpAgent * agent, guint gid, guint hid);
@@ -104,9 +107,14 @@ KmsSdpAgent * kms_sdp_agent_new ();
 gint kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
 gboolean kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid);
 SdpMessageContext * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
+
+/* Deprecated: Use kms_sdp_agent_generate_answer instead */
 SdpMessageContext * kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-void kms_sdp_agent_set_local_description (KmsSdpAgent * agent, SdpMessageContext * description);
-void kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description);
+
+SdpMessageContext * kms_sdp_agent_generate_answer (KmsSdpAgent * agent, GError **error);
+gboolean kms_sdpagent_cancel_offer (KmsSdpAgent * agent, GError **error);
+gboolean kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
+gboolean kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
 gint kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid, guint hid);

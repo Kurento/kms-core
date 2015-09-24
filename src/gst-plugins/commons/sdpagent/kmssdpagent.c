@@ -37,6 +37,56 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
 #define DEFAULT_IP6_ADDR "::"
 #define DEFAULT_ADDR DEFAULT_IP4_ADDR
 
+/*
+ * Agent state machine:
+ *
+ * Modification of the SDP media is only allowed when agent is not
+ * negotiating any SDP, so further modifications by adding or removing
+ * media will only allowed when agent is either in in UNNEGOTIATED or
+ * NEGOTIATED state.
+ *
+ *                             +-------------+
+ *                        no   |  previously |   yes
+ *  +--------------------------| negotiated? |---------------------------------------+
+ *  |                          +-------------+                                       |
+ *  |                                 A                                              |
+ *  |                                 | cancel_offer()                               |
+ *  |                                 |                                              |
+ *  |  create_local_offer      +-------------+  create_local_offer                   |
+ *  |   +--------------------->| LOCAL_OFFER |<-----------------------------------+  |
+ *  |   |                      +-------------+                                    |  |
+ *  |   |                            |                                            |  |
+ *  |   |                            |  set_local_description()                   |  |
+ *  V   |                            V                                            |  V
+ * +--+-----------+             +-----------+   set_remote_description()     +------------+
+ * | UNNEGOTIATED |             | WAIT_NEGO |------------------------------->| NEGOTIATED |
+ * +--------------+             +-----------+                                +------------+
+ *    |                                        _______________________________^   |
+ *    |                                       /     set_local_description()       |
+ *    |                                      /                                    |
+ *    |                          +--------------+   set_remote_description()      |
+ *    +------------------------->| REMOTE_OFFER |<--------------------------------+
+ *     set_remote_description()  +--------------+
+ *
+ */
+
+typedef enum
+{
+  KMS_SDP_AGENT_STATE_UNNEGOTIATED,
+  KMS_SDP_AGENT_STATE_LOCAL_OFFER,
+  KMS_SDP_AGENT_STATE_REMOTE_OFFER,
+  KMS_SDP_AGENT_STATE_WAIT_NEGO,
+  KMS_SDP_AGENT_STATE_NEGOTIATED
+} KmsSdpAgentState;
+
+static const gchar *kms_sdp_agent_states[] = {
+  "unnegotiated",
+  "local_offer",
+  "remote_offer",
+  "wait_nego",
+  "negotiated"
+};
+
 /* Object properties */
 enum
 {
@@ -130,8 +180,25 @@ struct _KmsSdpAgentPrivate
 
   GRecMutex mutex;
 
+  KmsSdpAgentState state;
   GstSDPMessage *prev_sdp;
+
+  gchar *sess_id;
+  gchar *sess_version;
 };
+
+#define SDP_AGENT_STATE(agent) kms_sdp_agent_states[(agent)->priv->state]
+#define SDP_AGENT_NEW_STATE(agent, new_state) do {               \
+  GST_DEBUG_OBJECT ((agent), "State changed from '%s' to '%s'",  \
+    SDP_AGENT_STATE (agent), kms_sdp_agent_states[(new_state)]); \
+  if (new_state == KMS_SDP_AGENT_STATE_UNNEGOTIATED) {           \
+    g_free (agent->priv->sess_id);                               \
+    g_free (agent->priv->sess_version);                          \
+    (agent)->priv->sess_id = NULL;                               \
+    (agent)->priv->sess_version = NULL;                          \
+  }                                                              \
+  agent->priv->state = new_state;                                \
+} while (0)
 
 #define SDP_AGENT_LOCK(agent) \
   (g_rec_mutex_lock (&KMS_SDP_AGENT ((agent))->priv->mutex))
@@ -239,7 +306,10 @@ kms_sdp_agent_finalize (GObject * object)
       (GDestroyNotify) sdp_handler_group_destroy);
 
   g_rec_mutex_clear (&self->priv->mutex);
+
   g_free (self->priv->addr);
+  g_free (self->priv->sess_id);
+  g_free (self->priv->sess_version);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -384,6 +454,14 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
 
   SDP_AGENT_LOCK (agent);
 
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    return -1;
+  }
+
   id = agent->priv->hids++;
   sdp_handler = sdp_handler_new (id, media, handler);
 
@@ -423,6 +501,14 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
   gboolean ret = TRUE;
 
   SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    return FALSE;
+  }
 
   sdp_handler = kms_sdp_agent_get_handler (agent, hid);
 
@@ -538,7 +624,6 @@ increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
     GError ** error)
 {
   guint64 sess_version;
-  gchar *str_version;
   const GstSDPOrigin *orig;
   GstSDPOrigin new_orig;
   gboolean ret;
@@ -546,17 +631,22 @@ increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
   orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
 
   sess_version = g_ascii_strtoull (orig->sess_version, NULL, 10);
-  str_version = g_strdup_printf ("%" G_GUINT64_FORMAT, ++sess_version);
+
+  if (agent->priv->sess_version != NULL) {
+    g_free (agent->priv->sess_version);
+  }
+
+  agent->priv->sess_version =
+      g_strdup_printf ("%" G_GUINT64_FORMAT, ++sess_version);
 
   new_orig.username = orig->username;
   new_orig.sess_id = orig->sess_id;
-  new_orig.sess_version = str_version;
+  new_orig.sess_version = agent->priv->sess_version;
   new_orig.nettype = orig->nettype;
   new_orig.addrtype = orig->addrtype;
   new_orig.addr = orig->addr;
 
   ret = kms_sdp_message_context_set_origin (new_offer, &new_orig, error);
-  g_free (str_version);
 
   return ret;
 }
@@ -608,35 +698,45 @@ end:
 static SdpMessageContext *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
-  gchar *sess_id, *sess_version;
   struct SdpOfferData data;
-  SdpMessageContext *ctx;
+  SdpMessageContext *ctx = NULL;
   GstSDPOrigin o;
   gchar *ntp = NULL;
 
   SDP_AGENT_LOCK (agent);
 
-  ctx = kms_sdp_message_context_new (error);
-  if (ctx == NULL) {
-    SDP_AGENT_UNLOCK (agent);
-    return NULL;
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Agent in state %s", SDP_AGENT_STATE (agent));
+    goto end;
   }
 
-  if (agent->priv->local_description != NULL) {
+  ctx = kms_sdp_message_context_new (error);
+  if (ctx == NULL) {
+    goto end;
+  }
+
+  g_free (agent->priv->sess_id);
+  g_free (agent->priv->sess_version);
+
+  if (agent->priv->state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
     const GstSDPOrigin *orig;
 
     orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
-    sess_id = orig->sess_id;
-    sess_version = orig->sess_version;
+    agent->priv->sess_id = g_strdup (orig->sess_id);
+    agent->priv->sess_version = g_strdup (orig->sess_version);
   } else {
     /* The method of generating <sess-id> and <sess-version> is up to the    */
     /* creating tool, but it has been suggested that a Network Time Protocol */
     /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
-    ntp = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
-    sess_id = sess_version = ntp;
+    agent->priv->sess_id =
+        g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+    agent->priv->sess_version = g_strdup (agent->priv->sess_id);
   }
 
-  kms_sdp_agent_origin_init (agent, &o, sess_id, sess_version);
+  kms_sdp_agent_origin_init (agent, &o, agent->priv->sess_id,
+      agent->priv->sess_version);
 
   if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
     SDP_AGENT_UNLOCK (agent);
@@ -657,8 +757,11 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   if (!kms_sdp_agent_update_session_version (agent, ctx, error)) {
     kms_sdp_message_context_unref (ctx);
     ctx = NULL;
+  } else {
+    SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_LOCAL_OFFER);
   }
 
+end:
   SDP_AGENT_UNLOCK (agent);
 
   return ctx;
@@ -793,8 +896,33 @@ answer:
   }
 }
 
+static gboolean
+kms_sdp_agent_cancel_offer_impl (KmsSdpAgent * agent, GError ** error)
+{
+  gboolean ret;
+
+  SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_LOCAL_OFFER) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Agent in state %s", SDP_AGENT_STATE (agent));
+    ret = FALSE;
+  } else {
+    KmsSdpAgentState new_state;
+
+    new_state = (agent->priv->local_description != NULL) ?
+        KMS_SDP_AGENT_STATE_NEGOTIATED : KMS_SDP_AGENT_STATE_UNNEGOTIATED;
+    SDP_AGENT_NEW_STATE (agent, new_state);
+    ret = TRUE;
+  }
+
+  SDP_AGENT_UNLOCK (agent);
+
+  return ret;
+}
+
 static SdpMessageContext *
-kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
+kms_sdp_agent_generate_answer_compat (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
   gchar *sess_id, *sess_version;
@@ -808,12 +936,8 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
   sess_id = offer_orig->sess_id;
   sess_version = offer_orig->sess_version;
 
-  SDP_AGENT_LOCK (agent);
-
   kms_sdp_agent_origin_init (agent, &o, sess_id, sess_version);
   bundle = g_slist_length (agent->priv->groups) > 0;
-
-  SDP_AGENT_UNLOCK (agent);
 
   ctx = kms_sdp_message_context_new (error);
   if (ctx == NULL) {
@@ -854,19 +978,79 @@ error:
   return NULL;
 }
 
-static void
-kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
-    SdpMessageContext * description)
+static SdpMessageContext *
+kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
+    const GstSDPMessage * offer, GError ** error)
 {
-  GError *err = NULL;
+  SdpMessageContext *ctx;
+
+  GST_WARNING_OBJECT (agent,
+      "Deprecated function. Use generate_answer instead");
 
   SDP_AGENT_LOCK (agent);
+
+  ctx = kms_sdp_agent_generate_answer_compat (agent, offer, error);
+
+  SDP_AGENT_UNLOCK (agent);
+
+  return ctx;
+}
+
+static SdpMessageContext *
+kms_sdp_agent_generate_answer_impl (KmsSdpAgent * agent, GError ** error)
+{
+  SdpMessageContext *ctx = NULL;
+
+  SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_REMOTE_OFFER) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Agent in state %s", SDP_AGENT_STATE (agent));
+    SDP_AGENT_UNLOCK (agent);
+    return NULL;
+  }
+
+  ctx = kms_sdp_agent_generate_answer_compat (agent,
+      agent->priv->remote_description, error);
+
+  SDP_AGENT_UNLOCK (agent);
+
+  return ctx;
+}
+
+static gboolean
+kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
+    GstSDPMessage * description, GError ** error)
+{
+  const GstSDPOrigin *orig;
+  GError *err = NULL;
+  gboolean ret = FALSE;
+
+  SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_LOCAL_OFFER &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_REMOTE_OFFER) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Agent in state %s", SDP_AGENT_STATE (agent));
+    goto end;
+  }
+
+  orig = gst_sdp_message_get_origin (description);
+  if (g_strcmp0 (orig->sess_id, agent->priv->sess_id)) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+        "Unexpected sdp session %s", orig->sess_id);
+    goto end;
+  }
 
   if (agent->priv->local_description != NULL) {
     kms_sdp_message_context_unref (agent->priv->local_description);
   }
 
-  agent->priv->local_description = description;
+  agent->priv->local_description =
+      kms_sdp_message_context_new_from_sdp (description, error);
+  if (agent->priv->local_description == NULL) {
+    goto end;
+  }
 
   if (agent->priv->prev_sdp != NULL) {
     gst_sdp_message_free (agent->priv->prev_sdp);
@@ -878,16 +1062,87 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
   if (agent->priv->prev_sdp == NULL) {
     GST_ERROR_OBJECT (agent, "%s", err->message);
     g_error_free (err);
+  } else {
+    KmsSdpAgentState new_state;
+
+    new_state = (agent->priv->state == KMS_SDP_AGENT_STATE_LOCAL_OFFER) ?
+        KMS_SDP_AGENT_STATE_WAIT_NEGO : KMS_SDP_AGENT_STATE_NEGOTIATED;
+    SDP_AGENT_NEW_STATE (agent, new_state);
+    ret = TRUE;
+  }
+
+end:
+  SDP_AGENT_UNLOCK (agent);
+
+  return ret;
+}
+
+static gboolean
+kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
+    GstSDPMessage * description, GError ** error)
+{
+  gboolean ret = TRUE;
+
+  SDP_AGENT_LOCK (agent);
+
+  switch (agent->priv->state) {
+    case KMS_SDP_AGENT_STATE_WAIT_NEGO:{
+      const GstSDPOrigin *orig;
+
+      orig = gst_sdp_message_get_origin (description);
+
+      if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0 ||
+          g_strcmp0 (agent->priv->sess_version, orig->sess_version) != 0) {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+            "Invalid sdp session %s, expected %s", orig->sess_id,
+            agent->priv->sess_id);
+        ret = FALSE;
+      } else {
+        SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
+      }
+      break;
+    }
+    case KMS_SDP_AGENT_STATE_UNNEGOTIATED:{
+      const GstSDPOrigin *orig;
+
+      orig = gst_sdp_message_get_origin (description);
+      g_free (agent->priv->sess_id);
+      agent->priv->sess_id = g_strdup (orig->sess_id);
+      g_free (agent->priv->sess_version);
+      agent->priv->sess_version = g_strdup (orig->sess_version);
+      SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
+      break;
+    }
+    case KMS_SDP_AGENT_STATE_NEGOTIATED:{
+      const GstSDPOrigin *orig;
+
+      orig = gst_sdp_message_get_origin (description);
+
+      if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0) {
+        /* TODO: Check that version is equal or one more if changed */
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+            "Invalid sdp session %s, expected %s", orig->sess_id,
+            agent->priv->sess_id);
+        ret = FALSE;
+      } else {
+        SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
+      }
+      break;
+    }
+    default:
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+          "Agent in state %s", SDP_AGENT_STATE (agent));
+      ret = FALSE;
+  }
+
+  if (ret) {
+    kms_sdp_agent_release_sdp (&agent->priv->remote_description);
+    agent->priv->remote_description = description;
   }
 
   SDP_AGENT_UNLOCK (agent);
-}
 
-static void
-kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
-    GstSDPMessage * description)
-{
-  /* TODO: */
+  return ret;
 }
 
 gint
@@ -897,6 +1152,14 @@ kms_sdp_agent_create_bundle_group_impl (KmsSdpAgent * agent)
   guint id;
 
   SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    return -1;
+  }
 
   id = agent->priv->gids++;
   group = sdp_handler_group_new (id);
@@ -933,6 +1196,14 @@ kms_sdp_agent_add_handler_to_group_impl (KmsSdpAgent * agent, guint gid,
   GSList *l;
 
   SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    goto end;
+  }
 
   group = kms_sdp_agent_get_group (agent, gid);
   if (group == NULL) {
@@ -972,6 +1243,14 @@ kms_sdp_agent_remove_handler_from_group_impl (KmsSdpAgent * agent, guint gid,
   gint index;
 
   SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    goto end;
+  }
 
   group = kms_sdp_agent_get_group (agent, gid);
   if (group == NULL) {
@@ -1042,6 +1321,8 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   klass->add_proto_handler = kms_sdp_agent_add_proto_handler_impl;
   klass->create_offer = kms_sdp_agent_create_offer_impl;
   klass->create_answer = kms_sdp_agent_create_answer_impl;
+  klass->generate_answer = kms_sdp_agent_generate_answer_impl;
+  klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
   klass->set_local_description = kms_sdp_agent_set_local_description_impl;
   klass->set_remote_description = kms_sdp_agent_set_remote_description_impl;
   klass->crate_bundle_group = kms_sdp_agent_create_bundle_group_impl;
@@ -1057,6 +1338,7 @@ kms_sdp_agent_init (KmsSdpAgent * self)
   self->priv = KMS_SDP_AGENT_GET_PRIVATE (self);
 
   g_rec_mutex_init (&self->priv->mutex);
+  self->priv->state = KMS_SDP_AGENT_STATE_UNNEGOTIATED;
 }
 
 KmsSdpAgent *
@@ -1088,6 +1370,7 @@ kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
   return KMS_SDP_AGENT_GET_CLASS (agent)->create_offer (agent, error);
 }
 
+/* Deprecated: Use kms_sdp_agent_generate_answer instead */
 SdpMessageContext *
 kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
     GError ** error)
@@ -1097,22 +1380,40 @@ kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
   return KMS_SDP_AGENT_GET_CLASS (agent)->create_answer (agent, offer, error);
 }
 
-void
-kms_sdp_agent_set_local_description (KmsSdpAgent * agent,
-    SdpMessageContext * description)
+SdpMessageContext *
+kms_sdp_agent_generate_answer (KmsSdpAgent * agent, GError ** error)
 {
-  g_return_if_fail (KMS_IS_SDP_AGENT (agent));
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
 
-  KMS_SDP_AGENT_GET_CLASS (agent)->set_local_description (agent, description);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->generate_answer (agent, error);
 }
 
-void
-kms_sdp_agent_set_remote_description (KmsSdpAgent * agent,
-    GstSDPMessage * description)
+gboolean
+kms_sdpagent_cancel_offer (KmsSdpAgent * agent, GError ** error)
 {
-  g_return_if_fail (KMS_IS_SDP_AGENT (agent));
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
 
-  KMS_SDP_AGENT_GET_CLASS (agent)->set_remote_description (agent, description);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->cancel_offer (agent, error);
+}
+
+gboolean
+kms_sdp_agent_set_local_description (KmsSdpAgent * agent,
+    GstSDPMessage * description, GError ** error)
+{
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
+
+  return KMS_SDP_AGENT_GET_CLASS (agent)->set_local_description (agent,
+      description, error);
+}
+
+gboolean
+kms_sdp_agent_set_remote_description (KmsSdpAgent * agent,
+    GstSDPMessage * description, GError ** error)
+{
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
+
+  return KMS_SDP_AGENT_GET_CLASS (agent)->set_remote_description (agent,
+      description, error);
 }
 
 gint
