@@ -61,6 +61,7 @@ enum
 
 static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_MULTISESSION FALSE
 #define DEFAULT_ADDR NULL
 #define DEFAULT_BUNDLE    FALSE
 #define DEFAULT_NUM_AUDIO_MEDIAS    0
@@ -70,6 +71,7 @@ static guint kms_base_sdp_endpoint_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
+  PROP_MULTISESSION,
   PROP_BUNDLE,
   PROP_USE_IPV6,
   PROP_ADDR,
@@ -85,6 +87,7 @@ enum
 struct _KmsBaseSdpEndpointPrivate
 {
   gboolean configured;
+  gboolean multisession;
   gint next_session_id;
   GHashTable *sessions;
   SdpMessageContext *first_neg_sdp_ctx;
@@ -126,9 +129,8 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 
   KMS_ELEMENT_LOCK (self);
 
-  if (self->priv->configured) {
-    GST_WARNING_OBJECT (self,
-        "Already configured: cannot create more sessions.");
+  if (!self->priv->multisession && self->priv->configured) {
+    GST_WARNING_OBJECT (self, "Not multisession: cannot create more sessions.");
     goto end;
   }
 
@@ -572,6 +574,14 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
+    case PROP_MULTISESSION:
+      if (self->priv->configured) {
+        GST_WARNING_OBJECT (self,
+            "Element already configured, 'multisession' cannot be set.");
+        break;
+      }
+      self->priv->multisession = g_value_get_boolean (value);
+      break;
     case PROP_BUNDLE:
       self->priv->bundle = g_value_get_boolean (value);
       break;
@@ -648,6 +658,9 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
+    case PROP_MULTISESSION:
+      g_value_set_boolean (value, self->priv->multisession);
+      break;
     case PROP_BUNDLE:
       g_value_set_boolean (value, self->priv->bundle);
       break;
@@ -806,6 +819,11 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       __kms_core_marshal_BOXED__STRING, GST_TYPE_SDP_MESSAGE, 1, G_TYPE_STRING);
 
   /* Properties initialization */
+  g_object_class_install_property (gobject_class, PROP_MULTISESSION,
+      g_param_spec_boolean ("multisession", "Multisession",
+          "Enable creating multiple sessions.",
+          DEFAULT_MULTISESSION, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (gobject_class, PROP_BUNDLE,
       g_param_spec_boolean ("bundle", "Bundle media",
           "Bundle media", DEFAULT_BUNDLE,
@@ -862,6 +880,7 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
 {
   self->priv = KMS_BASE_SDP_ENDPOINT_GET_PRIVATE (self);
 
+  self->priv->multisession = DEFAULT_MULTISESSION;
   self->priv->bundle = DEFAULT_BUNDLE;
   self->priv->use_ipv6 = USE_IPV6_DEFAULT;
   self->priv->addr = DEFAULT_ADDR;
