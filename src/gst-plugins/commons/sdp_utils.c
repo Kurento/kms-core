@@ -538,6 +538,211 @@ sdp_utils_media_has_rtcp_nack (const GstSDPMedia * media)
   return FALSE;
 }
 
+static gboolean
+sdp_media_contains_attr (const GstSDPMedia * m, const GstSDPAttribute * attr)
+{
+  guint i;
+
+  for (i = 0;; i++) {
+    const gchar *val;
+
+    val = gst_sdp_media_get_attribute_val_n (m, attr->key, i);
+
+    if (val == NULL) {
+      /* Attribute is not present */
+      return FALSE;
+    }
+
+    if (g_strcmp0 (attr->value, val) == 0) {
+      /* Attribute found */
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static gboolean
+sdp_media_equal_attributes (const GstSDPMedia * m1, const GstSDPMedia * m2)
+{
+  guint i, len;
+
+  len = gst_sdp_media_attributes_len (m1);
+
+  if (len != gst_sdp_media_attributes_len (m2)) {
+    return FALSE;
+  }
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_media_get_attribute (m1, i);
+    if (!sdp_media_contains_attr (m2, attr)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+static gboolean
+sdp_media_fmts_equal (const GstSDPMedia * m1, const GstSDPMedia * m2)
+{
+  guint i, len;
+
+  len = gst_sdp_media_formats_len (m1);
+
+  if (len != gst_sdp_media_formats_len (m2)) {
+    return FALSE;
+  }
+
+  for (i = 0; i < len; i++) {
+    const gchar *fmt1, *fmt2;
+
+    fmt1 = gst_sdp_media_get_format (m1, i);
+    fmt2 = gst_sdp_media_get_format (m2, i);
+
+    if (g_strcmp0 (fmt1, fmt2) != 0) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+static gboolean
+sdp_key_equal (const GstSDPKey * k1, const GstSDPKey * k2)
+{
+  if ((k1 == NULL && k2 != NULL) || (k1 != NULL && k2 == NULL)) {
+    return FALSE;
+  }
+
+  if (k1 == NULL && k2 == NULL) {
+    return TRUE;
+  }
+
+  return g_strcmp0 (k1->type, k2->type) == 0 &&
+      g_strcmp0 (k1->data, k2->data) == 0;
+}
+
+gboolean
+sdp_utils_equal_medias (const GstSDPMedia * m1, const GstSDPMedia * m2)
+{
+  if (g_strcmp0 (gst_sdp_media_get_media (m1),
+          gst_sdp_media_get_media (m2)) != 0) {
+    return FALSE;
+  }
+
+  if (gst_sdp_media_get_port (m1) != gst_sdp_media_get_port (m2)) {
+    return FALSE;
+  }
+
+  if (gst_sdp_media_get_num_ports (m1) != gst_sdp_media_get_num_ports (m2)) {
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_proto (m1),
+          gst_sdp_media_get_proto (m2)) != 0) {
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_information (m1),
+          gst_sdp_media_get_information (m2)) != 0) {
+    return FALSE;
+  }
+
+  if (!sdp_key_equal (gst_sdp_media_get_key (m1), gst_sdp_media_get_key (m2))) {
+    return FALSE;
+  }
+
+  /* TODO: Check connections, bandwidths */
+
+  if (!sdp_media_fmts_equal (m1, m2)) {
+    return FALSE;
+  }
+
+  return sdp_media_equal_attributes (m1, m2);
+}
+
+static gboolean
+sdp_message_contains_attr (const GstSDPMessage * m,
+    const GstSDPAttribute * attr)
+{
+  guint i;
+
+  for (i = 0;; i++) {
+    const gchar *val;
+
+    val = gst_sdp_message_get_attribute_val_n (m, attr->key, i);
+
+    if (val == NULL) {
+      /* Attribute is not present */
+      return FALSE;
+    }
+
+    if (g_strcmp0 (attr->value, val) == 0) {
+      /* Attribute found */
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static gboolean
+sdp_message_equal_attributes (const GstSDPMessage * msg1,
+    const GstSDPMessage * msg2)
+{
+  guint i, len;
+
+  /* TODO: Check more fields of GstSDPMessage */
+
+  len = gst_sdp_message_attributes_len (msg1);
+
+  if (len != gst_sdp_message_attributes_len (msg2)) {
+    return FALSE;
+  }
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *attr;
+
+    attr = gst_sdp_message_get_attribute (msg1, i);
+    if (!sdp_message_contains_attr (msg2, attr)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+gboolean
+sdp_utils_equal_messages (const GstSDPMessage * msg1,
+    const GstSDPMessage * msg2)
+{
+  guint i, len;
+
+  if (!sdp_message_equal_attributes (msg1, msg2)) {
+    return FALSE;
+  }
+
+  len = gst_sdp_message_medias_len (msg1);
+
+  if (len != gst_sdp_message_medias_len (msg2)) {
+    return FALSE;
+  }
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *m1 = gst_sdp_message_get_media (msg1, i);
+    const GstSDPMedia *m2 = gst_sdp_message_get_media (msg2, i);
+
+    if (!sdp_utils_equal_medias (m1, m2)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
