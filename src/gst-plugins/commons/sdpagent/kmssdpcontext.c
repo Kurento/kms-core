@@ -54,6 +54,7 @@ struct _SdpMessageContext
   KmsSdpMessageType type;
   GstSDPMessage *msg;
   GSList *medias;               /* list of SdpMediaConfigs */
+  GSList *grouped_medias;
   GHashTable *mids;
   GSList *groups;
 };
@@ -182,6 +183,9 @@ kms_sdp_message_context_destroy (SdpMessageContext * ctx)
   }
 
   g_hash_table_unref (ctx->mids);
+
+  g_slist_free_full (ctx->grouped_medias,
+      (GDestroyNotify) kms_sdp_context_destroy_media_config);
 
   g_slist_free_full (ctx->medias,
       (GDestroyNotify) kms_sdp_context_destroy_media_config);
@@ -327,7 +331,10 @@ kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media,
   }
 
   if (configure_pending_mediaconfig (ctx, media, &mconf)) {
-    return mconf;
+    ctx->grouped_medias = g_slist_remove (ctx->grouped_medias, mconf);
+    /* Set proper id */
+    mconf->id = g_slist_length (ctx->medias);
+    goto end;
   }
 
   media_type = gst_sdp_media_get_media (media);
@@ -344,6 +351,7 @@ kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media,
   mconf = kms_sdp_context_new_media_config (g_slist_length (ctx->medias), mid,
       media);
 
+end:
   ctx->medias = g_slist_append (ctx->medias, mconf);
 
   return mconf;
@@ -593,10 +601,9 @@ kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
     for (j = 1; grp[j] != NULL; j++) {
       SdpMediaConfig *mconf;
 
-      mconf = kms_sdp_context_new_media_config (g_slist_length (ctx->medias),
-          g_strdup (grp[j]), NULL);
+      mconf = kms_sdp_context_new_media_config (0, g_strdup (grp[j]), NULL);
 
-      ctx->medias = g_slist_append (ctx->medias, mconf);
+      ctx->grouped_medias = g_slist_append (ctx->grouped_medias, mconf);
       if (!kms_sdp_message_context_add_media_to_group (mgroup, mconf, error)) {
         g_strfreev (grp);
         return FALSE;

@@ -2763,6 +2763,49 @@ GST_START_TEST (sdp_agent_sdes_negotiation)
 
 GST_END_TEST;
 
+static gchar *sdp_first_media_inactive = "v=0\r\n"
+    "o=- 123456 0 IN IP4 127.0.0.1\r\n"
+    "s=Kurento Media Server\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "t=0 0\r\n"
+    "a=group:BUNDLE video0\r\n"
+    "m=audio 0 RTP/SAVPF 0\r\n"
+    "a=inactive\r\n"
+    "a=mid:audio0\r\n"
+    "m=video 1 RTP/SAVPF 97\r\n" "a=rtpmap:97 VP8/90000\r\n" "a=mid:video0\r\n";
+
+GST_START_TEST (sdp_context_from_first_media_inactive)
+{
+  GstSDPMessage *sdp;
+  SdpMessageContext *ctx;
+  const GSList *item;
+  guint i;
+  GError *err = NULL;
+
+  fail_unless (gst_sdp_message_new (&sdp) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          sdp_first_media_inactive, -1, sdp) == GST_SDP_OK);
+  ctx = kms_sdp_message_context_new_from_sdp (sdp, &err);
+  gst_sdp_message_free (sdp);
+  fail_if (err != NULL);
+
+  i = 0;
+  item = kms_sdp_message_context_get_medias (ctx);
+  for (; item != NULL; item = g_slist_next (item)) {
+    SdpMediaConfig *mconf = item->data;
+
+    if (kms_sdp_media_config_is_inactive (mconf)) {
+      fail_if (i != 0);
+    }
+
+    i++;
+  }
+
+  kms_sdp_message_context_unref (ctx);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -2795,6 +2838,8 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_regression_tests);
   tcase_add_test (tc_chain, sdp_agent_udp_tls_rtp_savpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_sdes_negotiation);
+
+  tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
 
   return s;
 }
