@@ -4,6 +4,7 @@
 #include <KurentoException.hpp>
 #include <MediaPipelineImpl.hpp>
 #include <gst/gst.h>
+#include <DotGraph.hpp>
 
 #define GST_CAT_DEFAULT kurento_hub_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -11,6 +12,19 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
+
+std::string HubImpl::getGstreamerDot (
+  std::shared_ptr<GstreamerDotDetails> details)
+{
+  return generateDotGraph (GST_BIN (element), details);
+}
+
+std::string HubImpl::getGstreamerDot()
+{
+  return generateDotGraph (GST_BIN (element),
+                           std::shared_ptr <GstreamerDotDetails> (new GstreamerDotDetails (
+                                 GstreamerDotDetails::SHOW_VERBOSE) ) );
+}
 
 HubImpl::HubImpl (const boost::property_tree::ptree &config,
                   std::shared_ptr<MediaObjectImpl> parent,

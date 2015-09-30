@@ -196,7 +196,25 @@
       "name": "Hub",
       "extends": "MediaObject",
       "doc": "A Hub is a routing :rom:cls:`MediaObject`. It connects several :rom:cls:`endpoints <Endpoint>` together",
-      "abstract": true
+      "abstract": true,
+      "methods": [
+        {
+          "name": "getGstreamerDot",
+          "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside the pipeline",
+          "params": [
+            {
+              "name": "details",
+              "type": "GstreamerDotDetails",
+              "doc": "Details of graph",
+              "optional": true
+            }
+          ],
+          "return": {
+            "doc": "The dot graph",
+            "type": "String"
+          }
+        }
+      ]
     },
     {
       "name": "Filter",
