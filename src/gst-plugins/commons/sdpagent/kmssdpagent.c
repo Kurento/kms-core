@@ -165,7 +165,9 @@ typedef struct _SdpHandler
   gboolean disabled;
   gboolean unsupported;
   gboolean negotiated;
+  gboolean offer;
   GstSDPMedia *unsupported_media;
+  GstSDPMedia *offer_media;
 } SdpHandler;
 
 struct _KmsSdpAgentPrivate
@@ -232,6 +234,18 @@ disable_handler_cmp_func (SdpHandler * handler, gconstpointer * data)
 }
 
 static void
+update_media_offered (SdpHandler * handler, GstSDPMedia * media)
+{
+  if (handler->offer_media != NULL) {
+    gst_sdp_media_free (handler->offer_media);
+  }
+
+  if (media != NULL) {
+    gst_sdp_media_copy (media, &handler->offer_media);
+  }
+}
+
+static void
 kms_sdp_agent_remove_disabled_medias (KmsSdpAgent * agent)
 {
   GSList *l;
@@ -261,8 +275,12 @@ kms_sdp_agent_commit_state_operations (KmsSdpAgent * agent,
       agent->priv->offer_handlers = NULL;
       break;
     case KMS_SDP_AGENT_STATE_NEGOTIATED:
-      g_slist_foreach (agent->priv->offer_handlers, mark_handler_as_negotiated,
-          NULL);
+      if (agent->priv->state != KMS_SDP_AGENT_STATE_LOCAL_OFFER) {
+        /* Offer has not been canceled, so we cant mark medias as negotiated */
+        g_slist_foreach (agent->priv->offer_handlers,
+            mark_handler_as_negotiated, NULL);
+      }
+
       kms_sdp_agent_remove_disabled_medias (agent);
       break;
     default:
@@ -277,6 +295,10 @@ sdp_handler_destroy (SdpHandler * handler)
 {
   if (handler->unsupported_media != NULL) {
     gst_sdp_media_free (handler->unsupported_media);
+  }
+
+  if (handler->offer_media != NULL) {
+    gst_sdp_media_free (handler->offer_media);
   }
 
   g_free (handler->media);
@@ -356,8 +378,8 @@ kms_sdp_agent_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  kms_sdp_agent_configure_media_callback_data_clear (&self->
-      priv->configure_media_callback_data);
+  kms_sdp_agent_configure_media_callback_data_clear (&self->priv->
+      configure_media_callback_data);
 
   if (self->priv->local_description != NULL) {
     kms_sdp_message_context_unref (self->priv->local_description);
@@ -593,6 +615,85 @@ sdp_media_set_removed (GstSDPMedia ** media)
   *media = removed;
 }
 
+static GstSDPMedia *
+kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
+    SdpHandler * sdp_handler, GError ** err)
+{
+  GstSDPMessage *desc;
+  GstSDPMedia *media;
+  guint index;
+
+  if (sdp_handler->unsupported) {
+    gst_sdp_media_copy (sdp_handler->unsupported_media, &media);
+    return media;
+  }
+
+  media = kms_sdp_media_handler_create_offer (sdp_handler->handler,
+      sdp_handler->media, err);
+
+  if (media == NULL) {
+    return NULL;
+  }
+
+  if (!sdp_handler->negotiated) {
+    update_media_offered (sdp_handler, media);
+    sdp_handler->offer = TRUE;
+    return media;
+  }
+
+  /* Check if this handler has provided new capabilities, if so, renegotiate */
+  if (!sdp_utils_equal_medias (sdp_handler->offer_media, media)) {
+    sdp_handler->offer = TRUE;
+    return media;
+  }
+
+  /* Handler has the same capabilities. Do not renegotiate */
+  index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
+  gst_sdp_media_free (media);
+
+  if (sdp_handler->offer) {
+    /* We offered this media. Remote description has the negotiated media */
+    desc = agent->priv->remote_description;
+  } else {
+    /* Local description has the media negotiated */
+    desc = kms_sdp_message_context_pack (agent->priv->local_description, err);
+  }
+
+  if (desc == NULL) {
+    return NULL;
+  }
+
+  if (index >= gst_sdp_message_medias_len (desc)) {
+    if (!sdp_handler->negotiated && sdp_handler->offer) {
+      GST_DEBUG_OBJECT (agent,
+          "Media '%s' at %u canceled before finishing negotiation",
+          gst_sdp_media_get_media (sdp_handler->offer_media), index);
+      gst_sdp_media_copy (sdp_handler->offer_media, &media);
+      goto end;
+    }
+    g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Could not process media '%s'", sdp_handler->media);
+    return NULL;
+  }
+
+  gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
+
+  if (!sdp_handler->offer) {
+    /* Free packed SDP message */
+    gst_sdp_message_free (desc);
+  }
+
+end:
+  if (g_strcmp0 (gst_sdp_media_get_media (media), sdp_handler->media) != 0) {
+    g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Mismatching media '%s' for handler", sdp_handler->media);
+    gst_sdp_media_free (media);
+    return NULL;
+  }
+
+  return media;
+}
+
 static void
 create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 {
@@ -601,13 +702,8 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
   GError *err = NULL;
   GSList *l;
 
-  if (sdp_handler->unsupported) {
-    gst_sdp_media_copy (sdp_handler->unsupported_media, &media);
-  } else {
-
-    media = kms_sdp_media_handler_create_offer (sdp_handler->handler,
-        sdp_handler->media, &err);
-  }
+  media =
+      kms_sdp_agent_create_proper_media_offer (data->agent, sdp_handler, &err);
 
   if (err != NULL) {
     GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
@@ -985,7 +1081,7 @@ static gboolean
 create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
-  GstSDPMedia *answer_media = NULL;
+  GstSDPMedia *answer_media = NULL, *offer_media;
   SdpHandler *sdp_handler;
   GError **err = data->err;
   gboolean ret = TRUE;
@@ -1015,6 +1111,17 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     ret = FALSE;
     goto end;
   }
+
+  offer_media = kms_sdp_media_handler_create_offer (sdp_handler->handler,
+      gst_sdp_media_get_media (media), data->err);
+
+  if (offer_media == NULL) {
+    ret = FALSE;
+    goto end;
+  }
+
+  update_media_offered (sdp_handler, offer_media);
+  gst_sdp_media_free (offer_media);
 
 answer:
   {
@@ -1078,7 +1185,7 @@ kms_sdp_agent_cancel_offer_impl (KmsSdpAgent * agent, GError ** error)
   } else {
     KmsSdpAgentState new_state;
 
-    new_state = (agent->priv->local_description != NULL) ?
+    new_state = (agent->priv->prev_sdp != NULL) ?
         KMS_SDP_AGENT_STATE_NEGOTIATED : KMS_SDP_AGENT_STATE_UNNEGOTIATED;
 
     SDP_AGENT_NEW_STATE (agent, new_state);
@@ -1199,6 +1306,7 @@ static gboolean
 kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
 {
+  KmsSdpAgentState new_state;
   const GstSDPOrigin *orig;
   GError *err = NULL;
   gboolean ret = FALSE;
@@ -1229,24 +1337,25 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
     goto end;
   }
 
-  if (agent->priv->prev_sdp != NULL) {
-    gst_sdp_message_free (agent->priv->prev_sdp);
+  if (agent->priv->state == KMS_SDP_AGENT_STATE_REMOTE_OFFER) {
+    if (agent->priv->prev_sdp != NULL) {
+      gst_sdp_message_free (agent->priv->prev_sdp);
+    }
+
+    agent->priv->prev_sdp =
+        kms_sdp_message_context_pack (agent->priv->local_description, &err);
+
+    if (agent->priv->prev_sdp == NULL) {
+      GST_ERROR_OBJECT (agent, "%s", err->message);
+      g_error_free (err);
+      goto end;
+    }
   }
 
-  agent->priv->prev_sdp =
-      kms_sdp_message_context_pack (agent->priv->local_description, &err);
-
-  if (agent->priv->prev_sdp == NULL) {
-    GST_ERROR_OBJECT (agent, "%s", err->message);
-    g_error_free (err);
-  } else {
-    KmsSdpAgentState new_state;
-
-    new_state = (agent->priv->state == KMS_SDP_AGENT_STATE_LOCAL_OFFER) ?
-        KMS_SDP_AGENT_STATE_WAIT_NEGO : KMS_SDP_AGENT_STATE_NEGOTIATED;
-    SDP_AGENT_NEW_STATE (agent, new_state);
-    ret = TRUE;
-  }
+  new_state = (agent->priv->state == KMS_SDP_AGENT_STATE_LOCAL_OFFER) ?
+      KMS_SDP_AGENT_STATE_WAIT_NEGO : KMS_SDP_AGENT_STATE_NEGOTIATED;
+  SDP_AGENT_NEW_STATE (agent, new_state);
+  ret = TRUE;
 
 end:
   SDP_AGENT_UNLOCK (agent);
@@ -1275,6 +1384,10 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
             agent->priv->sess_id);
         ret = FALSE;
       } else {
+        if (agent->priv->prev_sdp != NULL) {
+          gst_sdp_message_free (agent->priv->prev_sdp);
+        }
+        gst_sdp_message_copy (description, &agent->priv->prev_sdp);
         SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
       }
       break;
