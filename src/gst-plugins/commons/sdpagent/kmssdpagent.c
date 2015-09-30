@@ -886,6 +886,16 @@ kms_sdp_agent_get_first_not_offered_new_handler (KmsSdpAgent * agent)
   return NULL;
 }
 
+static gint
+reusable_slot_cmp (SdpHandler * handler, gconstpointer * data)
+{
+  if (handler->disabled || handler->unsupported) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
 static void
 kms_sdp_agent_merge_offer_handlers (KmsSdpAgent * agent)
 {
@@ -899,7 +909,7 @@ kms_sdp_agent_merge_offer_handlers (KmsSdpAgent * agent)
   }
 
   while ((l = g_slist_find_custom (agent->priv->offer_handlers, NULL,
-              (GCompareFunc) disable_handler_cmp_func)) != NULL) {
+              (GCompareFunc) reusable_slot_cmp)) != NULL) {
     SdpHandler *old_handler, *new_handler;
 
     new_handler = kms_sdp_agent_get_first_not_offered_new_handler (agent);
