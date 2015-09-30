@@ -106,29 +106,14 @@ MediaPipelineImpl::~MediaPipelineImpl ()
 std::string MediaPipelineImpl::getGstreamerDot (
   std::shared_ptr<GstreamerDotDetails> details)
 {
-  switch (details->getValue() ) {
-  case GstreamerDotDetails::SHOW_MEDIA_TYPE:
-    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_MEDIA_TYPE);
-
-  case GstreamerDotDetails::SHOW_CAPS_DETAILS:
-    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_CAPS_DETAILS);
-
-  case GstreamerDotDetails::SHOW_NON_DEFAULT_PARAMS:
-    return generateDotGraph (GST_BIN (pipeline),
-                             GST_DEBUG_GRAPH_SHOW_NON_DEFAULT_PARAMS);
-
-  case GstreamerDotDetails::SHOW_STATES:
-    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_STATES);
-
-  case GstreamerDotDetails::SHOW_ALL:
-  default:
-    return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
-  }
+  return generateDotGraph (GST_BIN (pipeline), details);
 }
 
 std::string MediaPipelineImpl::getGstreamerDot()
 {
-  return generateDotGraph (GST_BIN (pipeline), GST_DEBUG_GRAPH_SHOW_ALL);
+  return generateDotGraph (GST_BIN (pipeline),
+                           std::shared_ptr <GstreamerDotDetails> (new GstreamerDotDetails (
+                                 GstreamerDotDetails::SHOW_VERBOSE) ) );
 }
 
 bool

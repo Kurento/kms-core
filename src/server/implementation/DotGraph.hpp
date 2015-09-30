@@ -18,12 +18,13 @@
 
 #include <gst/gst.h>
 #include <string>
+#include <GstreamerDotDetails.hpp>
 
 namespace kurento
 {
 
 std::string
-generateDotGraph (GstBin *bin, GstDebugGraphDetails details);
+generateDotGraph (GstBin *bin, std::shared_ptr<GstreamerDotDetails> details);
 
 } /* kurento */
 

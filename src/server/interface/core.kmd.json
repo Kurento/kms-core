@@ -658,7 +658,9 @@
         "SHOW_CAPS_DETAILS",
         "SHOW_NON_DEFAULT_PARAMS",
         "SHOW_STATES",
-        "SHOW_ALL"
+        "SHOW_FULL_PARAMS",
+        "SHOW_ALL",
+        "SHOW_VERBOSE"
       ]
     },
     {

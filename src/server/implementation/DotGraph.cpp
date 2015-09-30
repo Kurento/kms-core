@@ -19,11 +19,39 @@
 namespace kurento
 {
 
+static GstDebugGraphDetails
+convert_details (std::shared_ptr<GstreamerDotDetails> details)
+{
+  switch (details->getValue() ) {
+  case GstreamerDotDetails::SHOW_MEDIA_TYPE:
+    return GST_DEBUG_GRAPH_SHOW_MEDIA_TYPE;
+
+  case GstreamerDotDetails::SHOW_CAPS_DETAILS:
+    return GST_DEBUG_GRAPH_SHOW_CAPS_DETAILS;
+
+  case GstreamerDotDetails::SHOW_NON_DEFAULT_PARAMS:
+    return GST_DEBUG_GRAPH_SHOW_NON_DEFAULT_PARAMS;
+
+  case GstreamerDotDetails::SHOW_STATES:
+    return GST_DEBUG_GRAPH_SHOW_STATES;
+
+  case GstreamerDotDetails::SHOW_FULL_PARAMS:
+    return GST_DEBUG_GRAPH_SHOW_FULL_PARAMS;
+
+  case GstreamerDotDetails::SHOW_ALL:
+    return GST_DEBUG_GRAPH_SHOW_ALL;
+
+  case GstreamerDotDetails::SHOW_VERBOSE:
+  default:
+    return GST_DEBUG_GRAPH_SHOW_VERBOSE;
+  }
+}
+
 std::string
-generateDotGraph (GstBin *bin, GstDebugGraphDetails details)
+generateDotGraph (GstBin *bin, std::shared_ptr<GstreamerDotDetails> details)
 {
   std::string retString;
-  gchar *data = gst_debug_bin_to_dot_data (bin, details);
+  gchar *data = gst_debug_bin_to_dot_data (bin, convert_details (details) );
 
   retString = std::string (data);
   g_free (data);
