@@ -16,6 +16,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmsisdppayloadmanager.c
   kmssdppayloadmanager.c
   kmsisdpmediaextension.c
+  kmsisdpsessionextension.c
   kmssdpsdesext.c
 )
 
@@ -33,6 +34,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmsisdppayloadmanager.h
   kmssdppayloadmanager.h
   kmsisdpmediaextension.h
+  kmsisdpsessionextension.h
   kmssdpsdesext.h
 )
 
