@@ -1,3 +1,121 @@
+kms-core-6.0 (6.1.2) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Miguel París Díaz ]
+  * kmsbase(sdp|rtp)endpoint: adapt to use KmsSdpSession
+  * kmsbasertpendpoint: add inmediate-TODOs
+  * kmssdpsession: base class to manage a SDP session
+  * kmssdpsession: add SDP negotiation functions
+  * kmssdpsession: add geters for local and remote SDPs
+  * kmsbasesdpendpoint,kmsbasertpendpoint: use kmssdpsession class
+  * kmsbasesdpendpoint: do not keep first negotiated session when it is released
+  * kmsbasertpsession, kmsbasertpendpoint: move connections list to KmsBaseRtpSession
+  * kmsirtpsessionmananager: interface to abstract session connections
+  * kmsbasertpsession: add manager in the constructor
+  * kmsbasertpsession: manage conns when start_transport_send
+  * kmsbasesdpendpoint: add create_session_internal
+  * kmsbasertpendpoint: implement create_session_internal
+  * kmsbasesdpendpoint: add and remove session bin when creation/releasing
+  * kmsbasertpsession: set local ssrcs
+  * cosmetic: add finalize logs
+  * kmssdpcontext: make SdpMessageContext referenciable
+  * kmsbasesdpendpoint: store the negotiated SDP ctx instead of the Session
+  * kmsbasertp(session|endpoint): reenable connections stats
+  * kmsbasertpsession: remove uneded var
+  * Remove useless inmediate-TODOs
+  * kmsbasertp(session|endpoint): move connection creation to kmsbasertpsession
+  * kmsbasertpendpoint: create_session_internal as virtual
+  * kmssdpsession: protect critical sections with its own mutex
+  * kmssdpsession: use g_clear_error instead of g_error_free
+  * kmsbasesdpendpoint: create_session_internal with out param
+  * kmsbasertp(session|endpoint): move "connection-state-changed" logic to kmsbasertpsession
+  * kmsbasertpsession: add "connection-state" property
+  * kmsbasertpendpoint: add rtxqueue only for video
+  * kmsbasertpendpoint: add RtpMediaConfig to join common audio/video stuff
+  * constants: add RTP_RTX_SIZE
+  * kmssdpsession: add getter for use-ipv6
+  * kmsbasesdpendpoint: set use-ipv6 when session created
+  * kmsbasertpendpoint: use GST_TIME_AS_MSECONDS for abs-send-time
+
+  [ Santiago Carot-Nemesio ]
+  * Enable latency stats
+
+  [ Jose Antonio Santos Cadenas ]
+  * Fix dependencies problem in sdpagent
+
+  [ David Fernandez ]
+  * Install headers for kmsrefstruct
+
+  [ Santiago Carot-Nemesio ]
+  * kmsirtpconnection: add is-client parameter to the interface
+  * kmsloop: Enhance kmsloop functionality
+
+  [ Miguel París Díaz ]
+  * kmsagnosticbin: remove unnecesary goto
+  * Move kmstreebin set to commons
+  * kmsenctreebin: custom indent for encoders properties
+  * kmsutils: improve var name
+  * rembmanager: test for basic functionality
+  * kmsutils: RembEventManager: add getter and setter for clear interval
+  * kmsutils: RembEventManager: fix updating min remb
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdprtpsavpfmediahandler: Added support for UDP/TLS/RTP/SAVPF protocol
+  * rtpendpoint: Workaround to enable support for UDP/TLS/RTP/SAVPF proto
+
+  [ Miguel París Díaz ]
+  * kmselement: add virtual method "create_output_element"
+  * kmsenctreebin: add getters for min and max bitrate
+
+  [ Jose Antonio Santos Cadenas ]
+  * basertpendpoint: Reduce jitterbuffer audio latency
+  * audiomixer: Reduce audio latency
+
+  [ Santiago Carot-Nemesio ]
+  * KurentoException: Add required exception codes
+  * kmsutils: Move common function to utils
+
+  [ Jose Antonio Santos Cadenas ]
+  * agnosticbin_negotiation: Test for negotiation time measurement
+  * kmsutils: Fix rate elements generation
+
+  [ Miguel París Díaz ]
+  * kmsbasertpsession: improve logging when linking fails
+
+  [ Santiago Carot-Nemesio ]
+  * MediaElementImpl: Add data stats
+  * kmsutils: Move common function to utils
+
+  [ Miguel París Díaz ]
+  * kmsbasesdpendpoint: add "multisession" support
+
+  [ Boni Garcia ]
+  * Updated README.md according to FIWARE guidelines
+  * Added links to readthedocs.org and apiary.io in README
+  * Fixed broken links in README
+
+  [ Miguel París Díaz ]
+  * MediaElementImpl: not send EOS event
+
+  [ Jose Antonio Santos Cadenas ]
+  * basertpendpoint: Reduce jitterbuffer latency for video
+  * DotGraph: Use gstreamer utility to generate dot graph
+  * kmd: Add more types to GstreamerDotDetails
+  * Hub: Add getGStreamerDot method
+
+  [ Santiago Carot-Nemesio ]
+  * kmsisdpmediaextension: Add media extension interface
+  * kmsdpmediahandler: Take media extension into account when SDPs are negotiated
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 6.1.2
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Thu, 01 Oct 2015 17:14:56 +0200
+
 kms-core-6.0 (6.1.1) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
