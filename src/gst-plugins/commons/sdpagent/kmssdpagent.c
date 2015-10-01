@@ -20,6 +20,7 @@
 #include "kmssdpcontext.h"
 #include "kmssdpagent.h"
 #include "sdp_utils.h"
+#include "kmssdpagentcommon.h"
 
 #define PLUGIN_NAME "sdpagent"
 
@@ -159,12 +160,9 @@ typedef struct _SdpHandlerGroup
 typedef struct _SdpHandler
 {
   KmsRefStruct ref;
-  guint id;
-  gchar *media;
-  KmsSdpMediaHandler *handler;
+  KmsSdpHandler *sdph;
   gboolean disabled;
   gboolean unsupported;
-  gboolean negotiated;
   gboolean offer;
   GstSDPMedia *unsupported_media;
   GstSDPMedia *offer_media;
@@ -220,7 +218,7 @@ mark_handler_as_negotiated (gpointer data, gpointer user_data)
 {
   SdpHandler *handler = data;
 
-  handler->negotiated = TRUE;
+  handler->sdph->negotiated = TRUE;
 }
 
 static gint
@@ -301,8 +299,7 @@ sdp_handler_destroy (SdpHandler * handler)
     gst_sdp_media_free (handler->offer_media);
   }
 
-  g_free (handler->media);
-  g_clear_object (&handler->handler);
+  kms_sdp_agent_common_unref_sdp_handler (handler->sdph);
 
   g_slice_free (SdpHandler, handler);
 }
@@ -317,9 +314,8 @@ sdp_handler_new (guint id, const gchar * media, KmsSdpMediaHandler * handler)
   kms_ref_struct_init (KMS_REF_STRUCT_CAST (sdp_handler),
       (GDestroyNotify) sdp_handler_destroy);
 
-  sdp_handler->id = id;
-  sdp_handler->media = g_strdup (media);
-  sdp_handler->handler = handler;
+  sdp_handler->sdph = kms_sdp_agent_common_new_sdp_handler (id, media, handler);
+
   sdp_handler->unsupported = (handler == NULL);
 
   return sdp_handler;
@@ -363,7 +359,7 @@ kms_sdp_agent_get_handler (KmsSdpAgent * agent, guint hid)
   for (l = agent->priv->handlers; l != NULL; l = l->next) {
     SdpHandler *handler = l->data;
 
-    if (handler->id == hid) {
+    if (handler->sdph->id == hid) {
       return handler;
     }
   }
@@ -550,7 +546,8 @@ kms_sdp_agent_remove_handler_from_groups (KmsSdpAgent * agent,
   for (l = agent->priv->groups; l != NULL; l = l->next) {
     SdpHandlerGroup *group = l->data;
 
-    kms_sdp_agent_remove_handler_from_group (agent, group->id, handler->id);
+    kms_sdp_agent_remove_handler_from_group (agent, group->id,
+        handler->sdph->id);
   }
 }
 
@@ -577,7 +574,7 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
     goto end;
   }
 
-  if (!sdp_handler->negotiated) {
+  if (!sdp_handler->sdph->negotiated) {
     /* No previous offer generated so we can just remove the handler */
     agent->priv->handlers = g_slist_remove (agent->priv->handlers, sdp_handler);
     kms_ref_struct_unref (KMS_REF_STRUCT_CAST (sdp_handler));
@@ -628,14 +625,14 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return media;
   }
 
-  media = kms_sdp_media_handler_create_offer (sdp_handler->handler,
-      sdp_handler->media, err);
+  media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
+      sdp_handler->sdph->media, err);
 
   if (media == NULL) {
     return NULL;
   }
 
-  if (!sdp_handler->negotiated) {
+  if (!sdp_handler->sdph->negotiated) {
     update_media_offered (sdp_handler, media);
     sdp_handler->offer = TRUE;
     return media;
@@ -664,7 +661,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   }
 
   if (index >= gst_sdp_message_medias_len (desc)) {
-    if (!sdp_handler->negotiated && sdp_handler->offer) {
+    if (!sdp_handler->sdph->negotiated && sdp_handler->offer) {
       GST_DEBUG_OBJECT (agent,
           "Media '%s' at %u canceled before finishing negotiation",
           gst_sdp_media_get_media (sdp_handler->offer_media), index);
@@ -672,7 +669,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
       goto end;
     }
     g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->media);
+        "Could not process media '%s'", sdp_handler->sdph->media);
     return NULL;
   }
 
@@ -684,9 +681,10 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   }
 
 end:
-  if (g_strcmp0 (gst_sdp_media_get_media (media), sdp_handler->media) != 0) {
+  if (g_strcmp0 (gst_sdp_media_get_media (media),
+          sdp_handler->sdph->media) != 0) {
     g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Mismatching media '%s' for handler", sdp_handler->media);
+        "Mismatching media '%s' for handler", sdp_handler->sdph->media);
     gst_sdp_media_free (media);
     return NULL;
   }
@@ -706,7 +704,7 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
       kms_sdp_agent_create_proper_media_offer (data->agent, sdp_handler, &err);
 
   if (err != NULL) {
-    GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+    GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
     g_error_free (err);
     return;
   }
@@ -717,7 +715,7 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 
   m_conf = kms_sdp_message_context_add_media (data->ctx, media, &err);
   if (m_conf == NULL) {
-    GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+    GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
     g_error_free (err);
     return;
   }
@@ -730,7 +728,7 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
       SdpHandler *h = ll->data;
       SdpMediaGroup *m_group;
 
-      if (sdp_handler->id != h->id) {
+      if (sdp_handler->sdph->id != h->sdph->id) {
         continue;
       }
 
@@ -740,7 +738,7 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
       }
 
       if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, &err)) {
-        GST_ERROR_OBJECT (sdp_handler->handler, "%s", err->message);
+        GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
         g_error_free (err);
         return;
       }
@@ -839,7 +837,7 @@ sdp_handler_ref (SdpHandler * sdp_handler, gpointer user_data)
 static gint
 handler_cmp_func (SdpHandler * h1, SdpHandler * h2)
 {
-  return h1->id - h2->id;
+  return h1->sdph->id - h2->sdph->id;
 }
 
 static void
@@ -847,7 +845,7 @@ kms_sdp_agent_merge_handler_func (SdpHandler * handler, KmsSdpAgent * agent)
 {
   GSList *l;
 
-  if (handler->negotiated || handler->disabled) {
+  if (handler->sdph->negotiated || handler->disabled) {
     /* This handler is already in the offer */
     return;
   }
@@ -872,7 +870,7 @@ kms_sdp_agent_get_first_not_offered_new_handler (KmsSdpAgent * agent)
 
     handler = l->data;
 
-    if (handler->negotiated) {
+    if (handler->sdph->negotiated) {
       continue;
     }
 
@@ -1071,12 +1069,13 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
 
     sdp_handler = l->data;
 
-    if (g_strcmp0 (sdp_handler->media, gst_sdp_media_get_media (media)) != 0) {
+    if (g_strcmp0 (sdp_handler->sdph->media,
+            gst_sdp_media_get_media (media)) != 0) {
       /* This handler can not manage this media */
       continue;
     }
 
-    if (!kms_sdp_media_handler_manage_protocol (sdp_handler->handler,
+    if (!kms_sdp_media_handler_manage_protocol (sdp_handler->sdph->handler,
             gst_sdp_media_get_proto (media))) {
       continue;
     }
@@ -1114,7 +1113,8 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     goto answer;
   }
 
-  answer_media = kms_sdp_media_handler_create_answer (sdp_handler->handler,
+  answer_media =
+      kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
       data->ctx, media, err);
 
   if (answer_media == NULL) {
@@ -1122,7 +1122,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     goto end;
   }
 
-  offer_media = kms_sdp_media_handler_create_offer (sdp_handler->handler,
+  offer_media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
       gst_sdp_media_get_media (media), data->err);
 
   if (offer_media == NULL) {
@@ -1519,7 +1519,7 @@ kms_sdp_agent_add_handler_to_group_impl (KmsSdpAgent * agent, guint gid,
   for (l = group->handlers; l != NULL; l = l->next) {
     SdpHandler *h = l->data;
 
-    if (h->id == hid) {
+    if (h->sdph->id == hid) {
       goto end;
     }
   }
