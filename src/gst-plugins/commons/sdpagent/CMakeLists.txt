@@ -21,6 +21,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmssdpbasegroup.c
   kmssdpbundlegroup.c
   kmssdpmidext.c
+  kmssdpgroupmanager.c
 )
 
 set(KMS_SDP_AGENT_HEADERS
@@ -42,6 +43,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmssdpbasegroup.h
   kmssdpbundlegroup.h
   kmssdpmidext.h
+  kmssdpgroupmanager.h
 )
 
 add_glib_marshal(KMS_SDP_AGENT_SOURCES KMS_SDP_AGENT_HEADERS kms-sdp-agent-marshal __kms_sdp_agent_marshal)
