@@ -656,19 +656,59 @@ struct SdpOfferData
   KmsSdpAgent *agent;
 };
 
-static void
-sdp_media_set_removed (GstSDPMedia ** media)
+static GstSDPMedia *
+kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
+    SdpHandler * sdp_handler, GError ** error)
 {
-  GstSDPMedia *removed;
+  GstSDPMessage *desc;
+  GstSDPMedia *media = NULL;
+  guint index;
 
-  gst_sdp_media_new (&removed);
-  gst_sdp_media_set_media (removed, gst_sdp_media_get_media (*media));
-  gst_sdp_media_set_proto (removed, gst_sdp_media_get_proto (*media));
-  gst_sdp_media_set_port_info (removed, 0, 0);
+  index = sdp_handler->sdph->index;
 
-  gst_sdp_media_free (*media);
+  if (!sdp_handler->sdph->negotiated) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Media handler '%s' at [%d] not negotiated", sdp_handler->sdph->media,
+        index);
+    return NULL;
+  }
 
-  *media = removed;
+  if (sdp_handler->offer) {
+    /* We offered this media. Remote description has the negotiated media */
+    desc = agent->priv->remote_description;
+  } else {
+    /* Local description has the media negotiated */
+    desc = kms_sdp_message_context_pack (agent->priv->local_description, error);
+  }
+
+  if (desc == NULL) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "No previous SDP negotiated");
+    return NULL;
+  }
+
+  if (index >= gst_sdp_message_medias_len (desc)) {
+    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Could not process media '%s'", sdp_handler->sdph->media);
+  } else {
+    gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
+  }
+
+  if (!sdp_handler->offer) {
+    gst_sdp_message_free (desc);
+  }
+
+  return media;
+}
+
+static void
+reject_sdp_media (GstSDPMedia * media)
+{
+  /* [rfc3264] To reject an offered stream, the port number in the */
+  /* corresponding stream in the answer MUST be set to zero. Any   */
+  /* media formats listed are ignored. */
+
+  gst_sdp_media_set_port_info (media, 0, 1);
 }
 
 static GstSDPMedia *
@@ -678,6 +718,17 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   GstSDPMessage *desc;
   GstSDPMedia *media;
   guint index;
+
+  if (sdp_handler->disabled) {
+    GST_WARNING ("Removed nedotiated media %u, %s", sdp_handler->sdph->index,
+        sdp_handler->sdph->media);
+    media = kms_sdp_agent_get_negotiated_media (agent, sdp_handler, err);
+    if (media != NULL) {
+      reject_sdp_media (media);
+    }
+
+    return media;
+  }
 
   if (sdp_handler->unsupported) {
     gst_sdp_media_copy (sdp_handler->unsupported_media, &media);
@@ -770,10 +821,6 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 
   /* update index */
   sdp_handler->sdph->index = data->index++;
-
-  if (sdp_handler->disabled) {
-    sdp_media_set_removed (&media);
-  }
 
   m_conf = kms_sdp_message_context_add_media (data->ctx, media, &err);
   if (m_conf == NULL) {
@@ -1233,43 +1280,6 @@ struct SdpAnswerData
   GError **err;
 };
 
-static GstSDPMedia *
-reject_media_answer (const GstSDPMedia * offered)
-{
-  GstSDPMedia *media;
-  const gchar *mid;
-  guint i, len;
-
-  gst_sdp_media_new (&media);
-
-  /* [rfc3264] To reject an offered stream, the port number in the */
-  /* corresponding stream in the answer MUST be set to zero. Any   */
-  /* media formats listed are ignored. */
-
-  gst_sdp_media_set_media (media, gst_sdp_media_get_media (offered));
-  gst_sdp_media_set_port_info (media, 0, 1);
-  gst_sdp_media_set_proto (media, gst_sdp_media_get_proto (offered));
-
-  len = gst_sdp_media_formats_len (offered);
-  for (i = 0; i < len; i++) {
-    const gchar *format;
-
-    format = gst_sdp_media_get_format (offered, i);
-    gst_sdp_media_insert_format (media, i, format);
-  }
-
-  /* [rfc5888] mid attribute must be present in answer as well */
-  mid = gst_sdp_media_get_attribute_val (offered, "mid");
-  if (mid == NULL) {
-    return media;
-  }
-
-  gst_sdp_media_add_attribute (media, INACTIVE_STR, "");
-  gst_sdp_media_add_attribute (media, "mid", mid);
-
-  return media;
-}
-
 static SdpHandler *
 kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
     const GstSDPMedia * media)
@@ -1422,9 +1432,24 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
         gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
     sdp_handler = kms_sdp_agent_create_reject_media_handler (agent, media);
   } else if (gst_sdp_media_get_port (media) == 0) {
-    GST_WARNING_OBJECT (agent, "TODO:_________Adding media with port 0");
+    if (sdp_handler->sdph->negotiated) {
+      answer_media = kms_sdp_agent_get_negotiated_media (agent, sdp_handler,
+          err);
+      if (answer_media == NULL) {
+        return FALSE;
+      }
+    } else {
+      /* Process offer as usual and reject it later */
+      GST_WARNING_OBJECT (agent,
+          "Not negotiated media offered with port set to 0");
+      answer_media =
+          kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
+          data->ctx, media, err);
+    }
+
     /* RFC rfc3264 [8.2]: A stream that is offered with a port */
     /* of zero MUST be marked with port zero in the answer     */
+    reject_sdp_media (answer_media);
     goto answer;
   }
 
@@ -1457,16 +1482,6 @@ answer:
     SdpMediaConfig *mconf;
     gboolean do_call = TRUE;
 
-    if (answer_media == NULL) {
-      if (sdp_handler->unsupported) {
-        GST_ERROR ("Unsupported media");
-      } else {
-        GST_ERROR ("Rejected media");
-      }
-      answer_media = reject_media_answer (media);
-      do_call = FALSE;
-    }
-
     if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {
       gst_sdp_media_copy (answer_media, &sdp_handler->unsupported_media);
     }
@@ -1495,6 +1510,7 @@ end:
     }
 
     /* add handler to the sdp ordered list */
+    sdp_handler->sdph->index = data->index;
     agent->priv->offer_handlers = g_slist_append (agent->priv->offer_handlers,
         sdp_handler);
   }
