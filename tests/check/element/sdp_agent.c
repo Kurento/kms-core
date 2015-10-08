@@ -31,6 +31,8 @@
 #include "kmssdprtpavpfmediahandler.h"
 #include "kmssdprtpsavpfmediahandler.h"
 
+#include "kmssdpsdesext.h"
+
 #define OFFERER_ADDR "222.222.222.222"
 #define ANSWERER_ADDR "111.111.111.111"
 
@@ -2513,7 +2515,178 @@ GST_START_TEST (sdp_agent_udp_tls_rtp_savpf_negotiation)
   g_object_unref (answerer);
 }
 
-GST_END_TEST static Suite *
+GST_END_TEST;
+
+#define ANSWER_KEY "test:answer_key"
+
+static GArray *
+on_offer_keys_cb (KmsSdpSdesExt * ext, gpointer data)
+{
+  GValue v1 = G_VALUE_INIT;
+  GValue v2 = G_VALUE_INIT;
+  GValue v3 = G_VALUE_INIT;
+  guint mki, len;
+  GArray *keys;
+
+  keys = g_array_sized_new (FALSE, FALSE, sizeof (GValue), 3);
+
+  /* Sets a function to clear an element of array */
+  g_array_set_clear_func (keys, (GDestroyNotify) g_value_unset);
+
+  fail_if (!kms_sdp_sdes_ext_create_key (1, "1abcdefgh",
+          KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_32, &v1));
+  g_array_append_val (keys, v1);
+
+  mki = 554;
+  len = 4;
+
+  fail_if (!kms_sdp_sdes_ext_create_key_detailed (2, "2abcdefgh",
+          KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_80, NULL, &mki, &len, &v2, NULL));
+  g_array_append_val (keys, v2);
+
+  fail_if (!kms_sdp_sdes_ext_create_key_detailed (3, "3abcdefgh",
+          KMS_SDES_EXT_AES_CM_128_HMAC_SHA1_80, "2^20", NULL, NULL, &v3, NULL));
+  g_array_append_val (keys, v3);
+
+  return keys;
+}
+
+static gboolean
+on_answer_keys_cb (KmsSdpSdesExt * ext, const GArray * keys, GValue * key)
+{
+  GValue *offer_val;
+  SrtpCryptoSuite crypto;
+  guint tag;
+
+  if (keys->len == 0) {
+    fail ("No key provided");
+    return FALSE;
+  }
+
+  /* We only will support the first key */
+  offer_val = &g_array_index (keys, GValue, 0);
+
+  if (offer_val == NULL) {
+    fail ("No offered keys");
+    return FALSE;
+  }
+
+  if (!kms_sdp_sdes_ext_get_parameters_from_key (offer_val, KMS_SDES_TAG_FIELD,
+          G_TYPE_UINT, &tag, KMS_SDES_CRYPTO, G_TYPE_UINT, &crypto, NULL)) {
+    fail ("Invalid key offered");
+    return FALSE;
+  }
+
+  fail_if (!kms_sdp_sdes_ext_create_key_detailed (tag, ANSWER_KEY, crypto, NULL,
+          NULL, NULL, key, NULL));
+
+  return TRUE;
+}
+
+static void
+on_selected_key_cb (KmsSdpSdesExt * ext, const GValue * key)
+{
+  SrtpCryptoSuite crypto;
+  gchar *str_key;
+  guint tag;
+
+  fail_if (!kms_sdp_sdes_ext_get_parameters_from_key (key, KMS_SDES_TAG_FIELD,
+          G_TYPE_UINT, &tag, KMS_SDES_CRYPTO, G_TYPE_UINT, &crypto,
+          KMS_SDES_KEY_FIELD, G_TYPE_STRING, &str_key, NULL));
+
+  /* only the first one must be selected */
+  fail_if (tag != 1);
+  fail_if (crypto != KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_32);
+  fail_if (g_strcmp0 (str_key, ANSWER_KEY) != 0);
+
+  g_free (str_key);
+}
+
+GST_START_TEST (sdp_agent_sdes_negotiation)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  SdpMessageContext *ctx;
+  GstSDPMessage *offer, *answer;
+  KmsSdpSdesExt *ext1, *ext2;
+  GError *err = NULL;
+  gchar *sdp_str = NULL;
+  const GstSDPMedia *media;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext1 = kms_sdp_sdes_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext1)));
+
+  g_signal_connect (ext1, "on-offer-keys", G_CALLBACK (on_offer_keys_cb), NULL);
+  g_signal_connect (ext1, "on-selected-key", G_CALLBACK (on_selected_key_cb),
+      NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (offerer, "video", handler) < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext2 = kms_sdp_sdes_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext2)));
+
+  g_signal_connect (ext2, "on-answer-keys", G_CALLBACK (on_answer_keys_cb),
+      NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (answerer, "video", handler) < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (gst_sdp_message_medias_len (answer) != 1);
+  media = gst_sdp_message_get_media (answer, 0);
+  fail_if (gst_sdp_media_get_port (media) == 0);
+
+  fail_if (!kms_i_sdp_media_extension_process_answer_attributes
+      (KMS_I_SDP_MEDIA_EXTENSION (ext1), media, &err));
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_END_TEST;
+
+static Suite *
 sdp_agent_suite (void)
 {
   Suite *s = suite_create ("kmssdpagent");
@@ -2543,6 +2716,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_optional_enc_parameters);
   tcase_add_test (tc_chain, sdp_agent_regression_tests);
   tcase_add_test (tc_chain, sdp_agent_udp_tls_rtp_savpf_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_sdes_negotiation);
 
   return s;
 }

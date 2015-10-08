@@ -1,3 +1,7 @@
+include_directories(
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 set(KMS_SDP_AGENT_SOURCES
   kmssdpagent.c
   kmssdpcontext.c
@@ -10,6 +14,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmsisdppayloadmanager.c
   kmssdppayloadmanager.c
   kmsisdpmediaextension.c
+  kmssdpsdesext.c
 )
 
 set(KMS_SDP_AGENT_HEADERS
@@ -24,7 +29,10 @@ set(KMS_SDP_AGENT_HEADERS
   kmsisdppayloadmanager.h
   kmssdppayloadmanager.h
   kmsisdpmediaextension.h
+  kmssdpsdesext.h
 )
+
+add_glib_marshal(KMS_SDP_AGENT_SOURCES KMS_SDP_AGENT_HEADERS kms-sdp-agent-marshal __kms_sdp_agent_marshal)
 
 add_library(kmssdpagent SHARED ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
 
