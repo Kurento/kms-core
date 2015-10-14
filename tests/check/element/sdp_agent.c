@@ -29,6 +29,7 @@
 #include "kmssdpsctpmediahandler.h"
 #include "kmssdprtpavpmediahandler.h"
 #include "kmssdprtpavpfmediahandler.h"
+#include "kmssdprtpsavpmediahandler.h"
 #include "kmssdprtpsavpfmediahandler.h"
 
 #include "kmssdpsdesext.h"
@@ -573,6 +574,82 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   fail_if (id < 0);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  ctx = kms_sdp_agent_create_answer (answerer, offer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  check_all_is_negotiated (offer, answer);
+
+  gst_sdp_message_free (offer);
+  gst_sdp_message_free (answer);
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_END_TEST
+GST_START_TEST (sdp_agent_test_rtp_savp_negotiation)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer, *answer;
+  gint id;
+  gchar *sdp_str = NULL;
+  SdpMessageContext *ctx;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savp_media_handler_new ());
   fail_if (handler == NULL);
 
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
@@ -2701,6 +2778,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_sctp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_avpf_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_rtp_savp_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_rtp_savpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_avp_generic_payload_negotiation);
   tcase_add_test (tc_chain, sdp_agent_avp_avpf_negotiation);

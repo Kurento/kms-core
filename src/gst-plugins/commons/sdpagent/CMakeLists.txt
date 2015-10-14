@@ -9,6 +9,7 @@ set(KMS_SDP_AGENT_SOURCES
   kmssdprtpmediahandler.c
   kmssdprtpavpfmediahandler.c
   kmssdprtpavpmediahandler.c
+  kmssdprtpsavpmediahandler.c
   kmssdprtpsavpfmediahandler.c
   kmssdpsctpmediahandler.c
   kmsisdppayloadmanager.c
@@ -24,6 +25,7 @@ set(KMS_SDP_AGENT_HEADERS
   kmssdprtpmediahandler.h
   kmssdprtpavpfmediahandler.h
   kmssdprtpavpmediahandler.h
+  kmssdprtpsavpmediahandler.h
   kmssdprtpsavpfmediahandler.h
   kmssdpsctpmediahandler.h
   kmsisdppayloadmanager.h
