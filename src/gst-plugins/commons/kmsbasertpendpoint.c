@@ -64,6 +64,9 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define JB_READY_AUDIO_LATENCY 100
 #define JB_READY_VIDEO_LATENCY 500
 
+#define DEFAULT_MIN_PORT 1
+#define DEFAULT_MAX_PORT G_MAXUINT16
+
 typedef struct _KmsSSRCStats KmsSSRCStats;
 struct _KmsSSRCStats
 {
@@ -155,6 +158,10 @@ struct _KmsBaseRtpEndpointPrivate
   KmsRembLocal *rl;
   KmsRembRemote *rm;
 
+  /* Port range */
+  guint min_port;
+  guint max_port;
+
   /* RTP statistics */
   KmsBaseRTPStats stats;
 };
@@ -193,6 +200,8 @@ enum
   PROP_MAX_VIDEO_SEND_BW,
   PROP_MEDIA_STATE,
   PROP_REMB_PARAMS,
+  PROP_MIN_PORT,
+  PROP_MAX_PORT,
   PROP_LAST
 };
 
@@ -1888,6 +1897,30 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
         self->priv->remb_params = g_value_dup_boxed (value);
       }
       break;
+    case PROP_MIN_PORT:{
+      guint v = g_value_get_uint (value);
+
+      if (v >= self->priv->max_port) {
+        v = self->priv->max_port - 2;
+        GST_WARNING_OBJECT (object,
+            "Trying to set min >= max. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      self->priv->min_port = v;
+      break;
+    }
+    case PROP_MAX_PORT:{
+      guint v = g_value_get_uint (value);
+
+      if (v <= self->priv->min_port) {
+        v = self->priv->min_port + 2;
+        GST_WARNING_OBJECT (object,
+            "Trying to set max <= min. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      self->priv->max_port = v;
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -1941,6 +1974,12 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
         GST_DEBUG_OBJECT (self, "Get from aux structure");
         g_value_set_boxed (value, self->priv->remb_params);
       }
+      break;
+    case PROP_MIN_PORT:
+      g_value_set_uint (value, self->priv->min_port);
+      break;
+    case PROP_MAX_PORT:
+      g_value_set_uint (value, self->priv->max_port);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -2292,6 +2331,20 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Set parameters for REMB algorithm",
           GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_MIN_PORT,
+      g_param_spec_uint ("min-port",
+          "Minimum port number to be used",
+          "Minimum port number to be used",
+          0, G_MAXUINT16, DEFAULT_MIN_PORT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_MAX_PORT,
+      g_param_spec_uint ("max-port",
+          "Maximum port number to be used",
+          "Maximum port number to be used",
+          0, G_MAXUINT16, DEFAULT_MAX_PORT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   /* set signals */
   obj_signals[GET_CONNECTION_STATE] =
       g_signal_new ("get-connection_state",
@@ -2547,6 +2600,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->video_config = rtp_media_config_new ();
 
   kms_base_rtp_endpoint_init_stats (self);
+
+  self->priv->min_port = DEFAULT_MIN_PORT;
+  self->priv->max_port = DEFAULT_MAX_PORT;
 }
 
 static void
