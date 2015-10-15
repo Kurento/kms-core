@@ -27,6 +27,8 @@ public:
 
   int getMaxVideoRecvBandwidth ();
   void setMaxVideoRecvBandwidth (int maxVideoRecvBandwidth);
+  int getMaxAudioRecvBandwidth ();
+  void setMaxAudioRecvBandwidth (int maxAudioRecvBandwidth);
   std::string generateOffer ();
   std::string processOffer (const std::string &offer);
   std::string processAnswer (const std::string &answer);

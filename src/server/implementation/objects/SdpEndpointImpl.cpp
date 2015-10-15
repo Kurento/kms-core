@@ -145,6 +145,21 @@ void SdpEndpointImpl::setMaxVideoRecvBandwidth (int maxVideoRecvBandwidth)
   g_object_set (element, "max-video-recv-bandwidth", maxVideoRecvBandwidth, NULL);
 }
 
+int SdpEndpointImpl::getMaxAudioRecvBandwidth ()
+{
+  int maxAudioRecvBandwidth;
+
+  g_object_get (element, "max-audio-recv-bandwidth", &maxAudioRecvBandwidth,
+                NULL);
+
+  return maxAudioRecvBandwidth;
+}
+
+void SdpEndpointImpl::setMaxAudioRecvBandwidth (int maxAudioRecvBandwidth)
+{
+  g_object_set (element, "max-audio-recv-bandwidth", maxAudioRecvBandwidth, NULL);
+}
+
 std::string SdpEndpointImpl::generateOffer ()
 {
   GstSDPMessage *offer = NULL;

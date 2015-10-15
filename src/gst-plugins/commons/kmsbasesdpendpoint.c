@@ -43,6 +43,7 @@ static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
 
 #define USE_IPV6_DEFAULT FALSE
 #define MAX_VIDEO_RECV_BW_DEFAULT 500
+#define MAX_AUDIO_RECV_BW_DEFAULT 0
 
 #define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
 
@@ -80,6 +81,7 @@ enum
   PROP_AUDIO_CODECS,
   PROP_VIDEO_CODECS,
   PROP_MAX_VIDEO_RECV_BW,
+  PROP_MAX_AUDIO_RECV_BW,
   PROP_USE_DATA_CHANNELS,
   N_PROPERTIES
 };
@@ -98,6 +100,7 @@ struct _KmsBaseSdpEndpointPrivate
   gboolean use_data_channels;
 
   guint max_video_recv_bw;
+  guint max_audio_recv_bw;
 
   guint num_audio_medias;
   guint num_video_medias;
@@ -323,7 +326,8 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
   }
 
   for (i = 0; i < self->priv->num_audio_medias; i++) {
-    if (!kms_base_sdp_endpoint_add_handler (self, sess, "audio", gid, 0)) {
+    if (!kms_base_sdp_endpoint_add_handler (self, sess, "audio", gid,
+            self->priv->max_audio_recv_bw)) {
       return FALSE;
     }
   }
@@ -599,6 +603,9 @@ kms_base_sdp_endpoint_set_property (GObject * object, guint prop_id,
     case PROP_MAX_VIDEO_RECV_BW:
       self->priv->max_video_recv_bw = g_value_get_uint (value);
       break;
+    case PROP_MAX_AUDIO_RECV_BW:
+      self->priv->max_audio_recv_bw = g_value_get_uint (value);
+      break;
     case PROP_NUM_AUDIO_MEDIAS:{
       guint n = g_value_get_uint (value);
 
@@ -676,6 +683,9 @@ kms_base_sdp_endpoint_get_property (GObject * object, guint prop_id,
       break;
     case PROP_MAX_VIDEO_RECV_BW:
       g_value_set_uint (value, self->priv->max_video_recv_bw);
+      break;
+    case PROP_MAX_AUDIO_RECV_BW:
+      g_value_set_uint (value, self->priv->max_audio_recv_bw);
       break;
     case PROP_NUM_AUDIO_MEDIAS:
       g_value_set_uint (value, self->priv->num_audio_medias);
@@ -869,6 +879,13 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
           0, G_MAXUINT32, MAX_VIDEO_RECV_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_MAX_AUDIO_RECV_BW,
+      g_param_spec_uint ("max-audio-recv-bandwidth",
+          "Maximum audio bandwidth for receiving",
+          "Maximum audio bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
+          0, G_MAXUINT32, MAX_AUDIO_RECV_BW_DEFAULT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (gobject_class, PROP_USE_DATA_CHANNELS,
       g_param_spec_boolean ("use-data-channels", "Use data channels",
           "Negotiate data channels when this property is true",
@@ -892,6 +909,7 @@ kms_base_sdp_endpoint_init (KmsBaseSdpEndpoint * self)
       (GDestroyNotify) g_object_unref);
 
   self->priv->max_video_recv_bw = MAX_VIDEO_RECV_BW_DEFAULT;
+  self->priv->max_audio_recv_bw = MAX_AUDIO_RECV_BW_DEFAULT;
 }
 
 GHashTable *

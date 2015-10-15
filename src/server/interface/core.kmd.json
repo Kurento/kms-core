@@ -330,6 +330,11 @@
           "name": "maxVideoRecvBandwidth",
           "doc": "Maximum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
           "type": "int"
+        },
+        {
+          "name": "maxAudioRecvBandwidth",
+          "doc": "Maximum audio bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 0",
+          "type": "int"
         }
       ],
       "methods": [
