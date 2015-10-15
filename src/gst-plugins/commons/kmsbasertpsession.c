@@ -317,7 +317,10 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
       || ssrcs_are_mapped (ssrcdemux, self->local_video_ssrc, ssrc)) {
     mconf = self->video_neg_mconf;
   } else {
-    GST_ERROR_OBJECT (pad, "SSRC %" G_GUINT32_FORMAT " not matching.", ssrc);
+    if (!kms_i_rtp_session_manager_custom_ssrc_management (self->manager, self,
+            ssrcdemux, ssrc, pad)) {
+      GST_ERROR_OBJECT (pad, "SSRC %" G_GUINT32_FORMAT " not matching.", ssrc);
+    }
     goto end;
   }
 
