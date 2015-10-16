@@ -56,3 +56,14 @@ kms_i_sdp_media_extension_can_insert_attribute (KmsISdpMediaExtension * ext,
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->can_insert_attribute (ext,
       offer, attr, answer, ctx);
 }
+
+gboolean
+kms_i_sdp_media_extension_process_answer_attributes (KmsISdpMediaExtension *
+    ext, const GstSDPMedia * answer, GError ** error)
+{
+  g_return_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext));
+
+  return
+      KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->process_answer_attributes
+      (ext, answer, error);
+}
