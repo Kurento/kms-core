@@ -686,7 +686,8 @@ kms_base_rtp_endpoint_configure_media (KmsBaseSdpEndpoint *
   KmsBaseRtpSession *base_rtp_sess = KMS_BASE_RTP_SESSION (sess);
   KmsIRtpConnection *conn;
 
-  conn = kms_base_rtp_session_create_connection (base_rtp_sess, mconf);
+  conn = kms_base_rtp_session_create_connection (base_rtp_sess, mconf,
+      self->priv->min_port, self->priv->max_port);
   if (conn == NULL) {
     return FALSE;
   }

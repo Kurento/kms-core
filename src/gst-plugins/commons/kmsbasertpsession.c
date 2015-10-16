@@ -126,7 +126,8 @@ kms_base_rtp_session_get_connection (KmsBaseRtpSession * self,
 
 static KmsIRtpConnection *
 kms_base_rtp_session_create_connection_default (KmsBaseRtpSession * self,
-    SdpMediaConfig * mconf, const gchar * name)
+    SdpMediaConfig * mconf, const gchar * name, guint16 min_port,
+    guint16 max_port)
 {
   KmsBaseRtpSessionClass *klass =
       KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
@@ -142,7 +143,7 @@ kms_base_rtp_session_create_connection_default (KmsBaseRtpSession * self,
 
 static KmsIRtcpMuxConnection *
 kms_base_rtp_session_create_rtcp_mux_connection_default (KmsBaseRtpSession *
-    self, const gchar * name)
+    self, const gchar * name, guint16 min_port, guint16 max_port)
 {
   KmsBaseRtpSessionClass *klass =
       KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
@@ -159,7 +160,7 @@ kms_base_rtp_session_create_rtcp_mux_connection_default (KmsBaseRtpSession *
 
 static KmsIBundleConnection *
 kms_base_rtp_session_create_bundle_connection_default (KmsBaseRtpSession *
-    self, const gchar * name)
+    self, const gchar * name, guint16 min_port, guint16 max_port)
 {
   KmsBaseRtpSessionClass *klass =
       KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
@@ -225,7 +226,7 @@ kms_base_rtp_session_set_connection_stats (KmsBaseRtpSession * self,
 
 KmsIRtpConnection *
 kms_base_rtp_session_create_connection (KmsBaseRtpSession * self,
-    SdpMediaConfig * mconf)
+    SdpMediaConfig * mconf, guint16 min_port, guint16 max_port)
 {
   KmsBaseRtpSessionClass *base_rtp_class =
       KMS_BASE_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self));
@@ -242,15 +243,15 @@ kms_base_rtp_session_create_connection (KmsBaseRtpSession * self,
   if (group != NULL) {          /* bundle */
     conn =
         KMS_I_RTP_CONNECTION (base_rtp_class->create_bundle_connection (self,
-            name));
+            name, min_port, max_port));
+  } else if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
+    conn =
+        KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
+        (self, name, min_port, max_port));
   } else {
-    if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
-      conn =
-          KMS_I_RTP_CONNECTION (base_rtp_class->create_rtcp_mux_connection
-          (self, name));
-    } else {
-      conn = base_rtp_class->create_connection (self, mconf, name);
-    }
+    conn =
+        base_rtp_class->create_connection (self, mconf, name, min_port,
+        max_port);
   }
 
   /* TODO: check if conn is NULL */

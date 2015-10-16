@@ -73,9 +73,9 @@ struct _KmsBaseRtpSessionClass
   /* virtual methods */
   void (*post_constructor) (KmsBaseRtpSession * self, KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager);
 
-  KmsIRtpConnection * (*create_connection) (KmsBaseRtpSession *self, SdpMediaConfig * mconf, const gchar *name);
-  KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpSession *self, const gchar *name);
-  KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpSession *self, const gchar *name);
+  KmsIRtpConnection * (*create_connection) (KmsBaseRtpSession *self, SdpMediaConfig * mconf, const gchar *name, guint16 min_port, guint16 max_port);
+  KmsIRtcpMuxConnection* (*create_rtcp_mux_connection) (KmsBaseRtpSession *self, const gchar *name, guint16 min_port, guint16 max_port);
+  KmsIBundleConnection * (*create_bundle_connection) (KmsBaseRtpSession *self, const gchar *name, guint16 min_port, guint16 max_port);
 
   void (*connection_state_changed) (KmsBaseRtpSession * self, KmsConnectionState new_state);
 };
@@ -85,7 +85,7 @@ GType kms_base_rtp_session_get_type (void);
 KmsBaseRtpSession * kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager);
 KmsIRtpConnection * kms_base_rtp_session_get_connection_by_name (KmsBaseRtpSession * self, const gchar * name);
 KmsIRtpConnection * kms_base_rtp_session_get_connection (KmsBaseRtpSession * self, SdpMediaConfig * mconf);
-KmsIRtpConnection * kms_base_rtp_session_create_connection (KmsBaseRtpSession * self, SdpMediaConfig * mconf);
+KmsIRtpConnection * kms_base_rtp_session_create_connection (KmsBaseRtpSession * self, SdpMediaConfig * mconf, guint16 min_port, guint16 max_port);
 
 void kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self, gboolean offerer);
 
