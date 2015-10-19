@@ -139,6 +139,11 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 
   id = g_atomic_int_add (&self->priv->next_session_id, 1);
   base_sdp_endpoint_class->create_session_internal (self, id, &sess);
+
+  if (sess == NULL) {
+    goto end;
+  }
+
   kms_sdp_session_set_use_ipv6 (sess, self->priv->use_ipv6);
   if (self->priv->addr != NULL) {
     kms_sdp_session_set_addr (sess, self->priv->addr);
@@ -398,7 +403,11 @@ static void
 kms_base_sdp_endpoint_create_session_internal (KmsBaseSdpEndpoint * self,
     gint id, KmsSdpSession ** sess)
 {
-  *sess = kms_sdp_session_new (self, id);
+  if (*sess == NULL) {
+    GST_WARNING_OBJECT (self,
+        "Creating default sdp session, should be only done for testing");
+    *sess = kms_sdp_session_new (self, id);
+  }
 }
 
 static void

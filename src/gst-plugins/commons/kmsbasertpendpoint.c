@@ -1288,8 +1288,7 @@ kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
   gboolean media_stats;
 
   if (*sess == NULL) {
-    /* Media not supported */
-    return;
+    goto end;
   }
 
   g_object_get (base_sdp, "media-stats", &media_stats, NULL);
@@ -1301,6 +1300,13 @@ kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 
   g_signal_connect (*sess, "connection-state-changed",
       (GCallback) connection_state_changed, self);
+
+end:
+
+  /* Chain up */
+  KMS_BASE_SDP_ENDPOINT_CLASS
+      (kms_base_rtp_endpoint_parent_class)->create_session_internal (base_sdp,
+      id, sess);
 }
 
 static void
@@ -2037,7 +2043,10 @@ static void
 kms_base_rtp_endpoint_disable_connections_stats (gpointer key, gpointer value,
     gpointer user_data)
 {
-  kms_base_rtp_session_disable_connections_stats (KMS_BASE_RTP_SESSION (value));
+  if (KMS_IS_BASE_RTP_SESSION (value)) {
+    kms_base_rtp_session_disable_connections_stats (KMS_BASE_RTP_SESSION
+        (value));
+  }
 }
 
 static void
