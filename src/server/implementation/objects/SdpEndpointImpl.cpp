@@ -98,7 +98,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 1);
   video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 1);
 
-  {
+  try {
     std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
         <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
         (PARAM_AUDIO_CODECS);
@@ -107,9 +107,11 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
 
       append_codec_to_array (audio_codecs, conf->getName().c_str() );
     }
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    /* When key is missing we assume an empty array */
   }
 
-  {
+  try {
     std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
         <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
         (PARAM_VIDEO_CODECS);
@@ -118,6 +120,8 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
 
       append_codec_to_array (video_codecs, conf->getName().c_str() );
     }
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    /* When key is missing we assume an empty array */
   }
 
   g_object_set (element, "num-audio-medias", audio_medias, "audio-codecs",
