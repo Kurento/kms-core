@@ -79,7 +79,7 @@ public:
 
   bool empty();
 
-  static const std::shared_ptr<MediaSet> getMediaSet();
+  static std::shared_ptr<MediaSet> getMediaSet();
   static void deleteMediaSet();
   static void setCollectorInterval (std::chrono::seconds interval);
   static std::chrono::seconds getCollectorInterval();

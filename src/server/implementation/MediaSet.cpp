@@ -68,7 +68,7 @@ MediaSet::getCollectorInterval()
 static std::shared_ptr<MediaSet> mediaSet;
 static std::recursive_mutex mutex;
 
-const std::shared_ptr<MediaSet>
+std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
   std::unique_lock <std::recursive_mutex> lock (mutex);
