@@ -32,6 +32,12 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_STATISTIC_FIELD_PREFIX_SESSION "session-"
 #define KMS_STATISTIC_FIELD_PREFIX_SSRC "ssrc-"
 
+#define PARAM_MIN_PORT "minPort"
+#define PARAM_MAX_PORT "maxPort"
+
+#define PROP_MIN_PORT "min-port"
+#define PROP_MAX_PORT "max-port"
+
 /* Fixed point conversion macros */
 #define FRIC        65536.                  /* 2^16 as a double */
 #define FP2D(r)     ((double)(r) / FRIC)
@@ -72,6 +78,22 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
   current_conn_state = std::make_shared <ConnectionState>
                        (ConnectionState::DISCONNECTED);
   connStateChangedHandlerId = 0;
+
+  try {
+    guint minPort = getConfigValue<guint, BaseRtpEndpoint> (PARAM_MIN_PORT);
+
+    g_object_set (getGstreamerElement (), PROP_MIN_PORT, minPort, NULL);
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    /* Expected when configuration is not set */
+  }
+
+  try {
+    guint maxPort = getConfigValue <guint, BaseRtpEndpoint> (PARAM_MAX_PORT);
+
+    g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
+  } catch (boost::property_tree::ptree_bad_path &e) {
+    /* Expected when configuration is not set */
+  }
 }
 
 BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()

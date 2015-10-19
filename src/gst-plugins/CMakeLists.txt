@@ -18,6 +18,7 @@ set(KMS_CORE_SOURCES
   kmsdummysink.c kmsdummysink.h
   kmsdummyduplex.c kmsdummyduplex.h
   kmsdummysdp.c kmsdummysdp.h
+  kmsdummyrtp.c kmsdummyrtp.h
 )
 
 add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
