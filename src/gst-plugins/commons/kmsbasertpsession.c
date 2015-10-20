@@ -254,10 +254,9 @@ kms_base_rtp_session_create_connection (KmsBaseRtpSession * self,
         max_port);
   }
 
-  /* TODO: check if conn is NULL */
-  g_hash_table_insert (self->conns, g_strdup (name), conn);
-
   if (conn != NULL) {
+    g_hash_table_insert (self->conns, g_strdup (name), conn);
+
     kms_base_rtp_session_set_connection_stats (self, conn);
   }
 
