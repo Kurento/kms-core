@@ -31,6 +31,7 @@ static gchar *directions[] =
     { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR, NULL };
 
 #define RTPMAP "rtpmap"
+#define FMTP "fmtp"
 
 static gchar *rtpmaps[] = {
   "PCMU/8000/1",
@@ -198,6 +199,41 @@ sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media, const gchar * format)
   }
 
   return rtpmap;
+}
+
+const gchar *
+sdp_utils_sdp_media_get_fmtp (const GstSDPMedia * media, const gchar * format)
+{
+  guint i;
+
+  for (i = 0;; i++) {
+    const gchar *attr_val = NULL;
+    gchar **attrs;
+
+    attr_val = gst_sdp_media_get_attribute_val_n (media, FMTP, i);
+
+    if (attr_val == NULL) {
+      return NULL;
+    }
+
+    attrs = g_strsplit (attr_val, " ", 0);
+
+    if (attrs[0] == NULL) {
+      GST_ERROR ("No payload found in fmtp attribute");
+      g_strfreev (attrs);
+      continue;
+    }
+
+    if (g_strcmp0 (attrs[0], format) == 0) {
+      g_strfreev (attrs);
+
+      return attr_val;
+    }
+
+    g_strfreev (attrs);
+  }
+
+  return NULL;
 }
 
 static gboolean

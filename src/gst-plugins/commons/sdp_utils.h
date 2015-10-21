@@ -44,6 +44,7 @@ GstSDPDirection sdp_utils_media_config_get_direction (const GstSDPMedia * media)
 
 const gchar *sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media,
     const gchar * format);
+const gchar * sdp_utils_sdp_media_get_fmtp (const GstSDPMedia * media, const gchar * format);
 
 gboolean sdp_utils_intersect_session_attributes (const GstSDPMessage * msg, GstSDPIntersectMediaFunc func, gpointer user_data);
 gboolean sdp_utils_intersect_media_attributes (const GstSDPMedia * offer, GstSDPIntersectMediaFunc func, gpointer user_data);
