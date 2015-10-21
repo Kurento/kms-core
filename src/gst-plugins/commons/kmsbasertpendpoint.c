@@ -16,6 +16,7 @@
 #  include <config.h>
 #endif
 
+#include <string.h>
 #include "kmsbasertpendpoint.h"
 #include "kmsbasertpsession.h"
 #include "constants.h"
@@ -66,6 +67,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 
 #define DEFAULT_MIN_PORT 1
 #define DEFAULT_MAX_PORT G_MAXUINT16
+
+#define index_of(str,chr) ({  \
+  gint __pos;                 \
+  gchar *__c;                 \
+  __c = strchr (str, chr);    \
+  __pos = (gint)(__c - str);  \
+  __pos;                      \
+})
 
 typedef struct _KmsSSRCStats KmsSSRCStats;
 struct _KmsSSRCStats
@@ -1345,6 +1354,64 @@ complete_caps_with_fb (GstCaps * caps, const GstSDPMedia * media,
   }
 }
 
+static void
+str_remove_white_spaces (gchar * src)
+{
+  gchar *wr, *r;
+
+  wr = r = src;
+
+  do {
+    if (*r != ' ')
+      *wr++ = *r;
+  } while (*r++);
+}
+
+static void
+complement_caps_with_fmtp_attrs (GstCaps * caps, const gchar * fmtp_attr)
+{
+  gchar **attrs, **vars, *params;
+  guint i;
+
+  attrs = g_strsplit (fmtp_attr, " ", 0);
+
+  if (attrs[0] == NULL) {
+    goto end;
+  }
+
+  params = g_strndup (fmtp_attr + strlen (attrs[0]) + 1,
+      strlen (fmtp_attr) - strlen (attrs[0]) - 1);
+
+  str_remove_white_spaces (params);
+
+  vars = g_strsplit (params, ";", 0);
+
+  for (i = 0; vars[i] != NULL; i++) {
+    gchar *key, *value;
+    gint index;
+
+    index = index_of (vars[i], '=');
+    if (index < 0) {
+      /* Skip, not key=value attribute */
+      continue;
+    }
+
+    key = g_strndup (vars[i], index);
+    value = g_strndup (vars[i] + index + 1, strlen (vars[i]) - index - 1);
+
+    gst_caps_set_simple (caps, key, G_TYPE_STRING, value, NULL);
+
+    g_free (key);
+    g_free (value);
+  }
+
+  g_free (params);
+  g_strfreev (vars);
+
+end:
+  g_strfreev (attrs);
+}
+
 static GstCaps *
 kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 {
@@ -1363,7 +1430,7 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
     SdpMediaConfig *mconf = item->data;
     GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
     const gchar *media_str = gst_sdp_media_get_media (media);
-    const gchar *rtpmap;
+    const gchar *rtpmap, *fmtp;
     guint j, f_len;
 
     f_len = gst_sdp_media_formats_len (media);
@@ -1380,10 +1447,20 @@ kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
           kms_base_rtp_endpoint_get_caps_from_rtpmap (media_str, payload,
           rtpmap);
 
-      if (caps != NULL) {
-        complete_caps_with_fb (caps, media, payload);
-        return caps;
+      if (caps == NULL) {
+        continue;
       }
+
+      /* Configure codec if it is possible */
+      fmtp = sdp_utils_sdp_media_get_fmtp (media, payload);
+
+      if (fmtp != NULL) {
+        complement_caps_with_fmtp_attrs (caps, fmtp);
+      }
+
+      complete_caps_with_fb (caps, media, payload);
+
+      return caps;
     }
   }
 
