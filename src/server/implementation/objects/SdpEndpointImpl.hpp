@@ -47,6 +47,7 @@ public:
 
 protected:
 
+  virtual void postConstructor ();
   std::string sessId;
 
 private:

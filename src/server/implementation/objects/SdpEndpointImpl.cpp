@@ -70,13 +70,8 @@ append_codec_to_array (GArray *array, const char *codec)
   g_array_append_val (array, v);
 }
 
-SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
-                                  std::shared_ptr< MediaObjectImpl > parent,
-                                  const std::string &factoryName) :
-  SessionEndpointImpl (config, parent, factoryName)
+void SdpEndpointImpl::postConstructor ()
 {
-  GArray *audio_codecs, *video_codecs;
-  guint audio_medias, video_medias;
   gchar *sess_id;
 
   g_signal_emit_by_name (element, "create-session", &sess_id);
@@ -88,6 +83,16 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
 
   sessId = std::string (sess_id);
   g_free (sess_id);
+}
+
+SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
+                                  std::shared_ptr< MediaObjectImpl > parent,
+                                  const std::string &factoryName) :
+  SessionEndpointImpl (config, parent, factoryName)
+{
+  GArray *audio_codecs, *video_codecs;
+  guint audio_medias, video_medias;
+
   audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
   video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
 
