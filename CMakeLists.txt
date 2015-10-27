@@ -16,7 +16,7 @@ get_values_from_model(PREFIX VALUE MODELS ${CMAKE_SOURCE_DIR}/src/server/interfa
 get_git_version (PROJECT_VERSION ${VALUE_VERSION})
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
 
-set (GST_REQUIRED ~1.5.0)
+set (GST_REQUIRED ^1.5.0)
 set (GLIB_REQUIRED ^2.42)
 set (JSON_RPC_REQUIRED ^1.0.0)
 set (SIGCPP_REQUIRED ^2.0.10)
