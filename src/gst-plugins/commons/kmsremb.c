@@ -502,6 +502,8 @@ static void
 kms_remb_remote_update (KmsRembRemote * rm,
     KmsRTCPPSFBAFBREMBPacket * remb_packet)
 {
+  guint32 br_send;
+
   if (remb_packet->n_ssrcs == 0) {
     GST_WARNING_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
         "REMB packet without any SSRC");
@@ -512,20 +514,20 @@ kms_remb_remote_update (KmsRembRemote * rm,
         " A inconsistent management could take place", remb_packet->n_ssrcs);
   }
 
+  br_send = remb_packet->bitrate;
   if (!rm->probed) {
-    /* FIXME: if no event is sent until this condition,
-     * the restriction of this br will be removed by event manager
-     * in 10secs*/
     if ((remb_packet->bitrate < rm->remb_on_connect)
         && (remb_packet->bitrate >= rm->remb)) {
+      GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
+          "Not probed: sending remb_on_connect value");
+      br_send = rm->remb_on_connect;
       rm->remb = remb_packet->bitrate;
-      return;
+    } else {
+      rm->probed = TRUE;
     }
-
-    rm->probed = TRUE;
   }
 
-  send_remb_event (rm, remb_packet->bitrate, remb_packet->ssrcs[0]);
+  send_remb_event (rm, br_send, remb_packet->ssrcs[0]);
   rm->remb = remb_packet->bitrate;
 }
 
