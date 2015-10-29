@@ -492,7 +492,12 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
   }
 
   answer = kms_sdp_session_process_offer (sess, offer);
-  if (self->priv->first_neg_sdp_ctx == NULL) {
+
+  if (!answer) {
+    goto end;
+  }
+
+  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp_ctx) {
     self->priv->first_neg_sdp_ctx =
         kms_sdp_message_context_ref (sess->neg_sdp_ctx);
   }

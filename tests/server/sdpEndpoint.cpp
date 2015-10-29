@@ -263,6 +263,15 @@ BOOST_AUTO_TEST_CASE (invalid_sdp)
     }
   }
 
+  try {
+    sdpEndpoint->processOffer ("bad offer");
+    BOOST_ERROR ("Bad offer not detected");
+  } catch (KurentoException &e) {
+    if (e.getCode () != SDP_END_POINT_PROCESS_OFFER_ERROR) {
+      BOOST_ERROR ("Bad offer not detected");
+    }
+  }
+
   sdpEndpoint->generateOffer ();
 
   try {
