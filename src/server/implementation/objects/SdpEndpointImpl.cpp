@@ -233,6 +233,7 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   std::string resultStr;
   bool expected = true;
   bool expected_false = false;
+  gboolean result;
 
   if (answer.empty () ) {
     throw KurentoException (SDP_PARSE_ERROR, "Empty answer not valid");
@@ -252,8 +253,13 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
 
   answerSdp = str_to_sdp (answer);
   g_signal_emit_by_name (element, "process-answer", sessId.c_str (), answerSdp,
-                         NULL);
+                         &result);
   gst_sdp_message_free (answerSdp);
+
+  if (!result) {
+    throw KurentoException (SDP_END_POINT_PROCESS_ANSWER_ERROR,
+                            "Error processing answer");
+  }
 
   MediaSessionStarted event (shared_from_this(), MediaSessionStarted::getName() );
   signalMediaSessionStarted (event);

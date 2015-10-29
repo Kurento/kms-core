@@ -64,7 +64,7 @@ struct _KmsBaseSdpEndpointClass
 
   GstSDPMessage *(*generate_offer) (KmsBaseSdpEndpoint * self, const gchar *sess_id);
   GstSDPMessage *(*process_offer) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GstSDPMessage * offer);
-  void (*process_answer) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GstSDPMessage * answer);
+  gboolean (*process_answer) (KmsBaseSdpEndpoint * self, const gchar *sess_id, GstSDPMessage * answer);
 
   GstSDPMessage *(*get_local_sdp) (KmsBaseSdpEndpoint * self, const gchar *sess_id);
   GstSDPMessage *(*get_remote_sdp) (KmsBaseSdpEndpoint * self, const gchar *sess_id);

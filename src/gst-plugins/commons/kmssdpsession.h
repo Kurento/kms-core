@@ -78,7 +78,7 @@ GType kms_sdp_session_get_type (void);
 KmsSdpSession * kms_sdp_session_new (KmsBaseSdpEndpoint * ep, guint id);
 GstSDPMessage * kms_sdp_session_generate_offer (KmsSdpSession * self);
 GstSDPMessage * kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer);
-void kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer);
+gboolean kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer);
 GstSDPMessage * kms_sdp_session_get_local_sdp (KmsSdpSession * self);
 GstSDPMessage * kms_sdp_session_get_remote_sdp (KmsSdpSession * self);
 void kms_sdp_session_set_use_ipv6 (KmsSdpSession * self, gboolean use_ipv6);

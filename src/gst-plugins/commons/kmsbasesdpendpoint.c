@@ -509,11 +509,12 @@ end:
   return answer;
 }
 
-static void
+static gboolean
 kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     const gchar * sess_id, GstSDPMessage * answer)
 {
   KmsSdpSession *sess;
+  gboolean ret = FALSE;
 
   KMS_ELEMENT_LOCK (self);
 
@@ -525,8 +526,13 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  kms_sdp_session_process_answer (sess, answer);
-  if (self->priv->first_neg_sdp_ctx == NULL) {
+  ret = kms_sdp_session_process_answer (sess, answer);
+
+  if (!ret) {
+    goto end;
+  }
+
+  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp_ctx) {
     self->priv->first_neg_sdp_ctx =
         kms_sdp_message_context_ref (sess->neg_sdp_ctx);
   }
@@ -534,6 +540,8 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
 
 end:
   KMS_ELEMENT_UNLOCK (self);
+
+  return ret;
 }
 
 static GstSDPMessage *
@@ -828,8 +836,8 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseSdpEndpointClass, process_answer), NULL, NULL,
-      __kms_core_marshal_VOID__STRING_BOXED, G_TYPE_NONE, 2, G_TYPE_STRING,
-      GST_TYPE_SDP_MESSAGE);
+      __kms_core_marshal_BOOLEAN__STRING_BOXED, G_TYPE_BOOLEAN, 2,
+      G_TYPE_STRING, GST_TYPE_SDP_MESSAGE);
 
   kms_base_sdp_endpoint_signals[SIGNAL_GET_LOCAL_SDP] =
       g_signal_new ("get-local-sdp",

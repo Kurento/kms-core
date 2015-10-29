@@ -111,7 +111,7 @@ end:
   return answer;
 }
 
-void
+gboolean
 kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
 {
   SdpMessageContext *ctx;
@@ -122,19 +122,21 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
   if (self->local_sdp_ctx == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
-    return;
+    return FALSE;
   }
 
   ctx = kms_sdp_message_context_new_from_sdp (answer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing answer (%s)", err->message);
     g_error_free (err);
-    return;
+    return FALSE;
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->remote_sdp_ctx = ctx;
   self->neg_sdp_ctx = ctx;
+
+  return TRUE;
 }
 
 GstSDPMessage *
