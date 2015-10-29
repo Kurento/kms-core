@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
       config, "",
       Json::Value() )->getId();
 
-  std::string answer;
+  std::string offer;
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
@@ -152,11 +152,11 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
       (config, pipe, "dummysdp") );
 
-  sdpEndpoint->generateOffer ();
-  sdpEndpoint->processAnswer (answer);
+  offer = sdpEndpoint->generateOffer ();
+  sdpEndpoint->processAnswer (offer);
 
   try {
-    sdpEndpoint->processAnswer (answer);
+    sdpEndpoint->processAnswer (offer);
     BOOST_ERROR ("Duplicate answer not detected");
   } catch (KurentoException &e) {
     if (e.getCode () != 40210) {
