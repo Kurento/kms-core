@@ -36,6 +36,26 @@ struct GF {
   ~GF();
 };
 
+class SdpEndpointFactory : public Factory
+{
+public:
+  std::string getName() const
+  {
+    return "SdpEndpointFactory";
+  }
+
+protected:
+  MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree
+                                        &conf, const Json::Value &params) const
+  {
+    std::string mediaPipelineId = params["mediaPipeline"].asString ();
+    std::shared_ptr <MediaObjectImpl> pipe =
+      MediaSet::getMediaSet ()->getMediaObject (mediaPipelineId);
+
+    return new  SdpEndpointImpl (config, pipe, "dummysdp");
+  }
+};
+
 BOOST_GLOBAL_FIXTURE (GF)
 
 GF::GF()
@@ -55,6 +75,19 @@ releaseMediaObject (const std::string &id)
   MediaSet::getMediaSet ()->release (id);
 }
 
+
+static std::shared_ptr <SdpEndpointImpl> generateSdpEndpoint (
+  const std::string &mediaPipelineId)
+{
+  SdpEndpointFactory factory;
+  Json::Value params;
+
+  params["mediaPipeline"] = mediaPipelineId;
+
+  return std::dynamic_pointer_cast<SdpEndpointImpl> (
+           factory.createObject (config, "", params) );
+}
+
 BOOST_AUTO_TEST_CASE (duplicate_offer)
 {
   mediaPipelineId =
@@ -70,11 +103,8 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
-  std::shared_ptr <MediaObjectImpl> pipe =
-    MediaSet::getMediaSet()->getMediaObject (
-      mediaPipelineId);
-  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
-      (config, pipe, "dummysdp") );
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId);
 
   offer = sdpEndpoint->generateOffer ();
 
@@ -91,7 +121,6 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
   releaseMediaObject (mediaPipelineId);
 
   sdpEndpoint.reset ();
-  pipe.reset();
 }
 
 BOOST_AUTO_TEST_CASE (process_answer_without_offer)
@@ -109,11 +138,8 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
-  std::shared_ptr <MediaObjectImpl> pipe =
-    MediaSet::getMediaSet()->getMediaObject (
-      mediaPipelineId);
-  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
-      (config, pipe, "dummysdp") );
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId);
 
   try {
     sdpEndpoint->processAnswer (answer);
@@ -127,7 +153,6 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
   releaseMediaObject (sdpEndpoint->getId() );
   releaseMediaObject (mediaPipelineId);
 
-  pipe.reset ();
   sdpEndpoint.reset ();
 }
 
@@ -146,11 +171,8 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
   config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
   config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
 
-  std::shared_ptr <MediaObjectImpl> pipe =
-    MediaSet::getMediaSet()->getMediaObject (
-      mediaPipelineId);
-  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
-      (config, pipe, "dummysdp") );
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId);
 
   offer = sdpEndpoint->generateOffer ();
   sdpEndpoint->processAnswer (offer);
@@ -168,7 +190,6 @@ BOOST_AUTO_TEST_CASE (duplicate_answer)
   releaseMediaObject (mediaPipelineId);
 
   sdpEndpoint.reset ();
-  pipe.reset();
 }
 
 BOOST_AUTO_TEST_CASE (codec_parsing)
@@ -198,15 +219,11 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
   videoCodecs.push_back (std::make_pair ("", vc) );
   config.add_child ("modules.kurento.SdpEndpoint.videoCodecs", videoCodecs);
 
-  std::shared_ptr <MediaObjectImpl> pipe =
-    MediaSet::getMediaSet()->getMediaObject (
-      mediaPipelineId);
-  std::shared_ptr <SdpEndpointImpl> sdpEndpoint ( new  SdpEndpointImpl
-      (config, pipe, "dummysdp") );
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId);
 
   releaseMediaObject (sdpEndpoint->getId() );
   releaseMediaObject (mediaPipelineId);
 
   sdpEndpoint.reset ();
-  pipe.reset ();
 }
