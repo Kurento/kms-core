@@ -197,6 +197,10 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
   std::string offerSdpStr;
   bool expected = false;
 
+  if (offer.empty () ) {
+    throw KurentoException (SDP_PARSE_ERROR, "Empty offer not valid");
+  }
+
   if (!offerInProcess.compare_exchange_strong (expected, true) ) {
     //the endpoint is already negotiated
     throw KurentoException (SDP_END_POINT_ALREADY_NEGOTIATED,
@@ -229,6 +233,10 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
   std::string resultStr;
   bool expected = true;
   bool expected_false = false;
+
+  if (answer.empty () ) {
+    throw KurentoException (SDP_PARSE_ERROR, "Empty answer not valid");
+  }
 
   if (!waitingAnswer.compare_exchange_strong (expected, true) ) {
     //offer not generated

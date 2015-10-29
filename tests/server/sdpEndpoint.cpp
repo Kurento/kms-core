@@ -130,7 +130,17 @@ BOOST_AUTO_TEST_CASE (process_answer_without_offer)
       config, "",
       Json::Value() )->getId();
 
-  std::string answer;
+  std::string answer =  "v=0\r\n"
+                        "o=- 0 0 IN IP4 0.0.0.0\r\n"
+                        "s=TestSession\r\n"
+                        "c=IN IP4 0.0.0.0\r\n"
+                        "t=2873397496 2873404696\r\n"
+                        "m=audio 9 RTP/AVP 0\r\n"
+                        "a=rtpmap:0 PCMU/8000\r\n"
+                        "a=sendonly\r\n"
+                        "m=video 9 RTP/AVP 96\r\n"
+                        "a=rtpmap:96 VP8/90000\r\n"
+                        "a=sendonly\r\n";
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
@@ -221,6 +231,48 @@ BOOST_AUTO_TEST_CASE (codec_parsing)
 
   std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
         mediaPipelineId);
+
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  sdpEndpoint.reset ();
+}
+
+BOOST_AUTO_TEST_CASE (invalid_sdp)
+{
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  config.add ("configPath", "../../../tests" );
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
+
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId);
+
+  try {
+    sdpEndpoint->processOffer ("");
+    BOOST_ERROR ("Empty offer not detected");
+  } catch (KurentoException &e) {
+    if (e.getCode () != SDP_PARSE_ERROR) {
+      BOOST_ERROR ("Empty offer not detected");
+    }
+  }
+
+  sdpEndpoint->generateOffer ();
+
+  try {
+    sdpEndpoint->processAnswer ("");
+    BOOST_ERROR ("Empty answer not detected");
+  } catch (KurentoException &e) {
+    if (e.getCode () != SDP_PARSE_ERROR) {
+      BOOST_ERROR ("Empty answer not detected");
+    }
+  }
 
   releaseMediaObject (sdpEndpoint->getId() );
   releaseMediaObject (mediaPipelineId);
