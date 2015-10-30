@@ -149,7 +149,48 @@ GST_START_TEST (check_properties)
   gst_object_unref (filterelement);
 }
 
-GST_END_TEST
+GST_END_TEST;
+
+GST_START_TEST (provide_created_filter)
+{
+  GstElement *filterelement, *filter, *got_factory;
+  gchar *filter_factory = NULL;
+
+  filterelement = gst_element_factory_make ("filterelement", NULL);
+
+  filter = gst_parse_launch ("capsfilter caps=video/x-raw", NULL);
+
+  fail_unless (filter);
+
+  /* Set filter */
+  g_object_set (G_OBJECT (filterelement), "filter", filter, NULL);
+
+  /* Check that filter is the same */
+  g_object_get (G_OBJECT (filterelement), "filter", &got_factory, NULL);
+  fail_unless (got_factory == filter);
+  g_object_unref (got_factory);
+
+  /* Get factory */
+  g_object_get (filterelement, "filter_factory", &filter_factory, NULL);
+
+  fail_unless (filter_factory);
+  fail_if (g_strcmp0 ("capsfilter", filter_factory));
+  g_free (filter_factory);
+
+  /* Next set should not have effect */
+  g_object_set (filterelement, "filter_factory", "autovideosink", NULL);
+  g_object_get (filterelement, "filter_factory", &filter_factory, NULL);
+
+  fail_unless (filter_factory);
+  fail_if (g_strcmp0 ("capsfilter", filter_factory));
+  g_free (filter_factory);
+
+  g_object_unref (filter);
+  gst_object_unref (filterelement);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 filterelement_suite (void)
@@ -161,6 +202,7 @@ filterelement_suite (void)
   tcase_add_test (tc_chain, check_properties);
   tcase_add_test (tc_chain, check_invalid_pads_factory);
   tcase_add_test (tc_chain, check_invalid_factory);
+  tcase_add_test (tc_chain, provide_created_filter);
 
   return s;
 }

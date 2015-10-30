@@ -99,19 +99,32 @@ kms_filter_element_connect_passthrough (KmsFilterElement * self,
 }
 
 static void
-kms_filter_element_set_filter (KmsFilterElement * self)
+kms_filter_element_set_filter (KmsFilterElement * self, GstElement * filter)
 {
-  GstElement *filter;
   GstPad *sink = NULL, *src = NULL;
   GstCaps *audio_caps = NULL, *video_caps = NULL;
   GstCaps *sink_caps = NULL, *src_caps = NULL;
 
   if (self->priv->filter != NULL) {
     GST_WARNING_OBJECT (self, "Factory changes are not currently allowed");
+    g_object_unref (filter);
     return;
   }
 
-  filter = gst_element_factory_make (self->priv->filter_factory, NULL);
+  if (filter == NULL) {
+    filter = gst_element_factory_make (self->priv->filter_factory, NULL);
+  } else {
+    GstElementFactory *factory = gst_element_get_factory (filter);
+
+    if (factory == NULL) {
+      GST_WARNING_OBJECT (self,
+          "Cannot get filter factory from given filter %" GST_PTR_FORMAT,
+          filter);
+      return;
+    }
+
+    self->priv->filter_factory = g_strdup (GST_OBJECT_NAME (factory));
+  }
 
   if (filter == NULL) {
     GST_ERROR_OBJECT (self, "Invalid factory \"%s\", element cannot be created",
@@ -245,7 +258,20 @@ kms_filter_element_set_property (GObject * object, guint prop_id,
         if (self->priv->filter_factory == NULL)
           GST_WARNING_OBJECT (object, "Invalid factory name NULL");
         else
-          kms_filter_element_set_filter (self);
+          kms_filter_element_set_filter (self, NULL);
+      }
+      break;
+    case PROP_FILTER:
+      if (self->priv->filter != NULL) {
+        GST_WARNING_OBJECT (object, "Filter changes are not currently allowed");
+      } else {
+        GstElement *filter = g_value_dup_object (value);
+
+        if (filter != NULL) {
+          kms_filter_element_set_filter (self, filter);
+        } else {
+          GST_WARNING_OBJECT (object, "Invalid filter NULL");
+        }
       }
       break;
     case PROP_FILTER_TYPE:
@@ -313,7 +339,7 @@ kms_filter_element_class_init (KmsFilterElementClass * klass)
           G_PARAM_READWRITE | GST_PARAM_MUTABLE_READY));
   g_object_class_install_property (gobject_class, PROP_FILTER,
       g_param_spec_object ("filter", "filter", "Filter currently used",
-          GST_TYPE_ELEMENT, G_PARAM_READABLE));
+          GST_TYPE_ELEMENT, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_FILTER_TYPE,
       g_param_spec_enum ("type",
