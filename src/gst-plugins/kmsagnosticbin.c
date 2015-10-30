@@ -872,7 +872,6 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
       kms_agnostic_bin2_process_pad (self, pad);
-      ret = GST_PAD_PROBE_DROP;
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
     }
   }
