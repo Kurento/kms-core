@@ -191,6 +191,36 @@ GST_START_TEST (provide_created_filter)
 
 GST_END_TEST;
 
+GST_START_TEST (provide_invalid_created_filter)
+{
+  GstElement *filterelement, *filter, *got_factory;
+  gchar *filter_factory = NULL;
+
+  filterelement = gst_element_factory_make ("filterelement", NULL);
+
+  filter = gst_parse_launch ("fakesink", NULL);
+
+  fail_unless (filter);
+
+  /* Set filter */
+  g_object_set (G_OBJECT (filterelement), "filter", filter, NULL);
+
+  /* Check that filter cannot be set */
+  g_object_get (G_OBJECT (filterelement), "filter", &got_factory, NULL);
+  fail_unless (got_factory == NULL);
+
+  /* Get factory */
+  g_object_get (filterelement, "filter_factory", &filter_factory, NULL);
+
+  fail_if (g_strcmp0 (filter_factory, "fakesink"));
+  g_free (filter_factory);
+
+  g_object_unref (filter);
+  gst_object_unref (filterelement);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 filterelement_suite (void)
@@ -203,6 +233,7 @@ filterelement_suite (void)
   tcase_add_test (tc_chain, check_invalid_pads_factory);
   tcase_add_test (tc_chain, check_invalid_factory);
   tcase_add_test (tc_chain, provide_created_filter);
+  tcase_add_test (tc_chain, provide_invalid_created_filter);
 
   return s;
 }
