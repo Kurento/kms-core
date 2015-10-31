@@ -232,18 +232,6 @@ function (generate_code)
     message (FATAL_ERROR "No model files found")
   endif ()
 
-  add_custom_target(generate_code
-    touch generate_code
-  )
-
-  add_custom_command (
-    COMMENT               "Regenerating source from: ${MODEL_FILE}"
-    TARGET                generate_code
-    DEPENDS               ${MODEL_FILES}
-    COMMAND               ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR}
-    WORKING_DIRECTORY     ${CMAKE_BINARY_DIR}
-  )
-
   generate_kurento_libraries (${ARGN})
 
 endfunction()
