@@ -8,7 +8,11 @@ message ("If KurentoHelpers is not found, then it is necessary to install
 find_package(KurentoHelpers REQUIRED)
 
 include (KurentoGitHelpers)
+if (DEFINED CMAKE_MODULE_PATH)
+  list(REVERSE CMAKE_MODULE_PATH)
+endif ()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+list(REVERSE CMAKE_MODULE_PATH)
 include (CodeGenerator)
 
 get_values_from_model(PREFIX VALUE MODELS ${CMAKE_SOURCE_DIR}/src/server/interface KEYS version)
