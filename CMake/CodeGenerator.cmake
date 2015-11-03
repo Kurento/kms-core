@@ -29,6 +29,17 @@ set (CMAKE_MODULES_INSTALL_DIR
   "Destination (relative to CMAKE_INSTALL_PREFIX) for cmake modules files"
 )
 
+set (MODULE_EVENTS "")
+set (MODULE_REMOTE_CLASSES "")
+set (MODULE_COMPLEX_TYPES "")
+set (MODULE_DIGEST "")
+set (MODULE_NAME "")
+
+set (EVENTS_PREFIX "Event:")
+set (REMOTE_CLASSES_PREFIX "RemoteClass:")
+set (COMPLEX_TYPES_PREFIX "ComplexType:")
+set (DIGEST_PREFIX "Digest:")
+
 include (CMakeParseArguments)
 
 set (PROCESSED_PREFIX "Processed file:\t")
@@ -79,7 +90,6 @@ endfunction()
 #  GEN_FILES_DIR directory to generate files
 #  SOURCE_FILES_OUTPUT variable to output generated sources
 #  HEADER_FILES_OUTPUT variable to output generated headers
-#  [TEMPLATES_DIR] templates directory
 #  [INTERNAL_TEMPLATES_DIR] internal templates directory,
 #                       only used if TEMPLATES_DIR is not set
 #
@@ -94,7 +104,6 @@ function (generate_sources)
     GEN_FILES_DIR
     SOURCE_FILES_OUTPUT
     HEADER_FILES_OUTPUT
-    TEMPLATES_DIR
     INTERNAL_TEMPLATES_DIR
   )
   set (MULTI_VALUE_PARAMS
@@ -106,6 +115,7 @@ function (generate_sources)
     GEN_FILES_DIR
     SOURCE_FILES_OUTPUT
     HEADER_FILES_OUTPUT
+    INTERNAL_TEMPLATES_DIR
   )
 
   cmake_parse_arguments("PARAM" "${OPTION_PARAMS}" "${ONE_VALUE_PARAMS}" "${MULTI_VALUE_PARAMS}" ${ARGN})
@@ -116,61 +126,93 @@ function (generate_sources)
     endif()
   endforeach()
 
-  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -lf)
-
-  if (DEFINED PARAM_TEMPLATES_DIR)
-    set (COMMAND_LINE ${COMMAND_LINE} -t ${PARAM_TEMPLATES_DIR})
-  elseif (DEFINED PARAM_INTERNAL_TEMPLATES_DIR)
-    set (COMMAND_LINE ${COMMAND_LINE} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
-  else()
-    message (FATAL_ERROR "Missing templates you have to set TEMPLATES_DIR INTERNAL_TEMPLATES_DIR")
-  endif()
+  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
 
   if (PARAM_NO_OVERWRITE)
     set (COMMAND_LINE ${COMMAND_LINE} -n)
   endif()
 
+  set (MODEL_FILES "")
   foreach (MODEL ${PARAM_MODELS})
     if (IS_DIRECTORY ${MODEL})
       file (GLOB_RECURSE MODELS ${MODEL}/*kmd.json)
       list (APPEND MODEL_FILES ${MODELS})
-    elseif (EXISTS ${MODEL})
+    elseif (EXISTS ${MODEL} AND ${MODEL} MATCHES ".*kmd.json")
       list (APPEND MODEL_FILES ${MODEL})
     endif()
   endforeach()
 
-  if (NOT DEFINED MODEL_FILES)
-    message (FATAL_ERROR "No model files found")
-  endif ()
+  if ("cpp_interface" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    foreach (REMOTE_CLASS ${MODULE_REMOTE_CLASSES})
+      list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}.cpp)
+      list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}.hpp)
+    endforeach()
+    foreach (EVENT ${MODULE_EVENTS})
+      list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${EVENT}.cpp)
+      list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${EVENT}.hpp)
+    endforeach()
+    foreach (COMPLEX_TYPE ${MODULE_COMPLEX_TYPES})
+      list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${COMPLEX_TYPE}.cpp)
+      list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${COMPLEX_TYPE}.hpp)
+    endforeach()
+  elseif ("cpp_interface_internal" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    foreach (REMOTE_CLASS ${MODULE_REMOTE_CLASSES})
+      list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}Internal.cpp)
+      list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}Internal.hpp)
+    endforeach()
+  elseif ("cpp_server_internal" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    #Module name to camel case
+    string(SUBSTRING ${MODULE_NAME} 0 1 FIRST_LETTER)
+    string(TOUPPER ${FIRST_LETTER} FIRST_LETTER)
+    string(REGEX REPLACE "^.(.*)" "${FIRST_LETTER}\\1" CAMEL_CASE_MODULE_NAME "${MODULE_NAME}")
 
-  execute_code_generator (
-    OUTPUT_VARIABLE PROCESSOR_OUTPUT
-    EXEC_PARAMS ${COMMAND_LINE}
-  )
+    list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/SerializerExpander${CAMEL_CASE_MODULE_NAME}.cpp)
 
-  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
-    message (FATAL_ERROR "No code generated")
-  else()
-    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+    foreach (REMOTE_CLASS ${MODULE_REMOTE_CLASSES})
+      list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}ImplInternal.cpp)
+      list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${REMOTE_CLASS}ImplFactory.hpp)
+    endforeach()
+  elseif ("cpp_server" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    # Generated directly
+  elseif ("cpp_module" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/Module.cpp)
+  else ()
+    message (FATAL_ERROR "Templates ${PARAM_INTERNAL_TEMPLATES_DIR} not managed")
   endif()
 
-  foreach (_FILE ${PROCESSOR_OUTPUT})
-    if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
-      string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
-      string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
-      if (${_FILE} MATCHES ".*cpp")
-        list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
-        message (STATUS "Generated: ${_FILE}")
-      elseif(${_FILE} MATCHES ".*hpp")
-        list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
-        message (STATUS "Generated: ${_FILE}")
-      endif ()
-      if (ENABLE_CODE_GENERATION_FORMAT_CHECK)
-        if (EXISTS ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
-          file (REMOVE ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
-        endif()
-        execute_process (
-          COMMAND astyle
+  if ("cpp_server" STREQUAL ${PARAM_INTERNAL_TEMPLATES_DIR})
+    if (NOT DEFINED MODEL_FILES)
+      message (FATAL_ERROR "No model files found")
+    endif ()
+
+    execute_code_generator (
+      OUTPUT_VARIABLE PROCESSOR_OUTPUT
+      EXEC_PARAMS ${COMMAND_LINE} -lf
+    )
+
+    if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+      message (FATAL_ERROR "No code generated")
+    else()
+      string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+    endif()
+
+    foreach (_FILE ${PROCESSOR_OUTPUT})
+      if (${_FILE} MATCHES "${PROCESSED_PREFIX}.*")
+        string(REPLACE ${PROCESSED_PREFIX} "" _FILE ${_FILE})
+        string(REGEX REPLACE "\t.*" "" _FILE ${_FILE})
+        if (${_FILE} MATCHES ".*cpp")
+          list (APPEND GENERATED_SOURCE_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
+          message (STATUS "Generated: ${_FILE}")
+        elseif(${_FILE} MATCHES ".*hpp")
+          list (APPEND GENERATED_HEADER_FILES ${PARAM_GEN_FILES_DIR}/${_FILE})
+          message (STATUS "Generated: ${_FILE}")
+        endif ()
+        if (ENABLE_CODE_GENERATION_FORMAT_CHECK)
+          if (EXISTS ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
+            file (REMOVE ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
+          endif()
+          execute_process (
+            COMMAND astyle
             --style=linux
             --indent=spaces=2
             --indent-preprocessor
@@ -184,17 +226,26 @@ function (generate_sources)
             --break-blocks
             -q
             ${PARAM_GEN_FILES_DIR}/${_FILE}
-        )
-        if (EXISTS ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
-          message (WARNING "Style incorrect for file: ${PARAM_GEN_FILES_DIR}/${_FILE}")
+          )
+          if (EXISTS ${PARAM_GEN_FILES_DIR}/${_FILE}.orig)
+            message (WARNING "Style incorrect for file: ${PARAM_GEN_FILES_DIR}/${_FILE}")
+          endif()
         endif()
       endif()
-    endif()
-  endforeach()
+    endforeach()
+  else ()
+
+    add_custom_command(
+      OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
+      COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
+      COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+      DEPENDS ${MODEL_FILES}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+  endif()
 
   set (${PARAM_SOURCE_FILES_OUTPUT} ${${PARAM_SOURCE_FILES_OUTPUT}} ${GENERATED_SOURCE_FILES} PARENT_SCOPE)
   set (${PARAM_HEADER_FILES_OUTPUT} ${${PARAM_HEADER_FILES_OUTPUT}} ${GENERATED_HEADER_FILES} PARENT_SCOPE)
-
 endfunction()
 
 function (generate_code)
@@ -281,6 +332,51 @@ function (generate_kurento_libraries)
   set(CUSTOM_PREFIX "kurento")
 
   set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+
+  ###############################################################
+  # Get reduced kmd
+  ###############################################################
+
+  execute_code_generator (OUTPUT_VARIABLE PROCESSOR_OUTPUT
+    EXEC_PARAMS ${KTOOL_PROCESSOR_LINE} -p)
+
+  if ("${PROCESSOR_OUTPUT}" STREQUAL "")
+    message (FATAL_ERROR "No cmake dependencies generated")
+  else()
+    string(REPLACE "\n" ";" PROCESSOR_OUTPUT ${PROCESSOR_OUTPUT})
+  endif()
+
+  foreach (_FILE ${PROCESSOR_OUTPUT})
+    if (${_FILE} MATCHES "${EVENTS_PREFIX}.*")
+      string(REPLACE ${EVENTS_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t+" "" _FILE ${_FILE})
+      string(REGEX REPLACE " +" "" _FILE ${_FILE})
+      list (APPEND MODULE_EVENTS ${_FILE})
+    elseif (${_FILE} MATCHES "${REMOTE_CLASSES_PREFIX}.*")
+      string(REPLACE ${REMOTE_CLASSES_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t+" "" _FILE ${_FILE})
+      string(REGEX REPLACE " +" "" _FILE ${_FILE})
+      list (APPEND MODULE_REMOTE_CLASSES ${_FILE})
+    elseif (${_FILE} MATCHES "${COMPLEX_TYPES_PREFIX}.*")
+      string(REPLACE ${COMPLEX_TYPES_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t+" "" _FILE ${_FILE})
+      string(REGEX REPLACE " +" "" _FILE ${_FILE})
+      list (APPEND MODULE_COMPLEX_TYPES ${_FILE})
+    elseif (${_FILE} MATCHES "${DIGEST_PREFIX}.*")
+      string(REPLACE ${DIGEST_PREFIX} "" _FILE ${_FILE})
+      string(REGEX REPLACE "\t+" "" _FILE ${_FILE})
+      string(REGEX REPLACE " +" "" _FILE ${_FILE})
+      set (MODULE_DIGEST ${_FILE})
+    endif()
+  endforeach()
+
+  set (MODULE_NAME ${VALUE_NAME})
+
+  ###############################################################
+  # Relaunch cmake if digest changes
+  ###############################################################
+
+
 
   if (NOT ${DISABLE_LIBRARIES_GENERATION})
   ###############################################################
