@@ -618,18 +618,26 @@ function (generate_kurento_libraries)
     const char * getModuleName () {return \"${VALUE_NAME}\";}"
   )
 
-  execute_code_generator (
-    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/
-  )
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/generate_kmd_include.cmake
+"  execute_process (COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/)
 
   file (READ ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json KMD_DATA)
 
-  string (REGEX REPLACE "\n *" "" KMD_DATA ${KMD_DATA})
-  string (REPLACE "\"" "\\\"" KMD_DATA ${KMD_DATA})
-  string (REPLACE "\\n" "\\\\n" KMD_DATA ${KMD_DATA})
-  set (KMD_DATA "\"${KMD_DATA}\"")
+  string (REGEX REPLACE \"\\n *\" \"\" KMD_DATA \${KMD_DATA})
+  string (REPLACE \"\\\"\" \"\\\\\\\"\" KMD_DATA \${KMD_DATA})
+  string (REPLACE \"\\\\n\" \"\\\\\\\\n\" KMD_DATA \${KMD_DATA})
+  set (KMD_DATA \"\\\"\${KMD_DATA}\\\"\")
 
-  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json ${KMD_DATA})
+  file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json \${KMD_DATA})
+"
+  )
+
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/generate_kmd_include.cmake
+    DEPENDS ${MODEL_FILES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
 
   file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/module_descriptor.cpp
     "
@@ -648,6 +656,7 @@ function (generate_kurento_libraries)
     ${CMAKE_CURRENT_BINARY_DIR}/module_version.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/module_name.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/module_descriptor.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json
   )
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}module
