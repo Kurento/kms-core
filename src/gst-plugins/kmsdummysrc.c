@@ -211,6 +211,9 @@ kms_dummy_src_get_property (GObject * object, guint property_id,
     case PROP_VIDEO:
       g_value_set_boolean (value, self->priv->video);
       break;
+    case PROP_AUDIO_FREQ:
+      g_value_set_double (value, self->priv->audio_freq);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
