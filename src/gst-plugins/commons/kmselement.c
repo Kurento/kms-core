@@ -29,6 +29,7 @@
 #define DEFAULT_ACCEPT_EOS TRUE
 #define MAX_BITRATE "max-bitrate"
 #define MIN_BITRATE "min-bitrate"
+#define CODEC_CONFIG "codec-config"
 
 #define DEFAULT_MIN_BITRATE 0
 #define DEFAULT_MAX_BITRATE G_MAXINT
@@ -94,6 +95,8 @@ struct _KmsElementPrivate
   gint min_bitrate;
   gint max_bitrate;
 
+  GstStructure *codec_config;
+
   /* Statistics */
   KmsElementStats stats;
 };
@@ -119,6 +122,7 @@ enum
   PROP_MIN_BITRATE,
   PROP_MAX_BITRATE,
   PROP_MEDIA_STATS,
+  PROP_CODEC_CONFIG,
   PROP_LAST
 };
 
@@ -744,6 +748,22 @@ kms_element_set_property (GObject * object, guint property_id,
       KMS_ELEMENT_UNLOCK (self);
       break;
     }
+    case PROP_CODEC_CONFIG:{
+      KMS_ELEMENT_LOCK (self);
+      if (self->priv->codec_config) {
+        gst_structure_free (self->priv->codec_config);
+        self->priv->codec_config = NULL;
+      }
+
+      self->priv->codec_config = g_value_dup_boxed (value);
+
+      g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
+          CODEC_CONFIG, self->priv->codec_config, NULL);
+      g_object_set (G_OBJECT (kms_element_get_audio_agnosticbin (self)),
+          CODEC_CONFIG, self->priv->codec_config, NULL);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
+    }
     case PROP_MEDIA_STATS:{
       gboolean enable = g_value_get_boolean (value);
 
@@ -796,6 +816,11 @@ kms_element_get_property (GObject * object, guint property_id,
       g_value_set_boolean (value, self->priv->stats_enabled);
       KMS_ELEMENT_UNLOCK (self);
       break;
+    case PROP_CODEC_CONFIG:
+      KMS_ELEMENT_LOCK (self);
+      g_value_set_boxed (value, self->priv->codec_config);
+      KMS_ELEMENT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -828,6 +853,11 @@ kms_element_finalize (GObject * object)
 
   if (element->priv->audio_caps != NULL) {
     gst_caps_unref (element->priv->audio_caps);
+  }
+
+  if (element->priv->codec_config) {
+    gst_structure_free (element->priv->codec_config);
+    element->priv->codec_config = NULL;
   }
 
   /* chain up */
@@ -1073,6 +1103,10 @@ kms_element_class_init (KmsElementClass * klass)
       g_param_spec_boolean ("media-stats", "Media stats",
           "Indicates wheter this element is collecting stats or not",
           FALSE, G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
+  g_object_class_install_property (gobject_class, PROP_CODEC_CONFIG,
+      g_param_spec_boxed ("codec-config", "codec config",
+          "Codec configuration", GST_TYPE_STRUCTURE, G_PARAM_READWRITE));
 
   klass->sink_query = GST_DEBUG_FUNCPTR (kms_element_sink_query_default);
   klass->collect_media_stats =
