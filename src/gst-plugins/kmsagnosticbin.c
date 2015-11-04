@@ -82,6 +82,8 @@ struct _KmsAgnosticBin2Private
 
   gint max_bitrate;
   gint min_bitrate;
+
+  GstStructure *codec_config;
 };
 
 enum
@@ -89,6 +91,7 @@ enum
   PROP_0,
   PROP_MIN_BITRATE,
   PROP_MAX_BITRATE,
+  PROP_CODEC_CONFIG,
   N_PROPERTIES
 };
 
@@ -582,7 +585,8 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
   enc_bin =
       kms_enc_tree_bin_new (caps, TARGET_BITRATE_DEFAULT,
-      self->priv->min_bitrate, self->priv->max_bitrate);
+      self->priv->min_bitrate, self->priv->max_bitrate,
+      self->priv->codec_config);
   if (enc_bin == NULL) {
     return NULL;
   }
@@ -953,6 +957,11 @@ kms_agnostic_bin2_dispose (GObject * object)
     self->priv->input_caps = NULL;
   }
 
+  if (self->priv->codec_config) {
+    gst_structure_free (self->priv->codec_config);
+    self->priv->codec_config = NULL;
+  }
+
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
   /* chain up */
@@ -1030,6 +1039,15 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     }
+    case PROP_CODEC_CONFIG:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      if (self->priv->codec_config) {
+        gst_structure_free (self->priv->codec_config);
+        self->priv->codec_config = NULL;
+      }
+      self->priv->codec_config = g_value_dup_boxed (value);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -1051,6 +1069,11 @@ kms_agnostic_bin2_get_property (GObject * object, guint property_id,
     case PROP_MAX_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
       g_value_set_int (value, self->priv->max_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    case PROP_CODEC_CONFIG:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      g_value_set_boxed (value, self->priv->codec_config);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     default:
@@ -1098,6 +1121,10 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
       g_param_spec_int ("max-bitrate", "max bitrate",
           "Configure the max bitrate to media encoding",
           0, G_MAXINT, MAX_BITRATE_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_CODEC_CONFIG,
+      g_param_spec_boxed ("codec-config", "codec config",
+          "Codec configuration", GST_TYPE_STRUCTURE, G_PARAM_READWRITE));
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 

@@ -63,8 +63,78 @@ struct _KmsEncTreeBinPrivate
   gint min_bitrate;
 };
 
+static const gchar *
+kms_enc_tree_bin_get_name_from_type (EncoderType enc_type)
+{
+  switch (enc_type) {
+    case VP8:
+      return "vp8";
+    case X264:
+      return "x264";
+    case OPENH264:
+      return "openh264";
+    case OPUS:
+      return "opus";
+    case UNSUPPORTED:
+    default:
+      return NULL;
+  }
+}
+
 static void
-configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
+set_encoder_configuration (GstElement * encoder, GstStructure * codec_config,
+    const gchar * config_name)
+{
+  if (!codec_config || !config_name || !encoder) {
+    return;
+  }
+
+  if (gst_structure_has_field_typed (codec_config, config_name,
+          GST_TYPE_STRUCTURE)) {
+    GstStructure *config;
+    guint n_props = 0, i;
+    GParamSpec **props;
+
+    gst_structure_get (codec_config, config_name, GST_TYPE_STRUCTURE, &config,
+        NULL);
+
+    props =
+        g_object_class_list_properties (G_OBJECT_GET_CLASS (encoder), &n_props);
+    for (i = 0; i < n_props; i++) {
+      const gchar *name = g_param_spec_get_name (props[i]);
+
+      if (gst_structure_has_field (config, name)) {
+        GValue final_value = { 0, };
+        gchar *st_value;
+        const GValue *val;
+
+        val = gst_structure_get_value (config, name);
+        st_value = gst_value_serialize (val);
+        g_value_init (&final_value, props[i]->value_type);
+
+        GST_DEBUG_OBJECT (encoder,
+            "Trying to configure property: %s with value %s", name, st_value);
+
+        if (gst_value_deserialize (&final_value, st_value)) {
+          g_object_set_property (G_OBJECT (encoder), name, &final_value);
+        } else {
+          GST_WARNING_OBJECT (encoder, "Property %s cannot be configured to %s",
+              name, st_value);
+        }
+
+        g_free (st_value);
+        g_value_reset (&final_value);
+      }
+    }
+    g_free (props);
+
+    gst_structure_free (config);
+  }
+}
+
+static void
+configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate,
+    GstStructure * codec_configs)
 {
   GST_DEBUG ("Configure encoder: %" GST_PTR_FORMAT, encoder);
   switch (type) {
@@ -115,6 +185,8 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate)
           " not configured because it is not supported", encoder);
       break;
   }
+  set_encoder_configuration (encoder, codec_configs,
+      kms_enc_tree_bin_get_name_from_type (type));
 }
 
 static void
@@ -141,7 +213,7 @@ kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
 
 static void
 kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
-    const GstCaps * caps, gint target_bitrate)
+    const GstCaps * caps, gint target_bitrate, GstStructure * codec_configs)
 {
   GList *encoder_list, *filtered_list, *l;
   GstElementFactory *encoder_factory = NULL;
@@ -174,7 +246,8 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
   if (encoder_factory != NULL) {
     self->priv->enc = gst_element_factory_create (encoder_factory, NULL);
     kms_enc_tree_bin_set_encoder_type (self);
-    configure_encoder (self->priv->enc, self->priv->enc_type, target_bitrate);
+    configure_encoder (self->priv->enc, self->priv->enc_type, target_bitrate,
+        codec_configs);
   }
 
   gst_plugin_feature_list_free (filtered_list);
@@ -372,14 +445,15 @@ check_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 
 static gboolean
 kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
-    gint target_bitrate)
+    gint target_bitrate, GstStructure * codec_configs)
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *output_tee, *capsfilter = NULL;
 
   self->priv->current_bitrate = target_bitrate;
 
-  kms_enc_tree_bin_create_encoder_for_caps (self, caps, target_bitrate);
+  kms_enc_tree_bin_create_encoder_for_caps (self, caps, target_bitrate,
+      codec_configs);
 
   if (self->priv->enc == NULL) {
     GST_WARNING_OBJECT (self, "Invalid encoder for caps: %" GST_PTR_FORMAT,
@@ -453,7 +527,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 
 KmsEncTreeBin *
 kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate,
-    gint min_bitrate, gint max_bitrate)
+    gint min_bitrate, gint max_bitrate, GstStructure * codec_configs)
 {
   KmsEncTreeBin *enc;
 
@@ -462,7 +536,7 @@ kms_enc_tree_bin_new (const GstCaps * caps, gint target_bitrate,
   enc->priv->min_bitrate = min_bitrate;
 
   target_bitrate = KMS_ENC_TREE_BIN_LIMIT (enc, target_bitrate);
-  if (!kms_enc_tree_bin_configure (enc, caps, target_bitrate)) {
+  if (!kms_enc_tree_bin_configure (enc, caps, target_bitrate, codec_configs)) {
     g_object_unref (enc);
     return NULL;
   }

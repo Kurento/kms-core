@@ -1084,6 +1084,184 @@ GST_START_TEST (video_dimension_change)
 }
 
 GST_END_TEST;
+
+static void
+check_properties (GstElement * encoder, const GstStructure * config)
+{
+  guint n_props = 0, i;
+  GParamSpec **props;
+
+  props =
+      g_object_class_list_properties (G_OBJECT_GET_CLASS (encoder), &n_props);
+  for (i = 0; i < n_props; i++) {
+    const gchar *name = g_param_spec_get_name (props[i]);
+
+    if (gst_structure_has_field (config, name)) {
+      GValue final_value = { 0, };
+      gchar *st_value;
+      const GValue *val;
+      gchar *serialized;
+
+      val = gst_structure_get_value (config, name);
+      st_value = gst_value_serialize (val);
+
+      if (G_TYPE_IS_ENUM (props[i]->value_type)
+          || G_TYPE_IS_FLAGS (props[i]->value_type)) {
+        GValue second_serialized = { 0, };
+
+        g_value_init (&second_serialized, props[i]->value_type);
+        gst_value_deserialize (&second_serialized, st_value);
+
+        g_free (st_value);
+        st_value = gst_value_serialize (&second_serialized);
+        g_value_reset (&second_serialized);
+
+        GST_TRACE ("Value type is %s, serialized again to: %s",
+            G_TYPE_IS_ENUM (props[i]->value_type) ? "enum" : "flags", st_value);
+      }
+
+      GST_INFO ("Processing property: %s -> %s", name, st_value);
+      g_value_init (&final_value, props[i]->value_type);
+
+      g_object_get_property (G_OBJECT (encoder), name, &final_value);
+
+      serialized = gst_value_serialize (&final_value);
+
+      fail_unless (serialized);
+      GST_INFO ("Got value from object: %s", serialized);
+      fail_if (g_strcmp0 (st_value, serialized));
+      g_free (serialized);
+      g_free (st_value);
+
+      g_value_reset (&final_value);
+    }
+  }
+  g_free (props);
+}
+
+static gboolean
+check_encoder (GQuark field_id, const GValue * value, gpointer obj)
+{
+  if (G_VALUE_HOLDS (value, GST_TYPE_STRUCTURE)) {
+    if (g_str_has_prefix (GST_OBJECT_NAME (obj), g_quark_to_string (field_id))) {
+      GST_DEBUG ("%" GST_PTR_FORMAT " has matching name", obj);
+      check_properties (obj, GST_STRUCTURE (g_value_get_boxed (value)));
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+static void
+check_element_properties (const GValue * item, gpointer codec_config)
+{
+  GstElement *obj = g_value_get_object (item);
+
+  if (GST_IS_BIN (obj)) {
+    GstIterator *it = gst_bin_iterate_elements (GST_BIN (obj));
+
+    gst_iterator_foreach (it, check_element_properties, codec_config);
+    gst_iterator_free (it);
+  } else if (GST_IS_ELEMENT (obj)) {
+    gst_structure_foreach (GST_STRUCTURE (codec_config), check_encoder, obj);
+  }
+}
+
+static void
+test_codec_config (const gchar * pipeline_str, const gchar * config_str,
+    const gchar * codec_name, const gchar * agnostic_name)
+{
+  GstElement *fakesink, *agnostic;
+  GstStructure *codec_configs, *vp8config;
+  GstElement *pipeline = gst_parse_launch (pipeline_str, NULL);
+  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+  GstIterator *it;
+
+  loop = g_main_loop_new (NULL, TRUE);
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  agnostic = gst_bin_get_by_name (GST_BIN (pipeline), agnostic_name);
+  fail_unless (agnostic);
+  vp8config = gst_structure_new_from_string (config_str);
+  codec_configs =
+      gst_structure_new ("codec-config", codec_name, GST_TYPE_STRUCTURE,
+      vp8config, NULL);
+  gst_structure_free (vp8config);
+
+  g_object_set (agnostic, "codec-config", codec_configs, NULL);
+
+  fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
+
+  g_signal_connect (G_OBJECT (fakesink), "handoff",
+      G_CALLBACK (fakesink_hand_off), loop);
+
+  g_object_unref (fakesink);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_main_loop_run (loop);
+  mark_point ();
+
+  it = gst_bin_iterate_elements (GST_BIN (agnostic));
+  gst_iterator_foreach (it, check_element_properties, codec_configs);
+  gst_iterator_free (it);
+
+  g_object_unref (agnostic);
+
+  gst_structure_free (codec_configs);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+}
+
+GST_START_TEST (test_codec_config_vp8)
+{
+  const gchar *pipeline_str =
+      "videotestsrc is-live=true ! agnosticbin name=ag ! capsfilter caps=video/x-vp8 ! fakesink async=true sync=true name=sink signal-handoffs=true";
+  const gchar *config_str =
+      "vp8,deadline=(string)10,threads=(string)1,cpu-used=16,keyframe-mode=auto";
+  const gchar *codec_name = "vp8";
+  const gchar *agnostic_name = "ag";
+
+  test_codec_config (pipeline_str, config_str, codec_name, agnostic_name);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_codec_config_x264)
+{
+  const gchar *pipeline_str =
+      "videotestsrc is-live=true ! agnosticbin name=ag ! capsfilter caps=video/x-h264 ! fakesink async=true sync=true name=sink signal-handoffs=true";
+  const gchar *config_str =
+      "x264,pass=qual,quantizer=30,speed-preset=faster,tune=zerolatency+stillimage";
+  const gchar *codec_name = "x264";
+  const gchar *agnostic_name = "ag";
+
+  test_codec_config (pipeline_str, config_str, codec_name, agnostic_name);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_codec_config_openh264)
+{
+  const gchar *pipeline_str =
+      "videotestsrc is-live=true ! agnosticbin name=ag ! capsfilter caps=video/x-h264 ! fakesink async=true sync=true name=sink signal-handoffs=true";
+  const gchar *config_str =
+      "openh264,deblocking=off,complexity=low,gop-size=60";
+  const gchar *codec_name = "openh264";
+  const gchar *agnostic_name = "ag";
+
+  test_codec_config (pipeline_str, config_str, codec_name, agnostic_name);
+}
+
+GST_END_TEST;
 /*
  * End of test cases
  */
@@ -1111,6 +1289,10 @@ agnostic2_suite (void)
   tcase_add_test (tc_chain, encoded_input_n_encoded_output);
   tcase_add_test (tc_chain, h264_encoding_odd_dimension);
   tcase_add_test (tc_chain, video_dimension_change);
+
+  tcase_add_test (tc_chain, test_codec_config_vp8);
+  tcase_add_test (tc_chain, test_codec_config_x264);
+  tcase_add_test (tc_chain, test_codec_config_openh264);
 
   return s;
 }
