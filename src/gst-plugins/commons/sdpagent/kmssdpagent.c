@@ -436,6 +436,7 @@ reject_media_answer (const GstSDPMedia * offered)
     return media;
   }
 
+  gst_sdp_media_add_attribute (media, INACTIVE_STR, "");
   gst_sdp_media_add_attribute (media, "mid", mid);
 
   return media;

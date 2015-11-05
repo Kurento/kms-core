@@ -18,6 +18,11 @@
 
 #include <gst/sdp/gstsdpmessage.h>
 
+#define SENDONLY_STR  "sendonly"
+#define RECVONLY_STR  "recvonly"
+#define SENDRECV_STR  "sendrecv"
+#define INACTIVE_STR  "inactive"
+
 #define RTCP_FB "rtcp-fb"
 #define RTCP_FB_FIR "ccm fir"
 #define RTCP_FB_NACK "nack"

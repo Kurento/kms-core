@@ -22,11 +22,6 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "sdp_utils"
 
-#define SENDONLY_STR  "sendonly"
-#define RECVONLY_STR  "recvonly"
-#define SENDRECV_STR  "sendrecv"
-#define INACTIVE_STR  "inactive"
-
 static gchar *directions[] =
     { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR, NULL };
 
