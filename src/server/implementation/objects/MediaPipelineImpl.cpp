@@ -34,7 +34,7 @@ MediaPipelineImpl::busMessage (GstMessage *message)
     }
 
     try {
-      Error error (shared_from_this(), errorMessage , 0,
+      Error error (shared_from_this(), errorMessage , err->code,
                    "UNEXPECTED_PIPELINE_ERROR");
 
       signalError (error);
