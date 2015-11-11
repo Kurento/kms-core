@@ -831,17 +831,8 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   GST_TRACE_OBJECT (user_data, "New caps event: %" GST_PTR_FORMAT, event);
 
   if (current_caps != NULL) {
-    GstStructure *st;
-
     GST_TRACE_OBJECT (user_data, "Current caps: %" GST_PTR_FORMAT,
         current_caps);
-
-    st = gst_caps_get_structure (current_caps, 0);
-    // Remove famerate, width, height, streamheader that make unecessary
-    // agnostic reconstruction happen
-
-    gst_structure_remove_fields (st, "width", "height", "framerate",
-        "streamheader", "codec_data", NULL);
 
     if (!gst_caps_can_intersect (new_caps, current_caps) &&
         !is_raw_caps (current_caps) && !is_raw_caps (new_caps)) {
