@@ -221,6 +221,13 @@ public:
     case HTTP_END_POINT_REGISTRATION_ERROR:
       return "HTTP_END_POINT_REGISTRATION_ERROR";
 
+      /* ICE ERRORS */
+    case ICE_GATHER_CANDIDATES_ERROR:
+      return "ICE_GATHER_CANDIDATES_ERROR";
+
+    case ICE_ADD_CANDIDATE_ERROR:
+      return "ICE_ADD_CANDIDATE_ERROR";
+
     default:
       return "UNDEFINED";
     }
