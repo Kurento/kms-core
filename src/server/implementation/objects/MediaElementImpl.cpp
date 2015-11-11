@@ -209,7 +209,7 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
     }
 
     try {
-      Error error (elem->shared_from_this(), errorMessage , 0,
+      Error error (elem->shared_from_this(), errorMessage , err->code,
                    "UNEXPECTED_ELEMENT_ERROR");
 
       elem->signalError (error);
