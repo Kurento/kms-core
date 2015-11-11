@@ -183,6 +183,26 @@ convertMediaType (std::shared_ptr<MediaType> mediaType)
   throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
 }
 
+static bool
+check_parent_element (GstObject *src, GstObject *elem)
+{
+  GstObject *parent = GST_OBJECT_PARENT ( src);
+
+  if (src == elem) {
+    return true;
+  }
+
+  while (parent != NULL) {
+    if ( parent == elem ) {
+      return true;
+    }
+
+    parent = GST_OBJECT_PARENT (parent);
+  }
+
+  return false;
+}
+
 void
 _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
                                  gpointer data)
@@ -196,7 +216,7 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
       return;
     }
 
-    if (message->src != GST_OBJECT (elem->element) ) {
+    if (!check_parent_element (message->src, GST_OBJECT (elem->element) ) ) {
       return;
     }
 
