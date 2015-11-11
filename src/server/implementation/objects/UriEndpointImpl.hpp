@@ -28,6 +28,7 @@ public:
   void stop ();
 
   virtual std::string getUri ();
+  void checkUri ();
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
@@ -46,6 +47,7 @@ protected:
 private:
 
   std::string uri;
+  std::string absolute_uri;
 
   class StaticConstructor
   {

@@ -8,6 +8,9 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoUriEndpointImpl"
 
+#define DEFAULT_PATH "defaultPath"
+#define DEFAULT_PATH_VALUE "file:///var/kurento"
+
 namespace kurento
 {
 
@@ -17,13 +20,31 @@ typedef enum {
   KMS_URI_END_POINT_STATE_PAUSE
 } KmsUriEndPointState;
 
+void UriEndpointImpl::checkUri ()
+{
+  this->absolute_uri = this->uri;
+
+  //Check if uri is an absolute or relative path.
+  if (! (gst_uri_is_valid (this->absolute_uri.c_str () ) ) ) {
+    std::string path;
+
+    path = getConfigValue <std::string, UriEndpoint> (DEFAULT_PATH,
+           DEFAULT_PATH_VALUE);
+
+    this->absolute_uri = path + this->uri;
+  }
+}
+
 UriEndpointImpl::UriEndpointImpl (const boost::property_tree::ptree &config,
                                   std::shared_ptr< MediaObjectImpl > parent,
                                   const std::string &factoryName, const std::string &uri) :
   EndpointImpl (config, parent, factoryName)
 {
   this->uri = uri;
-  g_object_set (G_OBJECT (getGstreamerElement() ), "uri", uri.c_str(), NULL);
+  checkUri();
+  g_object_set (G_OBJECT (getGstreamerElement() ), "uri",
+                this->absolute_uri.c_str(),
+                NULL);
 }
 
 void UriEndpointImpl::pause ()

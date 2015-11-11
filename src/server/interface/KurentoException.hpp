@@ -85,6 +85,11 @@
 #define SERVER_MANAGER_ERROR_MAX 40599
 #define SERVER_MANAGER_ERROR_KMD_NOT_FOUND 40500
 
+/* URI ERRORS */
+#define URI_ERROR_MIN 40600
+#define URI_ERROR_MAX 40699
+#define URI_PATH_FILE_NOT_FOUND 40600
+
 /* Custom ERRORS */
 /* Reserved codes for custom modules */
 #define CUSTOM_ERROR_MIN 49000
@@ -227,6 +232,10 @@ public:
 
     case ICE_ADD_CANDIDATE_ERROR:
       return "ICE_ADD_CANDIDATE_ERROR";
+
+      /* URI ERRORS */
+    case URI_PATH_FILE_NOT_FOUND:
+      return "URI_PATH_FILE_NOT_FOUND";
 
     default:
       return "UNDEFINED";

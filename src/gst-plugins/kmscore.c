@@ -29,6 +29,7 @@
 #include <kmsdummyduplex.h>
 #include <kmsdummyrtp.h>
 #include <kmsdummysdp.h>
+#include <kmsdummyuri.h>
 
 static gboolean
 kurento_init (GstPlugin * kurento)
@@ -73,6 +74,9 @@ kurento_init (GstPlugin * kurento)
     return FALSE;
 
   if (!kms_dummy_rtp_plugin_init (kurento))
+    return FALSE;
+
+  if (!kms_dummy_uri_plugin_init (kurento))
     return FALSE;
 
   return TRUE;
