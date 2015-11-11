@@ -100,26 +100,22 @@ public:
     code (code) {};
   virtual ~KurentoException() {};
 
-  virtual const char *what() const noexcept
-  {
+  virtual const char *what() const noexcept {
     return message.c_str();
   };
 
-  const std::string &getMessage() const
-  {
+  const std::string &getMessage() const {
     return message;
   };
 
-  int getCode() const
-  {
+  int getCode() const {
     return code;
   }
 
-  std::string getType()
-  {
+  std::string getType() {
     switch (code) {
-    /* Error codes */
-    /* GENERIC MEDIA ERRORS */
+      /* Error codes */
+      /* GENERIC MEDIA ERRORS */
 
 //    case MEDIA_ERROR:
 //      return "MEDIA_ERROR";
@@ -149,7 +145,7 @@ public:
     case NOT_ENOUGH_RESOURCES:
       return "NOT_ENOUGH_RESOURCES";
 
-    /* MediaObject ERRORS */
+      /* MediaObject ERRORS */
     case MEDIA_OBJECT_TYPE_NOT_FOUND:
       return "MEDIA_OBJECT_TYPE_NOT_FOUND";
 
@@ -184,7 +180,7 @@ public:
     case MEDIA_OBJECT_OPERATION_NOT_SUPPORTED:
       return "MEDIA_OBJECT_OPERATION_NOT_SUPPORTED";
 
-    /* SDP ERRORS */
+      /* SDP ERRORS */
     case SDP_CREATE_ERROR:
       return "SDP_CREATE_ERROR";
 
@@ -221,7 +217,7 @@ public:
     case SDP_END_POINT_CANNOT_CREATE_SESSON:
       return "SDP_END_POINT_CANNOT_CREATE_SESSON";
 
-    /* HTTP ERRORS */
+      /* HTTP ERRORS */
     case HTTP_END_POINT_REGISTRATION_ERROR:
       return "HTTP_END_POINT_REGISTRATION_ERROR";
 
