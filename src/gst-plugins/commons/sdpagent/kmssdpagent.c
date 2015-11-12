@@ -116,7 +116,6 @@ struct _KmsSdpAgentPrivate
   GstSDPMessage *local_description;
   GstSDPMessage *remote_description;
   gboolean use_ipv6;
-  gboolean bundle;
   gchar *addr;
 
   GSList *handlers;
