@@ -27,7 +27,7 @@ gboolean
 kms_i_sdp_media_extension_add_offer_attributes (KmsISdpMediaExtension * ext,
     GstSDPMedia * offer, GError ** error)
 {
-  g_return_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext));
+  g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->add_offer_attributes (ext,
@@ -38,7 +38,7 @@ gboolean
 kms_i_sdp_media_extension_add_answer_attributes (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, GstSDPMedia * answer, GError ** error)
 {
-  g_return_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext));
+  g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->add_answer_attributes (ext,
@@ -50,7 +50,7 @@ kms_i_sdp_media_extension_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
     GstSDPMedia * answer, SdpMessageContext * ctx)
 {
-  g_return_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext));
+  g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->can_insert_attribute (ext,
@@ -61,7 +61,7 @@ gboolean
 kms_i_sdp_media_extension_process_answer_attributes (KmsISdpMediaExtension *
     ext, const GstSDPMedia * answer, GError ** error)
 {
-  g_return_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext));
+  g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->process_answer_attributes

@@ -454,7 +454,7 @@ void
 kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler * handler,
     const gchar * bwtype, guint bandwidth)
 {
-  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), FALSE);
+  g_return_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler));
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_bandwidth (handler,
       bwtype, bandwidth);
