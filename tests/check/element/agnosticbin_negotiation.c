@@ -133,11 +133,11 @@ push_sample (gpointer data)
   gst_caps_unref (caps);
 
   time += GST_SECOND / framerate;
-  width += 2;
+  width += 10;
   if (width > 1640) {
     width = 640;
   }
-  height += 2;
+  height += 20;
   if (height > 1480) {
     height = 480;
   }
@@ -150,7 +150,7 @@ GST_START_TEST (negotiation_performance)
   GstElement *fakesink, *appsrc;
   GstElement *pipeline =
       gst_parse_launch
-      ("appsrc name=src do-timestamp=true format=time ! agnosticbin ! video/x-vp8 ! agnosticbin ! video/x-h264 ! agnosticbin ! video/x-raw ! fakesink async=false sync=false name=sink signal-handoffs=true",
+      ("appsrc name=src do-timestamp=true format=time ! agnosticbin ! agnosticbin ! agnosticbin ! fakesink async=false sync=false name=sink signal-handoffs=true",
       NULL);
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
@@ -196,10 +196,8 @@ agnostic2_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-  if (FALSE) {
-    // Disable this test until we fix buffer lost in agnosticbin
-    tcase_add_test (tc_chain, negotiation_performance);
-  }
+
+  tcase_add_test (tc_chain, negotiation_performance);
 
   return s;
 }

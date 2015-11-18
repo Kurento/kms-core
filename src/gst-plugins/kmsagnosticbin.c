@@ -1127,6 +1127,11 @@ kms_agnostic_bin2_sink_query (GstPad * pad, GstObject * parent,
 {
   gboolean ret;
 
+  if (GST_QUERY_TYPE (query) == GST_QUERY_ACCEPT_CAPS) {
+    gst_query_set_accept_caps_result (query, TRUE);
+    return TRUE;
+  }
+
   ret = gst_pad_query_default (pad, parent, query);
 
   if (ret && GST_QUERY_TYPE (query) == GST_QUERY_LATENCY) {
