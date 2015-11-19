@@ -211,9 +211,10 @@ kms_vp8_parse_handle_frame (GstBaseParse * parse, GstBaseParseFrame * frame,
   }
 
   if (update_caps && kms_vp8_parse_check_caps_ready (self)) {
-    GstCaps *caps;
+    GstCaps *caps = gst_pad_get_current_caps (GST_BASE_PARSE_SINK_PAD (parse));
 
-    caps = gst_caps_new_simple ("video/x-vp8", "width", G_TYPE_INT,
+    caps = gst_caps_copy (caps);
+    gst_caps_set_simple (caps, "width", G_TYPE_INT,
         self->priv->width, "height", G_TYPE_INT, self->priv->height,
         "framerate", GST_TYPE_FRACTION, self->priv->framerate_num,
         self->priv->framerate_denom, NULL);
