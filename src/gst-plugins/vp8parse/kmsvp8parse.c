@@ -166,23 +166,6 @@ kms_vp8_parse_force_key_unit_event (GstBaseParse * self)
   gst_pad_push_event (GST_BASE_PARSE_SINK_PAD (self), event);
 }
 
-static gboolean
-kms_vp8_parse_sink_event (GstBaseParse * parse, GstEvent * event)
-{
-  if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
-    KmsVp8Parse *self = KMS_VP8_PARSE (parse);
-
-    KMS_VP8_PARSE_LOCK (parse);
-    if (!self->priv->started) {
-      gst_pad_push_event (GST_BASE_PARSE_SRC_PAD (parse),
-          gst_event_ref (event));
-    }
-    KMS_VP8_PARSE_UNLOCK (parse);
-  }
-  return GST_BASE_PARSE_CLASS (kms_vp8_parse_parent_class)->sink_event (parse,
-      event);
-}
-
 static GstFlowReturn
 kms_vp8_parse_handle_frame (GstBaseParse * parse, GstBaseParseFrame * frame,
     gint * skipsize)
@@ -331,7 +314,6 @@ kms_vp8_parse_class_init (KmsVp8ParseClass * klass)
   base_parse_class->start = GST_DEBUG_FUNCPTR (kms_vp8_parse_start);
   base_parse_class->handle_frame =
       GST_DEBUG_FUNCPTR (kms_vp8_parse_handle_frame);
-  base_parse_class->sink_event = GST_DEBUG_FUNCPTR (kms_vp8_parse_sink_event);
   /* Properties initialization */
 
   g_type_class_add_private (klass, sizeof (KmsVp8ParsePrivate));

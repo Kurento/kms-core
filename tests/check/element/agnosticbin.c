@@ -973,22 +973,6 @@ GST_START_TEST (h264_encoding_odd_dimension)
 
 GST_END_TEST;
 
-static GstPadProbeReturn
-event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
-{
-  GstEvent *event = gst_pad_probe_info_get_event (info);
-
-  if (GST_EVENT_TYPE (event) == GST_EVENT_CUSTOM_UPSTREAM) {
-    const GstStructure *st = gst_event_get_structure (event);
-    gboolean key_frame_requested =
-        g_strcmp0 (gst_structure_get_name (st), "GstForceKeyUnit") == 0;
-
-    fail_if (key_frame_requested);
-  }
-
-  return GST_PAD_PROBE_OK;
-}
-
 static void
 change_dimension (gpointer pipeline)
 {
@@ -997,15 +981,6 @@ change_dimension (gpointer pipeline)
       ("video/x-raw,format=(string)I420,width=(int)640,height=(int)480");
   GstElement *capsfilter =
       gst_bin_get_by_name (GST_BIN (pipeline), "capsfilter");
-  GstElement *vp8caps;
-  GstPad *sink;
-
-  vp8caps = gst_bin_get_by_name (GST_BIN (pipeline), "vp8caps");
-  sink = gst_element_get_static_pad (vp8caps, "sink");
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_BOTH, event_probe, NULL,
-      NULL);
-  g_object_unref (sink);
-  g_object_unref (vp8caps);
 
   g_object_set (capsfilter, "caps", caps, NULL);
 
