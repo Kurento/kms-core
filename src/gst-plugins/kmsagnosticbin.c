@@ -106,6 +106,9 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
     GST_PAD_REQUEST,
     GST_STATIC_CAPS_ANY);
 
+static gboolean kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self,
+    GstPad * pad);
+
 static void
 kms_agnostic_bin2_insert_bin (KmsAgnosticBin2 * self, GstBin * bin)
 {
@@ -407,12 +410,52 @@ remove_target_pad (GstPad * pad)
   g_object_unref (target);
 }
 
+static gboolean
+proxy_src_pad_query_function (GstPad * pad, GstObject * parent,
+    GstQuery * query)
+{
+  gboolean ret = gst_pad_query_default (pad, parent, query);
+
+  if (!ret) {
+    return ret;
+  }
+
+  if (GST_QUERY_TYPE (query) == GST_QUERY_ACCEPT_CAPS) {
+    gboolean accepted;
+
+    gst_query_parse_accept_caps_result (query, &accepted);
+
+    if (!accepted) {
+      GstProxyPad *gp = gst_proxy_pad_get_internal (GST_PROXY_PAD (pad));
+      KmsAgnosticBin2 *self = NULL;
+
+      GST_ERROR_OBJECT (pad, "Caps not accepted: %" GST_PTR_FORMAT, query);
+
+      if (gp) {
+        self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (gp));
+      }
+
+      if (self) {
+        KMS_AGNOSTIC_BIN2_LOCK (self);
+        remove_target_pad (GST_PAD_CAST (gp));
+        kms_agnostic_bin2_process_pad (self, GST_PAD_CAST (gp));
+        KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      }
+
+      g_object_unref (gp);
+    }
+  }
+
+  return ret;
+}
+
 static void
 kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement * tee, GstCaps * caps)
 {
   GstElement *queue = gst_element_factory_make ("queue", NULL);
   GstPad *target;
+  GstProxyPad *proxy;
 
   gst_bin_add (GST_BIN (self), queue);
   gst_element_sync_state_with_parent (queue);
@@ -453,6 +496,12 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   }
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (pad), target);
+
+  proxy = gst_proxy_pad_get_internal (GST_PROXY_PAD (pad));
+  gst_pad_set_query_function (GST_PAD_CAST (proxy),
+      proxy_src_pad_query_function);
+  g_object_unref (proxy);
+
   g_object_unref (target);
   link_element_to_tee (tee, queue);
 }
