@@ -57,5 +57,7 @@ GstElement * kms_tree_bin_get_output_tee (KmsTreeBin * self);
 
 void kms_tree_bin_unlink_input_element_from_tee (KmsTreeBin * self);
 
+GstCaps * kms_tree_bin_get_input_caps (KmsTreeBin *self);
+
 G_END_DECLS
 #endif /* __KMS_TREE_BIN_H__ */
