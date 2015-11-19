@@ -469,16 +469,17 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
   bins = g_hash_table_get_values (self->priv->bins);
   for (l = bins; l != NULL && bin == NULL; l = l->next) {
-    GstElement *output_tee =
-        kms_tree_bin_get_output_tee (KMS_TREE_BIN (l->data));
+    KmsTreeBin *tree_bin = KMS_TREE_BIN (l->data);
+    GstElement *output_tee = kms_tree_bin_get_output_tee (tree_bin);
     GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
-    GstCaps *current_caps = gst_pad_get_current_caps (tee_sink);
+    GstCaps *current_caps = kms_tree_bin_get_input_caps (tree_bin);
 
     if (current_caps == NULL) {
       current_caps = gst_pad_get_allowed_caps (tee_sink);
       GST_TRACE_OBJECT (l->data, "Allowed caps are: %" GST_PTR_FORMAT,
           current_caps);
     } else {
+      gst_caps_ref (current_caps);
       GST_TRACE_OBJECT (l->data, "Current caps are: %" GST_PTR_FORMAT,
           current_caps);
     }
