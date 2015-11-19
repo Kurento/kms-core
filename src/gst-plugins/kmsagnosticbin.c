@@ -56,7 +56,6 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
   g_rec_mutex_unlock (&KMS_AGNOSTIC_BIN2 (obj)->priv->thread_mutex) \
 )
 
-#define OLD_CHAIN_KEY "kms-old-chain-key"
 #define CONFIGURED_KEY "kms-configured-key"
 
 #define TARGET_BITRATE_DEFAULT 300000
@@ -309,60 +308,12 @@ remove_tee_pad_on_unlink (GstPad * pad, GstPad * peer, gpointer user_data)
   g_object_unref (tee);
 }
 
-static GstFlowReturn
-no_fail_chain (GstPad * pad, GstObject * parent, GstBuffer * buffer)
-{
-  GstFlowReturn ret;
-  GstPadChainFunction old_func =
-      g_object_get_data (G_OBJECT (pad), OLD_CHAIN_KEY);
-
-  if (old_func == NULL) {
-    return GST_FLOW_OK;
-  }
-
-  ret = old_func (pad, parent, buffer);
-
-  if (G_UNLIKELY (ret != GST_FLOW_OK)) {
-    GstPad *peer;
-
-    switch (ret) {
-      case GST_FLOW_FLUSHING:
-        break;
-      default:
-        GST_WARNING_OBJECT (pad, "Chain returned: %s. It will be unlinked",
-            gst_flow_get_name (ret));
-        peer = gst_pad_get_peer (pad);
-        if (peer != NULL) {
-          gst_pad_unlink (peer, pad);
-          g_object_unref (peer);
-        }
-    }
-  }
-
-  return GST_FLOW_OK;
-}
-
 static void
 link_element_to_tee (GstElement * tee, GstElement * element)
 {
   GstPad *tee_src = gst_element_get_request_pad (tee, "src_%u");
   GstPad *element_sink = gst_element_get_static_pad (element, "sink");
   GstPadLinkReturn ret;
-  GstPadChainFunction old_func;
-
-  /*
-   * HACK Add a custom chain function that does not return error, this way
-   * we avoid race conditions produced by reconnect events not using the stream
-   * lock
-   */
-  old_func = GST_PAD_CHAINFUNC (element_sink);
-
-  if (old_func != NULL) {
-    if (old_func != no_fail_chain) {
-      g_object_set_data (G_OBJECT (element_sink), OLD_CHAIN_KEY, old_func);
-    }
-    gst_pad_set_chain_function (element_sink, no_fail_chain);
-  }
 
   remove_element_on_unlinked (element, "src", "sink");
   g_signal_connect (tee_src, "unlinked", G_CALLBACK (remove_tee_pad_on_unlink),
