@@ -401,7 +401,6 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
 
   bytesSent = packetsSent = bitRate = G_GUINT64_CONSTANT (0);
   pliCount = firCount = remb = rtt = 0;
-  roundTripTime = 0.0;
 
   gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
                      "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",

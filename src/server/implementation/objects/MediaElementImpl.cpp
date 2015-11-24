@@ -264,7 +264,6 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
   do {
     if (retry) {
       GST_DEBUG_OBJECT (pad, "Retriying connection");
-      retry = false;
     }
 
     if (GST_PAD_IS_SRC (pad) ) {
