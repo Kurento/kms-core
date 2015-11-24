@@ -499,6 +499,7 @@ kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
   switch (type) {
     case KMS_ELEMENT_PAD_TYPE_AUDIO:
       media_type = KMS_MEDIA_TYPE_AUDIO;
+      break;
     case KMS_ELEMENT_PAD_TYPE_VIDEO:
       media_type = KMS_MEDIA_TYPE_VIDEO;
       break;
