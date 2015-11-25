@@ -1,3 +1,96 @@
+kms-core-6.0 (6.2.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+  * basesdpendpoint: Add address while creating the session
+  * SdpEndpoint: Add maxAudioRecvBandwidth property
+  * simplify .gitignore
+  * basertpendpoint: Add port range properties
+  * irtpconnection: Require port range properties in cunstruction
+  * MediaSet: getMediaSet returns an object that can be modified
+  * SdpEndpointImpl: Allow missing configuration for audio and video codecs
+  * base(rtp|sdp)endpoint: Generate default sessions for testing
+  * BaseRtpEndpoint: Add configuration for port ranges
+  * basertpsession: Check if connection is NULL before storing it
+
+  [ Santiago Carot-Nemesio ]
+  * CMakeLists: Fix gstreamer version
+  * kmsisdpmediaextension: Allow to process answer attributes
+  * kmssdpsdesext: Add extension to negotiate SRTP crypto attributes
+  * kmssdprtpsavpmediahandler: Add media handler for protocol RTP/SAVP
+  * sdp_utils: Add function to get fmtp attribute
+  * kmsbasertpendpoint: Complement caps with fmtp params
+
+  [ Miguel París Díaz ]
+  * kmsbasertpsession: allow managing other SSRCs (bundle case)
+  * kmsremb: resend remb_on_connect value when not probed yet
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdpEndpoint: Provide a proper sdp for process answer
+  * sdpEndpoint: Use a factory to create SdpEndpoint
+  * SdpEndpoint: Add test for empty offer and asnwer
+  * sdpEndpoint: Add test for processing a wrong offer
+  * sdpEndpoint: Raise error when sdp answer cannot be processed
+
+  [ Santiago Carot-Nemesio ]
+  * SdpEndpointImpl: Postpone creation of session to make sure that object is configured before session is created
+
+  [ Jose Antonio Santos Cadenas ]
+  * filterelement: Allow give an already created filter
+  * filterelement: Check that invalid filters cannot be set
+  * CMakeList: Give more priority to local cmake files
+  * CMakeLists: Remove unused code
+  * agnosticbin: Add property to allow configuration of encoders
+  * dummysrc: Add missing property in get_property
+  * kmselement: Add codec configuration property
+
+  [ Miguel París Díaz ]
+  * sdpagent: set media as "inactive" when is rejected
+
+  [ David Fernandez ]
+  * MediaPipelineImpl: Add error code from message to error event
+  * MediaElementImpl: Indent
+  * MediaElementImpl: Add error code to error event
+
+  [ Jose Antonio Santos Cadenas ]
+  * Revert "agnosticbin: Avoid reconstruction when dimensions or framerate changes"
+
+  [ David Fernandez ]
+  * MediaElementImpl: Check if the error comes from this element
+  * KurentoException: Indent
+  * KurentoException: Add error codes to avoid throw ice exceptions as UNDEFINED
+
+  [ Miguel París Díaz ]
+  * sdpagent: remove unnecessary private field
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdp: Fix compilation warnings
+
+  [ David Fernandez ]
+  * UriEndpoint: Add a default path for relative paths
+  * debian: Create the folder /var/kurento after install debian package
+  * agnostic: Avoid drop events in reconfigure errors
+  * kmsrecordingprofile:change audio codec of webm profile from vorbis to opus
+
+  [ Jose Antonio Santos Cadenas ]
+  * agnosticbin: Handle query caps an query accept caps
+  * vp8parse: Avoid sending caps event twice
+  * vp8parse: Get the rid of mutex
+  * vp8parse: Use sink caps to generate output caps
+  * treebin: Add function to get caps from accept caps query or caps event
+  * agnosticbin: Use kms_tree_bin_get_input_caps function
+  * agnosticbin: Reconnect a branch when a negotiation will fail
+  * agnosticbin: Try to not reconstruct the internal elements if possible
+  * agnosticbin: Remove hack on queue chain function
+  * kmselement: Add missing break
+  * MediaElementImpl: Indent code correctly
+  * Remove assignations that are never read
+  * Prepare release 6.2.0
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Wed, 25 Nov 2015 12:11:52 +0100
+
 kms-core-6.0 (6.1.2) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

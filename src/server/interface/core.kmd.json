@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "version": "6.1.3-dev",
+  "version": "6.2.0",
   "code": {
     "kmd": {
       "java": {
