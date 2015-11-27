@@ -115,3 +115,19 @@
   fun:g_thread_pool_push
   ...
 }
+{
+  Quark init
+  Memcheck:Leak
+  ...
+  fun:g_quark_init
+  ...
+}
+{
+  FFmpeg init
+  Memcheck:Leak
+  ...
+  fun:gst_ffmpeg_cfg_init
+  fun:gst_ffmpegvidenc_register
+  fun:plugin_init
+  ...
+}
