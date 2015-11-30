@@ -525,7 +525,8 @@ kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
 
 GstPad *
 kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
-    KmsElementPadType type, const gchar * description)
+    KmsElementPadType type, const gchar * description, KmsAddPadFunc func,
+    gpointer user_data)
 {
   GstPad *pad;
   gchar *pad_name;
@@ -550,6 +551,10 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
       accept_eos_probe, self, NULL);
   g_signal_connect (G_OBJECT (pad), "unlinked",
       G_CALLBACK (send_flush_on_unlink), NULL);
+
+  if (func != NULL) {
+    func (pad, user_data);
+  }
 
   if (GST_STATE (self) >= GST_STATE_PAUSED
       || GST_STATE_PENDING (self) >= GST_STATE_PAUSED

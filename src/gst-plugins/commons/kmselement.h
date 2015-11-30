@@ -84,10 +84,12 @@ GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
 GstElement * kms_element_get_data_tee (KmsElement * self);
 
 #define kms_element_connect_sink_target(self, target, type)   \
-  kms_element_connect_sink_target_full (self, target, type, NULL)
+  kms_element_connect_sink_target_full (self, target, type, NULL, NULL, NULL)
+
+typedef void (*KmsAddPadFunc) (GstPad *pad, gpointer data);
 
 GstPad *kms_element_connect_sink_target_full (KmsElement *self, GstPad * target,
-    KmsElementPadType type, const gchar *description);
+    KmsElementPadType type, const gchar *description, KmsAddPadFunc func, gpointer user_data);
 void kms_element_remove_sink (KmsElement *self, GstPad * pad);
 
 #define kms_element_remove_sink_by_type(self, type) \
