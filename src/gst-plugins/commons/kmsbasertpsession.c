@@ -175,21 +175,6 @@ kms_base_rtp_session_create_bundle_connection_default (KmsBaseRtpSession *
   return NULL;
 }
 
-static gchar *
-str_media_type (KmsMediaType type)
-{
-  switch (type) {
-    case KMS_MEDIA_TYPE_VIDEO:
-      return "video";
-    case KMS_MEDIA_TYPE_AUDIO:
-      return "audio";
-    case KMS_MEDIA_TYPE_DATA:
-      return "data";
-    default:
-      return "<unsupported>";
-  }
-}
-
 static void
 kms_base_rtp_session_latency_cb (GstPad * pad, KmsMediaType type,
     GstClockTimeDiff t, gpointer user_data)
@@ -206,7 +191,7 @@ kms_base_rtp_session_latency_cb (GstPad * pad, KmsMediaType type,
       break;
     default:
       GST_DEBUG_OBJECT (pad, "No stast calculated for media (%s)",
-          str_media_type (type));
+          kms_utils_media_type_to_str (type));
       return;
   }
 

@@ -943,6 +943,21 @@ kms_utils_get_uuid (GObject * obj)
   return (const gchar *) g_object_get_data (obj, KMS_KEY_ID);
 }
 
+const char *
+kms_utils_media_type_to_str (KmsMediaType type)
+{
+  switch (type) {
+    case KMS_MEDIA_TYPE_VIDEO:
+      return "video";
+    case KMS_MEDIA_TYPE_AUDIO:
+      return "audio";
+    case KMS_MEDIA_TYPE_DATA:
+      return "data";
+    default:
+      return "<unsupported>";
+  }
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

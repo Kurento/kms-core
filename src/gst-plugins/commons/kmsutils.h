@@ -76,6 +76,8 @@ const GstStructure * kms_utils_get_structure_by_name (const GstStructure *str, c
 void kms_utils_set_uuid (GObject *obj);
 const gchar * kms_utils_get_uuid (GObject *obj);
 
+const char * kms_utils_media_type_to_str (KmsMediaType type);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
