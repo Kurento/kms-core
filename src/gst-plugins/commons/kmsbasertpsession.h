@@ -19,9 +19,6 @@
 #include <gst/gst.h>
 #include "kmssdpsession.h"
 #include "kmsirtpsessionmanager.h"
-#include "sdpagent/kmssdpagent.h"
-#include "sdpagent/kmssdppayloadmanager.h"
-#include "kmsbasesdpendpoint.h"
 #include "kmsirtpconnection.h"
 #include "kmsconnectionstate.h"
 
