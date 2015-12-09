@@ -12,8 +12,8 @@
  * Lesser General Public License for more details.
  *
  */
-#ifndef __KMS_SDP_AGENT_H_
-#define __KMS_SDP_AGENT_H_
+#ifndef __KMS_SDP_AGENT_H__
+#define __KMS_SDP_AGENT_H__
 
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
@@ -58,14 +58,18 @@ typedef enum
     KMS_TYPE_SDP_AGENT                  \
   )                                     \
 )
-#define KMS_IS_SDP_AGENT_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SDP_AGENT))
-#define KMS_SDP_AGENT_GET_CLASS(obj) (  \
-  G_TYPE_INSTANCE_GET_CLASS (              \
-    (obj),                                 \
-    KMS_TYPE_SDP_AGENT,                 \
-    KmsSdpAgentClass                    \
+#define KMS_IS_SDP_AGENT_CLASS(klass) (    \
+  G_TYPE_CHECK_CLASS_TYPE (                \
+    (klass),                               \
+    KMS_TYPE_SDP_AGENT                     \
   )                                        \
+)
+#define KMS_SDP_AGENT_GET_CLASS(obj) (    \
+  G_TYPE_INSTANCE_GET_CLASS (             \
+    (obj),                                \
+    KMS_TYPE_SDP_AGENT,                   \
+    KmsSdpAgentClass                      \
+  )                                       \
 )
 typedef struct _KmsSdpAgent KmsSdpAgent;
 typedef struct _KmsSdpAgentClass KmsSdpAgentClass;
@@ -114,4 +118,4 @@ void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
 
 G_END_DECLS
 
-#endif /* __KMS_SDP_AGENT_H_ */
+#endif /* __KMS_SDP_AGENT_H__ */
