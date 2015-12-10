@@ -2211,15 +2211,13 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
 
 static void
 kms_base_rtp_endpoint_collect_connections_stats (gpointer key, gpointer value,
-    gpointer user_data)
+    GstStructure * session_stats)
 {
   KmsBaseRtpSession *session = KMS_BASE_RTP_SESSION (value);
-  GstStructure *sessions, *stats;
+  GstStructure *stats;
 
   g_object_get (session, "stats", &stats, NULL);
-  sessions = GST_STRUCTURE_CAST (user_data);
-
-  gst_structure_set (sessions, gst_structure_get_name (stats),
+  gst_structure_set (session_stats, gst_structure_get_name (stats),
       GST_TYPE_STRUCTURE, stats, NULL);
   gst_structure_free (stats);
 }
@@ -2265,7 +2263,7 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 
   session_stats = gst_structure_new_empty (KMS_SESSIONS_STRUCT_NAME);
   g_hash_table_foreach (sessions,
-      kms_base_rtp_endpoint_collect_connections_stats, session_stats);
+      (GHFunc) kms_base_rtp_endpoint_collect_connections_stats, session_stats);
 
   gst_structure_set (e_stats, gst_structure_get_name (session_stats),
       GST_TYPE_STRUCTURE, session_stats, NULL);
