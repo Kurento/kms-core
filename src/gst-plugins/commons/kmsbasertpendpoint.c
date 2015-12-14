@@ -147,6 +147,8 @@ rtp_media_config_new ()
 
 struct _KmsBaseRtpEndpointPrivate
 {
+  KmsBaseRtpSession *sess;
+
   GstElement *rtpbin;
   KmsMediaState media_state;
 
@@ -1299,6 +1301,13 @@ kms_base_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
   if (*sess == NULL) {
     goto end;
   }
+
+  if (self->priv->sess != NULL) {
+    GST_ERROR_OBJECT (self, "Only one session allowed");
+    goto end;
+  }
+
+  self->priv->sess = KMS_BASE_RTP_SESSION (*sess);
 
   g_object_get (base_sdp, "media-stats", &media_stats, NULL);
 
