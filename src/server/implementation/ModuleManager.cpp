@@ -31,16 +31,18 @@ namespace kurento
 typedef const char * (*GetVersionFunc) ();
 typedef const char * (*GetNameFunc) ();
 typedef const char * (*GetDescFunc) ();
+typedef const char * (*GetGenerationTimeFunc) ();
 
 int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
   void *registrarFactory, *getVersion = NULL, *getName = NULL,
-                           *getDescriptor = NULL;
+                           *getDescriptor = NULL, *getGenerationTime = NULL;
   std::string moduleFileName;
   std::string moduleName;
   std::string moduleVersion;
+  std::string generationTime;
   const char *moduleDescriptor = NULL;
 
   boost::filesystem::path path (modulePath);
@@ -102,10 +104,18 @@ ModuleManager::loadModule (std::string modulePath)
     moduleDescriptor = ( (GetDescFunc) getDescriptor) ();
   }
 
-  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (
-                                    moduleName, moduleVersion, moduleDescriptor, factories) );
+  if (!module.get_symbol ("getGenerationTime", getGenerationTime) ) {
+    GST_WARNING ("Cannot get module generationTime");
+  } else {
+    generationTime = ( (GetGenerationTimeFunc) getGenerationTime) ();
+  }
 
-  GST_INFO ("Loaded %s version %s", moduleName.c_str() , moduleVersion.c_str() );
+  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (
+                                    moduleName, moduleVersion, generationTime,
+                                    moduleDescriptor, factories) );
+
+  GST_INFO ("Loaded %s version %s generated at %s", moduleName.c_str() ,
+            moduleVersion.c_str(), generationTime.c_str() );
 
   return 0;
 }

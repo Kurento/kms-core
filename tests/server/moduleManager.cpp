@@ -100,4 +100,6 @@ BOOST_AUTO_TEST_CASE (load_modules)
               data->getVersion() << std::endl;
     BOOST_ERROR ("Wrong module version");
   }
+
+  BOOST_CHECK (! data->getGenerationTime().empty() );
 }

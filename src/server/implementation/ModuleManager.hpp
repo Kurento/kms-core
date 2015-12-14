@@ -32,9 +32,11 @@ class ModuleData
 {
 public:
   ModuleData (const std::string &name, const std::string &version,
+              const std::string &compilationTime,
               const char *descriptor,
               const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories) :
-    name (name), version (version), descriptor (descriptor), factories (factories)
+    name (name), version (version), generationTime (compilationTime),
+    descriptor (descriptor), factories (factories)
   {
   }
 
@@ -46,6 +48,11 @@ public:
   std::string getVersion () const
   {
     return version;
+  }
+
+  std::string getGenerationTime () const
+  {
+    return generationTime;
   }
 
   std::string getDescriptor () const
@@ -67,6 +74,7 @@ public:
 private:
   std::string name;
   std::string version;
+  std::string generationTime;
   const char *descriptor;
   const std::map <std::string, std::shared_ptr <kurento::Factory > > &factories;
 };

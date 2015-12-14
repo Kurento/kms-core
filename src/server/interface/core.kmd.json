@@ -702,6 +702,11 @@
           "type": "String"
         },
         {
+          "name": "generationTime",
+          "doc": "Time that this module was generated",
+          "type": "String"
+        },
+        {
           "name": "factories",
           "doc": "Module available factories",
           "type": "String[]"

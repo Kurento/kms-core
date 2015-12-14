@@ -79,7 +79,8 @@ F::F ()
     }
 
     modules.push_back (std::shared_ptr<ModuleInfo> (new ModuleInfo (
-                         moduleIt.second->getVersion(), moduleIt.second->getName(), factories) ) );
+                         moduleIt.second->getVersion(), moduleIt.second->getName(),
+                         moduleIt.second->getGenerationTime(), factories) ) );
   }
 
   std::shared_ptr<ServerType> type (new ServerType (ServerType::KMS) );
