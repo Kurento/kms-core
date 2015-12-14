@@ -45,12 +45,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpSdesExt, kms_sdp_sdes_ext,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_sdes_ext_debug_category, OBJECT_NAME,
         0, "debug category for sdp sdes_ext"));
 
-#define index_of(str,chr) ({  \
-  gint __pos;                 \
-  gchar *__c;                 \
-  __c = strchr (str, chr);    \
-  __pos = (gint)(__c - str);  \
-  __pos;                      \
+#define index_of(str,chr) ({      \
+  gint __pos = -1;                \
+  gchar *__c;                     \
+  __c = strchr ((str), (chr));    \
+  if (__c != NULL) {              \
+    __pos = (gint)(__c - (str));  \
+  }                               \
+  __pos;                          \
 })
 
 #define MAX_CRYPTO_TAG 999999999
