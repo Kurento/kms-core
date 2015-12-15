@@ -59,6 +59,7 @@ Depends: kms-core-6.0 (= ${binary:Version}),
  libgstreamer-plugins-base1.5-dev (>= 1.5.0~0),
  libboost-system-dev,
  libboost-filesystem-dev,
+ libboost-test-dev,
  kurento-module-creator-4.0
 Breaks:
  kms-core-dev
