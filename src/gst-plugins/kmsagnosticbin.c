@@ -848,13 +848,12 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   self->priv->input_caps = gst_caps_copy (new_caps);
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
-  GST_TRACE_OBJECT (user_data, "New caps event: %" GST_PTR_FORMAT, event);
+  GST_TRACE_OBJECT (self, "New caps event: %" GST_PTR_FORMAT, event);
 
   if (current_caps != NULL) {
     GstStructure *st;
 
-    GST_TRACE_OBJECT (user_data, "Current caps: %" GST_PTR_FORMAT,
-        current_caps);
+    GST_TRACE_OBJECT (self, "Current caps: %" GST_PTR_FORMAT, current_caps);
 
     st = gst_caps_get_structure (current_caps, 0);
     // Remove famerate, width, height, streamheader that make unecessary
@@ -866,14 +865,13 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     if (!gst_caps_can_intersect (new_caps, current_caps) &&
         !kms_utils_caps_are_raw (current_caps)
         && !kms_utils_caps_are_raw (new_caps)) {
-      GST_DEBUG_OBJECT (user_data, "Caps differ caps: %" GST_PTR_FORMAT,
-          new_caps);
+      GST_DEBUG_OBJECT (self, "Caps differ caps: %" GST_PTR_FORMAT, new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
     }
 
     gst_caps_unref (current_caps);
   } else {
-    GST_DEBUG_OBJECT (user_data, "No previous caps, starting");
+    GST_DEBUG_OBJECT (self, "No previous caps, starting");
     kms_agnostic_bin2_configure_input (self, new_caps);
   }
 
