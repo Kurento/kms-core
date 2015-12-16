@@ -93,9 +93,9 @@ sdp_media_get_ssrc_str (const GstSDPMedia * media)
   GMatchInfo *match_info = NULL;
 
   val = gst_sdp_media_get_attribute_val (media, "ssrc");
-
-  if (val == NULL)
+  if (val == NULL) {
     return NULL;
+  }
 
   regex = g_regex_new ("^(?<ssrc>[0-9]+)(.*)?$", 0, 0, NULL);
   g_regex_match (regex, val, 0, &match_info);
