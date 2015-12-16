@@ -1151,6 +1151,51 @@ kms_agnostic_bin2_sink_query (GstPad * pad, GstObject * parent,
   return ret;
 }
 
+static GstFlowReturn
+check_ret_error (GstPad * pad, GstFlowReturn ret)
+{
+  switch (ret) {
+    case GST_FLOW_OK:
+    case GST_FLOW_FLUSHING:
+      break;
+    case GST_FLOW_ERROR:
+    case GST_FLOW_NOT_LINKED:
+      // TODO: We should notify this as an error to remote client
+      GST_WARNING_OBJECT (pad, "Ignoring flow returned %s",
+          gst_flow_get_name (ret));
+      ret = GST_FLOW_OK;
+      break;
+
+    default:
+      GST_WARNING_OBJECT (pad, "Flow returned %s", gst_flow_get_name (ret));
+      break;
+  }
+
+  return ret;
+}
+
+static GstFlowReturn
+kms_agnostic_bin2_sink_chain (GstPad * pad,
+    GstObject * parent, GstBuffer * buffer)
+{
+  GstFlowReturn ret;
+
+  ret = gst_proxy_pad_chain_default (pad, parent, buffer);
+
+  return check_ret_error (pad, ret);
+}
+
+static GstFlowReturn
+kms_agnostic_bin2_sink_chain_list (GstPad * pad,
+    GstObject * parent, GstBufferList * list)
+{
+  GstFlowReturn ret;
+
+  ret = gst_proxy_pad_chain_list_default (pad, parent, list);
+
+  return check_ret_error (pad, ret);
+}
+
 static void
 kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 {
@@ -1173,6 +1218,9 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   templ = gst_static_pad_template_get (&sink_factory);
   self->priv->sink = gst_ghost_pad_new_from_template ("sink", target, templ);
   gst_pad_set_query_function (self->priv->sink, kms_agnostic_bin2_sink_query);
+  gst_pad_set_chain_function (self->priv->sink, kms_agnostic_bin2_sink_chain);
+  gst_pad_set_chain_list_function (self->priv->sink,
+      kms_agnostic_bin2_sink_chain_list);
   kms_utils_manage_gaps (self->priv->sink);
   g_object_unref (templ);
   g_object_unref (target);
