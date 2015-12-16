@@ -101,6 +101,9 @@ static GstStaticCaps static_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
+static GstStaticCaps static_raw_caps =
+    GST_STATIC_CAPS
+    ("video/x-raw; video/x-raw(ANY); audio/x-raw; audio/x-raw(ANY);");
 
 static gboolean
 caps_can_intersect_with_static (const GstCaps * caps,
@@ -136,7 +139,7 @@ gboolean
 kms_utils_caps_are_raw (const GstCaps * caps)
 {
   gboolean ret;
-  GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
+  GstCaps *raw_caps = gst_static_caps_get (&static_raw_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
 

@@ -142,18 +142,6 @@ send_dummy_event (GstPad * pad)
   g_object_unref (parent);
 }
 
-static gboolean
-is_raw_caps (GstCaps * caps)
-{
-  gboolean ret;
-  GstCaps *raw_caps = gst_caps_from_string (KMS_AGNOSTIC_RAW_CAPS);
-
-  ret = gst_caps_is_always_compatible (caps, raw_caps);
-
-  gst_caps_unref (raw_caps);
-  return ret;
-}
-
 static GstPadProbeReturn
 tee_src_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
@@ -411,7 +399,7 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   gst_bin_add (GST_BIN (self), queue);
   gst_element_sync_state_with_parent (queue);
 
-  if (!gst_caps_is_any (caps) && is_raw_caps (caps)) {
+  if (!gst_caps_is_any (caps) && kms_utils_caps_are_raw (caps)) {
     GstElement *convert = kms_utils_create_convert_for_caps (caps);
     GstElement *rate = kms_utils_create_rate_for_caps (caps);
     GstElement *mediator = kms_utils_create_mediator_element (caps);
@@ -580,7 +568,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return NULL;
   }
 
-  if (is_raw_caps (caps)) {
+  if (kms_utils_caps_are_raw (caps)) {
     return dec_bin;
   }
 
@@ -845,7 +833,8 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
         "streamheader", "codec_data", NULL);
 
     if (!gst_caps_can_intersect (new_caps, current_caps) &&
-        !is_raw_caps (current_caps) && !is_raw_caps (new_caps)) {
+        !kms_utils_caps_are_raw (current_caps)
+        && !kms_utils_caps_are_raw (new_caps)) {
       GST_DEBUG_OBJECT (user_data, "Caps differ caps: %" GST_PTR_FORMAT,
           new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
