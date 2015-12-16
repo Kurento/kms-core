@@ -530,7 +530,13 @@ kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
 static GstBin *
 kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 {
-  GstCaps *raw_caps = kms_agnostic_bin2_get_raw_caps (caps);
+  GstCaps *raw_caps;
+
+  if (kms_utils_caps_are_raw (self->priv->input_caps)) {
+    return self->priv->input_bin;
+  }
+
+  raw_caps = kms_agnostic_bin2_get_raw_caps (caps);
 
   if (raw_caps != NULL) {
     GstBin *dec_bin;
