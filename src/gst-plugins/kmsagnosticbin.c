@@ -435,13 +435,13 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     }
 
     if (rate) {
-      gst_element_link_many (queue, rate, convert, NULL);
+      gst_element_link_many (queue, rate, mediator, NULL);
     } else {
-      gst_element_link (queue, convert);
+      gst_element_link (queue, mediator);
     }
 
-    gst_element_link_many (convert, mediator, NULL);
-    target = gst_element_get_static_pad (mediator, "src");
+    gst_element_link_many (mediator, convert, NULL);
+    target = gst_element_get_static_pad (convert, "src");
   } else {
     target = gst_element_get_static_pad (queue, "src");
   }
