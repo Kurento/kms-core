@@ -27,14 +27,24 @@ MediaPipelineImpl::busMessage (GstMessage *message)
     gst_debug_bin_to_dot_file_with_ts (GST_BIN (pipeline),
                                        GST_DEBUG_GRAPH_SHOW_ALL, "error");
     gst_message_parse_error (message, &err, &debug);
-    std::string errorMessage (err->message);
+    std::string errorMessage;
+
+    if (err) {
+      errorMessage = std::string (err->message);
+    }
 
     if (debug != NULL) {
       errorMessage += " -> " + std::string (debug);
     }
 
     try {
-      Error error (shared_from_this(), errorMessage , err->code,
+      gint code = 0;
+
+      if (err) {
+        code = err->code;
+      }
+
+      Error error (shared_from_this(), errorMessage , code,
                    "UNEXPECTED_PIPELINE_ERROR");
 
       signalError (error);
