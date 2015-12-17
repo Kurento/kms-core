@@ -234,14 +234,24 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
 
     GST_ERROR ("MediaElement error: %" GST_PTR_FORMAT, message);
     gst_message_parse_error (message, &err, &debug);
-    std::string errorMessage (err->message);
+    std::string errorMessage;
+
+    if (err) {
+      errorMessage = std::string (err->message);
+    }
 
     if (debug != NULL) {
       errorMessage += " -> " + std::string (debug);
     }
 
     try {
-      Error error (elem->shared_from_this(), errorMessage , err->code,
+      gint code = 0;
+
+      if (err) {
+        code = err->code;
+      }
+
+      Error error (elem->shared_from_this(), errorMessage , code,
                    "UNEXPECTED_ELEMENT_ERROR");
 
       elem->signalError (error);
