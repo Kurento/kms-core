@@ -79,9 +79,19 @@ GType kms_element_get_type (void);
 
 /* Private methods */
 /* TODO: rename "agnosticbin" to "output_element"*/
-GstElement * kms_element_get_audio_agnosticbin (KmsElement * self);
-GstElement * kms_element_get_video_agnosticbin (KmsElement * self);
-GstElement * kms_element_get_data_tee (KmsElement * self);
+#define kms_element_get_audio_agnosticbin(self) \
+  kms_element_get_audio_output_element (self, NULL)
+#define kms_element_get_video_agnosticbin(self) \
+  kms_element_get_video_output_element (self, NULL)
+#define kms_element_get_data_tee(self) \
+  kms_element_get_data_output_element (self, NULL)
+
+GstElement * kms_element_get_audio_output_element (KmsElement * self,
+  const gchar *description);
+GstElement * kms_element_get_video_output_element (KmsElement * self,
+  const gchar *description);
+GstElement * kms_element_get_data_output_element (KmsElement * self,
+  const gchar *description);
 
 #define kms_element_connect_sink_target(self, target, type)   \
   kms_element_connect_sink_target_full (self, target, type, NULL, NULL, NULL)

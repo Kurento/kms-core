@@ -43,9 +43,11 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
         0, "debug category for element"));
 
 #define SINK_PAD "sink_%s"
-#define VIDEO_SRC_PAD "video_src_%u"
-#define AUDIO_SRC_PAD "audio_src_%u"
-#define DATA_SRC_PAD "data_src_%u"
+#define VIDEO_SRC_PAD "video_src_%s_%u"
+#define AUDIO_SRC_PAD "audio_src_%s_%u"
+#define DATA_SRC_PAD "data_src_%s_%u"
+
+#define KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION "default"
 
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
@@ -222,7 +224,7 @@ kms_element_remove_target_on_unlinked (GstPad * pad, GstPad * peer,
 
 static gboolean
 kms_element_get_data_by_type (KmsElement * self, KmsElementPadType type,
-    const gchar ** templ_name, GstElement ** element)
+    const gchar * desc, const gchar ** templ_name, GstElement ** element)
 {
   switch (type) {
     case KMS_ELEMENT_PAD_TYPE_DATA:
@@ -272,7 +274,8 @@ kms_element_add_src_pad (KmsElement * self, GstElement * element,
 }
 
 static void
-kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
+kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type,
+    const gchar * description)
 {
   GHashTableIter iter;
   gpointer key, value;
@@ -282,7 +285,8 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
 
   KMS_ELEMENT_LOCK (self);
 
-  if (!kms_element_get_data_by_type (self, type, &templ_name, &element)) {
+  if (!kms_element_get_data_by_type (self, type, description, &templ_name,
+          &element)) {
     KMS_ELEMENT_UNLOCK (self);
     return;
   }
@@ -311,7 +315,8 @@ kms_element_create_pending_pads (KmsElement * self, KmsElementPadType type)
 }
 
 GstElement *
-kms_element_get_data_tee (KmsElement * self)
+kms_element_get_data_output_element (KmsElement * self,
+    const gchar * description)
 {
   GstElement *sink, *tee;
 
@@ -336,13 +341,15 @@ kms_element_get_data_tee (KmsElement * self)
   gst_element_sync_state_with_parent (sink);
   gst_element_sync_state_with_parent (tee);
 
-  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_DATA);
+  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_DATA,
+      description);
 
   return tee;
 }
 
 GstElement *
-kms_element_get_audio_agnosticbin (KmsElement * self)
+kms_element_get_audio_output_element (KmsElement * self,
+    const gchar * description)
 {
   GST_DEBUG_OBJECT (self, "Audio agnostic requested");
   KMS_ELEMENT_LOCK (self);
@@ -358,13 +365,15 @@ kms_element_get_audio_agnosticbin (KmsElement * self)
   gst_element_sync_state_with_parent (self->priv->audio_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
 
-  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_AUDIO);
+  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
+      description);
 
   return self->priv->audio_agnosticbin;
 }
 
 GstElement *
-kms_element_get_video_agnosticbin (KmsElement * self)
+kms_element_get_video_output_element (KmsElement * self,
+    const gchar * description)
 {
   GST_DEBUG_OBJECT (self, "Video agnostic requested");
   KMS_ELEMENT_LOCK (self);
@@ -380,7 +389,8 @@ kms_element_get_video_agnosticbin (KmsElement * self)
   gst_element_sync_state_with_parent (self->priv->video_agnosticbin);
   KMS_ELEMENT_UNLOCK (self);
 
-  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_VIDEO);
+  kms_element_create_pending_pads (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
+      description);
 
   return self->priv->video_agnosticbin;
 }
@@ -876,28 +886,35 @@ kms_element_finalize (GObject * object)
 
 static gchar *
 kms_element_request_new_srcpad_action (KmsElement * self,
-    KmsElementPadType type, const gchar * desc)
+    KmsElementPadType type, const gchar * description)
 {
   const gchar *templ_name;
+  const gchar *desc;
   gchar *pad_name;
   GstElement *element;
 
+  desc = (description != NULL) ? description :
+      KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION;
+
   KMS_ELEMENT_LOCK (self);
 
-  if (!kms_element_get_data_by_type (self, type, &templ_name, &element)) {
+  if (!kms_element_get_data_by_type (self, type, desc, &templ_name, &element)) {
     KMS_ELEMENT_UNLOCK (self);
     return NULL;
   }
 
   switch (type) {
     case KMS_ELEMENT_PAD_TYPE_DATA:
-      pad_name = g_strdup_printf (templ_name, self->priv->data_pad_count++);
+      pad_name =
+          g_strdup_printf (templ_name, desc, self->priv->data_pad_count++);
       break;
     case KMS_ELEMENT_PAD_TYPE_AUDIO:
-      pad_name = g_strdup_printf (templ_name, self->priv->audio_pad_count++);
+      pad_name =
+          g_strdup_printf (templ_name, desc, self->priv->audio_pad_count++);
       break;
     case KMS_ELEMENT_PAD_TYPE_VIDEO:
-      pad_name = g_strdup_printf (templ_name, self->priv->video_pad_count++);
+      pad_name =
+          g_strdup_printf (templ_name, desc, self->priv->video_pad_count++);
       break;
     default:
       GST_WARNING_OBJECT (self, "Unsupported pad type %u", type);
