@@ -48,9 +48,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define DATA_SRC_PAD "data_src_%s_%u"
 
 #define KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION "default"
+#define KMS_EMPTY_STRING ""
+#define KMS_IS_EMPTY_DESCRIPTION(description) \
+  (g_strcmp0((description), KMS_EMPTY_STRING) == 0)
+#define KMS_IS_VALID_PAD_DESCRIPTION(description) \
+  (description != NULL && !KMS_IS_EMPTY_DESCRIPTION(description))
 #define KMS_FORMAT_PAD_DESCRIPTION(description) \
-  (description != NULL) ? description : KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION;
-
+  (KMS_IS_VALID_PAD_DESCRIPTION(description)) ? description : \
+  KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION
 
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
@@ -62,6 +67,14 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define KMS_ELEMENT_SYNC_UNLOCK(obj) (                      \
   g_mutex_unlock (&(((KmsElement *)obj)->priv->sync_lock))  \
 )
+
+#define KMS_SET_OBJECT_PROPERTY_SAFETLY(obj,name,val) ({      \
+  if (g_object_class_find_property (G_OBJECT_GET_CLASS (obj), \
+      (name)) != NULL) {                                      \
+    GST_DEBUG_OBJECT (obj, "Setting property %s", name);      \
+    g_object_set ((obj), (name), (val), NULL);                \
+  }                                                           \
+});
 
 typedef struct _PendingSrcPad
 {
@@ -79,6 +92,7 @@ typedef struct _KmsElementStats
 typedef struct _KmsOutputElementData
 {
   GstElement *element;
+  KmsElementPadType type;
   guint pad_count;
 } KmsOutputElementData;
 
@@ -86,18 +100,10 @@ struct _KmsElementPrivate
 {
   gchar *id;
 
-  guint audio_pad_count;
-  guint video_pad_count;
-  guint data_pad_count;
-
   gboolean accept_eos;
   gboolean stats_enabled;
 
-  GstElement *audio_agnosticbin;
-  GstElement *video_agnosticbin;
-  GstElement *data_tee;
-
-  GHashTable *output_elements;
+  GHashTable *output_elements;  /* KmsOutputElementData */
 
   /* Audio and video capabilities */
   GstCaps *audio_caps;
@@ -167,11 +173,12 @@ GST_STATIC_PAD_TEMPLATE (DATA_SRC_PAD,
     );
 
 static KmsOutputElementData *
-create_output_element_data ()
+create_output_element_data (KmsElementPadType type)
 {
   KmsOutputElementData *data;
 
   data = g_slice_new0 (KmsOutputElementData);
+  data->type = type;
 
   return data;
 }
@@ -349,8 +356,8 @@ kms_element_create_pending_src_pads (KmsElement * self, KmsElementPadType type,
   while (g_hash_table_iter_next (&iter, &key, &value)) {
     PendingSrcPad *pendingpad = value;
 
-    /* TODO: Discriminate pads using their description */
-    if (pendingpad->type != type) {
+    if (pendingpad->type != type ||
+        g_strcmp0 (pendingpad->desc, description) != 0) {
       continue;
     }
 
@@ -406,7 +413,7 @@ kms_element_get_data_output_element (KmsElement * self,
         desc);
     GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
         kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_DATA), key);
-    odata = create_output_element_data ();
+    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_DATA);
     g_hash_table_insert (self->priv->output_elements, key, odata);
   }
 
@@ -458,7 +465,7 @@ kms_element_get_audio_output_element (KmsElement * self,
         desc);
     GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
         kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_AUDIO), key);
-    odata = create_output_element_data ();
+    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_AUDIO);
     g_hash_table_insert (self->priv->output_elements, key, odata);
   }
 
@@ -477,6 +484,20 @@ kms_element_get_audio_output_element (KmsElement * self,
       odata->element);
 
   return odata->element;
+}
+
+static void
+kms_element_set_video_output_properties (KmsElement * self,
+    GstElement * element)
+{
+  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, CODEC_CONFIG,
+      self->priv->codec_config);
+
+  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MAX_BITRATE,
+      self->priv->max_bitrate);
+
+  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MIN_BITRATE,
+      self->priv->min_bitrate);
 }
 
 GstElement *
@@ -502,7 +523,7 @@ kms_element_get_video_output_element (KmsElement * self,
         desc);
     GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
         kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_VIDEO), key);
-    odata = create_output_element_data ();
+    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_VIDEO);
     g_hash_table_insert (self->priv->output_elements, key, odata);
   }
 
@@ -512,6 +533,9 @@ kms_element_get_video_output_element (KmsElement * self,
   }
 
   odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
+
+  /* Set video properties to the new element */
+  kms_element_set_video_output_properties (self, odata->element);
 
   gst_bin_add (GST_BIN (self), odata->element);
   gst_element_sync_state_with_parent (odata->element);
@@ -770,25 +794,19 @@ end:
 static void
 kms_element_release_pad (GstElement * element, GstPad * pad)
 {
-  GstElement *agnosticbin;
   GstPad *target;
   GstPad *peer;
-
-  if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio_src")) {
-    agnosticbin = KMS_ELEMENT (element)->priv->audio_agnosticbin;
-  } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video_src")) {
-    agnosticbin = KMS_ELEMENT (element)->priv->video_agnosticbin;
-  } else {
-    return;
-  }
-
-  // TODO: Remove pad if is a sinkpad
 
   target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
 
   if (target != NULL) {
-    if (agnosticbin != NULL) {
-      gst_element_release_request_pad (agnosticbin, target);
+    GstElement *output;
+
+    output = gst_pad_get_parent_element (target);
+
+    if (output != NULL) {
+      gst_element_release_request_pad (output, target);
+      g_object_unref (output);
     }
     g_object_unref (target);
   }
@@ -846,6 +864,34 @@ kms_element_endpoint_get_caps (KmsElement * self, GstCaps * caps)
 }
 
 static void
+set_min_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
+{
+  if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MIN_BITRATE,
+        self->priv->min_bitrate);
+  }
+}
+
+static void
+set_max_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
+{
+  if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MAX_BITRATE,
+        self->priv->max_bitrate);
+  }
+}
+
+static void
+set_codec_config (gchar * id, KmsOutputElementData * odata, KmsElement * self)
+{
+  if (odata->type == KMS_ELEMENT_PAD_TYPE_AUDIO ||
+      odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, CODEC_CONFIG,
+        self->priv->codec_config);
+  }
+}
+
+static void
 kms_element_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
@@ -876,8 +922,8 @@ kms_element_set_property (GObject * object, guint property_id,
       }
 
       self->priv->min_bitrate = v;
-      g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
-          MIN_BITRATE, self->priv->min_bitrate, NULL);
+      g_hash_table_foreach (self->priv->output_elements,
+          (GHFunc) set_min_bitrate, self);
       KMS_ELEMENT_UNLOCK (self);
       break;
     }
@@ -891,8 +937,8 @@ kms_element_set_property (GObject * object, guint property_id,
         GST_WARNING_OBJECT (self, "Setting max-bitrate less than min-bitrate");
       }
       self->priv->max_bitrate = v;
-      g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
-          MAX_BITRATE, self->priv->max_bitrate, NULL);
+      g_hash_table_foreach (self->priv->output_elements,
+          (GHFunc) set_max_bitrate, self);
       KMS_ELEMENT_UNLOCK (self);
       break;
     }
@@ -905,10 +951,8 @@ kms_element_set_property (GObject * object, guint property_id,
 
       self->priv->codec_config = g_value_dup_boxed (value);
 
-      g_object_set (G_OBJECT (kms_element_get_video_agnosticbin (self)),
-          CODEC_CONFIG, self->priv->codec_config, NULL);
-      g_object_set (G_OBJECT (kms_element_get_audio_agnosticbin (self)),
-          CODEC_CONFIG, self->priv->codec_config, NULL);
+      g_hash_table_foreach (self->priv->output_elements,
+          (GHFunc) set_codec_config, self);
       KMS_ELEMENT_UNLOCK (self);
       break;
     }
@@ -1034,10 +1078,11 @@ kms_element_request_new_srcpad_action (KmsElement * self,
 
   key = create_id_from_pad_attrs (type, GST_PAD_SRC, desc);
   odata = g_hash_table_lookup (self->priv->output_elements, key);
+
   if (odata == NULL) {
     GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
         kms_element_pad_type_str (type), desc);
-    odata = create_output_element_data ();
+    odata = create_output_element_data (type);
     g_hash_table_insert (self->priv->output_elements, key, odata);
   } else {
     g_free (key);
@@ -1312,9 +1357,6 @@ kms_element_init (KmsElement * element)
   element->priv = KMS_ELEMENT_GET_PRIVATE (element);
 
   element->priv->accept_eos = DEFAULT_ACCEPT_EOS;
-
-  element->priv->audio_agnosticbin = NULL;
-  element->priv->video_agnosticbin = NULL;
 
   element->priv->min_bitrate = DEFAULT_MIN_BITRATE;
   element->priv->max_bitrate = DEFAULT_MAX_BITRATE;
