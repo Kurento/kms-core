@@ -446,6 +446,36 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   link_element_to_tee (tee, queue);
 }
 
+static gboolean
+check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
+{
+  gboolean ret = FALSE;
+  GstElement *output_tee = kms_tree_bin_get_output_tee (tree_bin);
+  GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
+  GstCaps *current_caps = kms_tree_bin_get_input_caps (tree_bin);
+
+  if (current_caps == NULL) {
+    current_caps = gst_pad_get_allowed_caps (tee_sink);
+    GST_TRACE_OBJECT (tree_bin, "Allowed caps are: %" GST_PTR_FORMAT,
+        current_caps);
+  } else {
+    gst_caps_ref (current_caps);
+    GST_TRACE_OBJECT (tree_bin, "Current caps are: %" GST_PTR_FORMAT,
+        current_caps);
+  }
+
+  if (current_caps != NULL) {
+    if (gst_caps_can_intersect (caps, current_caps)) {
+      ret = TRUE;
+    }
+    gst_caps_unref (current_caps);
+  }
+
+  g_object_unref (tee_sink);
+
+  return ret;
+}
+
 static GstBin *
 kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
@@ -456,30 +486,17 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return self->priv->input_bin;
   }
 
+  if (check_bin (KMS_TREE_BIN (self->priv->input_bin), caps)) {
+    bin = self->priv->input_bin;
+  }
+
   bins = g_hash_table_get_values (self->priv->bins);
   for (l = bins; l != NULL && bin == NULL; l = l->next) {
     KmsTreeBin *tree_bin = KMS_TREE_BIN (l->data);
-    GstElement *output_tee = kms_tree_bin_get_output_tee (tree_bin);
-    GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
-    GstCaps *current_caps = kms_tree_bin_get_input_caps (tree_bin);
 
-    if (current_caps == NULL) {
-      current_caps = gst_pad_get_allowed_caps (tee_sink);
-      GST_TRACE_OBJECT (l->data, "Allowed caps are: %" GST_PTR_FORMAT,
-          current_caps);
-    } else {
-      gst_caps_ref (current_caps);
-      GST_TRACE_OBJECT (l->data, "Current caps are: %" GST_PTR_FORMAT,
-          current_caps);
+    if (check_bin (tree_bin, caps)) {
+      bin = GST_BIN_CAST (tree_bin);
     }
-
-    if (current_caps != NULL) {
-      if (gst_caps_can_intersect (caps, current_caps))
-        bin = l->data;
-      gst_caps_unref (current_caps);
-    }
-
-    g_object_unref (tee_sink);
   }
   g_list_free (bins);
 
