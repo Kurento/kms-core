@@ -399,7 +399,8 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   gst_bin_add (GST_BIN (self), queue);
   gst_element_sync_state_with_parent (queue);
 
-  if (!gst_caps_is_any (caps) && kms_utils_caps_are_raw (caps)) {
+  if (!(gst_caps_is_any (caps) || gst_caps_is_empty (caps))
+      && kms_utils_caps_are_raw (caps)) {
     GstElement *convert = kms_utils_create_convert_for_caps (caps);
     GstElement *rate = kms_utils_create_rate_for_caps (caps);
     GstElement *mediator = kms_utils_create_mediator_element (caps);
@@ -451,7 +452,7 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   GList *bins, *l;
   GstBin *bin = NULL;
 
-  if (gst_caps_is_any (caps)) {
+  if (gst_caps_is_any (caps) || gst_caps_is_empty (caps)) {
     return self->priv->input_bin;
   }
 
@@ -532,7 +533,8 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstCaps *raw_caps;
 
-  if (kms_utils_caps_are_raw (self->priv->input_caps)) {
+  if (kms_utils_caps_are_raw (self->priv->input_caps)
+      || gst_caps_is_empty (caps) || gst_caps_is_any (caps)) {
     return self->priv->input_bin;
   }
 
