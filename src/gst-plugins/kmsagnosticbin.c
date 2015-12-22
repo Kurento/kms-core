@@ -1161,6 +1161,7 @@ check_ret_error (GstPad * pad, GstFlowReturn ret)
     case GST_FLOW_FLUSHING:
       break;
     case GST_FLOW_ERROR:
+    case GST_FLOW_NOT_NEGOTIATED:
     case GST_FLOW_NOT_LINKED:
       // TODO: We should notify this as an error to remote client
       GST_WARNING_OBJECT (pad, "Ignoring flow returned %s",
