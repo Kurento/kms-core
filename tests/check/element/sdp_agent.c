@@ -386,7 +386,7 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
     }
 
     /* This negotiation should only have 5 attributes */
-    fail_if (gst_sdp_media_attributes_len (media) != 4);
+    fail_if (gst_sdp_media_attributes_len (media) != 5);
   }
   g_object_unref (answerer);
 
@@ -766,21 +766,12 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   g_object_unref (answerer);
 }
 
-GST_END_TEST static gboolean
+GST_END_TEST;
+
+static gboolean
 check_mid_attr (const GstSDPMedia * media, gpointer user_data)
 {
-  gboolean expected = *((gboolean *) user_data);
-  guint i, len;
-
-  len = gst_sdp_media_attributes_len (media);
-
-  for (i = 0; i < len; i++) {
-    const GstSDPAttribute *a;
-
-    a = gst_sdp_media_get_attribute (media, i);
-
-    fail_if (g_strcmp0 (a->key, "mid") == 0 && !expected);
-  }
+  fail_if (gst_sdp_media_get_attribute_val (media, "mid") == NULL);
 
   return TRUE;
 }
@@ -876,7 +867,7 @@ test_bundle_group (gboolean expected_bundle)
     fail_if (gst_sdp_message_get_attribute_val (answer, "group") == NULL);
   }
 
-  sdp_utils_for_each_media (answer, check_mid_attr, &expected_bundle);
+  sdp_utils_for_each_media (answer, check_mid_attr, NULL);
 
   gst_sdp_message_free (offer);
   gst_sdp_message_free (answer);

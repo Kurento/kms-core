@@ -314,14 +314,38 @@ configure_pending_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
   return FALSE;
 }
 
+static void
+configure_new_mediaconfig (SdpMessageContext * ctx, GstSDPMedia * media,
+    SdpMediaConfig ** mconf)
+{
+  gchar *mid;
+
+  mid = g_strdup (gst_sdp_media_get_attribute_val (media, "mid"));
+  if (mid == NULL) {
+    const gchar *media_type;
+    guint *counter;
+
+    media_type = gst_sdp_media_get_media (media);
+    counter = g_hash_table_lookup (ctx->mids, media_type);
+
+    if (counter == NULL) {
+      /* No stored medias of this type yet */
+      counter = g_slice_new0 (guint);
+      g_hash_table_insert (ctx->mids, g_strdup (media_type), counter);
+    }
+
+    mid = g_strdup_printf ("%s%u", media_type, (*counter)++);
+  }
+
+  *mconf = kms_sdp_context_new_media_config (g_slist_length (ctx->medias), mid,
+      media);
+}
+
 SdpMediaConfig *
 kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media,
     GError ** error)
 {
   SdpMediaConfig *mconf;
-  const gchar *media_type;
-  gchar *mid;
-  guint *counter;
 
   if (ctx->type == KMS_SDP_ANSWER && g_slist_length (ctx->groups) > 0 &&
       gst_sdp_media_get_attribute_val (media, "mid") == NULL) {
@@ -337,19 +361,7 @@ kms_sdp_message_context_add_media (SdpMessageContext * ctx, GstSDPMedia * media,
     goto end;
   }
 
-  media_type = gst_sdp_media_get_media (media);
-  counter = g_hash_table_lookup (ctx->mids, media_type);
-
-  if (counter == NULL) {
-    /* No stored medias of this type yet */
-    counter = g_slice_new0 (guint);
-    g_hash_table_insert (ctx->mids, g_strdup (media_type), counter);
-  }
-
-  mid = g_strdup_printf ("%s%u", media_type, (*counter)++);
-
-  mconf = kms_sdp_context_new_media_config (g_slist_length (ctx->medias), mid,
-      media);
+  configure_new_mediaconfig (ctx, media, &mconf);
 
 end:
   ctx->medias = g_slist_append (ctx->medias, mconf);
@@ -428,8 +440,7 @@ add_media_to_sdp_message (SdpMediaConfig * mconf, GstSDPMessage * msg,
 {
   GstSDPMedia *cpy;
 
-  if (gst_sdp_message_get_attribute_val (msg, "group") != NULL &&
-      gst_sdp_media_get_attribute_val (mconf->media, "mid") == NULL) {
+  if (gst_sdp_media_get_attribute_val (mconf->media, "mid") == NULL) {
     /* When group attribute is present, the mid attribute */
     /* in media is mandatory */
     gst_sdp_media_add_attribute (mconf->media, "mid", mconf->mid);

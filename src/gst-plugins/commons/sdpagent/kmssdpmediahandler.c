@@ -72,13 +72,6 @@ accept_fmtp_attribute (const GstSDPMedia * offer,
   return ret;
 }
 
-static gboolean
-accept_mid_attribute (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
-{
-  return kms_sdp_message_context_has_groups (ctx);
-}
-
 typedef struct _KmsSdpSupportedAttrType
 {
   const gchar *name;
@@ -91,7 +84,7 @@ static KmsSdpSupportedAttrType attributes[] = {
   {"fmtp", accept_fmtp_attribute},
   {"lang", default_accept_attribute},
   {"maxptime", default_accept_attribute},
-  {"mid", accept_mid_attribute},
+  {"mid", default_accept_attribute},
   {"ptime", default_accept_attribute},
   {"quality", default_accept_attribute},
   {"setup", default_accept_attribute}
