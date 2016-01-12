@@ -686,7 +686,7 @@ kms_sdp_message_context_new_from_sdp (GstSDPMessage * sdp, GError ** error)
 
   if (g_strcmp0 (o->addrtype, ORIGIN_ATTR_ADDR_TYPE_IP4) == 0) {
     ipv = IPV4;
-  } else if (g_strcmp0 (o->addrtype, ORIGIN_ATTR_ADDR_TYPE_IP4) == 0) {
+  } else if (g_strcmp0 (o->addrtype, ORIGIN_ATTR_ADDR_TYPE_IP6) == 0) {
     ipv = IPV6;
   } else {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
