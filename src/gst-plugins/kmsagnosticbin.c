@@ -29,6 +29,8 @@
 #define LINKING_DATA "linking-data"
 #define UNLINKING_DATA "unlinking-data"
 
+#define KMS_AGNOSTIC_PAD_STARTED (GST_PAD_FLAG_LAST << 1)
+
 static GstStaticCaps static_raw_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_RAW_AUDIO_CAPS);
 static GstStaticCaps static_raw_video_caps =
@@ -671,6 +673,10 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
 {
   GstPad *peer = NULL;
 
+  if (!GST_OBJECT_FLAG_IS_SET (pad, KMS_AGNOSTIC_PAD_STARTED)) {
+    return FALSE;
+  }
+
   if (!self->priv->started) {
     return FALSE;
   }
@@ -895,6 +901,7 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
       GST_DEBUG_OBJECT (pad, "Received reconfigure event");
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
+      GST_OBJECT_FLAG_SET (pad, KMS_AGNOSTIC_PAD_STARTED);
       kms_agnostic_bin2_process_pad (self, pad);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
     }
@@ -910,7 +917,10 @@ kms_agnostic_bin2_src_unlinked (GstPad * pad, GstPad * peer,
     KmsAgnosticBin2 * self)
 {
   GST_DEBUG_OBJECT (pad, "Unlinked");
+  KMS_AGNOSTIC_BIN2_LOCK (self);
+  GST_OBJECT_FLAG_UNSET (pad, KMS_AGNOSTIC_PAD_STARTED);
   remove_target_pad (pad);
+  KMS_AGNOSTIC_BIN2_UNLOCK (self);
 }
 
 static GstPad *
@@ -927,6 +937,8 @@ kms_agnostic_bin2_request_new_pad (GstElement * element,
 
   pad = gst_ghost_pad_new_no_target_from_template (pad_name, templ);
   g_free (pad_name);
+
+  GST_OBJECT_FLAG_UNSET (pad, KMS_AGNOSTIC_PAD_STARTED);
 
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
       kms_agnostic_bin2_src_reconfigure_probe, element, NULL);
