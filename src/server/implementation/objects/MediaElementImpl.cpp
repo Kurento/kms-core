@@ -677,8 +677,9 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
   }
 
   type = convertMediaType (mediaType);
-  g_signal_emit_by_name (getGstreamerElement (), "request-new-srcpad", type,
-                         sourceMediaDescription.c_str (), &padName, NULL);
+  g_signal_emit_by_name (getGstreamerElement (), "request-new-pad", type,
+                         sourceMediaDescription.c_str (), GST_PAD_SRC, &padName,
+                         NULL);
 
   if (padName == NULL) {
     throw KurentoException (CONNECT_ERROR, "Element: '" + getName() +

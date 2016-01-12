@@ -1060,7 +1060,7 @@ kms_element_finalize (GObject * object)
 }
 
 static gchar *
-kms_element_request_new_srcpad_action (KmsElement * self,
+kms_element_request_new_srcpad (KmsElement * self,
     KmsElementPadType type, const gchar * description)
 {
   const gchar *templ_name, *desc;
@@ -1168,7 +1168,7 @@ kms_element_request_new_pad_action (KmsElement * self, KmsElementPadType type,
     const gchar * desc, GstPadDirection dir)
 {
   if (dir == GST_PAD_SRC) {
-    return kms_element_request_new_srcpad_action (self, type, desc);
+    return kms_element_request_new_srcpad (self, type, desc);
   } else if (dir == GST_PAD_SINK) {
     return kms_element_request_new_sinkpad (self, type, desc);
   } else {
@@ -1383,12 +1383,12 @@ kms_element_class_init (KmsElementClass * klass)
 
   /* set actions */
   element_signals[REQUEST_NEW_SRCPAD] =
-      g_signal_new ("request-new-srcpad",
+      g_signal_new ("request-new-pad",
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
-      G_STRUCT_OFFSET (KmsElementClass, request_new_srcpad), NULL, NULL,
-      __kms_core_marshal_STRING__ENUM_STRING,
-      G_TYPE_STRING, 2, KMS_TYPE_ELEMENT_PAD_TYPE, G_TYPE_STRING);
+      G_STRUCT_OFFSET (KmsElementClass, request_new_pad), NULL, NULL,
+      __kms_core_marshal_STRING__ENUM_STRING_UINT,
+      G_TYPE_STRING, 3, KMS_TYPE_ELEMENT_PAD_TYPE, G_TYPE_STRING, G_TYPE_UINT);
 
   element_signals[RELEASE_REQUESTED_SRCPAD] =
       g_signal_new ("release-requested-srcpad",
@@ -1406,8 +1406,6 @@ kms_element_class_init (KmsElementClass * klass)
 
   klass->request_new_pad =
       GST_DEBUG_FUNCPTR (kms_element_request_new_pad_action);
-  klass->request_new_srcpad =
-      GST_DEBUG_FUNCPTR (kms_element_request_new_srcpad_action);
   klass->release_requested_srcpad =
       GST_DEBUG_FUNCPTR (kms_element_release_requested_srcpad_action);
   klass->stats = GST_DEBUG_FUNCPTR (kms_element_stats_impl);

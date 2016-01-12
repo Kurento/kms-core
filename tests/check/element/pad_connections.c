@@ -199,8 +199,8 @@ GST_START_TEST (request_video_src_pad_pending)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -241,8 +241,8 @@ GST_START_TEST (request_audio_src_pad_pending)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -283,8 +283,8 @@ GST_START_TEST (request_video_src_pad)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -323,8 +323,8 @@ GST_START_TEST (request_audio_src_pad)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG_OBJECT (dummysrc, "Pad name %s", padname);
@@ -363,8 +363,8 @@ GST_START_TEST (request_data_src_pad)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -432,8 +432,8 @@ GST_START_TEST (request_video_src_pad_connection)
   gst_bin_add (GST_BIN (pipeline), dummysrc);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -520,8 +520,8 @@ GST_START_TEST (disconnect_requested_src_pad_not_linked)
   gst_bin_add (GST_BIN (pipeline), dummysrc);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -665,8 +665,8 @@ GST_START_TEST (disconnect_requested_src_pad_linked)
   gst_bin_add (GST_BIN (pipeline), dummysrc);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -795,8 +795,8 @@ GST_START_TEST (disconnect_requested_src_pad_linked_with_buffer_injector)
   gst_bin_add (GST_BIN (pipeline), dummysrc);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -1106,14 +1106,14 @@ GST_START_TEST (connection_of_elements)
   gst_bin_add_many (GST_BIN (pipeline), data->src, data->sink, NULL);
 
   /* request src pad using action */
-  g_signal_emit_by_name (data->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &data->video_src);
+  g_signal_emit_by_name (data->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &data->video_src);
   fail_if (data->video_src == NULL);
-  g_signal_emit_by_name (data->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &data->audio_src);
+  g_signal_emit_by_name (data->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &data->audio_src);
   fail_if (data->audio_src == NULL);
-  g_signal_emit_by_name (data->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data->data_src);
+  g_signal_emit_by_name (data->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &data->data_src);
   fail_if (data->data_src == NULL);
 
   GST_DEBUG ("Data pad name %s", data->data_src);
@@ -1165,8 +1165,8 @@ GST_START_TEST (request_data_src_pad_pending)
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* request src pad using action */
-  g_signal_emit_by_name (dummysrc, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &padname);
+  g_signal_emit_by_name (dummysrc, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &padname);
   fail_if (padname == NULL);
 
   GST_DEBUG ("Pad name %s", padname);
@@ -1218,8 +1218,8 @@ GST_START_TEST (connection_of_elements_data)
   gst_bin_add_many (GST_BIN (pipeline), data->src, data->sink, NULL);
 
   /* request src pad using action */
-  g_signal_emit_by_name (data->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data->data_src);
+  g_signal_emit_by_name (data->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &data->data_src);
   fail_if (data->data_src == NULL);
 
   GST_DEBUG ("Data pad name %s", data->data_src);
@@ -1290,14 +1290,14 @@ GST_START_TEST (connect_chain_of_elements)
   /*******************************/
 
   /* request src pad using action */
-  g_signal_emit_by_name (data1->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &data1->video_src);
+  g_signal_emit_by_name (data1->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &data1->video_src);
   fail_if (data1->video_src == NULL);
-  g_signal_emit_by_name (data1->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &data1->audio_src);
+  g_signal_emit_by_name (data1->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &data1->audio_src);
   fail_if (data1->audio_src == NULL);
-  g_signal_emit_by_name (data1->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data1->data_src);
+  g_signal_emit_by_name (data1->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &data1->data_src);
   fail_if (data1->data_src == NULL);
 
   GST_DEBUG ("Video pad name %s", data1->video_src);
@@ -1316,14 +1316,14 @@ GST_START_TEST (connect_chain_of_elements)
   /*******************************/
 
   /* request src pad using action */
-  g_signal_emit_by_name (data2->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &data2->video_src);
+  g_signal_emit_by_name (data2->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &data2->video_src);
   fail_if (data2->video_src == NULL);
-  g_signal_emit_by_name (data2->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &data2->audio_src);
+  g_signal_emit_by_name (data2->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &data2->audio_src);
   fail_if (data2->audio_src == NULL);
-  g_signal_emit_by_name (data2->src, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_DATA, NULL, &data2->data_src);
+  g_signal_emit_by_name (data2->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &data2->data_src);
   fail_if (data2->data_src == NULL);
 
   GST_DEBUG ("Video pad name %s", data2->video_src);

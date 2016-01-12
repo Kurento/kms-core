@@ -66,7 +66,6 @@ struct _KmsElementClass
 
   /* actions */
   gchar * (*request_new_pad) (KmsElement *self, KmsElementPadType type, const gchar *desc, GstPadDirection dir);
-  gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
   gboolean (*release_requested_srcpad) (KmsElement *self, const gchar *pad_name);
   GstStructure * (*stats) (KmsElement * self, gchar * selector);
 

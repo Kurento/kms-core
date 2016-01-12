@@ -52,8 +52,8 @@ GST_START_TEST (connect_srcs)
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), HUB_VIDEO_SINK) == 0);
 
   /* request src pad using action */
-  g_signal_emit_by_name (hubport, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, &video_pad_name);
+  g_signal_emit_by_name (hubport, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_VIDEO, NULL, GST_PAD_SRC, &video_pad_name);
   fail_if (video_pad_name == NULL);
 
   GST_DEBUG ("Pad name %s", video_pad_name);
@@ -67,8 +67,8 @@ GST_START_TEST (connect_srcs)
   fail_unless (g_strcmp0 (GST_OBJECT_NAME (sink), HUB_AUDIO_SINK) == 0);
 
   /* request src pad using action */
-  g_signal_emit_by_name (hubport, "request-new-srcpad",
-      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, &audio_pad_name);
+  g_signal_emit_by_name (hubport, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_AUDIO, NULL, GST_PAD_SRC, &audio_pad_name);
   fail_if (audio_pad_name == NULL);
 
   GST_DEBUG ("Pad name %s", audio_pad_name);
