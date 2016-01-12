@@ -983,11 +983,11 @@ sink_pads_added (GstElement * element, GstPad * new_pad, gpointer user_data)
 
   CONNECT_DATA_LOCK (data);
 
-  if (g_str_has_suffix (name, AUDIO)) {
+  if (g_str_has_prefix (name, "sink_" AUDIO)) {
     data->audiosink = new_pad;
-  } else if (g_str_has_suffix (name, VIDEO)) {
+  } else if (g_str_has_prefix (name, "sink_" VIDEO)) {
     data->videosink = new_pad;
-  } else if (g_str_has_suffix (name, DATA)) {
+  } else if (g_str_has_prefix (name, "sink_" DATA)) {
     data->datasink = new_pad;
   } else {
     GST_DEBUG ("Unsupported pad type %s", name);
@@ -1037,7 +1037,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
 
   CONNECT_DATA_LOCK (data);
 
-  if (g_str_has_suffix (name, VIDEO)) {
+  if (g_str_has_prefix (name, "sink_" VIDEO)) {
     data->videosink = NULL;
     data->video_checks--;
     data->video_connected = FALSE;
@@ -1045,7 +1045,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
     if (data->video_checks > 0) {
       g_idle_add ((GSourceFunc) enable_video_stream, data->sink);
     }
-  } else if (g_str_has_suffix (name, AUDIO)) {
+  } else if (g_str_has_prefix (name, "sink_" AUDIO)) {
     data->audiosink = NULL;
     data->audio_checks--;
     data->audio_connected = FALSE;
@@ -1053,7 +1053,7 @@ sink_pads_removed (GstElement * element, GstPad * old_pad, gpointer user_data)
     if (data->audio_checks > 0) {
       g_idle_add ((GSourceFunc) enable_audio_stream, data->sink);
     }
-  } else if (g_str_has_suffix (name, DATA)) {
+  } else if (g_str_has_prefix (name, "sink_" DATA)) {
     data->datasink = NULL;
     data->data_checks--;
     data->data_connected = FALSE;

@@ -101,8 +101,8 @@ GST_START_TEST (connect_sinks)
 
   /* By default sink pads does not exists until hub port is internally connected */
 
-  fail_if (gst_element_get_static_pad (hubport, "sink_video"));
-  fail_if (gst_element_get_static_pad (hubport, "sink_audio"));
+  fail_if (gst_element_get_static_pad (hubport, "sink_video_default"));
+  fail_if (gst_element_get_static_pad (hubport, "sink_audio_default"));
 
   /* Check if pads have been created now that internal pads have been linked */
 
@@ -111,8 +111,10 @@ GST_START_TEST (connect_sinks)
   fail_unless (gst_element_link_pads (hubport, "hub_audio_src", fakesink2,
           "sink"));
 
-  fail_unless (gst_element_link_pads (videosrc, "src", hubport, "sink_video"));
-  fail_unless (gst_element_link_pads (audiosrc, "src", hubport, "sink_audio"));
+  fail_unless (gst_element_link_pads (videosrc, "src", hubport,
+          "sink_video_default"));
+  fail_unless (gst_element_link_pads (audiosrc, "src", hubport,
+          "sink_audio_default"));
 
   g_object_unref (pipe);
 }

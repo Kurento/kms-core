@@ -23,6 +23,8 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaElementImpl"
 
+#define KMS_DEFAULT_MEDIA_DESCRIPTION "default"
+
 #define MIN_OUTPUT_BITRATE "min-output-bitrate"
 #define MAX_OUTPUT_BITRATE "max-output-bitrate"
 
@@ -67,7 +69,8 @@ public:
 
   void setSinkPadName()
   {
-    std::string desc = (sourceDescription.empty () ? "" : "_") + sourceDescription;
+    std::string desc = "_" + (sourceDescription.empty () ?
+                              KMS_DEFAULT_MEDIA_DESCRIPTION : sourceDescription);
 
     switch (type->getValue () ) {
     case MediaType::AUDIO:

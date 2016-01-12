@@ -65,6 +65,7 @@ struct _KmsElementClass
   GstBinClass parent_class;
 
   /* actions */
+  gchar * (*request_new_pad) (KmsElement *self, KmsElementPadType type, const gchar *desc, GstPadDirection dir);
   gchar * (*request_new_srcpad) (KmsElement *self, KmsElementPadType type, const gchar *desc);
   gboolean (*release_requested_srcpad) (KmsElement *self, const gchar *pad_name);
   GstStructure * (*stats) (KmsElement * self, gchar * selector);
@@ -73,6 +74,7 @@ struct _KmsElementClass
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
   void (*collect_media_stats) (KmsElement * self, gboolean enable);
   GstElement * (*create_output_element) (KmsElement * self);
+  gboolean (*request_new_sink_pad) (KmsElement * self, KmsElementPadType type, const gchar * description, const gchar * name);
 };
 
 GType kms_element_get_type (void);

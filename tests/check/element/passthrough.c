@@ -119,67 +119,31 @@ typedef struct _KmsConnectData
   gulong id;
 } KmsConnectData;
 
-static void
-connect_sink (GstElement * element, GstPad * pad, gpointer user_data)
-{
-  KmsConnectData *data = user_data;
-
-  GST_DEBUG_OBJECT (pad, "New pad %" GST_PTR_FORMAT, element);
-
-  if (!g_str_has_prefix (GST_OBJECT_NAME (pad), data->pad_prefix)) {
-    return;
-  }
-
-  gst_bin_add (GST_BIN (data->pipe), data->src);
-
-  gst_element_link_pads (data->src, NULL, element, GST_OBJECT_NAME (pad));
-  gst_element_sync_state_with_parent (data->src);
-
-  GST_INFO_OBJECT (pad, "Linking %s", data->pad_prefix);
-
-  if (data->id != 0) {
-    g_signal_handler_disconnect (element, data->id);
-  }
-}
-
-static void
-kms_connect_data_destroy (gpointer data)
-{
-  g_slice_free (KmsConnectData, data);
-}
-
-static void
+static gboolean
 connect_sink_async (GstElement * passthrough, GstElement * src,
     GstElement * pipe, const gchar * pad_prefix)
 {
   GstPad *pad = gst_element_get_static_pad (passthrough, pad_prefix);
 
-  if (pad) {
-    gst_bin_add (GST_BIN (pipe), src);
-
-    gst_element_link_pads (src, NULL, passthrough, pad_prefix);
-    gst_element_sync_state_with_parent (src);
-    g_object_unref (pad);
-  } else {
-    KmsConnectData *data = g_slice_new (KmsConnectData);
-
-    data->src = src;
-    data->pipe = GST_BIN (pipe);
-    data->pad_prefix = pad_prefix;
-
-    data->id =
-        g_signal_connect_data (passthrough, "pad-added",
-        G_CALLBACK (connect_sink), data,
-        (GClosureNotify) kms_connect_data_destroy, 0);
+  if (pad == NULL) {
+    return FALSE;
   }
+
+  gst_bin_add (GST_BIN (pipe), src);
+  gst_element_link_pads (src, NULL, passthrough, pad_prefix);
+  gst_element_sync_state_with_parent (src);
+  g_object_unref (pad);
+
+  return TRUE;
 }
 
 static void
-connect_sink_on_srcpad_added (GstElement * element, GstPad * pad,
-    gpointer user_data)
+connect_sink_on_srcpad_added (GstElement * element, GstPad * pad)
 {
   GstElement *sink;
   GstPad *sinkpad;
+
+  GST_DEBUG_OBJECT (element, "Added pad %" GST_PTR_FORMAT, pad);
 
   if (g_str_has_prefix (GST_PAD_NAME (pad), KMS_AUDIO_PREFIX)) {
     GST_DEBUG_OBJECT (pad, "Connecting video stream");
@@ -202,16 +166,23 @@ static gboolean
 kms_element_request_srcpad (GstElement * src, KmsElementPadType pad_type)
 {
   gchar *padname;
+  gboolean ret;
 
   g_signal_emit_by_name (src, "request-new-srcpad", pad_type, NULL, &padname);
-  if (padname == NULL) {
-    return FALSE;
-  }
-
-  GST_DEBUG_OBJECT (src, "Requested pad %s", padname);
+  ret = padname != NULL;
   g_free (padname);
 
-  return TRUE;
+  return ret;
+}
+
+static void
+on_pad_added_cb (GstElement * element, GstPad * pad, gpointer user_data)
+{
+  GST_DEBUG_OBJECT (element, "Pad added %" GST_PTR_FORMAT, pad);
+
+  if (gst_pad_get_direction (pad) == GST_PAD_SRC) {
+    connect_sink_on_srcpad_added (element, pad);
+  }
 }
 
 GST_START_TEST (check_connecion)
@@ -221,8 +192,12 @@ GST_START_TEST (check_connecion)
   GstElement *videotestsrc = gst_element_factory_make ("videotestsrc", NULL);
   GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
   GstElement *passthrough = gst_element_factory_make ("passthrough", NULL);
-
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+  KmsConnectData data;
+
+  data.src = videotestsrc;
+  data.pipe = GST_BIN (pipeline);
+  data.pad_prefix = "sink_video_default";
 
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
@@ -234,15 +209,18 @@ GST_START_TEST (check_connecion)
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
+  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, fakesink);
+  g_signal_connect (passthrough, "pad-added",
+      G_CALLBACK (on_pad_added_cb), &data);
+
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), passthrough, fakesink, NULL);
   mark_point ();
-  connect_sink_async (passthrough, videotestsrc, pipeline, "sink_video");
-  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, fakesink);
-  g_signal_connect (passthrough, "pad-added",
-      G_CALLBACK (connect_sink_on_srcpad_added), NULL);
   fail_unless (kms_element_request_srcpad (passthrough,
           KMS_ELEMENT_PAD_TYPE_VIDEO));
+  fail_if (!connect_sink_async (passthrough, videotestsrc, pipeline,
+          data.pad_prefix));
+
   mark_point ();
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
@@ -272,6 +250,11 @@ GST_START_TEST (check_bitrate)
   GstElement *capsfilter = gst_element_factory_make ("capsfilter", NULL);
   GstCaps *caps = gst_caps_from_string ("video/x-vp8,framerate=30/1");
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+  KmsConnectData data;
+
+  data.src = videotestsrc;
+  data.pipe = GST_BIN (pipeline);
+  data.pad_prefix = "sink_video_default";
 
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
 
@@ -289,15 +272,17 @@ GST_START_TEST (check_bitrate)
   g_object_set (passthrough, "min-output-bitrate", BITRATE,
       "max-output-bitrate", BITRATE, NULL);
 
+  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, capsfilter);
+  g_signal_connect (passthrough, "pad-added",
+      G_CALLBACK (on_pad_added_cb), NULL);
+
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), passthrough, capsfilter, fakesink,
       NULL);
   gst_element_link (capsfilter, fakesink);
   mark_point ();
-  connect_sink_async (passthrough, videotestsrc, pipeline, "sink_video");
-  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, capsfilter);
-  g_signal_connect (passthrough, "pad-added",
-      G_CALLBACK (connect_sink_on_srcpad_added), NULL);
+  fail_if (!connect_sink_async (passthrough, videotestsrc, pipeline,
+          data.pad_prefix));
   fail_unless (kms_element_request_srcpad (passthrough,
           KMS_ELEMENT_PAD_TYPE_VIDEO));
   mark_point ();
@@ -326,6 +311,7 @@ passthrough_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
+
   tcase_add_test (tc_chain, check_connecion);
   tcase_add_test (tc_chain, check_bitrate);
 
