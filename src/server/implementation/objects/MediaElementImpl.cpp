@@ -798,7 +798,7 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
     sinkImpl->sources.at (mediaType).erase (sourceMediaDescription);
     sinks.at (mediaType).at (sinkMediaDescription).erase (connectionData);
 
-    g_signal_emit_by_name (getGstreamerElement (), "release-requested-srcpad",
+    g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
                            connectionData->getSourcePadName (), &ret, NULL);
   } catch (std::out_of_range) {
 

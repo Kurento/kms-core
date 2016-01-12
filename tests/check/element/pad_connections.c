@@ -468,8 +468,7 @@ release_requested_srcpad (GstPad * pad)
   GST_DEBUG_OBJECT (dummysrc, "Release requested src pad %" GST_PTR_FORMAT,
       pad);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-srcpad", padname,
-      &success);
+  g_signal_emit_by_name (dummysrc, "release-requested-pad", padname, &success);
   fail_if (!success);
 
   g_object_unref (dummysrc);
@@ -560,11 +559,10 @@ pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   fail_if (dummysrc == NULL);
 
   padname = gst_pad_get_name (pad);
-  GST_DEBUG_OBJECT (dummysrc, "Invoking action release-requested-srcpad for %s",
+  GST_DEBUG_OBJECT (dummysrc, "Invoking action release-requested-pad for %s",
       padname);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-srcpad", padname,
-      &success);
+  g_signal_emit_by_name (dummysrc, "release-requested-pad", padname, &success);
   fail_if (!success);
 
   g_object_unref (dummysrc);
@@ -700,7 +698,7 @@ remove_src_pad (gpointer user_data)
   fail_unless (src);
   dummysrc = gst_pad_get_parent_element (src);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-srcpad",
+  g_signal_emit_by_name (dummysrc, "release-requested-pad",
       GST_OBJECT_NAME (src), &success);
   fail_unless (success);
 
