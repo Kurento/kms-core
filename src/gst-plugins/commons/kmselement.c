@@ -540,6 +540,10 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
   g_free (pad_name);
   g_object_unref (templ);
 
+  if (!pad) {
+    return NULL;
+  }
+
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     kms_utils_drop_until_keyframe (pad, TRUE);
     kms_utils_manage_gaps (pad);
