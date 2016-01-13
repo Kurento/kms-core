@@ -37,6 +37,13 @@ GST_DEBUG_CATEGORY_STATIC (kms_dummy_sink_debug_category);
   )                                       \
 )
 
+typedef struct _KmsDummySinkElement
+{
+  KmsElementPadType type;
+  gchar *description;
+  GstElement *sink;
+} KmsDummySinkElement;
+
 struct _KmsDummySinkPrivate
 {
   gboolean video;
@@ -45,6 +52,8 @@ struct _KmsDummySinkPrivate
   GstElement *videoappsink;
   GstElement *audioappsink;
   GstElement *dataappsink;
+
+  GHashTable *sinks;            /* <name, KmsDummySinkElement> */
 };
 
 G_DEFINE_TYPE_WITH_CODE (KmsDummySink, kms_dummy_sink,
@@ -65,6 +74,29 @@ enum
 #define DEFAULT_HTTP_ENDPOINT_START FALSE
 
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
+
+static KmsDummySinkElement *
+create_dummy_sink_element (KmsElementPadType type, const gchar * description,
+    GstElement * sink)
+{
+  KmsDummySinkElement *dummy_sink;
+
+  dummy_sink = g_slice_new0 (KmsDummySinkElement);
+  dummy_sink->type = type;
+  dummy_sink->description = g_strdup (description);
+  dummy_sink->sink = g_object_ref (sink);
+
+  return dummy_sink;
+}
+
+static void
+destroy_dummy_sink_element (KmsDummySinkElement * sink)
+{
+  g_free (sink->description);
+  g_clear_object (&sink->sink);
+
+  g_slice_free (KmsDummySinkElement, sink);
+}
 
 static void
 kms_dummy_sink_add_sinkpad (KmsDummySink * self, KmsElementPadType type)
@@ -186,14 +218,101 @@ kms_dummy_sink_get_property (GObject * object, guint property_id,
 }
 
 static void
+kms_dummy_sink_finalize (GObject * object)
+{
+  KmsDummySink *self = KMS_DUMMY_SINK (object);
+
+  GST_DEBUG_OBJECT (self, "finalize");
+  g_hash_table_unref (self->priv->sinks);
+
+  /* chain up */
+  G_OBJECT_CLASS (kms_dummy_sink_parent_class)->finalize (object);
+}
+
+static gboolean
+kms_dummy_sink_request_new_sink_pad (KmsElement * obj, KmsElementPadType type,
+    const gchar * description, const gchar * name)
+{
+  KmsDummySink *self = KMS_DUMMY_SINK (obj);
+  KmsDummySinkElement *dummy;
+  GstElement *sink;
+  GstPad *sinkpad;
+
+  KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
+
+  if (g_hash_table_contains (self->priv->sinks, name)) {
+    KMS_ELEMENT_UNLOCK (KMS_ELEMENT (self));
+
+    return TRUE;
+  }
+
+  sink = gst_element_factory_make ("fakesink", NULL);
+  g_object_set (sink, "async", FALSE, "sync", FALSE, NULL);
+
+  dummy = create_dummy_sink_element (type, description, sink);
+
+  if (!gst_bin_add (GST_BIN (self), sink)) {
+    KMS_ELEMENT_UNLOCK (KMS_ELEMENT (self));
+    destroy_dummy_sink_element (dummy);
+
+    return FALSE;
+  }
+
+  g_hash_table_insert (self->priv->sinks, g_strdup (name), dummy);
+  KMS_ELEMENT_UNLOCK (KMS_ELEMENT (self));
+
+  gst_element_sync_state_with_parent (sink);
+
+  sinkpad = gst_element_get_static_pad (sink, "sink");
+  kms_element_connect_sink_target_full (KMS_ELEMENT (self), sinkpad, type,
+      description, NULL, NULL);
+  g_object_unref (sinkpad);
+
+  return TRUE;
+}
+
+static gboolean
+kms_dummy_sink_release_requested_sink_pad (KmsElement * obj, GstPad * pad)
+{
+  KmsDummySink *self = KMS_DUMMY_SINK (obj);
+  KmsDummySinkElement *dummy;
+  gchar *padname;
+
+  padname = gst_pad_get_name (pad);
+
+  KMS_ELEMENT_LOCK (KMS_ELEMENT (self));
+
+  dummy = g_hash_table_lookup (self->priv->sinks, padname);
+
+  if (dummy == NULL) {
+    KMS_ELEMENT_UNLOCK (KMS_ELEMENT (self));
+
+    return FALSE;
+  }
+
+  kms_element_remove_sink_by_type_full (obj, dummy->type, dummy->description);
+  g_hash_table_remove (self->priv->sinks, padname);
+
+  return TRUE;
+}
+
+static void
 kms_dummy_sink_class_init (KmsDummySinkClass * klass)
 {
+  KmsElementClass *kmselement_class;
   GstElementClass *gstelement_class;
   GObjectClass *gobject_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
   gobject_class->set_property = kms_dummy_sink_set_property;
   gobject_class->get_property = kms_dummy_sink_get_property;
+  gobject_class->finalize = kms_dummy_sink_finalize;
+
+  kmselement_class = KMS_ELEMENT_CLASS (klass);
+  kmselement_class->request_new_sink_pad =
+      GST_DEBUG_FUNCPTR (kms_dummy_sink_request_new_sink_pad);
+  kmselement_class->release_requested_sink_pad =
+      GST_DEBUG_FUNCPTR (kms_dummy_sink_release_requested_sink_pad);
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
   gst_element_class_set_details_simple (gstelement_class,
@@ -224,6 +343,9 @@ static void
 kms_dummy_sink_init (KmsDummySink * self)
 {
   self->priv = KMS_DUMMY_SINK_GET_PRIVATE (self);
+
+  self->priv->sinks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+      (GDestroyNotify) destroy_dummy_sink_element);
 }
 
 gboolean

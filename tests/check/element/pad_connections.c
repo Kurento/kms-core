@@ -861,12 +861,26 @@ data_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
 
   CONNECT_DATA_LOCK (data);
   if (!data->data_buff) {
+    gboolean actived;
+
     data->data_buff = TRUE;
     CONNECT_DATA_UNLOCK (data);
 
     GST_DEBUG_OBJECT (data->sink, "Disabling reception of data stream");
-    /* Do not accept more audio data */
-    g_object_set (G_OBJECT (data->sink), "data", FALSE, NULL);
+    g_object_get (G_OBJECT (data->sink), "data", &actived, NULL);
+    if (actived) {
+      /* Do not accept more data */
+      g_object_set (G_OBJECT (data->sink), "data", FALSE, NULL);
+    } else {
+      gchar *padname;
+      gboolean success;
+
+      padname = gst_pad_get_name (pad);
+
+      g_signal_emit_by_name (data->sink, "release-requested-pad", padname,
+          &success);
+      fail_if (!success);
+    }
   } else {
     CONNECT_DATA_UNLOCK (data);
   }
@@ -1350,6 +1364,69 @@ GST_START_TEST (connect_chain_of_elements)
 }
 
 GST_END_TEST
+GST_START_TEST (request_data_sink_pad)
+{
+  gchar *padname = NULL;
+  KmsConnectData *data;
+  GstBus *bus;
+
+  data = kms_connect_data_create (1);
+  data->data_probe = (KmsProbeType) data_probe_cb;
+  data->audio_probe = (KmsProbeType) audio_probe_cb;
+  data->video_probe = (KmsProbeType) video_probe_cb;
+
+  /* Only tests data */
+  data->video_checks = data->audio_checks = 0;
+
+  loop = g_main_loop_new (NULL, TRUE);
+  pipeline = gst_pipeline_new (__FUNCTION__);
+  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
+
+  gst_bus_add_signal_watch (bus);
+  g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
+
+  data->src = gst_element_factory_make ("dummysrc", NULL);
+  data->sink = gst_element_factory_make ("dummysink", NULL);
+  g_signal_connect (data->src, "pad-added", G_CALLBACK (src_pads_added), data);
+  g_signal_connect (data->sink, "pad-added",
+      G_CALLBACK (sink_pads_added), data);
+
+  g_signal_connect (data->sink, "pad-removed",
+      G_CALLBACK (sink_pads_removed), data);
+
+  gst_bin_add_many (GST_BIN (pipeline), data->src, data->sink, NULL);
+
+  /* request src pad using action */
+  g_signal_emit_by_name (data->src, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, NULL, GST_PAD_SRC, &data->data_src);
+  fail_if (data->data_src == NULL);
+
+  GST_DEBUG ("Data pad name: %s", data->data_src);
+
+  /* request sink pad using action */
+  g_signal_emit_by_name (data->sink, "request-new-pad",
+      KMS_ELEMENT_PAD_TYPE_DATA, "test", GST_PAD_SINK, &padname);
+  fail_if (padname == NULL);
+
+  GST_DEBUG ("Data pad name: %s", padname);
+
+  g_object_set (G_OBJECT (data->src), "data", TRUE, NULL);
+
+  g_timeout_add_seconds (4, print_timedout_pipeline, NULL);
+
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  g_main_loop_run (loop);
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  gst_bus_remove_signal_watch (bus);
+  g_object_unref (bus);
+  g_object_unref (pipeline);
+  g_free (padname);
+  g_main_loop_unref (loop);
+  kms_connect_data_destroy (data);
+}
+
+GST_END_TEST
 /*
  * End of test cases
  */
@@ -1375,6 +1452,7 @@ pads_connection_suite (void)
   tcase_add_test (tc_chain, connect_chain_of_elements);
   tcase_add_test (tc_chain,
       disconnect_requested_src_pad_linked_with_buffer_injector);
+  tcase_add_test (tc_chain, request_data_sink_pad);
 
   return s;
 }
