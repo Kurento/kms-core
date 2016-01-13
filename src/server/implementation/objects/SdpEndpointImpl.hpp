@@ -21,7 +21,7 @@ public:
 
   SdpEndpointImpl (const boost::property_tree::ptree &config,
                    std::shared_ptr< MediaObjectImpl > parent,
-                   const std::string &factoryName);
+                   const std::string &factoryName, bool useIpv6 = false);
 
   virtual ~SdpEndpointImpl () {};
 

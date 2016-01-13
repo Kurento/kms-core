@@ -87,7 +87,7 @@ void SdpEndpointImpl::postConstructor ()
 
 SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
                                   std::shared_ptr< MediaObjectImpl > parent,
-                                  const std::string &factoryName) :
+                                  const std::string &factoryName, bool useIpv6) :
   SessionEndpointImpl (config, parent, factoryName)
 {
   GArray *audio_codecs, *video_codecs;
@@ -133,6 +133,7 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
                 audio_codecs, NULL);
   g_object_set (element, "num-video-medias", video_medias, "video-codecs",
                 video_codecs, NULL);
+  g_object_set (element, "use-ipv6", useIpv6, NULL);
 
   offerInProcess = false;
   waitingAnswer = false;

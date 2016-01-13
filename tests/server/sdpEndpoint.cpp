@@ -49,10 +49,20 @@ protected:
                                         &conf, const Json::Value &params) const
   {
     std::string mediaPipelineId = params["mediaPipeline"].asString ();
+    bool useIpv6 = false;;
+
+    if (params.isMember ("useIpv6") ) {
+      Json::Value useIpv6Param = params["useIpv6"];
+
+      if (useIpv6Param.isConvertibleTo (Json::ValueType::booleanValue) ) {
+        useIpv6 = useIpv6Param.asBool();
+      }
+    }
+
     std::shared_ptr <MediaObjectImpl> pipe =
       MediaSet::getMediaSet ()->getMediaObject (mediaPipelineId);
 
-    return new  SdpEndpointImpl (config, pipe, "dummysdp");
+    return new SdpEndpointImpl (config, pipe, "dummysdp", useIpv6);
   }
 };
 
@@ -77,12 +87,13 @@ releaseMediaObject (const std::string &id)
 
 
 static std::shared_ptr <SdpEndpointImpl> generateSdpEndpoint (
-  const std::string &mediaPipelineId)
+  const std::string &mediaPipelineId, bool useIpv6 = false)
 {
   SdpEndpointFactory factory;
   Json::Value params;
 
   params["mediaPipeline"] = mediaPipelineId;
+  params["useIpv6"] = useIpv6;
 
   return std::dynamic_pointer_cast<SdpEndpointImpl> (
            factory.createObject (config, "", params) );
@@ -116,6 +127,74 @@ BOOST_AUTO_TEST_CASE (duplicate_offer)
       BOOST_ERROR ("Duplicate offer not detected");
     }
   }
+
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  sdpEndpoint.reset ();
+}
+
+BOOST_AUTO_TEST_CASE (generate_ipv6_offer)
+{
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  config.add ("configPath", "../../../tests" );
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
+
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId, true);
+
+  std::string offer = sdpEndpoint->generateOffer();
+
+  BOOST_CHECK (offer.find ("IP6") != std::string::npos);
+  BOOST_CHECK (offer.find ("IP4") == std::string::npos);
+  BOOST_CHECK (offer.find ("::") != std::string::npos);
+
+  releaseMediaObject (sdpEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  sdpEndpoint.reset ();
+}
+
+BOOST_AUTO_TEST_CASE (generate_ipv6_answer)
+{
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  config.add ("configPath", "../../../tests" );
+  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 0);
+  config.add ("modules.kurento.SdpEndpoint.audioCodecs", "[]");
+  config.add ("modules.kurento.SdpEndpoint.videoCodecs", "[]");
+
+  std::shared_ptr <SdpEndpointImpl> sdpEndpoint = generateSdpEndpoint (
+        mediaPipelineId, true);
+
+  std::string offer = "v=0\r\n"
+                      "o=- 0 0 IN IP6 ::1\r\n"
+                      "s=TestSession\r\n"
+                      "c=IN IP6 ::1\r\n"
+                      "t=2873397496 2873404696\r\n"
+                      "m=audio 9 RTP/AVP 0\r\n"
+                      "a=rtpmap:0 PCMU/8000\r\n"
+                      "a=sendonly\r\n"
+                      "m=video 9 RTP/AVP 96\r\n"
+                      "a=rtpmap:96 VP8/90000\r\n"
+                      "a=sendonly\r\n";
+
+  std::string answer = sdpEndpoint->processOffer (offer);
+
+  BOOST_CHECK (answer.find ("IP6") != std::string::npos);
+  BOOST_CHECK (answer.find ("IP4") == std::string::npos);
+  BOOST_CHECK (answer.find ("::") != std::string::npos);
 
   releaseMediaObject (sdpEndpoint->getId() );
   releaseMediaObject (mediaPipelineId);
