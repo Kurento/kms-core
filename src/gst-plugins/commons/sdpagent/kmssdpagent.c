@@ -35,6 +35,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
 #define ORIGIN_ATTR_ADDR_TYPE_IP6 "IP6"
 #define DEFAULT_IP4_ADDR "0.0.0.0"
 #define DEFAULT_IP6_ADDR "::"
+#define DEFAULT_ADDR DEFAULT_IP4_ADDR
 
 /* Object properties */
 enum
@@ -257,6 +258,14 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_USE_IPV6:
       self->priv->use_ipv6 = g_value_get_boolean (value);
+      if (g_strcmp0 (self->priv->addr, DEFAULT_ADDR) == 0) {
+        g_free (self->priv->addr);
+        if (self->priv->use_ipv6) {
+          self->priv->addr = g_strdup (DEFAULT_IP6_ADDR);
+        } else {
+          self->priv->addr = g_strdup (DEFAULT_IP4_ADDR);
+        }
+      }
       break;
     case PROP_ADDR:
       g_free (self->priv->addr);
@@ -685,7 +694,7 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
       DEFAULT_USE_IPV6, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_ADDR] = g_param_spec_string ("addr", "Address",
-      "The IP address used to negotiate SDPs", DEFAULT_IP4_ADDR,
+      "The IP address used to negotiate SDPs", DEFAULT_ADDR,
       G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_LOCAL_DESC] = g_param_spec_boxed ("local-description",
