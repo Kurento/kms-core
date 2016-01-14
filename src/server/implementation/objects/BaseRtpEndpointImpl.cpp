@@ -68,8 +68,8 @@ void BaseRtpEndpointImpl::postConstructor ()
 BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     &config,
     std::shared_ptr< MediaObjectImpl > parent,
-    const std::string &factoryName) :
-  SdpEndpointImpl (config, parent, factoryName)
+    const std::string &factoryName, bool useIpv6) :
+  SdpEndpointImpl (config, parent, factoryName, useIpv6)
 {
   current_media_state = std::make_shared <MediaState>
                         (MediaState::DISCONNECTED);
