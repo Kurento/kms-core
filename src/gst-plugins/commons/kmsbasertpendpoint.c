@@ -109,8 +109,6 @@ typedef struct _RtpMediaConfig
   guint local_ssrc;
   guint ssrc;
   gboolean actived;
-
-  gboolean payloader_connected;
 } RtpMediaConfig;
 
 static void
@@ -134,8 +132,6 @@ rtp_media_config_new ()
 
   kms_ref_struct_init (KMS_REF_STRUCT_CAST (config),
       (GDestroyNotify) rtp_media_config_destroy);
-
-  config->payloader_connected = FALSE;
 
   return config;
 }
@@ -457,7 +453,7 @@ typedef struct _ConnectPayloaderData
   KmsRefStruct ref;
   KmsBaseRtpEndpoint *self;
   GstElement *payloader;
-  gboolean *connected_flag;
+  gboolean connected_flag;
   KmsElementPadType type;
 } ConnectPayloaderData;
 
@@ -469,7 +465,7 @@ connect_payloader_data_destroy (gpointer data)
 
 static ConnectPayloaderData *
 connect_payloader_data_new (KmsBaseRtpEndpoint * self, GstElement * payloader,
-    gboolean * connected_flag, KmsElementPadType type)
+    KmsElementPadType type)
 {
   ConnectPayloaderData *data;
 
@@ -480,7 +476,6 @@ connect_payloader_data_new (KmsBaseRtpEndpoint * self, GstElement * payloader,
 
   data->self = self;
   data->payloader = payloader;
-  data->connected_flag = connected_flag;
   data->type = type;
 
   return data;
@@ -1087,19 +1082,21 @@ end:
 }
 
 static void
-kms_base_rtp_endpoint_do_connect_payloader (KmsBaseRtpEndpoint * self,
-    GstElement * payloader, gboolean * connected_flag, KmsElementPadType type)
+kms_base_rtp_endpoint_do_connect_payloader (ConnectPayloaderData * data)
 {
-  GST_DEBUG_OBJECT (self, "Connecting payloader %" GST_PTR_FORMAT, payloader);
+  GST_DEBUG_OBJECT (data->self, "Connecting payloader %" GST_PTR_FORMAT,
+      data->payloader);
 
-  if (g_atomic_int_compare_and_exchange (connected_flag, FALSE, TRUE)) {
-    GstPad *target = gst_element_get_static_pad (payloader, "sink");
+  if (g_atomic_int_compare_and_exchange (&data->connected_flag, FALSE, TRUE)) {
+    GstPad *target = gst_element_get_static_pad (data->payloader, "sink");
 
-    kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
+    kms_element_connect_sink_target (KMS_ELEMENT (data->self), target,
+        data->type);
     g_object_unref (target);
   } else {
-    GST_WARNING_OBJECT (self,
-        "Connected flag already set for payloader %" GST_PTR_FORMAT, payloader);
+    GST_WARNING_OBJECT (data->self,
+        "Connected flag already set for payloader %" GST_PTR_FORMAT,
+        data->payloader);
   }
 }
 
@@ -1109,8 +1106,7 @@ kms_base_rtp_endpoint_connect_payloader_cb (KmsIRtpConnection * conn,
 {
   ConnectPayloaderData *data = d;
 
-  kms_base_rtp_endpoint_do_connect_payloader (data->self, data->payloader,
-      data->connected_flag, data->type);
+  kms_base_rtp_endpoint_do_connect_payloader (data);
 
   /* DTLS is already connected, so we do not need to be attached to this */
   /* signal any more. We can free the tmp data without waiting for the   */
@@ -1120,14 +1116,13 @@ kms_base_rtp_endpoint_connect_payloader_cb (KmsIRtpConnection * conn,
 
 static void
 kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
-    KmsIRtpConnection * conn, GstElement * payloader, gboolean * connected_flag,
-    KmsElementPadType type)
+    KmsIRtpConnection * conn, GstElement * payloader, KmsElementPadType type)
 {
   ConnectPayloaderData *data;
   gboolean connected = FALSE;
   gulong handler_id = 0;
 
-  data = connect_payloader_data_new (self, payloader, connected_flag, type);
+  data = connect_payloader_data_new (self, payloader, type);
 
   handler_id = g_signal_connect_data (conn, "connected",
       G_CALLBACK (kms_base_rtp_endpoint_connect_payloader_cb),
@@ -1141,8 +1136,7 @@ kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
       g_signal_handler_disconnect (conn, handler_id);
     }
 
-    kms_base_rtp_endpoint_do_connect_payloader (self, payloader, connected_flag,
-        type);
+    kms_base_rtp_endpoint_do_connect_payloader (data);
   } else {
     GST_DEBUG_OBJECT (self, "Media not connected, waiting for signal");
   }
@@ -1153,7 +1147,7 @@ kms_base_rtp_endpoint_connect_payloader_async (KmsBaseRtpEndpoint * self,
 static void
 kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
     KmsIRtpConnection * conn, KmsElementPadType type, GstElement * payloader,
-    gboolean * connected_flag, const gchar * rtpbin_pad_name)
+    const gchar * rtpbin_pad_name)
 {
   GstElement *rtpbin = self->priv->rtpbin;
   GstElement *src_element;
@@ -1175,8 +1169,7 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
 
   gst_element_link_pads (src_element, "src", rtpbin, rtpbin_pad_name);
 
-  kms_base_rtp_endpoint_connect_payloader_async (self, conn, payloader,
-      connected_flag, type);
+  kms_base_rtp_endpoint_connect_payloader_async (self, conn, payloader, type);
 }
 
 static void
@@ -1190,7 +1183,6 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   guint j, f_len;
   const gchar *rtpbin_pad_name;
   KmsElementPadType type;
-  gboolean *connected_flag;
 
   f_len = gst_sdp_media_formats_len (media);
   for (j = 0; j < f_len && caps == NULL; j++) {
@@ -1218,18 +1210,15 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    connected_flag = &self->priv->audio_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_AUDIO;
     rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
     /* TODO: check if is needed for audio  */
     kms_base_rtp_endpoint_config_rtp_hdr_ext (self, mconf, payloader);
-    connected_flag = &self->priv->video_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_VIDEO;
     rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
   } else {
     rtpbin_pad_name = NULL;
-    connected_flag = NULL;
     g_object_unref (payloader);
   }
 
@@ -1242,7 +1231,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
     }
 
     kms_base_rtp_endpoint_connect_payloader (self, conn, type, payloader,
-        connected_flag, rtpbin_pad_name);
+        rtpbin_pad_name);
   }
 }
 
