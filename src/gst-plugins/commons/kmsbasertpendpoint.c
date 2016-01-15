@@ -110,14 +110,12 @@ typedef struct _RtpMediaConfig
   guint ssrc;
   gboolean actived;
 
-  GstElement *payloader;
   gboolean payloader_connected;
 } RtpMediaConfig;
 
 static void
 rtp_media_config_destroy (RtpMediaConfig * config)
 {
-  g_clear_object (&config->payloader);
   g_slice_free (RtpMediaConfig, config);
 }
 
@@ -137,7 +135,6 @@ rtp_media_config_new ()
   kms_ref_struct_init (KMS_REF_STRUCT_CAST (config),
       (GDestroyNotify) rtp_media_config_destroy);
 
-  config->payloader = NULL;
   config->payloader_connected = FALSE;
 
   return config;
@@ -387,7 +384,7 @@ kms_base_rtp_endpoint_add_rtp_hdr_ext_probe (GstPad * pad,
 
 static void
 kms_base_rtp_endpoint_config_rtp_hdr_ext (KmsBaseRtpEndpoint * self,
-    SdpMediaConfig * mconf)
+    SdpMediaConfig * mconf, GstElement * payloader)
 {
   HdrExtData *data;
   gint abs_send_time_id;
@@ -399,7 +396,7 @@ kms_base_rtp_endpoint_config_rtp_hdr_ext (KmsBaseRtpEndpoint * self,
     return;
   }
 
-  pad = gst_element_get_static_pad (self->priv->video_config->payloader, "src");
+  pad = gst_element_get_static_pad (payloader, "src");
   if (pad == NULL) {
     GST_WARNING_OBJECT (self, "No RTP pad to configure hdrext probe.");
     return;
@@ -1162,7 +1159,6 @@ kms_base_rtp_endpoint_connect_payloader (KmsBaseRtpEndpoint * self,
   GstElement *src_element;
 
   src_element = payloader;
-  g_object_ref (payloader);
   gst_bin_add (GST_BIN (self), payloader);
   gst_element_sync_state_with_parent (payloader);
 
@@ -1222,14 +1218,12 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
   GST_DEBUG_OBJECT (self, "Found payloader %" GST_PTR_FORMAT, payloader);
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    self->priv->audio_config->payloader = payloader;
     connected_flag = &self->priv->audio_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_AUDIO;
     rtpbin_pad_name = AUDIO_RTPBIN_SEND_RTP_SINK;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    self->priv->video_config->payloader = payloader;
     /* TODO: check if is needed for audio  */
-    kms_base_rtp_endpoint_config_rtp_hdr_ext (self, mconf);
+    kms_base_rtp_endpoint_config_rtp_hdr_ext (self, mconf, payloader);
     connected_flag = &self->priv->video_config->payloader_connected;
     type = KMS_ELEMENT_PAD_TYPE_VIDEO;
     rtpbin_pad_name = VIDEO_RTPBIN_SEND_RTP_SINK;
