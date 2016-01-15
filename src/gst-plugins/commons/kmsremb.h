@@ -58,6 +58,7 @@ struct _KmsRembLocal
   gint up_losses;
 
   guint remb;
+  GstClockTime last_sent_time;
   gboolean probed;
   guint threshold;
   guint lineal_factor;

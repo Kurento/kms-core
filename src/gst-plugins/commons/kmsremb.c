@@ -260,6 +260,7 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     gboolean * do_not_supress)
 {
   KmsRembLocal *rl;
+  GstClockTime current_time, elapsed;
   KmsRTCPPSFBAFBREMBPacket remb_packet;
   GstRTCPBuffer rtcp = { NULL, };
   GstRTCPPacket packet;
@@ -272,7 +273,10 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     return;
   }
 
-  if (is_early) {
+  current_time = kms_utils_get_time_nsecs ();
+  elapsed = current_time - rl->last_sent_time;
+  if (rl->last_sent_time != 0 && (elapsed < REMB_MAX_INTERVAL * GST_MSECOND)) {
+    GST_TRACE_OBJECT (sess, "Not sending, interval < %u ms", REMB_MAX_INTERVAL);
     return;
   }
 
@@ -321,6 +325,8 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
 
   kms_remb_base_update_stats (KMS_REMB_BASE (rl), rl->remote_ssrc,
       remb_packet.bitrate);
+
+  rl->last_sent_time = current_time;
 
 end:
   gst_rtcp_buffer_unmap (&rtcp);
