@@ -83,6 +83,8 @@ typedef struct _KmsRlRemoteSession
 {
   GObject *rtpsess;
   guint ssrc;
+
+  guint64 last_packets_received_expected;
 } KmsRlRemoteSession;
 
 static KmsRlRemoteSession *
@@ -108,6 +110,7 @@ typedef struct _GetRtpSessionsInfo
   guint count;
   guint64 bitrate;
   guint fraction_lost_accumulative;     /* the sum of all sessions, it should be normalized */
+  guint64 packets_received_expected_interval_accumulative;
   guint64 octets_received;
   guint64 packets_received;
 } GetRtpSessionsInfo;
@@ -137,7 +140,9 @@ get_sessions_info (KmsRlRemoteSession * rlrs, GetRtpSessionsInfo * data)
     if (ssrc == rlrs->ssrc) {
       GstStructure *s;
       guint64 bitrate, octets_received, packets_received;
+      gint packets_lost;
       guint fraction_lost;
+      guint64 packets_received_expected, packets_received_expected_interval;
 
       g_object_get (source, "stats", &s, NULL);
       GST_TRACE_OBJECT (source, "stats: %" GST_PTR_FORMAT, s);
@@ -145,19 +150,35 @@ get_sessions_info (KmsRlRemoteSession * rlrs, GetRtpSessionsInfo * data)
       if (!gst_structure_get_uint64 (s, "bitrate", &bitrate) ||
           !gst_structure_get_uint64 (s, "octets-received", &octets_received) ||
           !gst_structure_get_uint (s, "sent-rb-fractionlost", &fraction_lost) ||
-          !gst_structure_get_uint64 (s, "packets-received",
-              &packets_received)) {
+          !gst_structure_get_uint64 (s, "packets-received", &packets_received)
+          || !gst_structure_get_int (s, "packets-lost", &packets_lost)) {
         gst_structure_free (s);
         break;
       }
-
       gst_structure_free (s);
 
+      packets_received_expected = packets_received + packets_lost;
+      packets_received_expected_interval =
+          packets_received_expected - rlrs->last_packets_received_expected;
+      rlrs->last_packets_received_expected = packets_received_expected;
+
       data->bitrate += bitrate;
-      data->fraction_lost_accumulative += fraction_lost;
+      data->fraction_lost_accumulative +=
+          fraction_lost * packets_received_expected_interval;
+      data->packets_received_expected_interval_accumulative +=
+          packets_received_expected_interval;
       data->octets_received += octets_received;
       data->packets_received += packets_received;
       data->count++;
+
+      GST_TRACE_OBJECT (source,
+          "packets_received: %" G_GUINT64_FORMAT ", packets_lost: %"
+          G_GUINT32_FORMAT ", packets_received_expected_interval: %"
+          G_GUINT64_FORMAT
+          ", packets_received_expected_interval_accumulative: %"
+          G_GUINT64_FORMAT, packets_received, packets_lost,
+          packets_received_expected_interval,
+          data->packets_received_expected_interval_accumulative);
 
       break;
     }
@@ -181,11 +202,13 @@ get_video_recv_info (KmsRembLocal * rl,
   data.count = 0;
   data.bitrate = 0;
   data.fraction_lost_accumulative = 0;
+  data.packets_received_expected_interval_accumulative = 0;
   data.octets_received = 0;
   data.packets_received = 0;
   g_slist_foreach (rl->remote_sessions, (GFunc) get_sessions_info, &data);
 
-  if (data.count == 0) {
+  if (data.count == 0
+      || data.packets_received_expected_interval_accumulative == 0) {
     GST_WARNING ("Any data updated");
     return FALSE;
   }
@@ -193,7 +216,9 @@ get_video_recv_info (KmsRembLocal * rl,
   current_time = kms_utils_get_time_nsecs ();
 
   /* Normalize fraction_lost */
-  *fraction_lost = data.fraction_lost_accumulative / data.count;
+  *fraction_lost =
+      data.fraction_lost_accumulative /
+      data.packets_received_expected_interval_accumulative;
 
   *bitrate = data.bitrate;
   if (rl->last_time != 0) {
