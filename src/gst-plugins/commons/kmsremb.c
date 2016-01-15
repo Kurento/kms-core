@@ -104,19 +104,20 @@ get_video_recv_info (KmsRembLocal * rl,
   for (i = 0; i < arr->n_values; i++) {
     GObject *source;
     guint ssrc;
-    GstStructure *s;
 
     val = g_value_array_get_nth (arr, i);
     source = g_value_get_object (val);
-    g_object_get (source, "ssrc", &ssrc, "stats", &s, NULL);
-
+    g_object_get (source, "ssrc", &ssrc, NULL);
     GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
-    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "stats: %" GST_PTR_FORMAT,
-        s);
 
     if (ssrc == rl->remote_ssrc) {
+      GstStructure *s;
       GstClockTime current_time;
       guint64 octets_received, packets_received;
+
+      g_object_get (source, "stats", &s, NULL);
+      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "stats: %" GST_PTR_FORMAT,
+          s);
 
       if (!gst_structure_get_uint64 (s, "bitrate", bitrate)) {
         break;
@@ -130,6 +131,8 @@ get_video_recv_info (KmsRembLocal * rl,
       if (!gst_structure_get_uint64 (s, "packets-received", &packets_received)) {
         break;
       }
+
+      gst_structure_free (s);
 
       current_time = kms_utils_get_time_nsecs ();
 
@@ -152,8 +155,6 @@ get_video_recv_info (KmsRembLocal * rl,
 
       ret = TRUE;
     }
-
-    gst_structure_free (s);
 
     if (ret) {
       break;
