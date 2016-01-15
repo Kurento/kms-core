@@ -119,16 +119,12 @@ get_video_recv_info (KmsRembLocal * rl,
       GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "stats: %" GST_PTR_FORMAT,
           s);
 
-      if (!gst_structure_get_uint64 (s, "bitrate", bitrate)) {
-        break;
-      }
-      if (!gst_structure_get_uint64 (s, "octets-received", &octets_received)) {
-        break;
-      }
-      if (!gst_structure_get_uint (s, "sent-rb-fractionlost", fraction_lost)) {
-        break;
-      }
-      if (!gst_structure_get_uint64 (s, "packets-received", &packets_received)) {
+      if (!gst_structure_get_uint64 (s, "bitrate", bitrate) ||
+          !gst_structure_get_uint64 (s, "octets-received", &octets_received) ||
+          !gst_structure_get_uint (s, "sent-rb-fractionlost", fraction_lost) ||
+          !gst_structure_get_uint64 (s, "packets-received",
+              &packets_received)) {
+        gst_structure_free (s);
         break;
       }
 
