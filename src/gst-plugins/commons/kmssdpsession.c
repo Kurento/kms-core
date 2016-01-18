@@ -71,7 +71,7 @@ GstSDPMessage *
 kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
 {
   SdpMessageContext *ctx;
-  GstSDPMessage *answer = NULL;
+  GstSDPMessage *answer = NULL, *copy;
   GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Process offer");
@@ -84,7 +84,18 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
   self->remote_sdp_ctx = ctx;
 
-  ctx = kms_sdp_agent_create_answer (self->agent, offer, &err);
+  if (gst_sdp_message_copy (offer, &copy) != GST_SDP_OK) {
+    GST_ERROR_OBJECT (self, "Error processing offer (Cannot copy SDP offer)");
+    goto end;
+  }
+
+  kms_sdp_agent_set_remote_description (self->agent, copy, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
+    goto end;
+  }
+
+  ctx = kms_sdp_agent_create_answer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
     goto end;

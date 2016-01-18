@@ -1524,25 +1524,7 @@ error:
 }
 
 static SdpMessageContext *
-kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
-    const GstSDPMessage * offer, GError ** error)
-{
-  SdpMessageContext *ctx;
-
-  GST_WARNING_OBJECT (agent,
-      "Deprecated function. Use generate_answer instead");
-
-  SDP_AGENT_LOCK (agent);
-
-  ctx = kms_sdp_agent_generate_answer_compat (agent, offer, error);
-
-  SDP_AGENT_UNLOCK (agent);
-
-  return ctx;
-}
-
-static SdpMessageContext *
-kms_sdp_agent_generate_answer_impl (KmsSdpAgent * agent, GError ** error)
+kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 {
   SdpMessageContext *ctx = NULL;
 
@@ -1901,7 +1883,6 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   klass->add_proto_handler = kms_sdp_agent_add_proto_handler_impl;
   klass->create_offer = kms_sdp_agent_create_offer_impl;
   klass->create_answer = kms_sdp_agent_create_answer_impl;
-  klass->generate_answer = kms_sdp_agent_generate_answer_impl;
   klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
   klass->set_local_description = kms_sdp_agent_set_local_description_impl;
   klass->set_remote_description = kms_sdp_agent_set_remote_description_impl;
@@ -1954,20 +1935,11 @@ kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 
 /* Deprecated: Use kms_sdp_agent_generate_answer instead */
 SdpMessageContext *
-kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
-    GError ** error)
+kms_sdp_agent_create_answer (KmsSdpAgent * agent, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
 
-  return KMS_SDP_AGENT_GET_CLASS (agent)->create_answer (agent, offer, error);
-}
-
-SdpMessageContext *
-kms_sdp_agent_generate_answer (KmsSdpAgent * agent, GError ** error)
-{
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
-
-  return KMS_SDP_AGENT_GET_CLASS (agent)->generate_answer (agent, error);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->create_answer (agent, error);
 }
 
 gboolean
