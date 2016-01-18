@@ -2797,6 +2797,101 @@ GST_START_TEST (sdp_context_from_first_media_inactive)
 
 GST_END_TEST;
 
+GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
+{
+  KmsSdpAgent *offerer;
+  KmsSdpMediaHandler *handler;
+  GError *err = NULL;
+  GstSDPMessage *offer;
+  gint id;
+  gchar *sdp_str = NULL, *session;
+  SdpMessageContext *ctx;
+  const GstSDPOrigin *o;
+  guint64 v1, v2, v3;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
+  fail_if (id < 0);
+
+  /* re-use handler for audio */
+  g_object_ref (handler);
+  id = kms_sdp_agent_add_proto_handler (offerer, "audio", handler);
+  fail_if (id < 0);
+
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  o = gst_sdp_message_get_origin (offer);
+  v1 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  session = g_strdup (o->sess_id);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+  gst_sdp_message_free (offer);
+
+  /* We set our local description for further renegotiations */
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  /* Offer a new media for data channels */
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (offerer, "application", handler);
+  fail_if (id < 0);
+
+  /* Make a new offer */
+  ctx = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  o = gst_sdp_message_get_origin (offer);
+  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  GST_DEBUG ("New Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  /* This should be a new version of this session */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 1 == v2);
+  gst_sdp_message_free (offer);
+
+  /* Set new local description */
+  kms_sdp_agent_set_local_description (offerer, ctx);
+
+  /* Generate a new offer */
+  offer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("New Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  o = gst_sdp_message_get_origin (offer);
+  v3 = g_ascii_strtoull (o->sess_version, NULL, 10);
+
+  /* sdp is the same so version should not have changed */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 == v3);
+
+  gst_sdp_message_free (offer);
+  g_object_unref (offerer);
+  g_free (session);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -2831,6 +2926,8 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_sdes_negotiation);
 
   tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
+
+  tcase_add_test (tc_chain, sdp_agent_renegotiation_offer_new_media);
 
   return s;
 }

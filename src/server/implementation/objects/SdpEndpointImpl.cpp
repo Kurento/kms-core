@@ -42,6 +42,11 @@ str_to_sdp (const std::string &sdpStr)
     throw KurentoException (SDP_PARSE_ERROR, "Error parsing SDP");
   }
 
+  if (gst_sdp_message_get_version (sdp) == NULL) {
+    gst_sdp_message_free (sdp);
+    throw KurentoException (SDP_PARSE_ERROR, "Invalid SDP");
+  }
+
   return sdp;
 }
 
@@ -207,13 +212,14 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
     throw KurentoException (SDP_PARSE_ERROR, "Empty offer not valid");
   }
 
+  offerSdp = str_to_sdp (offer);
+
   if (!offerInProcess.compare_exchange_strong (expected, true) ) {
     //the endpoint is already negotiated
     throw KurentoException (SDP_END_POINT_ALREADY_NEGOTIATED,
                             "Endpoint already negotiated");
   }
 
-  offerSdp = str_to_sdp (offer);
   g_signal_emit_by_name (element, "process-offer", sessId.c_str (), offerSdp,
                          &result);
   gst_sdp_message_free (offerSdp);
@@ -250,13 +256,15 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
                             "Offer not generated. It is not possible to process an answer.");
   }
 
+  answerSdp = str_to_sdp (answer);
+
   if (!answerProcessed.compare_exchange_strong (expected_false, true) ) {
     //the endpoint is already negotiated
+    gst_sdp_message_free (answerSdp);
     throw KurentoException (SDP_END_POINT_ANSWER_ALREADY_PROCCESED,
                             "Sdp Answer already processed");
   }
 
-  answerSdp = str_to_sdp (answer);
   g_signal_emit_by_name (element, "process-answer", sessId.c_str (), answerSdp,
                          &result);
   gst_sdp_message_free (answerSdp);

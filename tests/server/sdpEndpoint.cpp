@@ -346,7 +346,7 @@ BOOST_AUTO_TEST_CASE (invalid_sdp)
     sdpEndpoint->processOffer ("bad offer");
     BOOST_ERROR ("Bad offer not detected");
   } catch (KurentoException &e) {
-    if (e.getCode () != SDP_END_POINT_PROCESS_OFFER_ERROR) {
+    if (e.getCode () != SDP_PARSE_ERROR) {
       BOOST_ERROR ("Bad offer not detected");
     }
   }
@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE (invalid_sdp)
     sdpEndpoint->processAnswer ("bad answer");
     BOOST_ERROR ("Bad answer not detected");
   } catch (KurentoException &e) {
-    if (e.getCode () != SDP_END_POINT_PROCESS_ANSWER_ERROR) {
+    if (e.getCode () != SDP_PARSE_ERROR) {
       BOOST_ERROR ("Bad answer not detected");
     }
   }

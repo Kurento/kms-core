@@ -114,7 +114,7 @@ typedef struct _SdpHandler
 
 struct _KmsSdpAgentPrivate
 {
-  GstSDPMessage *local_description;
+  SdpMessageContext *local_description;
   GstSDPMessage *remote_description;
   gboolean use_ipv6;
   gchar *addr;
@@ -204,7 +204,10 @@ kms_sdp_agent_finalize (GObject * object)
   kms_sdp_agent_configure_media_callback_data_clear (&self->
       priv->configure_media_callback_data);
 
-  kms_sdp_agent_release_sdp (&self->priv->local_description);
+  if (self->priv->local_description != NULL) {
+    kms_sdp_message_context_unref (self->priv->local_description);
+  }
+
   kms_sdp_agent_release_sdp (&self->priv->remote_description);
 
   g_slist_free_full (self->priv->handlers,
@@ -227,9 +230,19 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
   SDP_AGENT_LOCK (self);
 
   switch (prop_id) {
-    case PROP_LOCAL_DESC:
-      g_value_set_boxed (value, self->priv->local_description);
+    case PROP_LOCAL_DESC:{
+      GError *err = NULL;
+      GstSDPMessage *desc =
+          kms_sdp_message_context_pack (self->priv->local_description, &err);
+      if (err != NULL) {
+        GST_WARNING_OBJECT (self, "Cannot get local description (%s)",
+            err->message);
+        g_error_free (err);
+        break;
+      }
+      g_value_take_boxed (value, desc);
       break;
+    }
     case PROP_REMOTE_DESC:
       g_value_set_boxed (value, self->priv->remote_description);
       break;
@@ -277,6 +290,22 @@ kms_sdp_agent_set_property (GObject * object, guint prop_id,
   }
 
   SDP_AGENT_UNLOCK (self);
+}
+
+static void
+kms_sdp_agent_origin_init (KmsSdpAgent * agent, GstSDPOrigin * o,
+    gchar * sess_id, gchar * sess_version)
+{
+  SdpIPv ipv;
+
+  ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
+
+  o->username = "-";
+  o->sess_id = sess_id;
+  o->sess_version = sess_version;
+  o->nettype = "IN";
+  o->addrtype = (gchar *) kms_sdp_message_context_ipv2str (ipv);
+  o->addr = agent->priv->addr;
 }
 
 static gint
@@ -379,21 +408,133 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
   }
 }
 
+static guint64
+get_ntp_time ()
+{
+  return time (NULL) + G_GUINT64_CONSTANT (2208988800);
+}
+
+static gboolean
+increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
+    GError ** error)
+{
+  guint64 sess_version;
+  gchar *str_version;
+  const GstSDPOrigin *orig;
+  GstSDPOrigin new_orig;
+  gboolean ret;
+
+  orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
+
+  sess_version = g_ascii_strtoull (orig->sess_version, NULL, 10);
+  str_version = g_strdup_printf ("%" G_GUINT64_FORMAT, ++sess_version);
+
+  new_orig.username = orig->username;
+  new_orig.sess_id = orig->sess_id;
+  new_orig.sess_version = str_version;
+  new_orig.nettype = orig->nettype;
+  new_orig.addrtype = orig->addrtype;
+  new_orig.addr = orig->addr;
+
+  ret = kms_sdp_message_context_set_origin (new_offer, &new_orig, error);
+  g_free (str_version);
+
+  return ret;
+}
+
+static gboolean
+kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
+    SdpMessageContext * new_offer, GError ** error)
+{
+  gchar *prev_sdp_str = NULL, *new_sdp_str = NULL;
+  GstSDPMessage *prev_sdp, *new_sdp;
+  gboolean ret = TRUE;
+
+  /* rfc3264 8 Modifying the Session:                                         */
+  /* When issuing an offer that modifies the session, the "o=" line of the    */
+  /* new SDP MUST be identical to that in the previous SDP, except that the   */
+  /* version in the origin field MUST increment by one from the previous SDP. */
+
+  if (agent->priv->local_description == NULL) {
+    return TRUE;
+  }
+
+  prev_sdp =
+      kms_sdp_message_context_pack (agent->priv->local_description, error);
+  if (prev_sdp == NULL) {
+    ret = FALSE;
+    goto end;
+  }
+
+  new_sdp = kms_sdp_message_context_pack (new_offer, error);
+  if (new_sdp == NULL) {
+    ret = FALSE;
+    goto end;
+  }
+
+  prev_sdp_str = gst_sdp_message_as_text (prev_sdp);
+  new_sdp_str = gst_sdp_message_as_text (new_sdp);
+
+  gst_sdp_message_free (prev_sdp);
+  gst_sdp_message_free (new_sdp);
+
+  if (g_strcmp0 (prev_sdp_str, new_sdp_str) == 0) {
+    /* Same offer, not updated version */
+    goto end;
+  }
+
+  GST_DEBUG_OBJECT (agent, "Updating sdp session version");
+
+  ret = increment_sess_version (agent, new_offer, error);
+
+end:
+  g_free (prev_sdp_str);
+  g_free (new_sdp_str);
+
+  return ret;
+}
+
 static SdpMessageContext *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
+  gchar *sess_id, *sess_version;
   struct SdpOfferData data;
   SdpMessageContext *ctx;
-  SdpIPv ipv;
+  GstSDPOrigin o;
+  gchar *ntp = NULL;
 
   SDP_AGENT_LOCK (agent);
-  ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
 
-  ctx = kms_sdp_message_context_new (ipv, agent->priv->addr, error);
+  ctx = kms_sdp_message_context_new (error);
   if (ctx == NULL) {
     SDP_AGENT_UNLOCK (agent);
     return NULL;
   }
+
+  if (agent->priv->local_description != NULL) {
+    const GstSDPOrigin *orig;
+
+    orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
+    sess_id = orig->sess_id;
+    sess_version = orig->sess_version;
+  } else {
+    /* The method of generating <sess-id> and <sess-version> is up to the    */
+    /* creating tool, but it has been suggested that a Network Time Protocol */
+    /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
+    ntp = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+    sess_id = sess_version = ntp;
+  }
+
+  kms_sdp_agent_origin_init (agent, &o, sess_id, sess_version);
+
+  if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
+    SDP_AGENT_UNLOCK (agent);
+    kms_sdp_message_context_unref (ctx);
+    g_free (ntp);
+    return NULL;
+  }
+
+  g_free (ntp);
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
 
@@ -401,6 +542,12 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   data.agent = agent;
 
   g_slist_foreach (agent->priv->handlers, (GFunc) create_media_offers, &data);
+
+  if (!kms_sdp_agent_update_session_version (agent, ctx, error)) {
+    kms_sdp_message_context_unref (ctx);
+    ctx = NULL;
+  }
+
   SDP_AGENT_UNLOCK (agent);
 
   return ctx;
@@ -533,18 +680,31 @@ static SdpMessageContext *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
+  gchar *sess_id, *sess_version;
   struct SdpAnswerData data;
   SdpMessageContext *ctx;
   gboolean bundle;
-  SdpIPv ipv;
+  const GstSDPOrigin *offer_orig;
+  GstSDPOrigin o;
+
+  offer_orig = gst_sdp_message_get_origin (offer);
+  sess_id = offer_orig->sess_id;
+  sess_version = offer_orig->sess_version;
 
   SDP_AGENT_LOCK (agent);
-  ipv = (agent->priv->use_ipv6) ? IPV6 : IPV4;
+
+  kms_sdp_agent_origin_init (agent, &o, sess_id, sess_version);
   bundle = g_slist_length (agent->priv->groups) > 0;
+
   SDP_AGENT_UNLOCK (agent);
 
-  ctx = kms_sdp_message_context_new (ipv, agent->priv->addr, error);
+  ctx = kms_sdp_message_context_new (error);
   if (ctx == NULL) {
+    return NULL;
+  }
+
+  if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
+    kms_sdp_message_context_unref (ctx);
     return NULL;
   }
 
@@ -579,9 +739,13 @@ error:
 
 static void
 kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
-    GstSDPMessage * description)
+    SdpMessageContext * description)
 {
-  /* TODO: */
+  if (agent->priv->local_description != NULL) {
+    kms_sdp_message_context_unref (agent->priv->local_description);
+  }
+
+  agent->priv->local_description = description;
 }
 
 static void
@@ -767,7 +931,7 @@ kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer,
 
 void
 kms_sdp_agent_set_local_description (KmsSdpAgent * agent,
-    GstSDPMessage * description)
+    SdpMessageContext * description)
 {
   g_return_if_fail (KMS_IS_SDP_AGENT (agent));
 

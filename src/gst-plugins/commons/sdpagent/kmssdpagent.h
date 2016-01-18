@@ -91,7 +91,7 @@ struct _KmsSdpAgentClass
   gint (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
   SdpMessageContext *(*create_offer) (KmsSdpAgent * agent, GError **error);
   SdpMessageContext *(*create_answer) (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-  void (*set_local_description) (KmsSdpAgent * agent, GstSDPMessage * description);
+  void (*set_local_description) (KmsSdpAgent * agent, SdpMessageContext * description);
   void (*set_remote_description) (KmsSdpAgent * agent, GstSDPMessage * description);
   gint (*crate_bundle_group) (KmsSdpAgent * agent);
   gboolean (*add_handler_to_group) (KmsSdpAgent * agent, guint gid, guint mid);
@@ -103,7 +103,7 @@ KmsSdpAgent * kms_sdp_agent_new ();
 gint kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
 SdpMessageContext * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
 SdpMessageContext * kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-void kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage * description);
+void kms_sdp_agent_set_local_description (KmsSdpAgent * agent, SdpMessageContext * description);
 void kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description);
 gint kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
