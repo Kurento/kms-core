@@ -584,7 +584,8 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
     SDP_AGENT_UNLOCK (agent);
     GST_WARNING_OBJECT (agent,
-        "Can not manipulate media while negotiation is taking place");
+        "Can not manipulate media while negotiation is taking place (state: %s)",
+        kms_sdp_agent_states[agent->priv->state]);
     return -1;
   }
 
