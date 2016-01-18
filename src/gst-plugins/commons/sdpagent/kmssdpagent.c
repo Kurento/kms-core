@@ -1167,7 +1167,7 @@ end:
   return ctx;
 }
 
-GstSDPMessage *
+static GstSDPMessage *
 kms_sdp_agent_create_local_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
   SdpMessageContext *ctx = NULL;
