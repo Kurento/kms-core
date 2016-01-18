@@ -1988,7 +1988,7 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
   klass->set_local_description = kms_sdp_agent_set_local_description_impl;
   klass->set_remote_description = kms_sdp_agent_set_remote_description_impl;
-  klass->crate_bundle_group = kms_sdp_agent_create_bundle_group_impl;
+  klass->create_bundle_group = kms_sdp_agent_create_bundle_group_impl;
   klass->add_handler_to_group = kms_sdp_agent_add_handler_to_group_impl;
   klass->remove_handler_from_group =
       kms_sdp_agent_remove_handler_from_group_impl;
@@ -2090,11 +2090,11 @@ kms_sdp_agent_set_remote_description (KmsSdpAgent * agent,
 }
 
 gint
-kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent)
+kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
 
-  return KMS_SDP_AGENT_GET_CLASS (agent)->crate_bundle_group (agent);
+  return KMS_SDP_AGENT_GET_CLASS (agent)->create_bundle_group (agent);
 }
 
 gboolean

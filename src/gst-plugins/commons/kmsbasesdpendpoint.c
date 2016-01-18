@@ -323,7 +323,7 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
 
   gid = -1;
   if (self->priv->bundle) {
-    gid = kms_sdp_agent_crate_bundle_group (sess->agent);
+    gid = kms_sdp_agent_create_bundle_group (sess->agent);
     if (gid < 0) {
       GST_ERROR_OBJECT (self, "Cannot create bundle group.");
       return FALSE;

@@ -99,7 +99,7 @@ struct _KmsSdpAgentClass
   /* Deprecated */
   SdpMessageContext *(*create_offer) (KmsSdpAgent * agent, GError **error);
   SdpMessageContext *(*create_answer) (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-  gint (*crate_bundle_group) (KmsSdpAgent * agent);
+  gint (*create_bundle_group) (KmsSdpAgent * agent);
   gboolean (*add_handler_to_group) (KmsSdpAgent * agent, guint gid, guint mid);
   gboolean (*remove_handler_from_group) (KmsSdpAgent * agent, guint gid, guint hid);
 };
@@ -120,7 +120,7 @@ gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
 /* Deprecated */
 SdpMessageContext * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
 SdpMessageContext * kms_sdp_agent_create_answer (KmsSdpAgent * agent, const GstSDPMessage * offer, GError **error);
-gint kms_sdp_agent_crate_bundle_group (KmsSdpAgent * agent);
+gint kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid, guint hid);
 

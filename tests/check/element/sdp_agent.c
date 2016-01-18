@@ -821,7 +821,7 @@ test_bundle_group (gboolean expected_bundle)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
-  gid = kms_sdp_agent_crate_bundle_group (offerer);
+  gid = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid < 0);
 
   answerer = kms_sdp_agent_new ();
@@ -852,7 +852,7 @@ test_bundle_group (gboolean expected_bundle)
   fail_unless (kms_sdp_agent_add_handler_to_group (offerer, gid, hid));
 
   if (expected_bundle) {
-    gid = kms_sdp_agent_crate_bundle_group (answerer);
+    gid = kms_sdp_agent_create_bundle_group (answerer);
   }
 
   /* re-use handler for video in answerer */
@@ -1005,7 +1005,7 @@ test_group_with_pattern (const gchar * sdp_pattern,
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
 
-  gid = kms_sdp_agent_crate_bundle_group (answerer);
+  gid = kms_sdp_agent_create_bundle_group (answerer);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
@@ -1066,12 +1066,12 @@ sdp_agent_test_bundle_group_without_answerer_handlers ()
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
-  gid = kms_sdp_agent_crate_bundle_group (offerer);
+  gid = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid < 0);
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
-  gid = kms_sdp_agent_crate_bundle_group (answerer);
+  gid = kms_sdp_agent_create_bundle_group (answerer);
   fail_if (gid < 0);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avpf_media_handler_new ());
@@ -3345,7 +3345,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
-  gid = kms_sdp_agent_crate_bundle_group (offerer);
+  gid = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid < 0);
 
   g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
@@ -3652,7 +3652,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   id1 = kms_sdp_agent_add_proto_handler (offerer, "video", handler);
   fail_if (id1 < 0);
 
-  gid1 = kms_sdp_agent_crate_bundle_group (offerer);
+  gid1 = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid1 < 0);
 
   fail_if (!kms_sdp_agent_add_handler_to_group (offerer, gid1, id1));
@@ -3687,7 +3687,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   /* In this state it is not allowed to manipulate the SDP in any way */
   fail_unless (kms_sdp_agent_add_proto_handler (offerer, "audio", handler) < 0);
   fail_unless (!kms_sdp_agent_remove_proto_handler (offerer, id1));
-  fail_unless (kms_sdp_agent_crate_bundle_group (offerer) < 0);
+  fail_unless (kms_sdp_agent_create_bundle_group (offerer) < 0);
   fail_unless (!kms_sdp_agent_remove_handler_from_group (offerer, gid1, id1));
   fail_unless (!kms_sdp_agent_add_handler_to_group (offerer, gid1, id1));
 
@@ -3701,12 +3701,12 @@ GST_START_TEST (sdp_agent_check_state_machine)
 
   fail_unless (kms_sdp_agent_add_proto_handler (offerer, "audio", handler) < 0);
   fail_unless (!kms_sdp_agent_remove_proto_handler (offerer, id1));
-  fail_unless (kms_sdp_agent_crate_bundle_group (offerer) < 0);
+  fail_unless (kms_sdp_agent_create_bundle_group (offerer) < 0);
   fail_unless (!kms_sdp_agent_remove_handler_from_group (offerer, gid1, id1));
   fail_unless (!kms_sdp_agent_add_handler_to_group (offerer, gid1, id1));
 
   /* Now let's check the answerer */
-  gid2 = kms_sdp_agent_crate_bundle_group (answerer);
+  gid2 = kms_sdp_agent_create_bundle_group (answerer);
   fail_if (gid2 < 0);
 
   fail_if (!kms_sdp_agent_add_handler_to_group (answerer, gid2, id2));
@@ -3731,7 +3731,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   fail_unless (kms_sdp_agent_add_proto_handler (answerer, "audio",
           handler) < 0);
   fail_unless (!kms_sdp_agent_remove_proto_handler (answerer, id2));
-  fail_unless (kms_sdp_agent_crate_bundle_group (answerer) < 0);
+  fail_unless (kms_sdp_agent_create_bundle_group (answerer) < 0);
   fail_unless (!kms_sdp_agent_remove_handler_from_group (answerer, gid2, id2));
   fail_unless (!kms_sdp_agent_add_handler_to_group (answerer, gid2, id2));
 
@@ -3840,10 +3840,10 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
 
-  gid1 = kms_sdp_agent_crate_bundle_group (offerer);
+  gid1 = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid1 < 0);
 
-  gid2 = kms_sdp_agent_crate_bundle_group (answerer);
+  gid2 = kms_sdp_agent_create_bundle_group (answerer);
   fail_if (gid2 < 0);
 
   /* Configure offerer */
@@ -3999,7 +3999,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
-  gid1 = kms_sdp_agent_crate_bundle_group (offerer);
+  gid1 = kms_sdp_agent_create_bundle_group (offerer);
   fail_if (gid1 < 0);
 
   g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
@@ -4038,7 +4038,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
 
-  gid2 = kms_sdp_agent_crate_bundle_group (answerer);
+  gid2 = kms_sdp_agent_create_bundle_group (answerer);
   fail_if (gid1 < 0);
 
   g_object_set (answerer, "addr", OFFERER_ADDR, NULL);
