@@ -56,6 +56,7 @@ gboolean kms_sdp_message_context_has_groups (SdpMessageContext *ctx);
 gint kms_sdp_media_group_get_id (SdpMediaGroup *group);
 SdpMediaGroup * kms_sdp_message_context_get_group (SdpMessageContext *ctx, guint gid);
 gboolean kms_sdp_message_context_add_media_to_group (SdpMediaGroup *group, SdpMediaConfig *media, GError **error);
+gboolean kms_sdp_message_context_remove_media_from_group (SdpMediaGroup *group, guint id, GError **error);
 gboolean kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext *ctx, const GstSDPMessage *offer, GError **error);
 GstSDPMessage * kms_sdp_message_context_get_sdp_message (SdpMessageContext *ctx);
 GSList * kms_sdp_message_context_get_medias (SdpMessageContext *ctx);

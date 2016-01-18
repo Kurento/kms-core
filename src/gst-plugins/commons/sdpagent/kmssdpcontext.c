@@ -546,6 +546,30 @@ kms_sdp_message_context_add_media_to_group (SdpMediaGroup * group,
   return TRUE;
 }
 
+static gint
+compare_media_config_by_id (SdpMediaConfig * mconf, guint * id)
+{
+  return *id - mconf->id;
+}
+
+gboolean
+kms_sdp_message_context_remove_media_from_group (SdpMediaGroup * group,
+    guint id, GError ** error)
+{
+  GSList *l;
+
+  l = g_slist_find_custom (group->medias, &id,
+      (GCompareFunc) compare_media_config_by_id);
+
+  if (l == NULL) {
+    return FALSE;
+  }
+
+  group->medias = g_slist_remove (group->medias, l->data);
+
+  return TRUE;
+}
+
 gboolean
 kms_sdp_message_context_parse_groups_from_offer (SdpMessageContext * ctx,
     const GstSDPMessage * offer, GError ** error)
