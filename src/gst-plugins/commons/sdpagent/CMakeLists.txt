@@ -3,6 +3,7 @@ include_directories(
 )
 
 set(KMS_SDP_AGENT_SOURCES
+  kmssdpagentcommon.c
   kmssdpagent.c
   kmssdpcontext.c
   kmssdpmediahandler.c
@@ -19,6 +20,7 @@ set(KMS_SDP_AGENT_SOURCES
 )
 
 set(KMS_SDP_AGENT_HEADERS
+  kmssdpagentcommon.h
   kmssdpagent.h
   kmssdpcontext.h
   kmssdpmediahandler.h
