@@ -1084,91 +1084,8 @@ post_processing_extensions (KmsISdpSessionExtension * ext,
   g_clear_error (&err);
 }
 
-static SdpMessageContext *
-kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
-{
-  struct SdpOfferData data;
-  SdpMessageContext *ctx = NULL;
-  GstSDPOrigin o;
-  gchar *ntp = NULL;
-  GSList *tmp;
-
-  SDP_AGENT_LOCK (agent);
-
-  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
-      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Agent in state %s", SDP_AGENT_STATE (agent));
-    goto end;
-  }
-
-  ctx = kms_sdp_message_context_new (error);
-  if (ctx == NULL) {
-    goto end;
-  }
-
-  g_free (agent->priv->sess_id);
-  g_free (agent->priv->sess_version);
-
-  if (agent->priv->state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    const GstSDPOrigin *orig;
-
-    orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
-    agent->priv->sess_id = g_strdup (orig->sess_id);
-    agent->priv->sess_version = g_strdup (orig->sess_version);
-  } else {
-    /* The method of generating <sess-id> and <sess-version> is up to the    */
-    /* creating tool, but it has been suggested that a Network Time Protocol */
-    /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
-    agent->priv->sess_id =
-        g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
-    agent->priv->sess_version = g_strdup (agent->priv->sess_id);
-  }
-
-  kms_sdp_agent_origin_init (agent, &o, agent->priv->sess_id,
-      agent->priv->sess_version);
-
-  if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
-    SDP_AGENT_UNLOCK (agent);
-    kms_sdp_message_context_unref (ctx);
-    g_free (ntp);
-    return NULL;
-  }
-
-  g_free (ntp);
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-
-  data.ctx = ctx;
-  data.agent = agent;
-  data.index = 0;
-
-  tmp = g_slist_copy_deep (agent->priv->offer_handlers,
-      (GCopyFunc) sdp_handler_ref, NULL);
-  kms_sdp_agent_merge_offer_handlers (agent);
-
-  g_slist_foreach (agent->priv->offer_handlers, (GFunc) create_media_offers,
-      &data);
-
-  if (!kms_sdp_agent_update_session_version (agent, ctx, error)) {
-    kms_sdp_message_context_unref (ctx);
-    g_slist_free_full (agent->priv->offer_handlers,
-        (GDestroyNotify) kms_ref_struct_unref);
-    agent->priv->offer_handlers = tmp;
-    ctx = NULL;
-  } else {
-    g_slist_free_full (tmp, (GDestroyNotify) kms_ref_struct_unref);
-    SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_LOCAL_OFFER);
-  }
-
-end:
-  SDP_AGENT_UNLOCK (agent);
-
-  return ctx;
-}
-
 static GstSDPMessage *
-kms_sdp_agent_create_local_offer_impl (KmsSdpAgent * agent, GError ** error)
+kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
   SdpMessageContext *ctx = NULL;
   GstSDPMessage *offer = NULL;
@@ -1982,7 +1899,6 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
 
   klass->add_proto_handler = kms_sdp_agent_add_proto_handler_impl;
   klass->create_offer = kms_sdp_agent_create_offer_impl;
-  klass->create_local_offer = kms_sdp_agent_create_local_offer_impl;
   klass->create_answer = kms_sdp_agent_create_answer_impl;
   klass->generate_answer = kms_sdp_agent_generate_answer_impl;
   klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
@@ -2027,20 +1943,12 @@ kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
       handler);
 }
 
-SdpMessageContext *
+GstSDPMessage *
 kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->create_offer (agent, error);
-}
-
-GstSDPMessage *
-kms_sdp_agent_create_local_offer (KmsSdpAgent * agent, GError ** error)
-{
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
-
-  return KMS_SDP_AGENT_GET_CLASS (agent)->create_local_offer (agent, error);
 }
 
 /* Deprecated: Use kms_sdp_agent_generate_answer instead */

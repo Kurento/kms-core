@@ -44,26 +44,22 @@ kms_sdp_session_new (KmsBaseSdpEndpoint * ep, guint id)
 GstSDPMessage *
 kms_sdp_session_generate_offer (KmsSdpSession * self)
 {
-  SdpMessageContext *ctx;
   GstSDPMessage *offer = NULL;
   GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Generate offer");
 
-  ctx = kms_sdp_agent_create_offer (self->agent, &err);
+  offer = kms_sdp_agent_create_offer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
     goto end;
   }
 
-  offer = kms_sdp_message_context_pack (ctx, &err);
+  self->local_sdp_ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
     goto end;
   }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  self->local_sdp_ctx = ctx;
 
 end:
   g_clear_error (&err);
