@@ -1,3 +1,82 @@
+kms-core-6.0 (6.3.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+  * CMakeLists: Generate code during compilation process
+  * CMakeList: Generate kmd.json during make phase
+
+  [ Santiago Carot-Nemesio ]
+  * kmsrecordingprofile: Add ksr profile
+
+  [ Miguel París Díaz ]
+  * constants: define SRTP_REPLAY_WINDOW_SIZE for srtp(enc|dec)
+
+  [ Santiago Carot-Nemesio ]
+  * kmselement: Add pre-pad added callback
+
+  [ Jose Antonio Santos Cadenas ]
+  * Update glib to 2.46
+
+  [ Miguel París Díaz ]
+  * sdpagent: fix header format
+  * basertpsession: remove unnecessary includes
+  * utils: add kms_utils_media_type_to_str
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpcontext: Fix misordered generation of medias when they are bundled
+
+  [ Jose Antonio Santos Cadenas ]
+  * CodeGenerator: Add compilation time to module information
+  * valgrind: Add supprsssions
+  * valgrind.supp: Add g_quark_init
+  * debian/control: Add boost-test-dev as a dev dependency
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpsdesext: Fix index_of macro
+
+  [ David Fernandez ]
+  * KurentoException: Add exceptions for player
+
+  [ Jose Antonio Santos Cadenas ]
+  * agnosticbin: Change the order of convert and mediator
+  * agnosticbin: Fix raw caps checking
+  * agnosticbin: If input caps are raw return input_bin as decoder
+  * agnosticbin: Add chain functions to detect flow errors
+  * MediaPipeline: Avoid segmentation fault trying to use err when it is not initialized
+  * MediaElement: Avoid segmentation fault trying to use err when it is not initialized
+  * agnosticbin: Treat empty caps just like any
+  * agnosticbin: Ignore not negotiated at agnostic sink
+  * agnosticbin: Give more priority to input_bin checking it first
+  * kmselement: If pad is not created do not try to use it
+  * agnosticbin: Use a flag to know if pad has been started
+  * sdpcontext: Fix check for ipv6 address type
+
+  [ Miguel París Díaz ]
+  * sdp_agent: support mid without group
+  * agnosticbin: improve var usage
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdpagent: If default IP is set, use correct address for IP protocol
+  * SdpEndpointImpl: Enable ipv6 negotiation in constructor
+  * BaseRtpEndpoint: Add constructor parameter to use ipv6
+
+  [ Miguel París Díaz ]
+  * basertpendpoint: improve var names
+  * basertpendpoint: support only one session
+  * sdp_utils: fix format
+  * remb: send or not REMB based on time interval instead of if RTCP is early
+  * remb: get source stats only when needed
+  * remb: improve code and fix memory leak
+  * basertpendpoint: remove payloader from RtpMediaConfig
+  * basertpendpoint: remove payloader_connected from RtpMediaConfig
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 6.3.0
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Tue, 19 Jan 2016 16:26:50 +0100
+
 kms-core-6.0 (6.2.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

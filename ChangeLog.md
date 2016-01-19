@@ -1,3 +1,18 @@
+6.3.0
+=====
+
+  * SdpEndpoint: Add support for negotiating ipv6 or ipv4
+  * Update glib to 2.46
+  * SdpEndpoint: Fix bug on missordered medias when they are bunble
+  * Add compilation time to module information (makes debugging easier)
+  * KurentoException: Add excetions for player
+  * agnosticbin: Fix many negotiation problems caused by new empty caps
+  * MediaElement/MediaPipeline: Fix segmentation fault when error event is sent
+  * agnosticbin: Do not negotiate pad until a reconfigure event is received
+    (triying to do so can cause deadlock)
+  * sdpAgent: Support mid without a group (Fixes problems with Firefox)
+  * Fix problem with REMB notifications when we are sending too much nack events
+
 6.2.0
 =====
 
