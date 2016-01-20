@@ -48,7 +48,6 @@ str_to_sdp (const std::string &sdpStr)
 static void
 sdp_to_str (std::string &_return, const GstSDPMessage *sdp)
 {
-  std::string sdpStr;
   gchar *sdpGchar;
 
   sdpGchar = gst_sdp_message_as_text (sdp);
@@ -236,7 +235,6 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
 std::string SdpEndpointImpl::processAnswer (const std::string &answer)
 {
   GstSDPMessage *answerSdp;
-  std::string resultStr;
   bool expected = true;
   bool expected_false = false;
   gboolean result;
