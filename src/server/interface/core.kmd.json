@@ -889,6 +889,28 @@
       ]
     },
     {
+       "name": "MediaLatencyStat",
+       "doc": "A dictionary that represents the stats gathered.",
+       "typeFormat": "REGISTER",
+       "properties": [
+         {
+           "name": "name",
+           "doc": "The pad name",
+           "type": "String"
+         },
+         {
+           "name": "type",
+           "doc": "Type of media stream",
+           "type": "MediaType"
+         },
+         {
+           "name": "avg",
+           "doc": "The average time that buffers take to get on the input pad of this element",
+           "type": "double"
+         }
+       ]
+    },
+    {
       "name": "Stats",
       "doc": "A dictionary that represents the stats gathered.",
       "typeFormat": "REGISTER",
@@ -918,13 +940,18 @@
       "properties": [
         {
           "name": "inputAudioLatency",
-          "doc": "Audio average measured on the sink pad in nano seconds",
+          "doc": "@deprecated\nAudio average measured on the sink pad in nano seconds",
           "type": "double"
         },
         {
           "name": "inputVideoLatency",
-          "doc": "Video average measured on the sink pad in nano seconds",
+          "doc": "@deprecated\nVideo average measured on the sink pad in nano seconds",
           "type": "double"
+        },
+        {
+          "name": "inputLatency",
+          "doc": "The average time that buffers take to get on the input pads of this element in nano seconds",
+          "type": "MediaLatencyStat[]"
         }
       ]
     },

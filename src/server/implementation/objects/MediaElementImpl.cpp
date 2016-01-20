@@ -1,5 +1,7 @@
 #include <gst/gst.h>
 #include "MediaType.hpp"
+#include "MediaLatencyStat.hpp"
+#include "MediaType.hpp"
 #include "AudioCaps.hpp"
 #include "VideoCaps.hpp"
 #include "AudioCodec.hpp"
@@ -983,13 +985,74 @@ std::map <std::string, std::shared_ptr<Stats>>
   return generateStats (selector);
 }
 
+static std::shared_ptr<MediaType>
+getMediaTypeFromTypeSelector (const gchar *type)
+{
+  if (g_strcmp0 (type, "audio") == 0) {
+    return std::make_shared <MediaType> (MediaType::AUDIO);
+  } else if (g_strcmp0 (type, "video") == 0) {
+    return std::make_shared <MediaType> (MediaType::VIDEO);
+  } else {
+    return std::make_shared <MediaType> (MediaType::DATA);
+  }
+}
+
+static void
+collectInputStats (std::vector<std::shared_ptr<MediaLatencyStat>> &inputStats,
+                   const GstStructure *stats)
+{
+  gint i, fields;
+
+  fields = gst_structure_n_fields (stats);
+
+  for (i = 0; i < fields; i ++) {
+    const gchar *fieldname;
+    const GValue *val;
+    gchar *mediaType;
+    guint64 avg;
+
+    fieldname = gst_structure_nth_field_name (stats, i);
+    val = gst_structure_get_value (stats, fieldname);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (val) ) {
+      GST_DEBUG ("Ignore unexpected value for field %s", fieldname);
+      continue;
+    }
+
+    gst_structure_get (gst_value_get_structure (val), "type", G_TYPE_STRING,
+                       &mediaType, "avg", G_TYPE_UINT64, &avg, NULL);
+
+    std::shared_ptr<MediaType> type = getMediaTypeFromTypeSelector (mediaType);
+    std::shared_ptr<MediaLatencyStat> latency =
+      std::make_shared <MediaLatencyStat> (fieldname, type, avg);
+    g_free (mediaType);
+
+    inputStats.push_back (latency);
+  }
+}
+
+static void
+setDeprecatedProperties (std::shared_ptr<ElementStats> eStats)
+{
+  std::vector<std::shared_ptr<MediaLatencyStat>> inStats =
+        eStats->getInputLatency();
+
+  for (unsigned i = 0; i < inStats.size(); i++) {
+    if (inStats[i]->getName() == "sink_audio_default") {
+      eStats->setInputAudioLatency (inStats[i]->getAvg() );
+    } else if (inStats[i]->getName() == "sink_video_default") {
+      eStats->setInputVideoLatency (inStats[i]->getAvg() );
+    }
+  }
+}
+
 void
 MediaElementImpl::fillStatsReport (std::map
                                    <std::string, std::shared_ptr<Stats>>
                                    &report, const GstStructure *stats, double timestamp)
 {
   std::shared_ptr<Stats> elementStats;
-  guint64 input_video, input_audio;
+  GstStructure *latencies;
   const GValue *value;
 
   value = gst_structure_get_value (stats, KMS_MEDIA_ELEMENT_FIELD);
@@ -1011,21 +1074,27 @@ MediaElementImpl::fillStatsReport (std::map
   }
 
   /* Get common element base parameters */
-  gst_structure_get (gst_value_get_structure (value), "input-video-latency",
-                     G_TYPE_UINT64, &input_video, "input-audio-latency", G_TYPE_UINT64,
-                     &input_audio, NULL);
+  gst_structure_get (gst_value_get_structure (value), "input-latencies",
+                     GST_TYPE_STRUCTURE, &latencies, NULL);
+
+  std::vector<std::shared_ptr<MediaLatencyStat>> inputLatencies;
+  collectInputStats (inputLatencies, latencies);
 
   if (report.find (getId () ) != report.end() ) {
     std::shared_ptr<ElementStats> eStats =
       std::dynamic_pointer_cast <ElementStats> (report[getId ()]);
-    eStats->setInputAudioLatency (input_audio);
-    eStats->setInputVideoLatency (input_video);
+    eStats->setInputLatency (inputLatencies);
   } else {
     elementStats = std::make_shared <ElementStats> (getId (),
                    std::make_shared <StatsType> (StatsType::element), timestamp,
-                   input_audio, input_video);
+                   0.0, 0.0, inputLatencies);
     report[getId ()] = elementStats;
   }
+
+  setDeprecatedProperties (std::dynamic_pointer_cast <ElementStats>
+                           (report[getId ()]) );
+
+  gst_structure_free (latencies);
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;
