@@ -24,6 +24,7 @@
 #include "kmsagnosticcaps.h"
 #include "kmsstats.h"
 #include "kmsutils.h"
+#include "kmsrefstruct.h"
 
 #define PLUGIN_NAME "kmselement"
 #define DEFAULT_ACCEPT_EOS TRUE
@@ -76,6 +77,13 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
   }                                                           \
 });
 
+typedef struct _StreamInputAvgStat
+{
+  KmsRefStruct ref;
+  KmsMediaType type;
+  gdouble avg;
+} StreamInputAvgStat;
+
 typedef struct _PendingPad
 {
   KmsElementPadType type;
@@ -119,6 +127,8 @@ struct _KmsElementPrivate
 
   /* Statistics */
   KmsElementStats stats;
+  /* Input average stream stats */
+  GHashTable *avg_iss;          /* <"pad_name", StreamInputAvgStat> */
 };
 
 /* Signals and args */
@@ -183,6 +193,30 @@ create_output_element_data (KmsElementPadType type)
 
   return data;
 }
+
+static void
+stream_input_avg_stat_destroy (StreamInputAvgStat * stat)
+{
+  g_slice_free (StreamInputAvgStat, stat);
+}
+
+static StreamInputAvgStat *
+stream_input_avg_stat_new (KmsMediaType type)
+{
+  StreamInputAvgStat *stat;
+
+  stat = g_slice_new0 (StreamInputAvgStat);
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (stat),
+      (GDestroyNotify) stream_input_avg_stat_destroy);
+  stat->type = type;
+
+  return stat;
+}
+
+#define stream_input_avg_stat_ref(obj) \
+  kms_ref_struct_ref (KMS_REF_STRUCT_CAST (obj))
+#define stream_input_avg_stat_unref(obj) \
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (obj))
 
 static void
 destroy_output_element_data (KmsOutputElementData * data)
@@ -635,30 +669,27 @@ static void
 kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
     GstClockTimeDiff t, gpointer user_data)
 {
-  KmsElement *self = KMS_ELEMENT (user_data);
-  gdouble *prev;
+  StreamInputAvgStat *sstat = (StreamInputAvgStat *) user_data;
 
-  switch (type) {
-    case KMS_MEDIA_TYPE_AUDIO:
-      prev = &self->priv->stats.ai;
-      break;
-    case KMS_MEDIA_TYPE_VIDEO:
-      prev = &self->priv->stats.vi;
-      break;
-    default:
-      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%d)", type);
-      return;
+  if ((sstat->type != KMS_MEDIA_TYPE_AUDIO &&
+          sstat->type != KMS_MEDIA_TYPE_VIDEO)) {
+    GST_DEBUG_OBJECT (pad, "No statistics calculated for media (%u)",
+        sstat->type);
+
+    return;
   }
 
-  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
+  sstat->avg = KMS_STATS_CALCULATE_LATENCY_AVG (t, sstat->avg);
 }
 
 static void
 kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
     KmsElementPadType type)
 {
+  StreamInputAvgStat *sstat;
   KmsStatsProbe *s_probe;
   KmsMediaType media_type;
+  gchar *padname;
 
   switch (type) {
     case KMS_ELEMENT_PAD_TYPE_AUDIO:
@@ -676,12 +707,26 @@ kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
 
   KMS_ELEMENT_LOCK (self);
 
+  padname = gst_pad_get_name (pad);
+  sstat = g_hash_table_lookup (self->priv->avg_iss, padname);
+
+  if (sstat != NULL) {
+    g_free (padname);
+  } else {
+    GST_DEBUG_OBJECT (self, "Generating average stats for pad %" GST_PTR_FORMAT,
+        pad);
+    sstat = stream_input_avg_stat_new (media_type);
+    g_hash_table_insert (self->priv->avg_iss, padname, sstat);
+  }
+
   self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes,
       s_probe);
 
   if (self->priv->stats_enabled) {
-    kms_stats_probe_add_latency (s_probe, kms_element_calculate_stats, self,
-        NULL);
+    GST_INFO_OBJECT (self, "Enabling average stat for %" GST_PTR_FORMAT, pad);
+    kms_stats_probe_add_latency (s_probe, kms_element_calculate_stats,
+        stream_input_avg_stat_ref (sstat),
+        (GDestroyNotify) kms_ref_struct_unref);
   }
 
   KMS_ELEMENT_UNLOCK (self);
@@ -1048,6 +1093,8 @@ kms_element_finalize (GObject * object)
   /* free resources allocated by this object */
   g_hash_table_unref (element->priv->pendingpads);
   g_hash_table_unref (element->priv->output_elements);
+  g_hash_table_unref (element->priv->avg_iss);
+
   g_rec_mutex_clear (&element->mutex);
 
   if (element->priv->video_caps != NULL) {
@@ -1313,10 +1360,82 @@ kms_element_stats_impl (KmsElement * self, gchar * selector)
   return stats;
 }
 
+static GstPad *
+kms_element_get_probed_pad (KmsStatsProbe * probe, KmsElement * self)
+{
+  GValue item = G_VALUE_INIT;
+  gboolean done, found;
+  GstIterator *it;
+  GstPad *pad;
+
+  done = found = FALSE;
+  it = gst_element_iterate_sink_pads (GST_ELEMENT (self));
+
+  while (!done && !found) {
+    switch (gst_iterator_next (it, &item)) {
+      case GST_ITERATOR_OK:
+        pad = g_value_get_object (&item);
+
+        found = kms_stats_probe_watches (probe, pad);
+        if (found) {
+          /* Hold the reference */
+          g_object_ref (pad);
+        }
+        g_value_reset (&item);
+        break;
+      case GST_ITERATOR_RESYNC:
+        gst_iterator_resync (it);
+        break;
+      case GST_ITERATOR_ERROR:
+      case GST_ITERATOR_DONE:
+        done = TRUE;
+        break;
+    }
+  }
+
+  gst_iterator_free (it);
+
+  if (found) {
+    return pad;
+  }
+
+  return NULL;
+}
+
+static StreamInputAvgStat *
+kms_element_get_stat_for_probe (KmsStatsProbe * probe, KmsElement * self)
+{
+  StreamInputAvgStat *sstat;
+  gchar *padname;
+  GstPad *pad;
+
+  pad = kms_element_get_probed_pad (probe, self);
+
+  if (pad == NULL) {
+    return NULL;
+  }
+
+  padname = gst_pad_get_name (pad);
+  g_object_unref (pad);
+
+  sstat = g_hash_table_lookup (self->priv->avg_iss, padname);
+  g_free (padname);
+
+  return sstat;
+}
+
 static void
 kms_element_enable_media_stats (KmsStatsProbe * probe, KmsElement * self)
 {
-  kms_stats_probe_add_latency (probe, kms_element_calculate_stats, self, NULL);
+  StreamInputAvgStat *sstat;
+
+  sstat = kms_element_get_stat_for_probe (probe, self);
+
+  if (sstat != NULL) {
+    kms_stats_probe_add_latency (probe, kms_element_calculate_stats,
+        stream_input_avg_stat_ref (sstat),
+        (GDestroyNotify) kms_ref_struct_unref);
+  }
 }
 
 static void
@@ -1471,7 +1590,8 @@ kms_element_init (KmsElement * element)
   element->priv->output_elements =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       (GDestroyNotify) destroy_output_element_data);
-
+  element->priv->avg_iss = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, (GDestroyNotify) kms_ref_struct_unref);
   kms_element_init_stats (element);
 }
 
