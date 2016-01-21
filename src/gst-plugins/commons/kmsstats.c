@@ -187,18 +187,31 @@ kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid,
       process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
 }
 
+static gboolean
+buffer_for_each_meta_update_data_cb (GstBuffer * buffer, GstMeta ** meta,
+    ProbeData * pdata)
+{
+  BufferLatencyValues *blv = (BufferLatencyValues *) pdata->invoke_data;
+  KmsBufferLatencyMeta *blmeta;
+
+  if ((*meta)->info->api != KMS_BUFFER_LATENCY_META_API_TYPE) {
+    /* continue iterating */
+    return TRUE;
+  }
+
+  blmeta = (KmsBufferLatencyMeta *) * meta;
+
+  blmeta->type = blv->type;
+  blmeta->valid = blv->valid;
+
+  return TRUE;
+}
+
 static void
 buffer_update_latency_probe_cb (GstBuffer * buffer, ProbeData * pdata)
 {
-  BufferLatencyValues *blv = (BufferLatencyValues *) pdata->invoke_data;
-  KmsBufferLatencyMeta *meta;
-
-  meta = kms_buffer_get_buffer_latency_meta (buffer);
-
-  if (meta != NULL) {
-    meta->type = blv->type;
-    meta->valid = blv->valid;
-  }
+  gst_buffer_foreach_meta (buffer,
+      (GstBufferForeachMetaFunc) buffer_for_each_meta_update_data_cb, pdata);
 }
 
 gulong
@@ -219,32 +232,42 @@ kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid,
       process_buffer_probe_cb, pdata, (GDestroyNotify) probe_data_destroy);
 }
 
-static void
-buffer_latency_calculation_cb (GstBuffer * buffer, ProbeData * pdata)
+static gboolean
+buffer_for_each_meta_cb (GstBuffer * buffer, GstMeta ** meta, ProbeData * pdata)
 {
   BufferLatencyCallback func = (BufferLatencyCallback) pdata->cb;
   GstPad *pad = GST_PAD (pdata->invoke_data);
-  KmsBufferLatencyMeta *meta;
+  KmsBufferLatencyMeta *blmeta;
   GstClockTimeDiff diff;
   GstClockTime now;
 
-  meta = kms_buffer_get_buffer_latency_meta (buffer);
-
-  if (meta == NULL) {
-    return;
+  if ((*meta)->info->api != KMS_BUFFER_LATENCY_META_API_TYPE) {
+    /* continue iterating */
+    return TRUE;
   }
 
-  if (!meta->valid) {
+  blmeta = (KmsBufferLatencyMeta *) * meta;
+
+  if (!blmeta->valid) {
     /* Ignore this meta */
-    return;
+    return TRUE;
   }
 
   now = kms_utils_get_time_nsecs ();
-  diff = GST_CLOCK_DIFF (meta->ts, now);
+  diff = GST_CLOCK_DIFF (blmeta->ts, now);
 
   if (func != NULL) {
-    func (pad, meta->type, diff, pdata->user_data);
+    func (pad, blmeta->type, diff, pdata->user_data);
   }
+
+  return TRUE;
+}
+
+static void
+buffer_latency_calculation_cb (GstBuffer * buffer, ProbeData * pdata)
+{
+  gst_buffer_foreach_meta (buffer,
+      (GstBufferForeachMetaFunc) buffer_for_each_meta_cb, pdata);
 }
 
 gulong
