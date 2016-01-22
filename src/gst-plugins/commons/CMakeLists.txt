@@ -97,6 +97,7 @@ set(KMS_COMMONS_SOURCES
   kmsdectreebin.c
   kmsenctreebin.c
   kmsparsetreebin.c
+  kmslist.c
 )
 
 set(KMS_COMMONS_HEADERS
@@ -126,6 +127,7 @@ set(KMS_COMMONS_HEADERS
   kmsdectreebin.h
   kmsenctreebin.h
   kmsparsetreebin.h
+  kmslist.h
 )
 
 set(ENUM_HEADERS
