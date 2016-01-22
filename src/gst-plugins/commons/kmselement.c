@@ -666,7 +666,7 @@ get_sink_pad_name (KmsElementPadType type, const gchar * description)
 
 static void
 kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
-    GstClockTimeDiff t, gpointer user_data)
+    GstClockTimeDiff t, GHashTable * mdata, gpointer user_data)
 {
   StreamInputAvgStat *sstat = (StreamInputAvgStat *) user_data;
 
@@ -723,7 +723,7 @@ kms_element_set_sink_input_stats (KmsElement * self, GstPad * pad,
 
   if (self->priv->stats_enabled) {
     GST_INFO_OBJECT (self, "Enabling average stat for %" GST_PTR_FORMAT, pad);
-    kms_stats_probe_add_latency (s_probe, kms_element_calculate_stats,
+    kms_stats_probe_add_latency (s_probe, kms_element_calculate_stats, FALSE,
         stream_input_avg_stat_ref (sstat),
         (GDestroyNotify) kms_ref_struct_unref);
   }
@@ -1473,7 +1473,7 @@ kms_element_enable_media_stats (KmsStatsProbe * probe, KmsElement * self)
 
   if (sstat != NULL) {
     kms_stats_probe_add_latency (probe, kms_element_calculate_stats,
-        stream_input_avg_stat_ref (sstat),
+        FALSE, stream_input_avg_stat_ref (sstat),
         (GDestroyNotify) kms_ref_struct_unref);
   }
 }

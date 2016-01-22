@@ -37,17 +37,17 @@ G_BEGIN_DECLS
 GstStructure * kms_stats_get_element_stats (GstStructure *stats);
 
 /* buffer latency */
-typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, gpointer user_data);
+typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, GHashTable *meta_data, gpointer user_data);
 gulong kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
-gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data);
+gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gboolean locked, gpointer user_data, GDestroyNotify destroy_data);
 
 typedef struct _KmsStatsProbe KmsStatsProbe;
 
 KmsStatsProbe * kms_stats_probe_new (GstPad *pad, KmsMediaType type);
 void kms_stats_probe_destroy (KmsStatsProbe *probe);
 void kms_stats_probe_add_latency (KmsStatsProbe *probe, BufferLatencyCallback callback,
-  gpointer user_data, GDestroyNotify destroy_data);
+  gboolean locked, gpointer user_data, GDestroyNotify destroy_data);
 void kms_stats_probe_latency_meta_set_valid (KmsStatsProbe *probe, gboolean is_valid);
 void kms_stats_probe_remove (KmsStatsProbe *probe);
 gboolean kms_stats_probe_watches (KmsStatsProbe *probe, GstPad *pad);

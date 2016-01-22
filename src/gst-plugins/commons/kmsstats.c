@@ -42,6 +42,8 @@ typedef struct _ProbeData
   GCallback cb;
   gpointer user_data;
   GDestroyNotify destroy_data;
+
+  gboolean locked;
 } ProbeData;
 
 static BufferLatencyValues *
@@ -65,8 +67,8 @@ buffer_latency_values_destroy (BufferLatencyValues * blv)
 
 static ProbeData *
 probe_data_new (BufferCb invoke_cb, gpointer invoke_data,
-    GDestroyNotify destroy_invoke, GCallback cb, gpointer user_data,
-    GDestroyNotify destroy_data)
+    GDestroyNotify destroy_invoke, GCallback cb, gboolean locked,
+    gpointer user_data, GDestroyNotify destroy_data)
 {
   ProbeData *pdata;
 
@@ -79,6 +81,8 @@ probe_data_new (BufferCb invoke_cb, gpointer invoke_data,
   pdata->cb = cb;
   pdata->user_data = user_data;
   pdata->destroy_data = destroy_data;
+
+  pdata->locked = locked;
 
   return pdata;
 }
@@ -180,7 +184,7 @@ kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid,
   blv = buffer_latency_values_new (is_valid, type);
 
   pdata = probe_data_new (buffer_latency_probe_cb, blv,
-      (GDestroyNotify) buffer_latency_values_destroy, NULL, NULL, NULL);
+      (GDestroyNotify) buffer_latency_values_destroy, NULL, FALSE, NULL, NULL);
 
   return gst_pad_add_probe (pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
@@ -225,7 +229,7 @@ kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid,
   blv = buffer_latency_values_new (is_valid, type);
 
   pdata = probe_data_new (buffer_update_latency_probe_cb, blv,
-      (GDestroyNotify) buffer_latency_values_destroy, NULL, NULL, NULL);
+      (GDestroyNotify) buffer_latency_values_destroy, NULL, FALSE, NULL, NULL);
 
   return gst_pad_add_probe (pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
@@ -253,11 +257,21 @@ buffer_for_each_meta_cb (GstBuffer * buffer, GstMeta ** meta, ProbeData * pdata)
     return TRUE;
   }
 
+  if (func == NULL) {
+    return TRUE;
+  }
+
   now = kms_utils_get_time_nsecs ();
   diff = GST_CLOCK_DIFF (blmeta->ts, now);
 
-  if (func != NULL) {
-    func (pad, blmeta->type, diff, pdata->user_data);
+  if (pdata->locked) {
+    KMS_BUFFER_LATENCY_DATA_LOCK (blmeta);
+  }
+
+  func (pad, blmeta->type, diff, blmeta->data, pdata->user_data);
+
+  if (pdata->locked) {
+    KMS_BUFFER_LATENCY_DATA_UNLOCK (blmeta);
   }
 
   return TRUE;
@@ -272,12 +286,13 @@ buffer_latency_calculation_cb (GstBuffer * buffer, ProbeData * pdata)
 
 gulong
 kms_stats_add_buffer_latency_notification_probe (GstPad * pad,
-    BufferLatencyCallback cb, gpointer user_data, GDestroyNotify destroy_data)
+    BufferLatencyCallback cb, gboolean locked, gpointer user_data,
+    GDestroyNotify destroy_data)
 {
   ProbeData *pdata;
 
   pdata = probe_data_new (buffer_latency_calculation_cb, pad, NULL,
-      G_CALLBACK (cb), user_data, destroy_data);
+      G_CALLBACK (cb), locked, user_data, destroy_data);
 
   return gst_pad_add_probe (pad,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
@@ -308,13 +323,13 @@ kms_stats_probe_destroy (KmsStatsProbe * probe)
 
 void
 kms_stats_probe_add_latency (KmsStatsProbe * probe,
-    BufferLatencyCallback callback, gpointer user_data,
+    BufferLatencyCallback callback, gboolean locked, gpointer user_data,
     GDestroyNotify destroy_data)
 {
   kms_stats_probe_remove (probe);
 
   probe->probe_id = kms_stats_add_buffer_latency_notification_probe (probe->pad,
-      callback, user_data, destroy_data);
+      callback, locked, user_data, destroy_data);
 }
 
 void

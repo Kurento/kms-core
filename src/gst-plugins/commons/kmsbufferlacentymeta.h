@@ -38,7 +38,15 @@ struct _KmsBufferLatencyMeta {
   GstClockTime ts;
   KmsMediaType type;
   gboolean valid;
+
+  GRecMutex datamutex;
+  GHashTable *data; /* <string, refstruct> */
 };
+
+#define KMS_BUFFER_LATENCY_DATA_LOCK(mdata) \
+  (g_rec_mutex_lock (&((KmsBufferLatencyMeta *)mdata)->datamutex))
+#define KMS_BUFFER_LATENCY_DATA_UNLOCK(mdata) \
+  (g_rec_mutex_unlock (&((KmsBufferLatencyMeta *)mdata)->datamutex))
 
 GType kms_buffer_latency_meta_api_get_type (void);
 #define KMS_BUFFER_LATENCY_META_API_TYPE \

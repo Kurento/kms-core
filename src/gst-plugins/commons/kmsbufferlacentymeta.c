@@ -13,6 +13,7 @@
  *
  */
 
+#include "kmsrefstruct.h"
 #include "kmsbufferlacentymeta.h"
 
 GType
@@ -39,6 +40,10 @@ kms_buffer_latency_meta_init (GstMeta * meta, gpointer params,
   lmeta->ts = GST_CLOCK_TIME_NONE;
   lmeta->valid = FALSE;
 
+  g_rec_mutex_init (&lmeta->datamutex);
+  lmeta->data = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, (GDestroyNotify) kms_ref_struct_unref);
+
   return TRUE;
 }
 
@@ -46,16 +51,28 @@ static gboolean
 kms_buffer_latency_meta_transform (GstBuffer * transbuf, GstMeta * meta,
     GstBuffer * buffer, GQuark type, gpointer data)
 {
-  KmsBufferLatencyMeta *lmeta;
+  KmsBufferLatencyMeta *new_meta, *lmeta;
 
   /* we always copy no matter what transform */
-  if (GST_META_TRANSFORM_IS_COPY (type)) {
-    lmeta = (KmsBufferLatencyMeta *) meta;
-
-    GST_DEBUG ("copy latency metadata");
-    kms_buffer_add_buffer_latency_meta (transbuf, lmeta->ts, lmeta->valid,
-        lmeta->type);
+  if (!GST_META_TRANSFORM_IS_COPY (type)) {
+    return TRUE;
   }
+
+  lmeta = (KmsBufferLatencyMeta *) meta;
+  new_meta = kms_buffer_add_buffer_latency_meta (transbuf, lmeta->ts,
+      lmeta->valid, lmeta->type);
+
+  if (new_meta == NULL) {
+    return FALSE;
+  }
+
+  if (new_meta->data != NULL) {
+    g_hash_table_unref (new_meta->data);
+  }
+
+  KMS_BUFFER_LATENCY_DATA_LOCK (lmeta);
+  new_meta->data = g_hash_table_ref (lmeta->data);
+  KMS_BUFFER_LATENCY_DATA_UNLOCK (lmeta);
 
   return TRUE;
 }
@@ -63,7 +80,13 @@ kms_buffer_latency_meta_transform (GstBuffer * transbuf, GstMeta * meta,
 static void
 kms_buffer_latency_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
-  /* Nothing to do */
+  KmsBufferLatencyMeta *lmeta = (KmsBufferLatencyMeta *) meta;
+
+  KMS_BUFFER_LATENCY_DATA_LOCK (lmeta);
+  g_hash_table_unref (lmeta->data);
+  KMS_BUFFER_LATENCY_DATA_UNLOCK (lmeta);
+
+  g_rec_mutex_clear (&lmeta->datamutex);
 }
 
 const GstMetaInfo *
