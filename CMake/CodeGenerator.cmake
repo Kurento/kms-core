@@ -584,9 +584,9 @@ function (generate_kurento_libraries)
 
   set_property (TARGET ${VALUE_CODE_IMPLEMENTATION_LIB}impl
     PROPERTY INCLUDE_DIRECTORIES
+      ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
       ${CMAKE_BINARY_DIR}
       ${DEPENDENCIES_INCLUDE_DIRS}
-      ${PARAM_SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS}
       ${SERVER_GEN_FILES_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/interface/generated-cpp
       ${CMAKE_CURRENT_BINARY_DIR}/implementation/generated-cpp
