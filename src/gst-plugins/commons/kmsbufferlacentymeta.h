@@ -19,6 +19,7 @@
 #include <gst/gst.h>
 
 #include "kmsmediatype.h"
+#include "kmslist.h"
 
 G_BEGIN_DECLS
 
@@ -40,7 +41,7 @@ struct _KmsBufferLatencyMeta {
   gboolean valid;
 
   GRecMutex datamutex;
-  GHashTable *data; /* <string, refstruct> */
+  KmsList *data; /* <string, refstruct> */
 };
 
 #define KMS_BUFFER_LATENCY_DATA_LOCK(mdata) \

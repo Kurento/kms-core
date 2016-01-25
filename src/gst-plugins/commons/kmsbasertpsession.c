@@ -177,7 +177,7 @@ kms_base_rtp_session_create_bundle_connection_default (KmsBaseRtpSession *
 
 static void
 kms_base_rtp_session_latency_cb (GstPad * pad, KmsMediaType type,
-    GstClockTimeDiff t, GHashTable * data, gpointer user_data)
+    GstClockTimeDiff t, KmsList * data, gpointer user_data)
 {
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (user_data);
   gdouble *prev;

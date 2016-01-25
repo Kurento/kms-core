@@ -17,6 +17,7 @@
 
 #include "gst/gst.h"
 #include "kmsmediatype.h"
+#include "kmslist.h"
 
 G_BEGIN_DECLS
 
@@ -37,7 +38,7 @@ G_BEGIN_DECLS
 GstStructure * kms_stats_get_element_stats (GstStructure *stats);
 
 /* buffer latency */
-typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, GHashTable *meta_data, gpointer user_data);
+typedef void (*BufferLatencyCallback) (GstPad * pad, KmsMediaType type, GstClockTimeDiff t, KmsList *data, gpointer user_data);
 gulong kms_stats_add_buffer_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_stats_add_buffer_update_latency_meta_probe (GstPad * pad, gboolean is_valid, KmsMediaType type);
 gulong kms_stats_add_buffer_latency_notification_probe (GstPad * pad, BufferLatencyCallback cb, gboolean locked, gpointer user_data, GDestroyNotify destroy_data);

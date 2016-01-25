@@ -41,8 +41,8 @@ kms_buffer_latency_meta_init (GstMeta * meta, gpointer params,
   lmeta->valid = FALSE;
 
   g_rec_mutex_init (&lmeta->datamutex);
-  lmeta->data = g_hash_table_new_full (g_str_hash, g_str_equal,
-      g_free, (GDestroyNotify) kms_ref_struct_unref);
+  lmeta->data = kms_list_new_full (g_str_equal, g_free,
+      (GDestroyNotify) kms_ref_struct_unref);
 
   return TRUE;
 }
@@ -67,11 +67,11 @@ kms_buffer_latency_meta_transform (GstBuffer * transbuf, GstMeta * meta,
   }
 
   if (new_meta->data != NULL) {
-    g_hash_table_unref (new_meta->data);
+    kms_list_unref (new_meta->data);
   }
 
   KMS_BUFFER_LATENCY_DATA_LOCK (lmeta);
-  new_meta->data = g_hash_table_ref (lmeta->data);
+  new_meta->data = kms_list_ref (lmeta->data);
   KMS_BUFFER_LATENCY_DATA_UNLOCK (lmeta);
 
   return TRUE;
@@ -83,7 +83,7 @@ kms_buffer_latency_meta_free (GstMeta * meta, GstBuffer * buffer)
   KmsBufferLatencyMeta *lmeta = (KmsBufferLatencyMeta *) meta;
 
   KMS_BUFFER_LATENCY_DATA_LOCK (lmeta);
-  g_hash_table_unref (lmeta->data);
+  kms_list_unref (lmeta->data);
   KMS_BUFFER_LATENCY_DATA_UNLOCK (lmeta);
 
   g_rec_mutex_clear (&lmeta->datamutex);

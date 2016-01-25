@@ -666,7 +666,7 @@ get_sink_pad_name (KmsElementPadType type, const gchar * description)
 
 static void
 kms_element_calculate_stats (GstPad * pad, KmsMediaType type,
-    GstClockTimeDiff t, GHashTable * mdata, gpointer user_data)
+    GstClockTimeDiff t, KmsList * mdata, gpointer user_data)
 {
   StreamInputAvgStat *sstat = (StreamInputAvgStat *) user_data;
 
