@@ -963,13 +963,18 @@
       "properties": [
         {
           "name": "audioE2ELatency",
-          "doc": "End-to-end audio latency measured in nano seconds",
+          "doc": "@deprecated\nEnd-to-end audio latency measured in nano seconds",
           "type": "double"
         },
         {
           "name": "videoE2ELatency",
-          "doc": "End-to-end video latency measured in nano seconds",
+          "doc": "@deprecated\nEnd-to-end video latency measured in nano seconds",
           "type": "double"
+        },
+        {
+          "name": "E2ELatency",
+          "doc": "The average end to end latency for each media stream measured in nano seconds",
+          "type": "MediaLatencyStat[]"
         }
       ]
     },

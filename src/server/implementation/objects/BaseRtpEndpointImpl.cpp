@@ -12,7 +12,6 @@
 
 #include "RembParams.hpp"
 
-#include "MediaLatencyStat.hpp"
 #include "StatsType.hpp"
 #include "RTCInboundRTPStreamStats.hpp"
 #include "RTCOutboundRTPStreamStats.hpp"
@@ -548,13 +547,29 @@ collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
 }
 
 static void
-collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
-                      &statsReport, std::string id, const GstStructure *stats,
-                      double timestamp)
+setDeprecatedProperties (std::shared_ptr<EndpointStats> eStats)
+{
+  std::vector<std::shared_ptr<MediaLatencyStat>> inStats =
+        eStats->getE2ELatency();
+
+  for (unsigned i = 0; i < inStats.size(); i++) {
+    if (inStats[i]->getName() == "sink_audio_default") {
+      eStats->setAudioE2ELatency (inStats[i]->getAvg() );
+    } else if (inStats[i]->getName() == "sink_video_default") {
+      eStats->setVideoE2ELatency (inStats[i]->getAvg() );
+    }
+  }
+}
+
+void
+BaseRtpEndpointImpl::collectEndpointStats (std::map
+    <std::string, std::shared_ptr<Stats>>
+    &statsReport, std::string id, const GstStructure *stats,
+    double timestamp)
 {
   const GstStructure *sessions, *session_stats;
+  GstStructure *e2e_stats;
   std::shared_ptr<Stats> endpointStats;
-  guint64 v_e2e, a_e2e;
   const GValue *value;
   const gchar *name;
   gint n;
@@ -590,13 +605,22 @@ collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
   }
 
   session_stats = gst_value_get_structure (value);
-  gst_structure_get (session_stats, "video-e2e-latency", G_TYPE_UINT64, &v_e2e,
-                     "audio-e2e-latency", G_TYPE_UINT64, &a_e2e, NULL);
 
   std::vector<std::shared_ptr<MediaLatencyStat>> inputStats;
+  std::vector<std::shared_ptr<MediaLatencyStat>> e2eStats;
+
+  if (gst_structure_get (session_stats, "e2e-latencies", GST_TYPE_STRUCTURE,
+                         &e2e_stats, NULL) ) {
+    collectLatencyStats (e2eStats, e2e_stats);
+    gst_structure_free (e2e_stats);
+  }
+
   endpointStats = std::make_shared <EndpointStats> (id,
                   std::make_shared <StatsType> (StatsType::endpoint), timestamp,
-                  0.0, 0.0, inputStats, a_e2e, v_e2e);
+                  0.0, 0.0, inputStats, 0.0, 0.0, e2eStats);
+
+  setDeprecatedProperties (std::dynamic_pointer_cast <EndpointStats>
+                           (endpointStats) );
 
   statsReport[id] = endpointStats;
 }

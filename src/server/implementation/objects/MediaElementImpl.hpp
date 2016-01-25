@@ -4,6 +4,7 @@
 #include "MediaObjectImpl.hpp"
 #include "MediaElement.hpp"
 #include "MediaType.hpp"
+#include "MediaLatencyStat.hpp"
 #include <EventHandler.hpp>
 #include <gst/gst.h>
 #include <mutex>
@@ -120,6 +121,8 @@ protected:
   GstBus *bus;
   gulong handlerId;
 
+  void collectLatencyStats (std::vector<std::shared_ptr<MediaLatencyStat>>
+                            &latencyStats, const GstStructure *stats);
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
                                 &report, const GstStructure *stats, double timestamp);
 

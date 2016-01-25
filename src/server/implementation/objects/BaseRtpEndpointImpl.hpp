@@ -78,6 +78,9 @@ private:
   void updateMediaState (guint new_state);
   void updateConnectionState (gchar *sessId, guint new_state);
 
+  void collectEndpointStats (std::map <std::string, std::shared_ptr<Stats>>
+                             &statsReport, std::string id, const GstStructure *stats,
+                             double timestamp);
   class StaticConstructor
   {
   public:

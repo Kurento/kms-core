@@ -997,9 +997,10 @@ getMediaTypeFromTypeSelector (const gchar *type)
   }
 }
 
-static void
-collectInputStats (std::vector<std::shared_ptr<MediaLatencyStat>> &inputStats,
-                   const GstStructure *stats)
+void
+MediaElementImpl::collectLatencyStats (
+  std::vector<std::shared_ptr<MediaLatencyStat>> &latencyStats,
+  const GstStructure *stats)
 {
   gint i, fields;
 
@@ -1027,7 +1028,7 @@ collectInputStats (std::vector<std::shared_ptr<MediaLatencyStat>> &inputStats,
       std::make_shared <MediaLatencyStat> (fieldname, type, avg);
     g_free (mediaType);
 
-    inputStats.push_back (latency);
+    latencyStats.push_back (latency);
   }
 }
 
@@ -1073,12 +1074,13 @@ MediaElementImpl::fillStatsReport (std::map
     return;
   }
 
-  /* Get common element base parameters */
-  gst_structure_get (gst_value_get_structure (value), "input-latencies",
-                     GST_TYPE_STRUCTURE, &latencies, NULL);
-
   std::vector<std::shared_ptr<MediaLatencyStat>> inputLatencies;
-  collectInputStats (inputLatencies, latencies);
+
+  if (gst_structure_get (gst_value_get_structure (value), "input-latencies",
+                         GST_TYPE_STRUCTURE, &latencies, NULL) ) {
+    collectLatencyStats (inputLatencies, latencies);
+    gst_structure_free (latencies);
+  }
 
   if (report.find (getId () ) != report.end() ) {
     std::shared_ptr<ElementStats> eStats =
@@ -1093,8 +1095,6 @@ MediaElementImpl::fillStatsReport (std::map
 
   setDeprecatedProperties (std::dynamic_pointer_cast <ElementStats>
                            (report[getId ()]) );
-
-  gst_structure_free (latencies);
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;
