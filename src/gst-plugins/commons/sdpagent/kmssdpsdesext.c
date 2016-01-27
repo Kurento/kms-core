@@ -545,7 +545,9 @@ kms_sdp_sdes_ext_add_answer_attributes (KmsISdpMediaExtension * ext,
     }
 
     if (!kms_sdp_sdes_ext_parse_key_attr (ext, attr_val, &val)) {
-      g_value_unset (&val);
+      if (G_IS_VALUE (&val)) {
+        g_value_unset (&val);
+      }
       continue;
     }
 
