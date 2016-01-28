@@ -482,7 +482,7 @@ kms_sdp_rtp_avp_media_handler_encoding_supported (KmsSdpRtpAvpMediaHandler *
       supported = cmp_static_payload (enc, rtpmaps[rtpmap->payload]);
     } else {
       /* Check dynamic pt */
-      supported = g_strcmp0 (rtpmap->name, enc) == 0;
+      supported = g_ascii_strcasecmp (rtpmap->name, enc) == 0;
     }
 
     if (supported) {
