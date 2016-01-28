@@ -201,6 +201,24 @@ kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
   return NULL;
 }
 
+static gboolean
+kms_sdp_media_handler_process_answer_impl (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * answer, GError ** error)
+{
+  GSList *l;
+
+  for (l = handler->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpMediaExtension *ext = KMS_I_SDP_MEDIA_EXTENSION (l->data);
+
+    if (!kms_i_sdp_media_extension_process_answer_attributes (ext, answer,
+            error)) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
 static void
 kms_sdp_media_handler_add_bandwidth_impl (KmsSdpMediaHandler * handler,
     const gchar * bwtype, guint bandwidth)
@@ -397,6 +415,7 @@ kms_sdp_media_handler_class_init (KmsSdpMediaHandlerClass * klass)
 
   klass->create_offer = kms_sdp_media_handler_create_offer_impl;
   klass->create_answer = kms_sdp_media_handler_create_answer_impl;
+  klass->process_answer = kms_sdp_media_handler_process_answer_impl;
   klass->add_bandwidth = kms_sdp_media_handler_add_bandwidth_impl;
   klass->manage_protocol = kms_sdp_media_handler_manage_protocol_impl;
   klass->add_media_extension = kms_sdp_media_handler_add_media_extension_impl;
@@ -441,6 +460,16 @@ kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
       ctx, offer, error);
+}
+
+gboolean
+kms_sdp_media_handler_process_answer (KmsSdpMediaHandler * handler,
+    const GstSDPMedia * answer, GError ** error)
+{
+  g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), FALSE);
+
+  return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->process_answer (handler,
+      answer, error);
 }
 
 void

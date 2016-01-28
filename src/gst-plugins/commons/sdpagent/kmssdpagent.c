@@ -1633,6 +1633,34 @@ update_rejected_medias (KmsSdpAgent * agent, const GstSDPMessage * desc)
   }
 }
 
+static void
+kms_sdp_agent_process_answer (KmsSdpAgent * agent)
+{
+  GError *err = NULL;
+  guint i, len;
+
+  len = gst_sdp_message_medias_len (agent->priv->prev_sdp);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media;
+    SdpHandler *handler;
+
+    media = gst_sdp_message_get_media (agent->priv->prev_sdp, i);
+    handler = g_slist_nth_data (agent->priv->offer_handlers, i);
+
+    if (handler == NULL) {
+      GST_ERROR_OBJECT (agent, "Can not process answer in handler %u", i);
+      continue;
+    }
+
+    if (!kms_sdp_media_handler_process_answer (handler->sdph->handler, media,
+            &err)) {
+      GST_ERROR_OBJECT (agent, "Error processing answer: %s", err->message);
+      g_clear_error (&err);
+    }
+  }
+}
+
 static gboolean
 kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
@@ -1659,6 +1687,7 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
         }
         update_rejected_medias (agent, description);
         gst_sdp_message_copy (description, &agent->priv->prev_sdp);
+        kms_sdp_agent_process_answer (agent);
         SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
       }
       break;

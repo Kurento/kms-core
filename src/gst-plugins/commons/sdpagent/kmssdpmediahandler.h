@@ -75,6 +75,8 @@ struct _KmsSdpMediaHandlerClass
   /* public methods */
   GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
   GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, SdpMessageContext *ctx, const GstSDPMedia * offer, GError **error);
+  gboolean (*process_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * answer, GError **error);
+
   void (*add_bandwidth) (KmsSdpMediaHandler *handler, const gchar *bwtype, guint bandwidth);
   gboolean (*manage_protocol) (KmsSdpMediaHandler *handler, const gchar *protocol);
   gboolean (*add_media_extension) (KmsSdpMediaHandler *handler, KmsISdpMediaExtension *ext);
@@ -94,6 +96,7 @@ GType kms_sdp_media_handler_get_type ();
 
 GstSDPMedia * kms_sdp_media_handler_create_offer (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
 GstSDPMedia * kms_sdp_media_handler_create_answer (KmsSdpMediaHandler *handler, SdpMessageContext *ctx, const GstSDPMedia * offer, GError **error);
+gboolean kms_sdp_media_handler_process_answer (KmsSdpMediaHandler *handler, const GstSDPMedia * answer, GError **error);
 void kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler *handler, const gchar *bwtype, guint bandwidth);
 gboolean kms_sdp_media_handler_manage_protocol (KmsSdpMediaHandler *handler, const gchar *protocol);
 gboolean kms_sdp_media_handler_add_media_extension (KmsSdpMediaHandler *handler, KmsISdpMediaExtension *ext);

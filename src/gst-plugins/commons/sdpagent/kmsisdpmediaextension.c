@@ -63,7 +63,14 @@ kms_i_sdp_media_extension_process_answer_attributes (KmsISdpMediaExtension *
 {
   g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
+  if (KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->process_answer_attributes
+      == NULL) {
+    return TRUE;
+  }
+
+  /* This extension requires to do something with the response attributes */
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->process_answer_attributes
       (ext, answer, error);
+
 }
