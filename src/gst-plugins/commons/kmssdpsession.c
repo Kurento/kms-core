@@ -55,6 +55,12 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
     goto end;
   }
 
+  kms_sdp_agent_set_local_description (self->agent, offer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
+    goto end;
+  }
+
   self->local_sdp_ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
@@ -81,6 +87,7 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
     goto end;
   }
+
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
   self->remote_sdp_ctx = ctx;
 
@@ -108,6 +115,13 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     goto end;
   }
 
+  /* inmediate-TODO: review: a copy of answer? */
+  kms_sdp_agent_set_local_description (self->agent, answer, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
+    goto end;
+  }
+
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   self->local_sdp_ctx = ctx;
   self->neg_sdp_ctx = ctx;
@@ -121,6 +135,7 @@ end:
 gboolean
 kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
 {
+  GstSDPMessage *copy;
   SdpMessageContext *ctx;
   GError *err = NULL;
 
@@ -129,6 +144,17 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
   if (self->local_sdp_ctx == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
+    return FALSE;
+  }
+
+  if (gst_sdp_message_copy (answer, &copy) != GST_SDP_OK) {
+    GST_ERROR_OBJECT (self, "Error processing answer (Cannot copy SDP answer)");
+    return FALSE;
+  }
+
+  kms_sdp_agent_set_remote_description (self->agent, copy, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (self, "Error processing answer (%s)", err->message);
     return FALSE;
   }
 
