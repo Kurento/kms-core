@@ -1,3 +1,24 @@
+kms-core-6.0 (6.3.1) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Miguel París Díaz ]
+  * SdpEndpointImpl: remove unused vars
+
+  [ Jose Antonio Santos Cadenas ]
+  * CodeGenerator: Give more piority to extre include dirs
+
+  [ David Fernandez ]
+  * kmssdprtpavpmediahandler: Accept codecs in capital or small letters
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 6.3.1
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 29 Jan 2016 13:42:25 +0100
+
 kms-core-6.0 (6.3.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

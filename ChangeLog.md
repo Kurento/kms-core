@@ -1,3 +1,9 @@
+6.3.1
+=====
+
+  * Fix problem with codecs written in lower/upper case
+  * Minor code improvements
+
 6.3.0
 =====
 
