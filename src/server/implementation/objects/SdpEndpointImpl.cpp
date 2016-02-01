@@ -72,6 +72,7 @@ append_codec_to_array (GArray *array, const char *codec)
 void SdpEndpointImpl::postConstructor ()
 {
   gchar *sess_id;
+  SessionEndpointImpl::postConstructor ();
 
   g_signal_emit_by_name (element, "create-session", &sess_id);
 
