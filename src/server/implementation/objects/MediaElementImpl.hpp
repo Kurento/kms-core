@@ -11,6 +11,7 @@
 #include <set>
 #include <random>
 #include "MediaFlowOutStateChange.hpp"
+#include "MediaFlowInStateChange.hpp"
 #include "MediaFlowState.hpp"
 #include "commons/kmselement.h"
 
@@ -111,6 +112,7 @@ public:
   sigc::signal<void, ElementConnected> signalElementConnected;
   sigc::signal<void, ElementDisconnected> signalElementDisconnected;
   sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
+  sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -144,6 +146,7 @@ private:
 
   gulong padAddedHandlerId;
   gulong mediaFlowOutHandler;
+  gulong mediaFlowInHandler;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
@@ -151,6 +154,8 @@ private:
         const gchar *selector);
   void mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
                                 KmsElementPadType type);
+  void mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
+                               KmsElementPadType type);
 
   class StaticConstructor
   {

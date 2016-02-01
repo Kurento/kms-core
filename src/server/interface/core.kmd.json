@@ -632,7 +632,8 @@
       "events": [
         "ElementConnected",
         "ElementDisconnected",
-        "MediaFlowOutStateChange"
+        "MediaFlowOutStateChange",
+        "MediaFlowInStateChange"
       ]
     }
   ],
@@ -1742,6 +1743,28 @@
       "name": "MediaFlowOutStateChange",
       "extends": "Media",
       "doc": "Indicates that the Media Element is sending data to the MediaPipeline",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current media state",
+          "type": "MediaFlowState"
+        },
+        {
+          "name": "padName",
+          "doc": "Name of the pad which has media",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is flowing",
+          "type": "MediaType"
+        }
+      ]
+    },
+    {
+      "name": "MediaFlowInStateChange",
+      "extends": "Media",
+      "doc": "Indicates that the Media Element is receiving media from the MediaPipeline",
       "properties": [
         {
           "name": "state",

@@ -415,6 +415,32 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
 }
 
 void
+MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
+    KmsElementPadType type)
+{
+  std::shared_ptr<MediaFlowState > state;
+
+  if (isFlowing) {
+    GST_DEBUG_OBJECT (element, "Media Flowing IN in pad %s with type %s", padName,
+                      padTypeToString (type).c_str () );
+    state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
+  } else {
+    GST_DEBUG_OBJECT (element, "Media NOT Flowing IN in pad %s with type %s",
+                      padName, padTypeToString (type).c_str () );
+    state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
+  }
+
+  try {
+    MediaFlowInStateChange event (shared_from_this(),
+                                  MediaFlowInStateChange::getName (),
+                                  state, padName, padTypeToMediaType (type) );
+
+    signalMediaFlowInStateChange (event);
+  } catch (std::bad_weak_ptr &e) {
+  }
+}
+
+void
 MediaElementImpl::postConstructor ()
 {
   MediaObjectImpl::postConstructor ();
@@ -426,6 +452,14 @@ MediaElementImpl::postConstructor ()
                                     std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
                         std::dynamic_pointer_cast<MediaElementImpl>
                         (shared_from_this() ) );
+
+  mediaFlowInHandler = register_signal_handler (G_OBJECT (element),
+                       "flow-in-media",
+                       std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
+                       (std::bind (&MediaElementImpl::mediaFlowInStateChange, this,
+                                   std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
+                       std::dynamic_pointer_cast<MediaElementImpl>
+                       (shared_from_this() ) );
 }
 
 MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
@@ -482,6 +516,10 @@ MediaElementImpl::~MediaElementImpl ()
 
   if (mediaFlowOutHandler > 0) {
     unregister_signal_handler (element, mediaFlowOutHandler);
+  }
+
+  if (mediaFlowInHandler > 0) {
+    unregister_signal_handler (element, mediaFlowInHandler);
   }
 
   g_object_unref (element);
