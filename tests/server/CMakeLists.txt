@@ -54,6 +54,7 @@ set_property (TARGET test_media_element
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
     ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/gst-plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
@@ -76,6 +77,7 @@ set_property (TARGET test_rtp_endpoint
   PROPERTY INCLUDE_DIRECTORIES
   ${KmsJsonRpc_INCLUDE_DIRS}
   ${sigc++-2.0_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/src/gst-plugins
   ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
   ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
   ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
@@ -97,6 +99,7 @@ set_property (TARGET test_sdp_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
     ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/gst-plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
@@ -118,6 +121,7 @@ set_property (TARGET test_media_object
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
     ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/gst-plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
@@ -160,6 +164,7 @@ set_property (TARGET test_uri_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
     ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/gst-plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface

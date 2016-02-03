@@ -10,6 +10,9 @@
 #include <mutex>
 #include <set>
 #include <random>
+#include "MediaFlowOutStateChange.hpp"
+#include "MediaFlowState.hpp"
+#include "commons/kmselement.h"
 
 namespace kurento
 {
@@ -21,8 +24,7 @@ class VideoCodec;
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,
-                   const std::shared_ptr<MediaType> &b) const
-  {
+                   const std::shared_ptr<MediaType> &b) const {
     return a->getValue () < b->getValue ();
   }
 };
@@ -43,8 +45,7 @@ public:
 
   virtual ~MediaElementImpl ();
 
-  GstElement *getGstreamerElement()
-  {
+  GstElement *getGstreamerElement() {
     return element;
   };
 
@@ -109,6 +110,7 @@ public:
 
   sigc::signal<void, ElementConnected> signalElementConnected;
   sigc::signal<void, ElementDisconnected> signalElementDisconnected;
+  sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -121,6 +123,7 @@ protected:
   GstBus *bus;
   gulong handlerId;
 
+  virtual void postConstructor ();
   void collectLatencyStats (std::vector<std::shared_ptr<MediaLatencyStat>>
                             &latencyStats, const GstStructure *stats);
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
@@ -130,21 +133,24 @@ private:
   std::recursive_timed_mutex sourcesMutex;
   std::recursive_timed_mutex sinksMutex;
 
-  std::map<std::shared_ptr <MediaType>, std::map<std::string,
-      std::shared_ptr<ElementConnectionDataInternal>>, MediaTypeCmp> sources;
-  std::map<std::shared_ptr <MediaType>, std::map<std::string,
-      std::set<std::shared_ptr<ElementConnectionDataInternal>>>, MediaTypeCmp>
+  std::map < std::shared_ptr <MediaType>, std::map < std::string,
+      std::shared_ptr<ElementConnectionDataInternal >> , MediaTypeCmp > sources;
+  std::map < std::shared_ptr <MediaType>, std::map < std::string,
+      std::set<std::shared_ptr<ElementConnectionDataInternal> >> , MediaTypeCmp >
       sinks;
 
   std::mt19937_64 rnd {std::random_device{}() };
   std::uniform_int_distribution<> dist {1, 100};
 
   gulong padAddedHandlerId;
+  gulong mediaFlowOutHandler;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
   std::map <std::string, std::shared_ptr<Stats>> generateStats (
         const gchar *selector);
+  void mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
+                                KmsElementPadType type);
 
   class StaticConstructor
   {

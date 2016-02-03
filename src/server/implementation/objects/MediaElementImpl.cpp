@@ -14,12 +14,12 @@
 #include <MediaSet.hpp>
 #include <gst/gst.h>
 #include <ElementConnectionData.hpp>
-#include "kmselement.h"
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
 #include <StatsType.hpp>
 #include "ElementStats.hpp"
 #include "kmsstats.h"
+#include <SignalHandler.hpp>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -40,8 +40,7 @@ public:
                                  std::shared_ptr<MediaElement> sink,
                                  std::shared_ptr<MediaType> type,
                                  const std::string &sourceDescription,
-                                 const std::string &sinkDescription)
-  {
+                                 const std::string &sinkDescription) {
     this->source = source;
     this->sink = sink;
     this->type = type;
@@ -51,15 +50,13 @@ public:
     setSinkPadName ();
   }
 
-  ~ElementConnectionDataInternal()
-  {
+  ~ElementConnectionDataInternal() {
     if (sourcePadName != NULL) {
       free (sourcePadName);
     }
   }
 
-  ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data)
-  {
+  ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data) {
     this->source = data->getSource();
     this->sink = data->getSink();
     this->type = data->getType();
@@ -69,8 +66,7 @@ public:
     setSinkPadName ();
   }
 
-  void setSinkPadName()
-  {
+  void setSinkPadName() {
     std::string desc = "_" + (sourceDescription.empty () ?
                               KMS_DEFAULT_MEDIA_DESCRIPTION : sourceDescription);
 
@@ -89,8 +85,7 @@ public:
     }
   }
 
-  void setSourcePadName (gchar *padName)
-  {
+  void setSourcePadName (gchar *padName) {
     if (this->sourcePadName != NULL) {
       GST_WARNING ("Resetting padName for connection");
 
@@ -102,13 +97,11 @@ public:
     this->sourcePadName = padName;
   }
 
-  const gchar *getSourcePadName ()
-  {
+  const gchar *getSourcePadName () {
     return sourcePadName;
   }
 
-  std::shared_ptr<MediaElementImpl> getSource ()
-  {
+  std::shared_ptr<MediaElementImpl> getSource () {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
     } catch (std::bad_cast) {
@@ -117,8 +110,7 @@ public:
     }
   }
 
-  std::shared_ptr<MediaElementImpl> getSink ()
-  {
+  std::shared_ptr<MediaElementImpl> getSink () {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
     } catch (std::bad_cast) {
@@ -127,13 +119,11 @@ public:
     }
   }
 
-  std::string getSinkPadName ()
-  {
+  std::string getSinkPadName () {
     return sinkPadName;
   }
 
-  GstPad *getSinkPad ()
-  {
+  GstPad *getSinkPad () {
     std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
 
     if (!sinkLocked) {
@@ -144,8 +134,7 @@ public:
                                        getSinkPadName ().c_str() );
   }
 
-  GstPad *getSourcePad ()
-  {
+  GstPad *getSourcePad () {
     std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
 
     if (!sourceLocked || sourcePadName == NULL) {
@@ -156,8 +145,7 @@ public:
                                        sourcePadName);
   }
 
-  std::shared_ptr<ElementConnectionData> toInterface ()
-  {
+  std::shared_ptr<ElementConnectionData> toInterface () {
     std::shared_ptr<ElementConnectionData> iface (new ElementConnectionData (
           source.lock(), sink.lock(), type, sourceDescription, sinkDescription) );
 
@@ -368,6 +356,78 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
   } while (retry);
 }
 
+std::string
+padTypeToString (KmsElementPadType type)
+{
+  switch (type) {
+  case KMS_ELEMENT_PAD_TYPE_AUDIO:
+    return "audio";
+
+  case KMS_ELEMENT_PAD_TYPE_VIDEO:
+    return "video";
+
+  default:
+    return "undefined";
+  }
+}
+
+std::shared_ptr<MediaType>
+padTypeToMediaType (KmsElementPadType type)
+{
+  switch (type) {
+  case KMS_ELEMENT_PAD_TYPE_AUDIO:
+    return std::make_shared <MediaType> (MediaType::AUDIO);
+
+  case KMS_ELEMENT_PAD_TYPE_VIDEO:
+    return std::make_shared <MediaType> (MediaType::VIDEO);
+
+  default:
+    break;
+  }
+
+  throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
+}
+
+void
+MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
+    KmsElementPadType type)
+{
+  std::shared_ptr<MediaFlowState > state;
+
+  if (isFlowing) {
+    GST_DEBUG_OBJECT (element, "Media Flowing OUT in pad %s with type %s", padName,
+                      padTypeToString (type).c_str () );
+    state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
+  } else {
+    GST_DEBUG_OBJECT (element, "Media NOT Flowing OUT in pad %s with type %s",
+                      padName, padTypeToString (type).c_str () );
+    state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
+  }
+
+  try {
+    MediaFlowOutStateChange event (shared_from_this(),
+                                   MediaFlowOutStateChange::getName (),
+                                   state, padName, padTypeToMediaType (type) );
+
+    signalMediaFlowOutStateChange (event);
+  } catch (std::bad_weak_ptr &e) {
+  }
+}
+
+void
+MediaElementImpl::postConstructor ()
+{
+  MediaObjectImpl::postConstructor ();
+
+  mediaFlowOutHandler = register_signal_handler (G_OBJECT (element),
+                        "flow-out-media",
+                        std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
+                        (std::bind (&MediaElementImpl::mediaFlowOutStateChange, this,
+                                    std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
+                        std::dynamic_pointer_cast<MediaElementImpl>
+                        (shared_from_this() ) );
+}
+
 MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                                     std::shared_ptr<MediaObjectImpl> parent,
                                     const std::string &factoryName) : MediaObjectImpl (config, parent)
@@ -419,6 +479,11 @@ MediaElementImpl::~MediaElementImpl ()
   gst_element_set_state (element, GST_STATE_NULL);
   gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
   g_signal_handler_disconnect (element, padAddedHandlerId);
+
+  if (mediaFlowOutHandler > 0) {
+    unregister_signal_handler (element, mediaFlowOutHandler);
+  }
+
   g_object_unref (element);
 
   g_signal_handler_disconnect (bus, handlerId);

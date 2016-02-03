@@ -41,6 +41,7 @@ generate_code (
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}
   INTERFACE_LIB_EXTRA_HEADERS ${KMS_CORE_INTERFACE_HEADERS}
   INTERFACE_LIB_EXTRA_INCLUDE_DIRS
+      ${CMAKE_SOURCE_DIR}/src/gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${KmsJsonRpc_INCLUDE_DIRS}
@@ -55,6 +56,7 @@ generate_code (
   SERVER_IMPL_LIB_EXTRA_HEADERS
       ${KMS_CORE_IMPL_HEADERS}
   SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
+      ${CMAKE_SOURCE_DIR}/src/gst-plugins
       ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${Boost_INCLUDE_DIRS}
@@ -71,6 +73,7 @@ generate_code (
       kmsutils
       kmsgstcommons
   MODULE_EXTRA_INCLUDE_DIRS
+      ${CMAKE_SOURCE_DIR}/src/gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${gstreamer-1.5_INCLUDE_DIRS}
       ${gstreamer-sdp-1.5_INCLUDE_DIRS}
@@ -87,6 +90,7 @@ generate_code (
   SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES
       "gstreamer-1.5 gstreamer-sdp-1.5 libjsonrpc sigc++-2.0 glibmm-2.4"
   SERVER_IMPL_LIB_FIND_CMAKE_EXTRA_LIBRARIES
+      KmsGstCommons
       "gstreamer-1.5 ${GST_REQUIRED}"
       "gstreamer-sdp-1.5 ${GST_REQUIRED}"
       "KmsJsonRpc ${JSON_RPC_REQUIRED}"

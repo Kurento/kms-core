@@ -69,6 +69,9 @@ struct _KmsElementClass
   gboolean (*release_requested_pad) (KmsElement *self, const gchar *pad_name);
   GstStructure * (*stats) (KmsElement * self, gchar * selector);
 
+  /* signals */
+  void (*flow_out_state) (KmsElement *self, gboolean flowing_media, gchar* pad_name, KmsElementPadType type);
+
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
   void (*collect_media_stats) (KmsElement * self, gboolean enable);

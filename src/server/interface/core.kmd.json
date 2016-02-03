@@ -631,7 +631,8 @@
       ],
       "events": [
         "ElementConnected",
-        "ElementDisconnected"
+        "ElementDisconnected",
+        "MediaFlowOutStateChange"
       ]
     }
   ],
@@ -720,6 +721,15 @@
       "values": [
         "DISCONNECTED",
         "CONNECTED"
+      ]
+    },
+    {
+      "name": "MediaFlowState",
+      "typeFormat": "ENUM",
+      "doc": "State of the media.",
+      "values": [
+        "FLOWING",
+        "NOT_FLOWING"
       ]
     },
     {
@@ -1725,6 +1735,28 @@
           "name": "newState",
           "doc": "The new state",
           "type": "ConnectionState"
+        }
+      ]
+    },
+    {
+      "name": "MediaFlowOutStateChange",
+      "extends": "Media",
+      "doc": "Indicates that the Media Element is sending data to the MediaPipeline",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current media state",
+          "type": "MediaFlowState"
+        },
+        {
+          "name": "padName",
+          "doc": "Name of the pad which has media",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is flowing",
+          "type": "MediaType"
         }
       ]
     },
