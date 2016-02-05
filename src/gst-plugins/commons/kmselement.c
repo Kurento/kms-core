@@ -1273,6 +1273,7 @@ kms_element_request_new_srcpad (KmsElement * self,
   KmsOutputElementData *odata;
   gchar *pad_name, *key;
   guint counter = 0;
+  gboolean added = FALSE;
 
   desc = KMS_FORMAT_PAD_DESCRIPTION (description);
 
@@ -1300,6 +1301,22 @@ kms_element_request_new_srcpad (KmsElement * self,
   pad_name = g_strdup_printf (templ_name, desc, counter);
 
   if (odata->element == NULL) {
+    KmsRequestNewSrcElementReturn ret =
+        KMS_ELEMENT_GET_CLASS (self)->request_new_src_element (self, type, desc,
+        pad_name);
+
+    if (ret == KMS_REQUEST_NEW_SRC_ELEMENT_NOT_SUPPORTED) {
+      GST_WARNING_OBJECT (self, "source pad '%s' forbidden", pad_name);
+      odata->pad_count--;
+      g_free (pad_name);
+      KMS_ELEMENT_UNLOCK (self);
+      return NULL;
+    }
+
+    added = ret == KMS_REQUEST_NEW_SRC_ELEMENT_OK;
+  }
+
+  if (odata->element == NULL) {
     if (!g_hash_table_contains (self->priv->pendingpads, pad_name)) {
       PendingPad *pdata;
 
@@ -1310,10 +1327,21 @@ kms_element_request_new_srcpad (KmsElement * self,
     KMS_ELEMENT_UNLOCK (self);
   } else {
     KMS_ELEMENT_UNLOCK (self);
-    kms_element_add_src_pad (self, odata->element, pad_name, templ_name);
+    if (!added) {
+      kms_element_add_src_pad (self, odata->element, pad_name, templ_name);
+    }
   }
 
   return pad_name;
+}
+
+static KmsRequestNewSrcElementReturn
+kms_element_request_new_src_element_default (KmsElement * self,
+    KmsElementPadType type, const gchar * description, const gchar * name)
+{
+  GST_DEBUG_OBJECT (self, "src pads on sometimes (by default)");
+
+  return KMS_REQUEST_NEW_SRC_ELEMENT_LATER;
 }
 
 static gboolean
@@ -1721,6 +1749,8 @@ kms_element_class_init (KmsElementClass * klass)
       GST_DEBUG_FUNCPTR (kms_element_collect_media_stats_impl);
   klass->create_output_element =
       GST_DEBUG_FUNCPTR (kms_element_create_output_element_default);
+  klass->request_new_src_element =
+      GST_DEBUG_FUNCPTR (kms_element_request_new_src_element_default);
   klass->request_new_sink_pad =
       GST_DEBUG_FUNCPTR (kms_element_request_new_sink_pad_default);
   klass->release_requested_sink_pad =

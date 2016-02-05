@@ -19,6 +19,14 @@
 #include "kmselementpadtype.h"
 
 G_BEGIN_DECLS
+
+typedef enum _KmsRequestNewSrcElementReturn
+{
+  KMS_REQUEST_NEW_SRC_ELEMENT_OK,
+  KMS_REQUEST_NEW_SRC_ELEMENT_LATER,
+  KMS_REQUEST_NEW_SRC_ELEMENT_NOT_SUPPORTED
+} KmsRequestNewSrcElementReturn;
+
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_ELEMENT \
   (kms_element_get_type())
@@ -77,6 +85,7 @@ struct _KmsElementClass
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
   void (*collect_media_stats) (KmsElement * self, gboolean enable);
   GstElement * (*create_output_element) (KmsElement * self);
+  KmsRequestNewSrcElementReturn (*request_new_src_element) (KmsElement * self, KmsElementPadType type, const gchar * description, const gchar * name);
   gboolean (*request_new_sink_pad) (KmsElement * self, KmsElementPadType type, const gchar * description, const gchar * name);
   gboolean (*release_requested_sink_pad) (KmsElement * self, GstPad *pad);
 };
