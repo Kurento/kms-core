@@ -31,8 +31,8 @@
 #include "kmssdprtpavpfmediahandler.h"
 #include "kmssdprtpsavpmediahandler.h"
 #include "kmssdprtpsavpfmediahandler.h"
-
 #include "kmssdpsdesext.h"
+#include "kmssdpconnectionext.h"
 
 #include "kmssdpbundlegroup.h"
 #include "kmssdpagentcommon.h"
@@ -4521,6 +4521,184 @@ GST_START_TEST (sdp_agent_groups)
 
 GST_END_TEST;
 
+static gchar *offered_ips[] = {
+  "223.123.123.43",
+  "4.5.234.12",
+  "212.123.123.23",
+  "2aaa:aaaa:aaaa:aaaa:9b9:300:7d6a:faa9/64",
+  "2aaa:aaaa:aaaa:aaaa:be85:56ff:fe03:128b/64"
+};
+
+static gchar *answered_ips[] = {
+  "123.123.123.123",
+  "4.4.4.4",
+  "6.6.6.6",
+  "2aaa:bbbb:bbbb:bbbb:9b9:300:7d6a:faa9/64",
+  "2aaa:bbbb:bbbb:bbbb:be85:56ff:fe03:128b/64"
+};
+
+static gboolean
+sdp_agent_test_connection_check_ips (const GArray * ips, gchar ** array,
+    guint len)
+{
+  guint i;
+
+  for (i = 0; i < len; i++) {
+    const GstStructure *addr;
+    gchar *address;
+    GValue *val;
+
+    val = &g_array_index (ips, GValue, i);
+
+    if (!GST_VALUE_HOLDS_STRUCTURE (val)) {
+      return FALSE;
+    }
+
+    addr = gst_value_get_structure (val);
+
+    if (!gst_structure_get (addr, "address", G_TYPE_STRING, &address, NULL)) {
+      return FALSE;
+    }
+
+    if (g_strcmp0 (address, array[i]) != 0) {
+      g_free (address);
+      return FALSE;
+    }
+
+    g_free (address);
+  }
+
+  return TRUE;
+}
+
+static void
+sdp_agent_test_connection_add_ips (GArray * ips, gchar ** array, guint len)
+{
+  guint i;
+
+  for (i = 0; i < len; i++) {
+    GValue val = G_VALUE_INIT;
+    GstStructure *addr;
+    gchar *addrype;
+
+    if (i < 3) {
+      addrype = "IP4";
+    } else {
+      addrype = "IP6";
+    }
+
+    addr = gst_structure_new ("sdp-connection", "nettype", G_TYPE_STRING,
+        "IN", "addrtype", G_TYPE_STRING, addrype, "address", G_TYPE_STRING,
+        array[i], "ttl", G_TYPE_UINT, 0, "addrnumber", G_TYPE_UINT, 0, NULL);
+
+    g_value_init (&val, GST_TYPE_STRUCTURE);
+    gst_value_set_structure (&val, addr);
+    gst_structure_free (addr);
+
+    g_array_append_val (ips, val);
+  }
+}
+
+static void
+sdp_agent_test_connection_on_offer_ips (KmsConnectionExt * ext, GArray * ips)
+{
+  sdp_agent_test_connection_add_ips (ips, offered_ips,
+      G_N_ELEMENTS (offered_ips));
+}
+
+static void
+sdp_agent_test_connection_on_answered_ips (KmsConnectionExt * ext,
+    const GArray * ips)
+{
+  fail_if (!sdp_agent_test_connection_check_ips (ips, answered_ips,
+          G_N_ELEMENTS (answered_ips)));
+}
+
+static void
+sdp_agent_test_connection_on_answer_ips (KmsConnectionExt * ext,
+    const GArray * ips_offered, GArray * ips_answered)
+{
+  fail_if (!sdp_agent_test_connection_check_ips (ips_offered, offered_ips,
+          G_N_ELEMENTS (offered_ips)));
+  sdp_agent_test_connection_add_ips (ips_answered, answered_ips,
+      G_N_ELEMENTS (answered_ips));
+}
+
+GST_START_TEST (sdp_agent_test_connection_ext)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  SdpMessageContext *ctx;
+  GstSDPMessage *offer, *answer;
+  KmsConnectionExt *ext1, *ext2;
+  GError *err = NULL;
+  gchar *sdp_str = NULL;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext1 = kms_connection_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext1)));
+
+  g_signal_connect (ext1, "on-offer-ips",
+      G_CALLBACK (sdp_agent_test_connection_on_offer_ips), NULL);
+  g_signal_connect (ext1, "on-answered-ips",
+      G_CALLBACK (sdp_agent_test_connection_on_answered_ips), NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (offerer, "video", handler) < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext2 = kms_connection_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext2)));
+
+  g_signal_connect (ext2, "on-answer-ips",
+      G_CALLBACK (sdp_agent_test_connection_on_answer_ips), NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (answerer, "video", handler) < 0);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -4555,6 +4733,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_regression_tests);
   tcase_add_test (tc_chain, sdp_agent_udp_tls_rtp_savpf_negotiation);
   tcase_add_test (tc_chain, sdp_agent_sdes_negotiation);
+  tcase_add_test (tc_chain, sdp_agent_test_connection_ext);
 
   tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
 
