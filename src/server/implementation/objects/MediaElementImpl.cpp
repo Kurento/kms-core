@@ -30,6 +30,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define MIN_OUTPUT_BITRATE "min-output-bitrate"
 #define MAX_OUTPUT_BITRATE "max-output-bitrate"
 
+#define TYPE_VIDEO "video_"
+#define TYPE_AUDIO "audio_"
+
 namespace kurento
 {
 
@@ -169,6 +172,31 @@ private:
   std::string sinkDescription;
   std::string sinkPadName;
   gchar *sourcePadName;
+};
+
+class MediaFlowData
+{
+public:
+  MediaFlowData (std::shared_ptr<MediaType> type,
+                 const std::string &description,
+                 std::shared_ptr<MediaFlowState> state) {
+    this->type = type;
+    this->state = state;
+    this->description = description;
+  }
+
+  void setState (std::shared_ptr<MediaFlowState> state ) {
+    this->state = state;
+  }
+
+  std::shared_ptr<MediaFlowState>  getState () {
+    return this->state;
+  }
+
+private:
+  std::shared_ptr<MediaType> type;
+  std::shared_ptr<MediaFlowState> state;
+  std::string description;
 };
 
 static KmsElementPadType
@@ -393,6 +421,9 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
     KmsElementPadType type)
 {
   std::shared_ptr<MediaFlowState > state;
+  std::shared_ptr<MediaFlowData > data;
+  std::string key;
+  std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
 
   if (isFlowing) {
     GST_DEBUG_OBJECT (element, "Media Flowing OUT in pad %s with type %s", padName,
@@ -402,6 +433,23 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
     GST_DEBUG_OBJECT (element, "Media NOT Flowing OUT in pad %s with type %s",
                       padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
+  }
+
+  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    key = std::string (TYPE_VIDEO) + std::string (padName);
+  } else {
+    key = std::string (TYPE_AUDIO) + std::string (padName);
+  }
+
+  it = mediaFlowDataOut.find (key);
+
+  if (it != mediaFlowDataOut.end() ) {
+    it->second->setState (state);
+  } else {
+    data = std::make_shared <MediaFlowData> (padTypeToMediaType (type),
+           std::string (padName), state);
+    mediaFlowDataOut.insert (std::pair
+                             <std::string, std::shared_ptr <MediaFlowData>> (key, data) );
   }
 
   try {
@@ -419,6 +467,9 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
     KmsElementPadType type)
 {
   std::shared_ptr<MediaFlowState > state;
+  std::shared_ptr<MediaFlowData > data;
+  std::string key;
+  std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
 
   if (isFlowing) {
     GST_DEBUG_OBJECT (element, "Media Flowing IN in pad %s with type %s", padName,
@@ -428,6 +479,23 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
     GST_DEBUG_OBJECT (element, "Media NOT Flowing IN in pad %s with type %s",
                       padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
+  }
+
+  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    key = std::string (TYPE_VIDEO) + std::string (padName);
+  } else {
+    key = std::string (TYPE_AUDIO) + std::string (padName);
+  }
+
+  it = mediaFlowDataIn.find (key);
+
+  if (it != mediaFlowDataIn.end() ) {
+    it->second->setState (state);
+  } else {
+    data = std::make_shared <MediaFlowData> (padTypeToMediaType (type),
+           std::string (padName), state);
+    mediaFlowDataIn.insert (std::pair
+                            <std::string, std::shared_ptr <MediaFlowData>> (key, data) );
   }
 
   try {
@@ -1198,6 +1266,64 @@ MediaElementImpl::fillStatsReport (std::map
 
   setDeprecatedProperties (std::dynamic_pointer_cast <ElementStats>
                            (report[getId ()]) );
+}
+
+bool MediaElementImpl::isMediaFlowingIn (std::shared_ptr<MediaType> mediaType)
+{
+  return isMediaFlowingIn (mediaType, KMS_DEFAULT_MEDIA_DESCRIPTION);
+}
+
+bool MediaElementImpl::isMediaFlowingIn (std::shared_ptr<MediaType> mediaType,
+    const std::string &sinkMediaDescription)
+{
+  std::string key;
+  std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
+  gboolean ret = false;
+
+  if (mediaType->getValue () == MediaType::VIDEO) {
+    key = std::string (TYPE_VIDEO) + std::string (sinkMediaDescription);
+  } else {
+    key = std::string (TYPE_AUDIO) + std::string (sinkMediaDescription);
+  }
+
+  it = mediaFlowDataIn.find (key);
+
+  if (it != mediaFlowDataIn.end() ) {
+    if (it->second->getState ()->getValue () == MediaFlowState::FLOWING) {
+      ret = true;
+    }
+  }
+
+  return ret;
+}
+
+bool MediaElementImpl::isMediaFlowingOut (std::shared_ptr<MediaType> mediaType)
+{
+  return isMediaFlowingOut (mediaType, KMS_DEFAULT_MEDIA_DESCRIPTION);
+}
+
+bool MediaElementImpl::isMediaFlowingOut (std::shared_ptr<MediaType> mediaType,
+    const std::string &sourceMediaDescription)
+{
+  std::string key;
+  std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
+  gboolean ret = false;
+
+  if (mediaType->getValue () == MediaType::VIDEO) {
+    key = std::string (TYPE_VIDEO) + std::string (sourceMediaDescription);
+  } else {
+    key = std::string (TYPE_AUDIO) + std::string (sourceMediaDescription);
+  }
+
+  it = mediaFlowDataOut.find (key);
+
+  if (it != mediaFlowDataOut.end() ) {
+    if (it->second->getState ()->getValue () == MediaFlowState::FLOWING) {
+      ret = true;
+    }
+  }
+
+  return ret;
 }
 
 MediaElementImpl::StaticConstructor MediaElementImpl::staticConstructor;

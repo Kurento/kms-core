@@ -615,6 +615,50 @@
             "doc": "Delivers a successful result in the form of a RTC stats report. A RTC stats report represents a map between strings, identifying the inspected objects (RTCStats.id), and their corresponding RTCStats objects.",
             "type": "Stats<>"
           }
+        },
+        {
+          "name": "isMediaFlowingIn",
+          "doc": "Returns if there is media flowing from the pipeline to the MediaElement through a pad",
+          "params": [
+            {
+              "name": "mediaType",
+              "doc": "One of :rom:attr:`MediaType.AUDIO` or :rom:attr:`MediaType.VIDEO`",
+              "type": "MediaType"
+            },
+            {
+              "name": "sinkMediaDescription",
+              "doc": "Description of the sink",
+              "type": "String",
+              "optional": true,
+              "defaultValue": "default"
+            }
+          ],
+          "return" : {
+            "doc": "TRUE if there is media, FALSE in other case",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "isMediaFlowingOut",
+          "doc": "Returns if there is media flowing from the MediaElement to the pipeline through a pad",
+          "params": [
+            {
+              "name": "mediaType",
+              "doc": "One of :rom:attr:`MediaType.AUDIO` or :rom:attr:`MediaType.VIDEO`",
+              "type": "MediaType"
+            },
+            {
+              "name": "sourceMediaDescription",
+              "doc": "Description of the source",
+              "type": "String",
+              "optional": true,
+              "defaultValue": "default"
+            }
+          ],
+          "return" : {
+            "doc": "TRUE if there is media, FALSE in other case",
+            "type": "boolean"
+          }
         }
       ],
       "properties": [

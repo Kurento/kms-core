@@ -22,6 +22,7 @@ class MediaType;
 class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
+class MediaFlowData;
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,
@@ -99,6 +100,13 @@ public:
 
   virtual void setOutputBitrate (int bitrate);
 
+  bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType);
+  bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType,
+                         const std::string &sinkMediaDescription);
+  bool isMediaFlowingOut (std::shared_ptr<MediaType> mediaType);
+  bool isMediaFlowingOut (std::shared_ptr<MediaType> mediaType,
+                          const std::string &sourceMediaDescription);
+
   virtual int getMinOuputBitrate ();
   virtual void setMinOuputBitrate (int minOuputBitrate);
 
@@ -147,6 +155,8 @@ private:
   gulong padAddedHandlerId;
   gulong mediaFlowOutHandler;
   gulong mediaFlowInHandler;
+  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataIn;
+  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataOut;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
