@@ -1,0 +1,11 @@
+dependencies:
+ - name: kms-cmake-utils
+ - name: kms-jsonrpc
+ - name: gstreamer
+ - name: gst-plugins-base
+ - name: gst-plugins-good
+ - name: gst-plugins-bad
+ - name: gst-plugins-ugly
+ - name: gst-libav
+ - name: kurento-module-creator
+   version: ">=4.0.3"
