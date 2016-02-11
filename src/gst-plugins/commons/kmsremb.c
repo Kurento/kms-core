@@ -51,10 +51,9 @@ kms_remb_base_destroy (KmsRembBase * rb)
 }
 
 static void
-kms_remb_base_create (KmsRembBase * rb, guint session, GObject * rtpsess)
+kms_remb_base_create (KmsRembBase * rb, GObject * rtpsess)
 {
   rb->rtpsess = g_object_ref (rtpsess);
-  rb->session = session;
   g_rec_mutex_init (&rb->mutex);
   rb->remb_stats = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL,
       (GDestroyNotify) kms_utils_destroy_guint);
@@ -346,7 +345,7 @@ kms_remb_local_destroy (KmsRembLocal * rl)
 }
 
 KmsRembLocal *
-kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
+kms_remb_local_create (GObject * rtpsess, guint remote_ssrc,
     guint min_bw, guint max_bw)
 {
   KmsRembLocal *rl = g_slice_new0 (KmsRembLocal);
@@ -355,7 +354,7 @@ kms_remb_local_create (GObject * rtpsess, guint session, guint remote_ssrc,
   rl->base.signal_id = g_signal_connect (rtpsess, "on-sending-rtcp",
       G_CALLBACK (on_sending_rtcp), NULL);
 
-  kms_remb_base_create (KMS_REMB_BASE (rl), session, rtpsess);
+  kms_remb_base_create (KMS_REMB_BASE (rl), rtpsess);
 
   rl->remote_ssrc = remote_ssrc;
   rl->min_bw = min_bw;
@@ -630,7 +629,7 @@ kms_remb_remote_destroy (KmsRembRemote * rm)
 }
 
 KmsRembRemote *
-kms_remb_remote_create (GObject * rtpsess, guint session, guint local_ssrc,
+kms_remb_remote_create (GObject * rtpsess, guint local_ssrc,
     guint min_bw, guint max_bw, GstPad * pad)
 {
   KmsRembRemote *rm = g_slice_new0 (KmsRembRemote);
@@ -639,7 +638,7 @@ kms_remb_remote_create (GObject * rtpsess, guint session, guint local_ssrc,
   rm->base.signal_id = g_signal_connect (rtpsess, "on-feedback-rtcp",
       G_CALLBACK (on_feedback_rtcp), NULL);
 
-  kms_remb_base_create (KMS_REMB_BASE (rm), session, rtpsess);
+  kms_remb_base_create (KMS_REMB_BASE (rm), rtpsess);
 
   rm->local_ssrc = local_ssrc;
   rm->min_bw = min_bw;

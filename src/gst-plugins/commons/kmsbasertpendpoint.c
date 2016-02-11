@@ -727,12 +727,12 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpSession * sess,
 
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
-      kms_remb_local_create (rtpsession, VIDEO_RTP_SESSION,
+      kms_remb_local_create (rtpsession,
       sess->remote_video_ssrc, self->priv->min_video_recv_bw, max_recv_bw);
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
-      kms_remb_remote_create (rtpsession, VIDEO_RTP_SESSION,
+      kms_remb_remote_create (rtpsession,
       self->priv->video_config->local_ssrc, self->priv->min_video_send_bw,
       self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
@@ -2180,12 +2180,13 @@ static void
 kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
     GstStructure * stats)
 {
+  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self);
   KmsRembStats rs;
 
   if (self->priv->rl != NULL) {
     KMS_REMB_BASE_LOCK (self->priv->rl);
     rs.stats = stats;
-    rs.session = KMS_REMB_BASE (self->priv->rl)->session;
+    rs.session = sdp_sess->id;
     g_hash_table_foreach (KMS_REMB_BASE (self->priv->rl)->remb_stats,
         (GHFunc) merge_remb_stats, &rs);
     KMS_REMB_BASE_UNLOCK (self->priv->rl);
@@ -2194,7 +2195,7 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
   if (self->priv->rm != NULL) {
     KMS_REMB_BASE_LOCK (self->priv->rm);
     rs.stats = stats;
-    rs.session = KMS_REMB_BASE (self->priv->rm)->session;
+    rs.session = sdp_sess->id;
     g_hash_table_foreach (KMS_REMB_BASE (self->priv->rm)->remb_stats,
         (GHFunc) merge_remb_stats, &rs);
     KMS_REMB_BASE_UNLOCK (self->priv->rm);

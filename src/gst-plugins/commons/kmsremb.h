@@ -34,7 +34,6 @@ struct _KmsRembBase
   GObject *rtpsess;
   GRecMutex mutex;
   GHashTable *remb_stats;
-  guint session;
   gulong signal_id;
 };
 
@@ -71,7 +70,7 @@ struct _KmsRembLocal
   RembEventManager *event_manager;
 };
 
-KmsRembLocal * kms_remb_local_create (GObject *rtpsess, guint session,
+KmsRembLocal * kms_remb_local_create (GObject *rtpsess,
   guint remote_ssrc, guint min_bw, guint max_bw);
 void kms_remb_local_destroy (KmsRembLocal *rl);
 void kms_remb_local_set_params (KmsRembLocal *rl, GstStructure *params);
@@ -96,7 +95,7 @@ struct _KmsRembRemote
   GstPad *pad_event;
 };
 
-KmsRembRemote * kms_remb_remote_create (GObject *rtpsess, guint session,
+KmsRembRemote * kms_remb_remote_create (GObject *rtpsess,
   guint local_ssrc, guint min_bw, guint max_bw, GstPad * pad);
 void kms_remb_remote_destroy (KmsRembRemote *rm);
 void kms_remb_remote_set_params (KmsRembRemote *rm, GstStructure *params);
