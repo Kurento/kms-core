@@ -727,8 +727,10 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpSession * sess,
 
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
-      kms_remb_local_create (rtpsession,
-      sess->remote_video_ssrc, self->priv->min_video_recv_bw, max_recv_bw);
+      kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
+      max_recv_bw);
+  kms_remb_local_add_remote_session (self->priv->rl, rtpsession,
+      sess->remote_video_ssrc);
 
   pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =

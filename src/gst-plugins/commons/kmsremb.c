@@ -79,25 +79,50 @@ kms_remb_base_update_stats (KmsRembBase * rb, guint ssrc, guint bitrate)
   KMS_REMB_BASE_UNLOCK (rb);
 }
 
-static gboolean
-get_video_recv_info (KmsRembLocal * rl,
-    guint64 * bitrate, guint * fraction_lost, guint64 * packets_rcv_interval)
+typedef struct _KmsRlRemoteSession
+{
+  GObject *rtpsess;
+  guint ssrc;
+} KmsRlRemoteSession;
+
+static KmsRlRemoteSession *
+kms_rl_remote_session_create (GObject * rtpsess, guint ssrc)
+{
+  KmsRlRemoteSession *rlrs = g_slice_new0 (KmsRlRemoteSession);
+
+  rlrs->rtpsess = g_object_ref (rtpsess);
+  rlrs->ssrc = ssrc;
+
+  return rlrs;
+}
+
+static void
+kms_rl_remote_session_create_destroy (KmsRlRemoteSession * rlrs)
+{
+  g_clear_object (&rlrs->rtpsess);
+  g_slice_free (KmsRlRemoteSession, rlrs);
+}
+
+typedef struct _GetRtpSessionsInfo
+{
+  guint count;
+  guint64 bitrate;
+  guint fraction_lost_accumulative;     /* the sum of all sessions, it should be normalized */
+  guint64 octets_received;
+  guint64 packets_received;
+} GetRtpSessionsInfo;
+
+static void
+get_sessions_info (KmsRlRemoteSession * rlrs, GetRtpSessionsInfo * data)
 {
   GValueArray *arr = NULL;
   GValue *val;
   guint i;
-  gboolean ret = FALSE;
 
-  if (!KMS_REMB_BASE (rl)->rtpsess) {
-    GST_WARNING ("Session object does not exist");
-    return ret;
-  }
-
-  g_object_get (KMS_REMB_BASE (rl)->rtpsess, "sources", &arr, NULL);
-
+  g_object_get (rlrs->rtpsess, "sources", &arr, NULL);
   if (arr == NULL) {
-    GST_WARNING ("Sources array not found");
-    return ret;
+    GST_WARNING_OBJECT (rlrs->rtpsess, "Sources array not found");
+    return;
   }
 
   for (i = 0; i < arr->n_values; i++) {
@@ -109,18 +134,17 @@ get_video_recv_info (KmsRembLocal * rl,
     g_object_get (source, "ssrc", &ssrc, NULL);
     GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
 
-    if (ssrc == rl->remote_ssrc) {
+    if (ssrc == rlrs->ssrc) {
       GstStructure *s;
-      GstClockTime current_time;
-      guint64 octets_received, packets_received;
+      guint64 bitrate, octets_received, packets_received;
+      guint fraction_lost;
 
       g_object_get (source, "stats", &s, NULL);
-      GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "stats: %" GST_PTR_FORMAT,
-          s);
+      GST_TRACE_OBJECT (source, "stats: %" GST_PTR_FORMAT, s);
 
-      if (!gst_structure_get_uint64 (s, "bitrate", bitrate) ||
+      if (!gst_structure_get_uint64 (s, "bitrate", &bitrate) ||
           !gst_structure_get_uint64 (s, "octets-received", &octets_received) ||
-          !gst_structure_get_uint (s, "sent-rb-fractionlost", fraction_lost) ||
+          !gst_structure_get_uint (s, "sent-rb-fractionlost", &fraction_lost) ||
           !gst_structure_get_uint64 (s, "packets-received",
               &packets_received)) {
         gst_structure_free (s);
@@ -129,36 +153,66 @@ get_video_recv_info (KmsRembLocal * rl,
 
       gst_structure_free (s);
 
-      current_time = kms_utils_get_time_nsecs ();
+      data->bitrate += bitrate;
+      data->fraction_lost_accumulative += fraction_lost;
+      data->octets_received += octets_received;
+      data->packets_received += packets_received;
+      data->count++;
 
-      if (rl->last_time != 0) {
-        GstClockTime elapsed = current_time - rl->last_time;
-        guint64 bytes_handled = octets_received - rl->last_octets_received;
-
-        *bitrate =
-            gst_util_uint64_scale (bytes_handled, 8 * GST_SECOND, elapsed);
-        GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
-            "Elapsed %" G_GUINT64_FORMAT " bytes %" G_GUINT64_FORMAT ", rate %"
-            G_GUINT64_FORMAT, elapsed, bytes_handled, *bitrate);
-      }
-
-      rl->last_time = current_time;
-      rl->last_octets_received = octets_received;
-
-      *packets_rcv_interval = packets_received - rl->last_packets_received;
-      rl->last_packets_received = packets_received;
-
-      ret = TRUE;
-    }
-
-    if (ret) {
       break;
     }
   }
 
   g_value_array_free (arr);
+}
 
-  return ret;
+static gboolean
+get_video_recv_info (KmsRembLocal * rl,
+    guint64 * bitrate, guint * fraction_lost, guint64 * packets_rcv_interval)
+{
+  GetRtpSessionsInfo data;
+  GstClockTime current_time;
+
+  if (!KMS_REMB_BASE (rl)->rtpsess) {
+    GST_WARNING ("Session object does not exist");
+    return FALSE;
+  }
+
+  data.count = 0;
+  data.bitrate = 0;
+  data.fraction_lost_accumulative = 0;
+  data.octets_received = 0;
+  data.packets_received = 0;
+  g_slist_foreach (rl->remote_sessions, (GFunc) get_sessions_info, &data);
+
+  if (data.count == 0) {
+    GST_WARNING ("Any data updated");
+    return FALSE;
+  }
+
+  current_time = kms_utils_get_time_nsecs ();
+
+  /* Normalize fraction_lost */
+  *fraction_lost = data.fraction_lost_accumulative / data.count;
+
+  *bitrate = data.bitrate;
+  if (rl->last_time != 0) {
+    GstClockTime elapsed = current_time - rl->last_time;
+    guint64 bytes_handled = data.octets_received - rl->last_octets_received;
+
+    *bitrate = gst_util_uint64_scale (bytes_handled, 8 * GST_SECOND, elapsed);
+    GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
+        "Elapsed %" G_GUINT64_FORMAT " bytes %" G_GUINT64_FORMAT ", rate %"
+        G_GUINT64_FORMAT, elapsed, bytes_handled, *bitrate);
+  }
+
+  rl->last_time = current_time;
+  rl->last_octets_received = data.octets_received;
+
+  *packets_rcv_interval = data.packets_received - rl->last_packets_received;
+  rl->last_packets_received = data.packets_received;
+
+  return TRUE;
 }
 
 static gboolean
@@ -196,8 +250,9 @@ kms_remb_local_update (KmsRembLocal * rl)
   }
 
   GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess,
-      "packets_rcv_interval: %" G_GUINT64_FORMAT ", fraction_lost_record: %"
-      G_GUINT64_FORMAT, packets_rcv_interval, rl->fraction_lost_record);
+      "packets_rcv_interval: %" G_GUINT64_FORMAT ", fraction_lost: %"
+      G_GUINT32_FORMAT ", fraction_lost_record: %" G_GUINT64_FORMAT,
+      packets_rcv_interval, fraction_lost, rl->fraction_lost_record);
 
   if (rl->fraction_lost_record == 0) {
     gint remb_base, remb_new;
@@ -251,6 +306,26 @@ kms_remb_local_update (KmsRembLocal * rl)
   return TRUE;
 }
 
+typedef struct _AddSsrcsData
+{
+  KmsRembLocal *rl;
+  KmsRTCPPSFBAFBREMBPacket *remb_packet;
+} AddSsrcsData;
+
+static void
+add_ssrcs (KmsRlRemoteSession * rlrs, AddSsrcsData * data)
+{
+  KmsRembBase *rb = KMS_REMB_BASE (data->rl);
+
+  data->remb_packet->ssrcs[data->remb_packet->n_ssrcs] = rlrs->ssrc;
+  data->remb_packet->n_ssrcs++;
+
+  GST_TRACE_OBJECT (rb->rtpsess, "Sending REMB (bitrate: %" G_GUINT32_FORMAT
+      ", ssrc: %" G_GUINT32_FORMAT ")", data->remb_packet->bitrate, rlrs->ssrc);
+
+  kms_remb_base_update_stats (rb, rlrs->ssrc, data->remb_packet->bitrate);
+}
+
 static void
 on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     gboolean * do_not_supress)
@@ -261,6 +336,7 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
   GstRTCPBuffer rtcp = { NULL, };
   GstRTCPPacket packet;
   guint packet_ssrc;
+  AddSsrcsData data;
 
   rl = g_object_get_data (sess, KMS_REMB_LOCAL);
 
@@ -308,19 +384,16 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
     remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
   }
 
-  remb_packet.n_ssrcs = 1;
-  remb_packet.ssrcs[0] = rl->remote_ssrc;
+  remb_packet.n_ssrcs = 0;
+  data.rl = rl;
+  data.remb_packet = &remb_packet;
+  g_slist_foreach (rl->remote_sessions, (GFunc) add_ssrcs, &data);
+
   g_object_get (sess, "internal-ssrc", &packet_ssrc, NULL);
   if (!kms_rtcp_psfb_afb_remb_marshall_packet (&packet, &remb_packet,
           packet_ssrc)) {
     gst_rtcp_packet_remove (&packet);
   }
-
-  GST_TRACE_OBJECT (sess, "Sending REMB (bitrate: %" G_GUINT32_FORMAT
-      ", ssrc: %" G_GUINT32_FORMAT ")", remb_packet.bitrate, rl->remote_ssrc);
-
-  kms_remb_base_update_stats (KMS_REMB_BASE (rl), rl->remote_ssrc,
-      remb_packet.bitrate);
 
   rl->last_sent_time = current_time;
 
@@ -339,14 +412,15 @@ kms_remb_local_destroy (KmsRembLocal * rl)
     kms_utils_remb_event_manager_destroy (rl->event_manager);
   }
 
+  g_slist_free_full (rl->remote_sessions,
+      (GDestroyNotify) kms_rl_remote_session_create_destroy);
   kms_remb_base_destroy (KMS_REMB_BASE (rl));
 
   g_slice_free (KmsRembLocal, rl);
 }
 
 KmsRembLocal *
-kms_remb_local_create (GObject * rtpsess, guint remote_ssrc,
-    guint min_bw, guint max_bw)
+kms_remb_local_create (GObject * rtpsess, guint min_bw, guint max_bw)
 {
   KmsRembLocal *rl = g_slice_new0 (KmsRembLocal);
 
@@ -356,7 +430,6 @@ kms_remb_local_create (GObject * rtpsess, guint remote_ssrc,
 
   kms_remb_base_create (KMS_REMB_BASE (rl), rtpsess);
 
-  rl->remote_ssrc = remote_ssrc;
   rl->min_bw = min_bw;
   rl->max_bw = max_bw;
 
@@ -374,6 +447,15 @@ kms_remb_local_create (GObject * rtpsess, guint remote_ssrc,
   rl->up_losses = DEFAULT_REMB_UP_LOSSES;
 
   return rl;
+}
+
+void
+kms_remb_local_add_remote_session (KmsRembLocal * rl, GObject * rtpsess,
+    guint ssrc)
+{
+  KmsRlRemoteSession *rlrs = kms_rl_remote_session_create (rtpsess, ssrc);
+
+  rl->remote_sessions = g_slist_append (rl->remote_sessions, rlrs);
 }
 
 void

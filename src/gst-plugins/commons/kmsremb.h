@@ -44,7 +44,7 @@ struct _KmsRembLocal
 {
   KmsRembBase base;
 
-  guint remote_ssrc;
+  GSList *remote_sessions;
   guint min_bw;
   guint max_bw;
 
@@ -71,8 +71,9 @@ struct _KmsRembLocal
 };
 
 KmsRembLocal * kms_remb_local_create (GObject *rtpsess,
-  guint remote_ssrc, guint min_bw, guint max_bw);
+  guint min_bw, guint max_bw);
 void kms_remb_local_destroy (KmsRembLocal *rl);
+void kms_remb_local_add_remote_session (KmsRembLocal *rl, GObject *rtpsess, guint ssrc);
 void kms_remb_local_set_params (KmsRembLocal *rl, GstStructure *params);
 void kms_remb_local_get_params (KmsRembLocal *rl, GstStructure **params);
 /* KmsRembLocal end */
