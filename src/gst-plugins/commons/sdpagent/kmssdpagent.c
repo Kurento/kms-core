@@ -1677,19 +1677,23 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
 
       if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0 ||
           g_strcmp0 (agent->priv->sess_version, orig->sess_version) != 0) {
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-            "Invalid sdp session %s, expected %s", orig->sess_id,
-            agent->priv->sess_id);
-        ret = FALSE;
-      } else {
-        if (agent->priv->prev_sdp != NULL) {
-          gst_sdp_message_free (agent->priv->prev_sdp);
-        }
-        update_rejected_medias (agent, description);
-        gst_sdp_message_copy (description, &agent->priv->prev_sdp);
-        kms_sdp_agent_process_answer (agent);
-        SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
+        /*
+           g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+           "Invalid sdp session %s, expected %s", orig->sess_id,
+           agent->priv->sess_id);
+           ret = FALSE;
+         */
+        GST_WARNING_OBJECT (agent, "FIXME: follow RFC3264");
       }
+//       } else {
+      if (agent->priv->prev_sdp != NULL) {
+        gst_sdp_message_free (agent->priv->prev_sdp);
+      }
+      update_rejected_medias (agent, description);
+      gst_sdp_message_copy (description, &agent->priv->prev_sdp);
+      kms_sdp_agent_process_answer (agent);
+      SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
+//       }
       break;
     }
     case KMS_SDP_AGENT_STATE_UNNEGOTIATED:{
@@ -1710,14 +1714,18 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
 
       if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0) {
         /* TODO: Check that version is equal or one more if changed */
-        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-            "Invalid sdp session %s, expected %s", orig->sess_id,
-            agent->priv->sess_id);
-        ret = FALSE;
-      } else {
-        update_rejected_medias (agent, description);
-        SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
+        /*
+           g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+           "Invalid sdp session %s, expected %s", orig->sess_id,
+           agent->priv->sess_id);
+           ret = FALSE;
+         */
+        GST_WARNING_OBJECT (agent, "FIXME: follow RFC3264");
       }
+//       } else {
+      update_rejected_medias (agent, description);
+      SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
+//       }
       break;
     }
     default:
