@@ -33,7 +33,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpRtpSavpfMediaHandler,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_rtp_savpf_media_handler_debug_category,
         OBJECT_NAME, 0, "debug category for sdp rtp savpf media_handler"));
 
-#define SDP_MEDIA_RTP_SAVPF_PROTO "RTP/SAVPF"
+#define SDP_MEDIA_RTP_SAVP_PROTO "RTP/SAVP"
+#define SDP_MEDIA_RTP_SAVPF_PROTO SDP_MEDIA_RTP_SAVP_PROTO "F"
 #define SDP_MEDIA_UDP_TLS_PROTO_INFO "UDP/TLS/"
 
 static GObject *
@@ -76,6 +77,15 @@ kms_sdp_rtp_savpf_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
       SDP_MEDIA_RTP_SAVPF_PROTO, 0, 0, NULL);
   ret = g_regex_match (regex, protocol, G_REGEX_MATCH_ANCHORED, NULL);
   g_regex_unref (regex);
+
+  if (!ret) {
+    /* Support both RTP/SAVP and UDP/TLS/RTP/SAVP */
+    regex =
+        g_regex_new ("(" SDP_MEDIA_UDP_TLS_PROTO_INFO ")?"
+        SDP_MEDIA_RTP_SAVP_PROTO, 0, 0, NULL);
+    ret = g_regex_match (regex, protocol, G_REGEX_MATCH_ANCHORED, NULL);
+    g_regex_unref (regex);
+  }
 
   return ret;
 }
