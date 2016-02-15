@@ -109,17 +109,11 @@ sdp_media_get_ssrc_str (const GstSDPMedia * media)
   return ssrc;
 }
 
-guint
-sdp_utils_media_get_ssrc (const GstSDPMedia * media)
+static guint
+ssrc_str_to_uint (const gchar * ssrc_str)
 {
-  gchar *ssrc_str;
-  guint ssrc = 0;
   gint64 val;
-
-  ssrc_str = sdp_media_get_ssrc_str (media);
-  if (ssrc_str == NULL) {
-    return 0;
-  }
+  guint ssrc = 0;
 
   val = g_ascii_strtoll (ssrc_str, NULL, 10);
   if (val > G_MAXUINT32) {
@@ -128,7 +122,74 @@ sdp_utils_media_get_ssrc (const GstSDPMedia * media)
     ssrc = val;
   }
 
+  return ssrc;
+}
+
+guint
+sdp_utils_media_get_ssrc (const GstSDPMedia * media)
+{
+  gchar *ssrc_str;
+  guint ssrc = 0;
+
+  ssrc_str = sdp_media_get_ssrc_str (media);
+  if (ssrc_str == NULL) {
+    return 0;
+  }
+
+  ssrc = ssrc_str_to_uint (ssrc_str);
   g_free (ssrc_str);
+
+  return ssrc;
+}
+
+static gchar **
+sdp_media_get_fid_ssrcs_str (const GstSDPMedia * media)
+{
+  gchar **ssrcs = NULL;
+  gchar *ssrcs_str;
+  const gchar *val;
+  GRegex *regex;
+  GMatchInfo *match_info = NULL;
+
+  val = gst_sdp_media_get_attribute_val (media, "ssrc-group");
+  if (val == NULL) {
+    return NULL;
+  }
+
+  regex = g_regex_new ("^FID (?<ssrcs>[0-9\\ ]+)$", 0, 0, NULL);
+  g_regex_match (regex, val, 0, &match_info);
+  g_regex_unref (regex);
+
+  if (g_match_info_matches (match_info)) {
+    ssrcs_str = g_match_info_fetch_named (match_info, "ssrcs");
+    ssrcs = g_strsplit (ssrcs_str, " ", 0);
+    g_free (ssrcs_str);
+  }
+  g_match_info_free (match_info);
+
+  return ssrcs;
+}
+
+guint
+sdp_utils_media_get_fid_ssrc (const GstSDPMedia * media, guint pos)
+{
+  gchar **ssrcs;
+  guint ssrc = 0;
+  guint len;
+
+  ssrcs = sdp_media_get_fid_ssrcs_str (media);
+  if (ssrcs == NULL) {
+    return 0;
+  }
+
+  len = g_strv_length (ssrcs);
+  if (len <= pos) {
+    GST_WARNING ("Pos '%u' greater than len '%u'", pos, len);
+  } else {
+    ssrc = ssrc_str_to_uint (ssrcs[pos]);
+  }
+
+  g_strfreev (ssrcs);
 
   return ssrc;
 }

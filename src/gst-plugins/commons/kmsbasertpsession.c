@@ -508,18 +508,20 @@ kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
     GstSDPMedia * remote_media, SdpMediaConfig * neg_mconf)
 {
   const gchar *media_str = gst_sdp_media_get_media (remote_media);
+  guint ssrc;
+
+  ssrc = sdp_utils_media_get_fid_ssrc (remote_media, 0);
+  if (ssrc == 0) {
+    ssrc = sdp_utils_media_get_ssrc (remote_media);
+  }
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    guint ssrc = sdp_utils_media_get_ssrc (remote_media);
-
     GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
     self->remote_audio_ssrc = ssrc;
     self->audio_neg_mconf = neg_mconf;
 
     return AUDIO_RTP_SESSION_STR;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    guint ssrc = sdp_utils_media_get_ssrc (remote_media);
-
     GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
     self->remote_video_ssrc = ssrc;
     self->video_neg_mconf = neg_mconf;
