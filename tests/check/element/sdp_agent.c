@@ -2846,15 +2846,39 @@ check_if_media_is_removed (GstSDPMessage * msg, guint index)
 
 GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 {
-  KmsSdpAgent *offerer;
+  KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   GError *err = NULL;
-  GstSDPMessage *offer;
+  GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL, *session;
   const GstSDPOrigin *o;
   guint64 v1, v2, v3;
   const GstSDPMedia *media;
+  SdpMessageContext *ctx;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -2902,7 +2926,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   /* We set our local description for further renegotiations */
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Add a new media for data channels");
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
@@ -2941,8 +2978,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   /* Set new local description */
   kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   /* Generate a new offer */
   offer = kms_sdp_agent_create_offer (offerer, &err);
@@ -2967,7 +3016,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   fail_if (check_if_media_is_removed (offer, 0));
   fail_if (check_if_media_is_removed (offer, 1));
-  fail_if (check_if_media_is_removed (offer, 2));
+  fail_if (!check_if_media_is_removed (offer, 2));
 
   /* sdp is the same so version should not have changed */
   fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 == v3);
@@ -2976,6 +3025,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   gst_sdp_message_free (offer);
   g_object_unref (offerer);
+  g_object_unref (answerer);
   g_free (session);
 }
 
@@ -2983,15 +3033,54 @@ GST_END_TEST;
 
 GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 {
-  KmsSdpAgent *offerer;
+  KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   GError *err = NULL;
-  GstSDPMessage *offer;
+  GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL, *session;
   const GstSDPOrigin *o;
   guint64 v1, v2, v3, v4, v5;
   const GstSDPMedia *media;
+  SdpMessageContext *ctx;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  g_object_set (answerer, "addr", OFFERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (answerer, "application",
+          handler) < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -3049,8 +3138,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   /* We set our local description for further renegotiations */
   kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Remove audio handler");
 
@@ -3086,7 +3187,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   /* Set new local description */
   kms_sdp_agent_set_local_description (offerer, offer, &err);
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   /* Generate a new offer */
   offer = kms_sdp_agent_create_offer (offerer, &err);
@@ -3094,10 +3208,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
-
-  /* Set new local description */
-  kms_sdp_agent_set_local_description (offerer, offer, &err);
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
   o = gst_sdp_message_get_origin (offer);
   v3 = g_ascii_strtoull (o->sess_version, NULL, 10);
@@ -3120,9 +3230,26 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   fail_if (!check_if_media_is_removed (offer, 1));
   fail_if (check_if_media_is_removed (offer, 2));
 
+  /* Set new local description */
+  kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
+
   GST_DEBUG ("Add a new video media. This should fill the removed slot");
 
-  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savp_media_handler_new ());
   fail_if (handler == NULL);
 
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
@@ -3160,7 +3287,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   kms_sdp_agent_set_local_description (offerer, offer, &err);
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Add a new audio handler, this should go to the last position");
 
@@ -3207,6 +3347,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
 
   gst_sdp_message_free (offer);
   g_object_unref (offerer);
+  g_object_unref (answerer);
   g_free (session);
 }
 
@@ -3240,16 +3381,55 @@ check_if_in_bundle_group (GstSDPMessage * msg, gchar * mid)
 
 GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
 {
-  KmsSdpAgent *offerer;
+  KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   GError *err = NULL;
-  GstSDPMessage *offer;
+  GstSDPMessage *offer, *answer;
   gint gid, id, rid;
   gchar *sdp_str = NULL, *session;
   const GstSDPOrigin *o;
   guint64 v1, v2, v3, v4, v5;
   gboolean check_bundle = TRUE;
   const GstSDPMedia *media;
+  SdpMessageContext *ctx;
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  gid = kms_sdp_agent_create_bundle_group (answerer);
+  fail_if (gid < 0);
+
+  g_object_set (answerer, "addr", OFFERER_ADDR, NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
+  fail_if (id < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, id));
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  rid = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
+  fail_if (id < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, rid));
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
+  fail_if (handler == NULL);
+
+  id = kms_sdp_agent_add_proto_handler (answerer, "application", handler);
+  fail_if (id < 0);
+
+  fail_unless (kms_sdp_agent_add_handler_to_group (answerer, gid, id));
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -3322,8 +3502,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
 
   /* We set our local description for further renegotiations */
   kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Remove audio stream");
   fail_if (!kms_sdp_agent_remove_proto_handler (offerer, rid));
@@ -3362,10 +3554,21 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   /* This should be a new version of this session */
   fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 1 == v2);
 
-  /* Set new local description */
   kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Removing application handler from group");
   fail_if (!kms_sdp_agent_remove_handler_from_group (offerer, gid, id));
@@ -3374,7 +3577,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("Last Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
@@ -3405,13 +3608,25 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 + 1 == v3);
 
   kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   /* We add a new media, this should re-use the slot used by audio0 */
   GST_DEBUG ("Adding a new audio media");
 
-  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savp_media_handler_new ());
   fail_if (handler == NULL);
 
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
@@ -3425,10 +3640,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
 
   GST_DEBUG ("Next Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
-
-  kms_sdp_agent_set_local_description (offerer, offer, &err);
-
-  fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
   o = gst_sdp_message_get_origin (offer);
   v4 = g_ascii_strtoull (o->sess_version, NULL, 10);
@@ -3454,6 +3665,22 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   fail_if (check_if_media_is_removed (offer, 0));
   fail_if (check_if_media_is_removed (offer, 1));
   fail_if (check_if_media_is_removed (offer, 2));
+
+  kms_sdp_agent_set_local_description (offerer, offer, &err);
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   GST_DEBUG ("Adding a new video media to the BUNDLE group");
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
@@ -3508,6 +3735,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   gst_sdp_message_free (offer);
 
   g_object_unref (offerer);
+  g_object_unref (answerer);
+
   g_free (session);
 }
 
@@ -3523,7 +3752,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   SdpMessageContext *ctx;
   gint id1, id2, gid1, gid2;
   const GstSDPOrigin *orig;
-  guint64 v1, v2;
+  guint64 v2, tmp;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -3557,11 +3786,11 @@ GST_START_TEST (sdp_agent_check_state_machine)
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Offerer generates initial offer:\n%s",
+      (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   orig = gst_sdp_message_get_origin (offer);
-  v1 = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
   /* Offerer is now in LOCAL_OFFER so it won't allowe to create a new offer */
   kms_sdp_agent_create_offer (offerer, &err);
@@ -3603,7 +3832,8 @@ GST_START_TEST (sdp_agent_check_state_machine)
   fail_if (err != NULL);
   kms_sdp_message_context_unref (ctx);
 
-  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  GST_DEBUG ("Answer processes the offer:\n%s",
+      (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   /* Answerer is not in state REMOTE_OFFER, neither creataion of new offers */
@@ -3624,8 +3854,6 @@ GST_START_TEST (sdp_agent_check_state_machine)
   orig = gst_sdp_message_get_origin (answer);
   v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
-  fail_unless (v1 == v2);
-
   /* Answered is in state NEGOTIATED. Let's check the offerer again */
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
 
@@ -3637,20 +3865,22 @@ GST_START_TEST (sdp_agent_check_state_machine)
   set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
+  GST_DEBUG ("Answer adds a new audio handler");
   id2 = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id2 < 0);
 
   offer = kms_sdp_agent_create_offer (answerer, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Answerer generates a new offer:\n%s",
+      (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   orig = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
   /* Session version must have changed */
-  fail_unless (v1 + 1 == v2);
+  fail_unless (v2 + 1 == tmp);
 
   gst_sdp_message_free (offer);
 
@@ -3660,14 +3890,14 @@ GST_START_TEST (sdp_agent_check_state_machine)
   offer = kms_sdp_agent_create_offer (answerer, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Answer offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   orig = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
-  /* Session version must have changed */
-  fail_unless (v1 + 1 == v2);
+  /* Session version must not have changed */
+  fail_unless (v2 + 1 == tmp);
   gst_sdp_message_free (offer);
 
   /* Cancel offer */
@@ -3683,7 +3913,9 @@ GST_START_TEST (sdp_agent_check_state_machine)
   g_free (sdp_str);
 
   orig = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (orig->sess_version, NULL, 10);
+
+  fail_unless (v2 + 1 == tmp);
 
   gst_sdp_message_free (offer);
 
@@ -3782,7 +4014,6 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
 
   o = gst_sdp_message_get_origin (offer);
   v1 = g_ascii_strtoull (o->sess_version, NULL, 10);
-  session = g_strdup (o->sess_id);
 
   GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
@@ -3790,6 +4021,7 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
   ctx = kms_sdp_agent_create_answer (answerer, &err);
+
   fail_if (err != NULL);
 
   answer = kms_sdp_message_context_pack (ctx, &err);
@@ -3800,12 +4032,14 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
 
   o = gst_sdp_message_get_origin (answer);
+  session = g_strdup (o->sess_id);
   v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  GST_DEBUG ("Offerer version: %" G_GUINT64_FORMAT, v1);
+  GST_DEBUG ("Answerer version: %" G_GUINT64_FORMAT, v2);
 
   /* Now, both agent are in state NEGOTIATED, so new offers should keep the */
   /* same order of media if they have not been removed. Let's create an     */
@@ -3821,7 +4055,7 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
   o = gst_sdp_message_get_origin (answer);
   v3 = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v3);
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 == v3);
 
   /* Check that medias are orderer and supported */
   media = gst_sdp_message_get_media (offer, 0);
@@ -3852,12 +4086,12 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   gint id1, id2, id3, id4, id5, id6, id7, id8, gid1, gid2;
   SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
-  gchar *sdp_str = NULL, *session;
+  gchar *sdp_str = NULL, *session1, *session2;
   GError *err = NULL;
   gboolean check_bundle = TRUE;
   const GstSDPMedia *media;
   const GstSDPOrigin *o;
-  guint64 v1, v2;
+  guint64 v1, v2, tmp;
 
   /* Configure offerer */
   offerer = kms_sdp_agent_new ();
@@ -3935,7 +4169,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   o = gst_sdp_message_get_origin (offer);
   v1 = g_ascii_strtoull (o->sess_version, NULL, 10);
-  session = g_strdup (o->sess_id);
+  session1 = g_strdup (o->sess_id);
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
 
@@ -3990,9 +4224,11 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (check_if_media_is_removed (answer, 2));
 
   o = gst_sdp_message_get_origin (answer);
+  session2 = g_strdup (o->sess_id);
   v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  GST_DEBUG ("Offerer session: %s, version %" G_GUINT64_FORMAT, session1, v1);
+  GST_DEBUG ("Answerer session: %s, version %" G_GUINT64_FORMAT, session2, v2);
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
@@ -4005,10 +4241,10 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
 
@@ -4066,10 +4302,10 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   o = gst_sdp_message_get_origin (answer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 == tmp);
 
   /* Lets create another offer using the answerer */
   offer = kms_sdp_agent_create_offer (answerer, &err);
@@ -4080,10 +4316,10 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
 
@@ -4117,10 +4353,10 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   kms_sdp_message_context_unref (ctx);
 
   o = gst_sdp_message_get_origin (answer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 == v2);
+  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 == tmp);
 
   GST_DEBUG ("Answer from offerer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4145,7 +4381,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   sdp_utils_for_each_media (offer, check_mid_attr, &check_bundle);
 
-  fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_local_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, answer, &err));
 
   /* Lets create an audio handler for the answerer. The handler is AVP that */
@@ -4174,14 +4410,14 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* New media should fill the unsupportd audio media instead of creating */
   /* a new netry in the SDP.                                              */
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 1 == v2);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4220,10 +4456,6 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   /* a new netry in the SDP.                                              */
   fail_unless (gst_sdp_message_medias_len (answer) == 3);
 
-  /* The SDP must have changed so we added a new media */
-  o = gst_sdp_message_get_origin (answer);
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 1 == v2);
-
   media = gst_sdp_message_get_media (answer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
 
@@ -4260,12 +4492,12 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 2 == v2);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4301,10 +4533,6 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   fail_unless (gst_sdp_message_medias_len (answer) == 3);
-
-  /* The SDP must have changed so we removed media */
-  o = gst_sdp_message_get_origin (answer);
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 2 == v2);
 
   media = gst_sdp_message_get_media (answer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4362,14 +4590,14 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
-  v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
+  tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
   /* New media should fill the unsupportd audio media instead of creating */
   /* a new netry in the SDP.                                              */
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 3 == v2);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0);
@@ -4407,10 +4635,6 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   fail_unless (gst_sdp_message_medias_len (answer) == 3);
 
-  /* The SDP must have changed so we added a new media */
-  o = gst_sdp_message_get_origin (answer);
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v1 + 3 == v2);
-
   media = gst_sdp_message_get_media (answer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0);
 
@@ -4435,7 +4659,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (!kms_sdp_agent_set_local_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, answer, &err));
 
-  g_free (session);
+  g_free (session1);
+  g_free (session2);
 
   g_object_unref (answerer);
   g_object_unref (offerer);
@@ -4708,7 +4933,6 @@ sdp_agent_suite (void)
   suite_add_tcase (s, tc_chain);
 
   tcase_add_test (tc_chain, sdp_agent_check_state_machine);
-
   tcase_add_test (tc_chain, sdp_agent_test_create_offer);
   tcase_add_test (tc_chain, sdp_agent_test_add_proto_handler);
   tcase_add_test (tc_chain, sdp_agent_test_rejected_negotiation);

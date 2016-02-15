@@ -179,6 +179,12 @@ typedef struct _SdpHandler
   GstSDPMedia *offer_media;
 } SdpHandler;
 
+typedef struct _SdpSessionDescription
+{
+  gchar *id;
+  gchar *version;
+} SdpSessionDescription;
+
 struct _KmsSdpAgentPrivate
 {
   KmsSdpGroupManager *group_manager;
@@ -202,8 +208,8 @@ struct _KmsSdpAgentPrivate
   GstSDPMessage *prev_sdp;
   GSList *offer_handlers;
 
-  gchar *sess_id;
-  gchar *sess_version;
+  SdpSessionDescription local;
+  SdpSessionDescription remote;
 
   GSList *extensions;
 };
@@ -227,6 +233,45 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpAgent, kms_sdp_agent,
     G_TYPE_OBJECT,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_agent_debug_category, PLUGIN_NAME,
         0, "debug category for sdp agent"));
+
+static guint64
+get_ntp_time ()
+{
+  return time (NULL) + G_GUINT64_CONSTANT (2208988800);
+}
+
+static void
+clear_sdp_session_description (SdpSessionDescription * desc)
+{
+  g_free (desc->id);
+  g_free (desc->version);
+
+  desc->id = NULL;
+  desc->version = NULL;
+}
+
+static void
+set_sdp_session_description (SdpSessionDescription * desc, const gchar * id,
+    const gchar * version)
+{
+  clear_sdp_session_description (desc);
+
+  desc->id = g_strdup (id);
+  desc->version = g_strdup (version);
+}
+
+static void
+generate_sdp_session_description (SdpSessionDescription * desc)
+{
+  clear_sdp_session_description (desc);
+
+  /* The method of generating <sess-id> and <sess-version> is up to the    */
+  /* creating tool, but it has been suggested that a Network Time Protocol */
+  /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
+
+  desc->id = g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
+  desc->version = g_strdup (desc->id);
+}
 
 static void
 mark_handler_as_negotiated (gpointer data, gpointer user_data)
@@ -287,10 +332,8 @@ kms_sdp_agent_commit_state_operations (KmsSdpAgent * agent,
 {
   switch (new_state) {
     case KMS_SDP_AGENT_STATE_UNNEGOTIATED:
-      g_free (agent->priv->sess_id);
-      g_free (agent->priv->sess_version);
-      agent->priv->sess_id = NULL;
-      agent->priv->sess_version = NULL;
+      clear_sdp_session_description (&agent->priv->local);
+      clear_sdp_session_description (&agent->priv->remote);
       g_slist_free_full (agent->priv->offer_handlers,
           (GDestroyNotify) kms_ref_struct_unref);
       agent->priv->offer_handlers = NULL;
@@ -427,8 +470,9 @@ kms_sdp_agent_finalize (GObject * object)
   g_rec_mutex_clear (&self->priv->mutex);
 
   g_free (self->priv->addr);
-  g_free (self->priv->sess_id);
-  g_free (self->priv->sess_version);
+
+  clear_sdp_session_description (&self->priv->local);
+  clear_sdp_session_description (&self->priv->remote);
 
   g_clear_object (&self->priv->group_manager);
 
@@ -861,12 +905,6 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
   }
 }
 
-static guint64
-get_ntp_time ()
-{
-  return time (NULL) + G_GUINT64_CONSTANT (2208988800);
-}
-
 static gboolean
 increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
     GError ** error)
@@ -880,16 +918,14 @@ increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
 
   sess_version = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
-  if (agent->priv->sess_version != NULL) {
-    g_free (agent->priv->sess_version);
-  }
+  g_free (agent->priv->local.version);
 
-  agent->priv->sess_version =
+  agent->priv->local.version =
       g_strdup_printf ("%" G_GUINT64_FORMAT, ++sess_version);
 
   new_orig.username = orig->username;
   new_orig.sess_id = orig->sess_id;
-  new_orig.sess_version = agent->priv->sess_version;
+  new_orig.sess_version = agent->priv->local.version;
   new_orig.nettype = orig->nettype;
   new_orig.addrtype = orig->addrtype;
   new_orig.addr = orig->addr;
@@ -1113,21 +1149,14 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
     const GstSDPOrigin *orig;
 
     orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
-    g_free (agent->priv->sess_id);
-    g_free (agent->priv->sess_version);
-    agent->priv->sess_id = g_strdup (orig->sess_id);
-    agent->priv->sess_version = g_strdup (orig->sess_version);
+    set_sdp_session_description (&agent->priv->local, orig->sess_id,
+        orig->sess_version);
   } else {
-    /* The method of generating <sess-id> and <sess-version> is up to the    */
-    /* creating tool, but it has been suggested that a Network Time Protocol */
-    /* (NTP) format timestamp be used to ensure uniqueness [rfc4566] 5.2     */
-    agent->priv->sess_id =
-        g_strdup_printf ("%" G_GUINT64_FORMAT, get_ntp_time ());
-    agent->priv->sess_version = g_strdup (agent->priv->sess_id);
+    generate_sdp_session_description (&agent->priv->local);
   }
 
-  kms_sdp_agent_origin_init (agent, &o, agent->priv->sess_id,
-      agent->priv->sess_version);
+  kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
+      agent->priv->local.version);
 
   if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
     SDP_AGENT_UNLOCK (agent);
@@ -1470,18 +1499,13 @@ static SdpMessageContext *
 kms_sdp_agent_generate_answer_compat (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
-  gchar *sess_id, *sess_version;
   struct SdpAnswerData data;
   SdpMessageContext *ctx;
   gboolean bundle;
-  const GstSDPOrigin *offer_orig;
   GstSDPOrigin o;
 
-  offer_orig = gst_sdp_message_get_origin (offer);
-  sess_id = offer_orig->sess_id;
-  sess_version = offer_orig->sess_version;
-
-  kms_sdp_agent_origin_init (agent, &o, sess_id, sess_version);
+  kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
+      agent->priv->local.version);
   bundle = g_slist_length (agent->priv->groups) > 0;
 
   ctx = kms_sdp_message_context_new (error);
@@ -1537,6 +1561,10 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
     return NULL;
   }
 
+  if (agent->priv->local.id == NULL || agent->priv->local.version == NULL) {
+    generate_sdp_session_description (&agent->priv->local);
+  }
+
   ctx = kms_sdp_agent_generate_answer_compat (agent,
       agent->priv->remote_description, error);
 
@@ -1564,7 +1592,7 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
   }
 
   orig = gst_sdp_message_get_origin (description);
-  if (g_strcmp0 (orig->sess_id, agent->priv->sess_id)) {
+  if (g_strcmp0 (orig->sess_id, agent->priv->local.id)) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
         "Unexpected sdp session %s", orig->sess_id);
     goto end;
@@ -1626,9 +1654,8 @@ update_rejected_medias (KmsSdpAgent * agent, const GstSDPMessage * desc)
       continue;
     }
 
-    if (handler->offer && !handler->rejected) {
-      /* Update handler if rejected */
-      handler->rejected = gst_sdp_media_get_port (media) == 0;
+    if (!handler->rejected && gst_sdp_media_get_port (media) == 0) {
+      handler->rejected = TRUE;
     }
   }
 }
@@ -1675,57 +1702,60 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
 
       orig = gst_sdp_message_get_origin (description);
 
-      if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0 ||
-          g_strcmp0 (agent->priv->sess_version, orig->sess_version) != 0) {
-        /*
-           g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-           "Invalid sdp session %s, expected %s", orig->sess_id,
-           agent->priv->sess_id);
-           ret = FALSE;
-         */
-        GST_WARNING_OBJECT (agent, "FIXME: follow RFC3264");
+      if (agent->priv->remote.id == NULL && agent->priv->remote.version == NULL) {
+        /* First answer received from remote side => establish the session */
+        set_sdp_session_description (&agent->priv->remote, orig->sess_id,
+            orig->sess_version);
+      } else if (g_strcmp0 (agent->priv->remote.id, orig->sess_id) != 0 ||
+          g_strcmp0 (agent->priv->remote.version, orig->sess_version) != 0) {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+            "Invalid sdp session %s %s, expected %s %s", orig->sess_id,
+            orig->sess_version, agent->priv->remote.id,
+            agent->priv->remote.version);
+        ret = FALSE;
       }
-//       } else {
+
       if (agent->priv->prev_sdp != NULL) {
         gst_sdp_message_free (agent->priv->prev_sdp);
       }
+
       update_rejected_medias (agent, description);
       gst_sdp_message_copy (description, &agent->priv->prev_sdp);
       kms_sdp_agent_process_answer (agent);
       SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_NEGOTIATED);
-//       }
+
       break;
     }
     case KMS_SDP_AGENT_STATE_UNNEGOTIATED:{
       const GstSDPOrigin *orig;
 
       orig = gst_sdp_message_get_origin (description);
-      g_free (agent->priv->sess_id);
-      agent->priv->sess_id = g_strdup (orig->sess_id);
-      g_free (agent->priv->sess_version);
-      agent->priv->sess_version = g_strdup (orig->sess_version);
+      set_sdp_session_description (&agent->priv->remote, orig->sess_id,
+          orig->sess_version);
       SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
       break;
     }
     case KMS_SDP_AGENT_STATE_NEGOTIATED:{
       const GstSDPOrigin *orig;
+      guint64 v1, v2;
 
       orig = gst_sdp_message_get_origin (description);
+      v1 = g_ascii_strtoull (agent->priv->remote.version, NULL, 10);
+      v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
-      if (g_strcmp0 (agent->priv->sess_id, orig->sess_id) != 0) {
-        /* TODO: Check that version is equal or one more if changed */
-        /*
-           g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-           "Invalid sdp session %s, expected %s", orig->sess_id,
-           agent->priv->sess_id);
-           ret = FALSE;
-         */
-        GST_WARNING_OBJECT (agent, "FIXME: follow RFC3264");
+      if ((g_strcmp0 (agent->priv->remote.id, orig->sess_id) == 0) &&
+          (v1 == v2 || (v1 + 1) == v2)) {
+        update_rejected_medias (agent, description);
+        g_free (agent->priv->remote.version);
+        agent->priv->remote.version = g_strdup (orig->sess_version);
+        SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
+      } else {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+            "Invalid sdp session: %s %s, expected %s %s", orig->sess_id,
+            orig->sess_version, agent->priv->remote.id,
+            agent->priv->remote.version);
+        ret = FALSE;
       }
-//       } else {
-      update_rejected_medias (agent, description);
-      SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_REMOTE_OFFER);
-//       }
       break;
     }
     default:
