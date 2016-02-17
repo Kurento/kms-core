@@ -38,7 +38,6 @@ G_BEGIN_DECLS
 #define RTCP_MIN_INTERVAL 500 /* ms */
 #define REMB_MAX_INTERVAL 200 /* ms */
 #define RTP_RTX_SIZE 512 /* packets */
-#define SRTP_REPLAY_WINDOW_SIZE G_MAXINT16 /* packets */
 
 /* rtpbin pad names */
 #define RTPBIN_RECV_RTP_SINK "recv_rtp_sink_"
