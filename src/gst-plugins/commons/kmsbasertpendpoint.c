@@ -2182,7 +2182,7 @@ static void
 kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
     GstStructure * stats)
 {
-  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self);
+  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self->priv->sess);
   KmsRembStats rs;
 
   if (self->priv->rl != NULL) {
