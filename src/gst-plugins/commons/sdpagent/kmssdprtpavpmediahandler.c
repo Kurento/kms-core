@@ -23,7 +23,7 @@
 #include "sdp_utils.h"
 #include "kmssdprtpavpmediahandler.h"
 
-#define OBJECT_NAME "rtpavpmediahandler"
+#define OBJECT_NAME "sdprtpavpmediahandler"
 
 GST_DEBUG_CATEGORY_STATIC (kms_sdp_rtp_avp_media_handler_debug_category);
 #define GST_CAT_DEFAULT kms_sdp_rtp_avp_media_handler_debug_category
