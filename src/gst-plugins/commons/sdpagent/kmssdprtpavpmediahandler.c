@@ -845,11 +845,6 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
 
   len = gst_sdp_media_formats_len (offer);
 
-  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_answer_attributes
-      (handler, offer, answer, error)) {
-    return FALSE;
-  }
-
   /* Set only supported media formats in answer */
   for (i = 0; i < len; i++) {
     const gchar *fmt;
@@ -882,6 +877,11 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
 
   if (!kms_sdp_rtp_avp_media_handler_add_supported_extmaps (self, offer,
           answer, error)) {
+    return FALSE;
+  }
+
+  if (!KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_answer_attributes
+      (handler, offer, answer, error)) {
     return FALSE;
   }
 
