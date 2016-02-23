@@ -68,6 +68,9 @@ gboolean sdp_utils_equal_medias (const GstSDPMedia * m1, const GstSDPMedia * m2)
 gboolean sdp_utils_equal_messages (const GstSDPMessage * msg1, const GstSDPMessage * msg2);
 
 gboolean sdp_utils_get_data_from_rtpmap (const gchar * rtpmap, gchar ** codec_name, gint * clock_rate);
+gboolean sdp_utils_get_data_from_rtpmap_codec (const GstSDPMedia * media, const gchar * codec, gint *pt, gint * clock_rate);
+gboolean sdp_utils_is_pt_in_fmts (const GstSDPMedia * media, gint pt);
+
 gint sdp_utils_get_pt_for_codec_name (const GstSDPMedia *media, const gchar *codec_name);
 
 #endif /* __SDP_H__ */

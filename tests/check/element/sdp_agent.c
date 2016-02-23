@@ -34,6 +34,7 @@
 #include "kmssdpsdesext.h"
 #include "kmssdpconnectionext.h"
 #include "kmssdpulpfecext.h"
+#include "kmssdpredundantext.h"
 #include "kmssdpbundlegroup.h"
 #include "kmssdpagentcommon.h"
 
@@ -5015,6 +5016,97 @@ GST_START_TEST (sdp_agent_ulpfec_ext)
 
 GST_END_TEST;
 
+static gboolean
+on_offered_redundancy_cb (KmsSdpUlpFecExt * ext, guint pt, guint clock_rate,
+    gpointer user_data)
+{
+  gint *payload = user_data;
+
+  fail_if (clock_rate != 8000);
+  fail_if (*payload != pt);
+
+  return TRUE;
+}
+
+GST_START_TEST (sdp_agent_redundant_ext)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  SdpMessageContext *ctx;
+  GstSDPMessage *offer, *answer;
+  KmsSdpRedundantExt *ext;
+  GError *err = NULL;
+  gchar *sdp_str = NULL, *fmt;
+  const GstSDPMedia *media;
+  gint red_payload;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  /* TODO: Change this to use the extension when redundancy */
+  /* is supported in emission */
+  red_payload = kms_sdp_rtp_avp_media_handler_add_generic_video_payload
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), "red/8000", &err);
+
+  fail_if (kms_sdp_agent_add_proto_handler (offerer, "video", handler) < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext = kms_sdp_redundant_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext)));
+
+  g_signal_connect (ext, "on-offered-redundancy",
+      G_CALLBACK (on_offered_redundancy_cb), &red_payload);
+
+  fail_if (kms_sdp_agent_add_proto_handler (answerer, "video", handler) < 0);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (gst_sdp_message_medias_len (answer) != 1);
+  media = gst_sdp_message_get_media (answer, 0);
+  fail_if (gst_sdp_media_get_port (media) == 0);
+
+  fmt = g_strdup_printf ("%u", red_payload);
+  fail_if (sdp_utils_get_attr_map_value (media, "rtpmap", fmt) == NULL);
+  g_free (fmt);
+
+  gst_sdp_message_free (answer);
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -5050,6 +5142,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_sdes_negotiation);
   tcase_add_test (tc_chain, sdp_agent_test_connection_ext);
   tcase_add_test (tc_chain, sdp_agent_ulpfec_ext);
+  tcase_add_test (tc_chain, sdp_agent_redundant_ext);
 
   tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
 

@@ -836,6 +836,86 @@ end:
   return ret;
 }
 
+gboolean
+sdp_utils_is_pt_in_fmts (const GstSDPMedia * media, gint pt)
+{
+  guint i, len;
+
+  len = gst_sdp_media_formats_len (media);
+
+  for (i = 0; i < len; i++) {
+    gint payload;
+
+    payload = atoi (gst_sdp_media_get_format (media, i));
+
+    if (payload == pt) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+gboolean
+sdp_utils_get_data_from_rtpmap_codec (const GstSDPMedia * media,
+    const gchar * codec, gint * pt, gint * clock_rate)
+{
+  gboolean found = FALSE;
+  guint8 i;
+
+  for (i = 0;; i++) {
+    const gchar *val = NULL;
+    gchar **attrs;
+
+    val = gst_sdp_media_get_attribute_val_n (media, "rtpmap", i);
+
+    if (val == NULL) {
+      break;
+    }
+
+    if (!g_str_match_string (codec, val, TRUE)) {
+      continue;
+    }
+
+    attrs = g_strsplit (val, " ", 0);
+
+    if (attrs[0] == NULL) {
+      /* No pt */
+      g_strfreev (attrs);
+      continue;
+    }
+
+    if (attrs[1] == NULL) {
+      /* No codec */
+      g_strfreev (attrs);
+      continue;
+    }
+
+    if (!sdp_utils_is_pt_in_fmts (media, atoi (attrs[0]))) {
+      /* pt is not in the offer */
+      g_strfreev (attrs);
+      continue;
+    }
+
+    if (!sdp_utils_get_data_from_rtpmap (attrs[1], NULL, clock_rate)) {
+      g_strfreev (attrs);
+      continue;
+    }
+
+    if (pt != NULL) {
+      *pt = atoi (attrs[0]);
+    }
+
+    found = TRUE;
+
+    g_strfreev (attrs);
+
+    break;
+  }
+
+  return found;
+}
+
 gint
 sdp_utils_get_pt_for_codec_name (const GstSDPMedia * media,
     const gchar * codec_name)
