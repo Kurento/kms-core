@@ -1,3 +1,17 @@
+6.4.0
+=====
+
+  * Prepare implementation to support multistream
+  * Fix bad timestamp for opus codec
+  * Improve latency stats to add support for multiple streams
+  * Fix latency stats calculation
+  * Add flow in and flow out signals that indicates if there is media
+    going in or out to/from a media element
+  * Some fixes in SDP Agent
+  * Remb management improvements
+  * Add leaky queue in filters to avoid them to buffer media if the proccess
+    slower than buffers arrive
+
 6.3.1
 =====
 

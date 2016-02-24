@@ -1,3 +1,142 @@
+kms-core-6.0 (6.4.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Santiago Carot-Nemesio ]
+  * kmselement: Take description into account for generating pads
+  * kmselement: Add support for multiple src streams
+  * kmselement: Allow to create multiple source streams
+  * kmselement: Allow to create sink pads on request
+  * kmselement: Remove deprecated signal and use the new one
+  * kmselement: Set release-requested-pad action for sink and source requested pads
+  * kmsdummysink: Add support for request sink pads
+  * kmselement: Calculate average stats for each input stream
+
+  [ David Fernandez ]
+  * kmsenctreebin: Add perfect-timestamp property to opusenc
+
+  [ Santiago Carot-Nemesio ]
+  * MediaElementImpl: Provide input latencies stats per each input stream
+  * kmsstats: Fix processing of latency metada
+  * kmsbufferlacentymeta: Add container field to add custom data
+  * kmslist: Add new referenciable list
+  * kmsbufferlacentymeta: Use kmslist instead of hash tables
+  * core: Notify end to end latencies per each stream
+
+  [ David Fernandez ]
+  * SdpEndpointImpl: Call to postConstructor parent.
+  * MediaElement: Add media flow out signal
+  * MediaElement: Add media flow in signal
+
+  [ Miguel París Díaz ]
+  * kmselement: allow children to decide if add src pads or not
+
+  [ David Fernandez ]
+  * MediaElementImpl: Add method to get if there is media in a pad
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpsdesext: Do not unset a GVAlue if it is not yet initialized
+
+  [ Jose Antonio Santos Cadenas ]
+  * Add build configuration
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Allow renegotiation of new medias
+
+  [ Miguel París Díaz ]
+  * kmssdpagent: Allow to remove medias
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Re-use old medias when a new handler is added
+  * kmssdpagent: Do not answer to media with port set to zero
+  * kmssdpagent: Implement sdp agent state machine
+  * sdp_utils: Add function to compare SDPs
+
+  [ Miguel París Díaz ]
+  * kmssdpagent: Guarantee that offer media has the same order
+
+  [ Santiago Carot-Nemesio ]
+  * Disable sdp tests until renegotiation is integrated
+  * kmssdpagent: Do not renegotiate medias if handler has the same capabilities
+  * kmssdpagent: Reuse slot of removed or unsupported medias in renegotiations
+  * sdp_agent: Add test for renegotiation of complex use cases
+
+  [ Miguel París Díaz ]
+  * kmssdpagentcommon:Add common structures and functions in a common file
+
+  [ Santiago Carot-Nemesio ]
+  * kmsisdpsessionextension: Add interface to manage session attributes
+  * kmssdpbasegroup: Add base group class
+  * kmssdpbundlegroup: Add bundle group class
+  * kmssdpmidext: Add media stream identifier extension
+  * kmssdpgroupmanager: Add class to manage groups in SDP agent
+  * kmssdprejectmediahandler: Add handler to reject unsupported media
+  * kmssdpagent: Use commons
+  * kmssdpagent: Integration of new capabilities
+  * kmssdpagent: Fix answer provided to rejected medias
+
+  [ Miguel París Díaz ]
+  * sdp_agent: Updated sdp agent tests
+
+  [ Santiago Carot-Nemesio ]
+  * Enable sdp tests
+
+  [ Miguel París Díaz ]
+  * sdpagent: fix misprint in function name
+  * sdpagent: create_local_offer_impl as static
+  * sdpagent: remove deprecated create_offer
+  * sdpagent: improve warning msg
+  * sdpagent: remove deprecated create_answer
+  * kmssdpsession: Use new agent's API
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpmediahandler: Allow to do stuff when the answer arrives
+
+  [ Miguel París Díaz ]
+  * sdpagent: do not check the origin in the Offer/Answer model
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpconnectionext: Add extension to manage connections attrbiutes per media
+
+  [ Miguel París Díaz ]
+  * basertpsession: use the SdpSession id instead of the GstRtpSession id
+  * basertpsession, remb: compute all video RtpSession for REMB local
+  * remb: improve fraction-lost normalization
+
+  [ David Fernandez ]
+  * debian/rules: Activate tests in debian generation
+
+  [ José Antonio Santos Cadenas ]
+  * Revert "debian/rules: Activate tests in debian generation"
+
+  [ David Fernandez ]
+  * debian/rules: Generate test in debian generation
+
+  [ Miguel París Díaz ]
+  * basertpsession: try getting ssrc from FID firstable
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdprtpsavpfmediahandler: SAVPF handler must support SAVP protocol
+  * kmssdpagent: Fix issue when offering version ID
+
+  [ Jose Antonio Santos Cadenas ]
+  * Add parameter to parallelize tests
+  * debian/control: Increase number of compilation threads
+  * basertpendpoint: Fix invalid casting
+
+  [ David Fernandez ]
+  * kmsfilterelement: Add a leaky queue before video filters
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdpcontext: Add function to get a specific media from sdp context
+  * sdp_utils: Add function to get data from an rtpmap
+  * Prepare release 6.4.0
+
+  [ José Antonio Santos Cadenas ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Wed, 24 Feb 2016 16:12:07 +0100
+
 kms-core-6.0 (6.3.1) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

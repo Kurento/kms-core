@@ -8,4 +8,3 @@ dependencies:
  - name: gst-plugins-ugly
  - name: gst-libav
  - name: kurento-module-creator
-   version: ">=4.0.3"
