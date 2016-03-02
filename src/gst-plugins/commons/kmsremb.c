@@ -209,7 +209,7 @@ get_video_recv_info (KmsRembLocal * rl,
 
   if (data.count == 0
       || data.packets_received_expected_interval_accumulative == 0) {
-    GST_WARNING ("Any data updated");
+    GST_DEBUG ("Any data updated");
     return FALSE;
   }
 
