@@ -63,6 +63,7 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define TARGET_BITRATE_DEFAULT 300000
 #define MIN_BITRATE_DEFAULT 0
 #define MAX_BITRATE_DEFAULT G_MAXINT
+#define LEAKY_TIME 200000000    /*200 ms */
 
 struct _KmsAgnosticBin2Private
 {
@@ -406,6 +407,10 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement *convert = kms_utils_create_convert_for_caps (caps);
     GstElement *rate = kms_utils_create_rate_for_caps (caps);
     GstElement *mediator = kms_utils_create_mediator_element (caps);
+
+    if (kms_utils_caps_are_video (caps)) {
+      g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
+    }
 
     remove_element_on_unlinked (convert, "src", "sink");
     if (rate) {
