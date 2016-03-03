@@ -1798,7 +1798,7 @@ get_structure_from_id (const GstStructure * structure, const gchar * fieldname)
   const GValue *value;
 
   if (!gst_structure_has_field (structure, fieldname)) {
-    GST_WARNING ("No stats for %s", fieldname);
+    GST_DEBUG ("No structure '%s' found", fieldname);
     return NULL;
   }
 
