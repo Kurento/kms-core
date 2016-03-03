@@ -59,7 +59,7 @@ struct _KmsBaseRtpSession
   guint32 local_video_ssrc;
   guint32 remote_video_ssrc;
 
-  KmsBaseRTPSessionStats *stats;
+  gboolean stats_enabled;
 };
 
 struct _KmsBaseRtpSessionClass

@@ -97,8 +97,34 @@ struct _KmsBaseRTPStats
   gboolean enabled;
   GHashTable *rtp_stats;
   GSList *probes;
-  GMutex mutex;
+  /* End-to-end average stream stats */
+  GHashTable *avg_e2e;          /* <"pad_name", StreamE2EAvgStat> */
 };
+
+typedef struct _E2EProbeData
+{
+  gchar *id;
+  StreamE2EAvgStat *stat;
+} E2EProbeData;
+
+static E2EProbeData *
+e2e_probe_data_new ()
+{
+  E2EProbeData *data;
+
+  data = g_slice_new0 (E2EProbeData);
+
+  return data;
+}
+
+static void
+e2e_probe_data_destroy (E2EProbeData * data)
+{
+  g_free (data->id);
+  kms_stats_stream_e2e_avg_stat_unref (data->stat);
+
+  g_slice_free (E2EProbeData, data);
+}
 
 /* RtpMediaConfig begin */
 
@@ -573,7 +599,7 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     return NULL;
   }
 
-  g_mutex_lock (&self->priv->stats.mutex);
+  KMS_ELEMENT_LOCK (self);
 
   rtp_stats =
       g_hash_table_lookup (self->priv->stats.rtp_stats,
@@ -587,7 +613,7 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
     GST_WARNING_OBJECT (self, "Session %u already created", session_id);
   }
 
-  g_mutex_unlock (&self->priv->stats.mutex);
+  KMS_ELEMENT_UNLOCK (self);
 
   g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, "rtp-profile", rtp_profile, NULL);
@@ -1082,6 +1108,68 @@ end:
 }
 
 static void
+add_mark_data_cb (GstPad * pad, KmsMediaType type, GstClockTimeDiff t,
+    KmsList * meta_data, gpointer user_data)
+{
+  E2EProbeData *data = (E2EProbeData *) user_data;
+  StreamE2EAvgStat *stat;
+
+  stat = kms_list_lookup (meta_data, data->id);
+
+  if (stat != NULL) {
+    GST_WARNING_OBJECT (pad, "Can not mark buffer for e2e latency. "
+        "Already used ID: %s", data->id);
+  } else {
+    /* add mark data to this meta */
+    kms_list_prepend (meta_data, g_strdup (data->id),
+        kms_stats_stream_e2e_avg_stat_ref (data->stat));
+  }
+}
+
+static void
+kms_base_rtp_endpoint_configure_2e2_latency (KmsBaseRtpEndpoint * self,
+    GstPad * pad, KmsElementPadType padtype)
+{
+  StreamE2EAvgStat *stat;
+  E2EProbeData *data;
+  KmsMediaType type;
+  gchar *id;
+
+  switch (padtype) {
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      type = KMS_MEDIA_TYPE_AUDIO;
+      break;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      type = KMS_MEDIA_TYPE_VIDEO;
+      break;
+    default:
+      GST_DEBUG_OBJECT (self, "No e2e stats will be collected for pad type %u",
+          padtype);
+      return;
+  }
+
+  id = kms_stats_create_id_for_pad (GST_ELEMENT (self), pad);
+
+  KMS_ELEMENT_LOCK (self);
+
+  stat = g_hash_table_lookup (self->priv->stats.avg_e2e, id);
+
+  if (stat == NULL) {
+    stat = kms_stats_stream_e2e_avg_stat_new (type);
+    g_hash_table_insert (self->priv->stats.avg_e2e, g_strdup (id), stat);
+  }
+
+  data = e2e_probe_data_new ();
+  data->id = id;
+  data->stat = kms_stats_stream_e2e_avg_stat_ref (stat);
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  kms_stats_add_buffer_latency_notification_probe (pad, add_mark_data_cb,
+      TRUE /* lock the data */ , data, (GDestroyNotify) e2e_probe_data_destroy);
+}
+
+static void
 kms_base_rtp_endpoint_do_connect_payloader (ConnectPayloaderData * data)
 {
   GST_DEBUG_OBJECT (data->self, "Connecting payloader %" GST_PTR_FORMAT,
@@ -1089,8 +1177,11 @@ kms_base_rtp_endpoint_do_connect_payloader (ConnectPayloaderData * data)
 
   if (g_atomic_int_compare_and_exchange (&data->connected_flag, FALSE, TRUE)) {
     GstPad *target = gst_element_get_static_pad (data->payloader, "sink");
+    GstPad *sinkpad;
 
-    kms_element_connect_sink_target (KMS_ELEMENT (data->self), target,
+    sinkpad = kms_element_connect_sink_target (KMS_ELEMENT (data->self), target,
+        data->type);
+    kms_base_rtp_endpoint_configure_2e2_latency (data->self, sinkpad,
         data->type);
     g_object_unref (target);
   } else {
@@ -1495,7 +1586,7 @@ kms_base_rtp_endpoint_update_stats (KmsBaseRtpEndpoint * self,
   probe = kms_stats_probe_new (pad, media);
   g_object_unref (pad);
 
-  g_mutex_lock (&self->priv->stats.mutex);
+  KMS_ELEMENT_LOCK (self);
 
   if (self->priv->stats.enabled) {
     kms_stats_probe_latency_meta_set_valid (probe, TRUE);
@@ -1503,7 +1594,7 @@ kms_base_rtp_endpoint_update_stats (KmsBaseRtpEndpoint * self,
 
   self->priv->stats.probes = g_slist_prepend (self->priv->stats.probes, probe);
 
-  g_mutex_unlock (&self->priv->stats.mutex);
+  KMS_ELEMENT_UNLOCK (self);
 }
 
 static void
@@ -1603,7 +1694,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
       NULL);
   g_object_unref (src_pad);
 
-  g_mutex_lock (&self->priv->stats.mutex);
+  KMS_ELEMENT_LOCK (self);
 
   rtp_stats =
       g_hash_table_lookup (self->priv->stats.rtp_stats,
@@ -1616,7 +1707,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GST_ERROR_OBJECT (self, "Session %u exists for SSRC %u", session, ssrc);
   }
 
-  g_mutex_unlock (&self->priv->stats.mutex);
+  KMS_ELEMENT_UNLOCK (self);
 
   if (session == VIDEO_RTP_SESSION) {
     gboolean rtcp_nack = kms_base_rtp_endpoint_is_video_rtcp_nack (self);
@@ -1863,13 +1954,11 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
   KmsRTPSessionStats *rtp_stats;
   guint session_id;
 
-  g_mutex_lock (&self->priv->stats.mutex);
-
   if (selector == NULL) {
     /* No selector provided. All stats will be generated */
     g_hash_table_foreach (self->priv->stats.rtp_stats,
         (GHFunc) append_rtp_session_stats, stats);
-    goto end;
+    return stats;
   }
 
   if (g_strcmp0 (selector, AUDIO_STREAM_NAME) == 0) {
@@ -1878,7 +1967,7 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
     session_id = VIDEO_RTP_SESSION;
   } else {
     GST_WARNING_OBJECT (self, "Invalid selector provided: %s", selector);
-    goto end;
+    return stats;
   }
 
   rtp_stats = g_hash_table_lookup (self->priv->stats.rtp_stats,
@@ -1886,13 +1975,10 @@ kms_base_rtp_endpoint_add_rtp_stats (KmsBaseRtpEndpoint * self,
 
   if (rtp_stats == NULL) {
     GST_DEBUG_OBJECT (self, "No available stats for '%s'", selector);
-    goto end;
+    return stats;
   }
 
   append_rtp_session_stats (GUINT_TO_POINTER (session_id), rtp_stats, stats);
-
-end:
-  g_mutex_unlock (&self->priv->stats.mutex);
 
   return stats;
 }
@@ -2095,10 +2181,10 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 static void
 kms_base_rtp_endpoint_destroy_stats (KmsBaseRtpEndpoint * self)
 {
-  g_mutex_clear (&self->priv->stats.mutex);
   g_hash_table_destroy (self->priv->stats.rtp_stats);
   g_slist_free_full (self->priv->stats.probes,
       (GDestroyNotify) kms_stats_probe_destroy);
+  g_hash_table_unref (self->priv->stats.avg_e2e);
 }
 
 static void
@@ -2202,26 +2288,82 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
   }
 }
 
-static void
-kms_base_rtp_endpoint_collect_connections_stats (gpointer key, gpointer value,
-    GstStructure * session_stats)
+static gchar *
+kms_element_get_padname_from_id (KmsBaseRtpEndpoint * self, const gchar * id)
 {
-  KmsBaseRtpSession *session = KMS_BASE_RTP_SESSION (value);
+  gchar *objname, *padname = NULL;
+
+  objname = gst_element_get_name (self);
+
+  if (!g_str_has_prefix (id, objname)) {
+    goto end;
+  }
+
+  padname =
+      g_strndup (id + strlen (objname) + 1, strlen (id) - strlen (objname) - 1);
+
+end:
+  g_free (objname);
+
+  return padname;
+}
+
+static GstStructure *
+kms_element_get_e2e_latency_stats (KmsBaseRtpEndpoint * self, gchar * selector)
+{
+  gpointer key, value;
+  GHashTableIter iter;
   GstStructure *stats;
 
-  g_object_get (session, "stats", &stats, NULL);
-  gst_structure_set (session_stats, gst_structure_get_name (stats),
-      GST_TYPE_STRUCTURE, stats, NULL);
-  gst_structure_free (stats);
+  stats = gst_structure_new_empty ("e2e-latencies");
+
+  KMS_ELEMENT_LOCK (self);
+
+  g_hash_table_iter_init (&iter, self->priv->stats.avg_e2e);
+
+  while (g_hash_table_iter_next (&iter, &key, &value)) {
+    StreamE2EAvgStat *avg = value;
+    GstStructure *pad_latency;
+    gchar *padname, *id = key;
+
+    if (selector != NULL && ((g_strcmp0 (selector, AUDIO_STREAM_NAME) == 0 &&
+                avg->type != KMS_MEDIA_TYPE_AUDIO) ||
+            (g_strcmp0 (selector, VIDEO_STREAM_NAME) == 0 &&
+                avg->type != KMS_MEDIA_TYPE_VIDEO))) {
+      continue;
+    }
+
+    padname = kms_element_get_padname_from_id (self, id);
+
+    if (padname == NULL) {
+      GST_WARNING_OBJECT (self, "No pad identified by %s", id);
+      continue;
+    }
+
+    /* Video and audio latencies are measured in nano seconds. They */
+    /* are such an small values so there is no harm in casting them */
+    /* to uint64 even we might lose a bit of preccision.            */
+
+    pad_latency = gst_structure_new (padname, "type", G_TYPE_STRING,
+        (avg->type ==
+            KMS_MEDIA_TYPE_AUDIO) ? AUDIO_STREAM_NAME : VIDEO_STREAM_NAME,
+        "avg", G_TYPE_UINT64, (guint64) avg->avg, NULL);
+
+    gst_structure_set (stats, padname, GST_TYPE_STRUCTURE, pad_latency, NULL);
+    gst_structure_free (pad_latency);
+    g_free (padname);
+  }
+
+  KMS_ELEMENT_UNLOCK (self);
+
+  return stats;
 }
 
 static GstStructure *
 kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats, *rtp_stats, *e_stats, *session_stats;
-  GHashTable *sessions;
-  gboolean enabled;
+  GstStructure *stats, *rtp_stats, *e_stats, *l_stats;
 
   /* chain up */
   stats =
@@ -2235,9 +2377,7 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
       rtp_stats, NULL);
   gst_structure_free (rtp_stats);
 
-  g_object_get (self, "media-stats", &enabled, NULL);
-
-  if (!enabled) {
+  if (!self->priv->stats.enabled) {
     return stats;
   }
 
@@ -2247,20 +2387,14 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
     return stats;
   }
 
-  sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT (self));
+  l_stats = kms_element_get_e2e_latency_stats (self, selector);
 
-  if (g_hash_table_size (sessions) == 0) {
-    GST_DEBUG_OBJECT (self, "No sessions to report");
-    return stats;
-  }
+  /* Add end to end latency */
+  gst_structure_set (e_stats, "e2e-latencies", GST_TYPE_STRUCTURE, l_stats,
+      NULL);
+  gst_structure_free (l_stats);
 
-  session_stats = gst_structure_new_empty (KMS_SESSIONS_STRUCT_NAME);
-  g_hash_table_foreach (sessions,
-      (GHFunc) kms_base_rtp_endpoint_collect_connections_stats, session_stats);
-
-  gst_structure_set (e_stats, gst_structure_get_name (session_stats),
-      GST_TYPE_STRUCTURE, session_stats, NULL);
-  gst_structure_free (session_stats);
+  GST_LOG_OBJECT (self, "Stats: %" GST_PTR_FORMAT, stats);
 
   return stats;
 }
@@ -2290,8 +2424,6 @@ kms_base_rtp_endpoint_collect_media_stats (KmsElement * obj, gboolean enable)
 
   sessions = kms_base_sdp_endpoint_get_sessions (base_endpoint);
 
-  g_mutex_lock (&self->priv->stats.mutex);
-
   self->priv->stats.enabled = enable;
 
   if (enable) {
@@ -2306,7 +2438,6 @@ kms_base_rtp_endpoint_collect_media_stats (KmsElement * obj, gboolean enable)
         kms_base_rtp_endpoint_disable_connections_stats, NULL);
   }
 
-  g_mutex_unlock (&self->priv->stats.mutex);
   KMS_ELEMENT_UNLOCK (self);
 
   KMS_ELEMENT_CLASS
@@ -2630,7 +2761,8 @@ kms_base_rtp_endpoint_init_stats (KmsBaseRtpEndpoint * self)
   self->priv->stats.enabled = FALSE;
   self->priv->stats.rtp_stats = g_hash_table_new_full (g_direct_hash,
       g_direct_equal, NULL, (GDestroyNotify) rtp_session_stats_destroy);
-  g_mutex_init (&self->priv->stats.mutex);
+  self->priv->stats.avg_e2e = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, (GDestroyNotify) kms_ref_struct_unref);
 }
 
 static void

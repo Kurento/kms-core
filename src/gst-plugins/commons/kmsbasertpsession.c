@@ -59,22 +59,6 @@ enum
   PROP_STATS
 };
 
-static KmsBaseRTPSessionStats *
-kms_base_rtp_session_stats_new ()
-{
-  KmsBaseRTPSessionStats *stats;
-
-  stats = g_slice_new0 (KmsBaseRTPSessionStats);
-
-  return stats;
-}
-
-static void
-kms_base_rtp_session_stats_destroy (KmsBaseRTPSessionStats * stats)
-{
-  g_slice_free (KmsBaseRTPSessionStats, stats);
-}
-
 KmsBaseRtpSession *
 kms_base_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
     KmsIRtpSessionManager * manager)
@@ -176,26 +160,29 @@ kms_base_rtp_session_create_bundle_connection_default (KmsBaseRtpSession *
 }
 
 static void
-kms_base_rtp_session_latency_cb (GstPad * pad, KmsMediaType type,
-    GstClockTimeDiff t, KmsList * data, gpointer user_data)
+kms_base_rtp_session_e2e_latency_cb (GstPad * pad, KmsMediaType type,
+    GstClockTimeDiff t, KmsList * mdata, gpointer user_data)
 {
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (user_data);
-  gdouble *prev;
+  KmsListIter iter;
+  gpointer key, value;
+  gchar *name;
 
-  switch (type) {
-    case KMS_MEDIA_TYPE_AUDIO:
-      prev = &self->stats->ai;
-      break;
-    case KMS_MEDIA_TYPE_VIDEO:
-      prev = &self->stats->vi;
-      break;
-    default:
-      GST_DEBUG_OBJECT (pad, "No stast calculated for media (%s)",
-          kms_utils_media_type_to_str (type));
-      return;
+  name = gst_element_get_name (KMS_SDP_SESSION (self)->ep);
+
+  kms_list_iter_init (&iter, mdata);
+  while (kms_list_iter_next (&iter, &key, &value)) {
+    gchar *id = (gchar *) key;
+    StreamE2EAvgStat *stat;
+
+    if (!g_str_has_prefix (id, name)) {
+      /* This element did not add this mark to the metada */
+      continue;
+    }
+
+    stat = (StreamE2EAvgStat *) value;
+    stat->avg = KMS_STATS_CALCULATE_LATENCY_AVG (t, stat->avg);
   }
-
-  *prev = KMS_STATS_CALCULATE_LATENCY_AVG (t, *prev);
 }
 
 static void
@@ -203,10 +190,10 @@ kms_base_rtp_session_set_connection_stats (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn)
 {
   kms_i_rtp_connection_set_latency_callback (conn,
-      kms_base_rtp_session_latency_cb, self);
+      kms_base_rtp_session_e2e_latency_cb, self);
 
   /* Active insertion of metadata if stats are enabled */
-  kms_i_rtp_connection_collect_latency_stats (conn, self->stats->enabled);
+  kms_i_rtp_connection_collect_latency_stats (conn, self->stats_enabled);
 }
 
 KmsIRtpConnection *
@@ -700,7 +687,7 @@ kms_base_rtp_session_disable_connection_stats (gpointer key, gpointer value,
 void
 kms_base_rtp_session_enable_connections_stats (KmsBaseRtpSession * self)
 {
-  self->stats->enabled = TRUE;
+  self->stats_enabled = TRUE;
 
   g_hash_table_foreach (self->conns,
       kms_base_rtp_session_enable_connection_stats, NULL);
@@ -709,7 +696,7 @@ kms_base_rtp_session_enable_connections_stats (KmsBaseRtpSession * self)
 void
 kms_base_rtp_session_disable_connections_stats (KmsBaseRtpSession * self)
 {
-  self->stats->enabled = FALSE;
+  self->stats_enabled = FALSE;
 
   g_hash_table_foreach (self->conns,
       kms_base_rtp_session_disable_connection_stats, NULL);
@@ -727,27 +714,6 @@ kms_base_rtp_session_get_property (GObject * object, guint property_id,
     case PROP_CONNECTION_STATE:
       g_value_set_enum (value, self->conn_state);
       break;
-    case PROP_STATS:{
-      gchar *struct_name, *obj_name;
-      GstStructure *s;
-
-      obj_name = gst_element_get_name (self);
-      struct_name = g_strdup_printf ("%s-stats", obj_name);
-      g_free (obj_name);
-
-      /* Video and audio latencies are avery small values in */
-      /* nano seconds so there is no harm in casting them to */
-      /* uint64 even we might lose a bit of preccision.      */
-
-      s = gst_structure_new (struct_name, "video-e2e-latency",
-          G_TYPE_UINT64, (guint64) self->stats->vi, "audio-e2e-latency",
-          G_TYPE_UINT64, (guint64) self->stats->ai, NULL);
-
-      g_free (struct_name);
-      g_value_take_boxed (value, s);
-
-      break;
-    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -764,8 +730,6 @@ kms_base_rtp_session_finalize (GObject * object)
   GST_DEBUG_OBJECT (self, "finalize");
 
   g_hash_table_destroy (self->conns);
-
-  kms_base_rtp_session_stats_destroy (self->stats);
 
   /* chain up */
   G_OBJECT_CLASS (kms_base_rtp_session_parent_class)->finalize (object);
@@ -788,7 +752,7 @@ kms_base_rtp_session_init (KmsBaseRtpSession * self)
   self->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 
-  self->stats = kms_base_rtp_session_stats_new ();
+  self->stats_enabled = FALSE;
 }
 
 static void

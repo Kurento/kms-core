@@ -567,49 +567,13 @@ BaseRtpEndpointImpl::collectEndpointStats (std::map
     &statsReport, std::string id, const GstStructure *stats,
     double timestamp)
 {
-  const GstStructure *sessions, *session_stats;
-  GstStructure *e2e_stats;
   std::shared_ptr<Stats> endpointStats;
-  const GValue *value;
-  const gchar *name;
-  gint n;
-
-  sessions = kms_utils_get_structure_by_name (stats, KMS_SESSIONS_STRUCT_NAME);
-
-  if (sessions == NULL) {
-    GST_WARNING ("No session stats reported");
-    return;
-  }
-
-  n = gst_structure_n_fields (sessions);
-
-  if (n == 0) {
-    GST_WARNING ("No end to end latency stats reported");
-    return;
-  } else if (n > 1) {
-    GST_WARNING ("Multi-session stats reported. "
-                 "Only the first one will be reported");
-  }
-
-  name = gst_structure_nth_field_name (sessions, 0);
-  value = gst_structure_get_value (sessions, name);
-
-  if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
-    gchar *str_val;
-
-    str_val = g_strdup_value_contents (value);
-    GST_WARNING ("Unexpected field type (%s) = %s", name, str_val);
-    g_free (str_val);
-
-    return;
-  }
-
-  session_stats = gst_value_get_structure (value);
+  GstStructure *e2e_stats;
 
   std::vector<std::shared_ptr<MediaLatencyStat>> inputStats;
   std::vector<std::shared_ptr<MediaLatencyStat>> e2eStats;
 
-  if (gst_structure_get (session_stats, "e2e-latencies", GST_TYPE_STRUCTURE,
+  if (gst_structure_get (stats, "e2e-latencies", GST_TYPE_STRUCTURE,
                          &e2e_stats, NULL) ) {
     collectLatencyStats (e2eStats, e2e_stats);
     gst_structure_free (e2e_stats);
