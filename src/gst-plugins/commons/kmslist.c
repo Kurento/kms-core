@@ -64,7 +64,7 @@ kms_list_node_free_data (KmsList * list, KmsListNode * node)
     list->key_destroy_func (node->key);
   }
 
-  if (list->value_destroy_func != NULL) {
+  if (node->value != NULL && list->value_destroy_func != NULL) {
     list->value_destroy_func (node->value);
   }
 
