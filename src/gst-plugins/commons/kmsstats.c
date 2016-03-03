@@ -356,3 +356,38 @@ kms_stats_probe_watches (KmsStatsProbe * probe, GstPad * pad)
 {
   return pad == probe->pad;
 }
+
+gchar *
+kms_stats_create_id_for_pad (GstElement * obj, GstPad * pad)
+{
+  gchar *id, *padname, *objname;
+
+  padname = gst_pad_get_name (pad);
+  objname = gst_element_get_name (obj);
+
+  id = g_strdup_printf ("%s_%s", objname, padname);
+
+  g_free (padname);
+  g_free (objname);
+
+  return id;
+}
+
+static void
+kms_stats_stream_e2e_avg_stat_destroy (StreamE2EAvgStat * stat)
+{
+  g_slice_free (StreamE2EAvgStat, stat);
+}
+
+StreamE2EAvgStat *
+kms_stats_stream_e2e_avg_stat_new (KmsMediaType type)
+{
+  StreamE2EAvgStat *stat;
+
+  stat = g_slice_new0 (StreamE2EAvgStat);
+  kms_ref_struct_init (KMS_REF_STRUCT_CAST (stat),
+      (GDestroyNotify) kms_stats_stream_e2e_avg_stat_destroy);
+  stat->type = type;
+
+  return stat;
+}

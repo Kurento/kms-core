@@ -18,6 +18,7 @@
 #include "gst/gst.h"
 #include "kmsmediatype.h"
 #include "kmslist.h"
+#include "kmsrefstruct.h"
 
 G_BEGIN_DECLS
 
@@ -52,6 +53,21 @@ void kms_stats_probe_add_latency (KmsStatsProbe *probe, BufferLatencyCallback ca
 void kms_stats_probe_latency_meta_set_valid (KmsStatsProbe *probe, gboolean is_valid);
 void kms_stats_probe_remove (KmsStatsProbe *probe);
 gboolean kms_stats_probe_watches (KmsStatsProbe *probe, GstPad *pad);
+
+typedef struct _StreamE2EAvgStat
+{
+  KmsRefStruct ref;
+  KmsMediaType type;
+  gdouble avg;
+} StreamE2EAvgStat;
+
+gchar * kms_stats_create_id_for_pad (GstElement * obj, GstPad * pad);
+StreamE2EAvgStat * kms_stats_stream_e2e_avg_stat_new (KmsMediaType type);
+
+#define kms_stats_stream_e2e_avg_stat_ref(obj) \
+  (StreamE2EAvgStat *) kms_ref_struct_ref (KMS_REF_STRUCT_CAST (obj))
+#define kms_stats_stream_e2e_avg_stat_unref(obj) \
+  kms_ref_struct_unref (KMS_REF_STRUCT_CAST (obj))
 
 G_END_DECLS
 
