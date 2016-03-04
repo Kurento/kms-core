@@ -727,10 +727,10 @@ kms_element_get_video_output_element (KmsElement * self,
   sink_pad = gst_element_get_static_pad (odata->element, "sink");
   gst_pad_add_probe (sink_pad, GST_PAD_PROBE_TYPE_BUFFER,
       (GstPadProbeCallback) cb_buffer_received, fd_data,
-      (GDestroyNotify) destroy_media_flow_data);
+      (GDestroyNotify) stop_clock_id);
   g_object_unref (sink_pad);
   gst_clock_id_wait_async (fd_data->clock_id,
-      check_if_flow_media, fd_data, NULL);
+      check_if_flow_media, fd_data, (GDestroyNotify) destroy_media_flow_data);
 
   /* Set video properties to the new element */
   kms_element_set_video_output_properties (self, odata->element);
@@ -960,9 +960,9 @@ end:
         type, KMS_MEDIA_FLOW_IN);
     gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
         (GstPadProbeCallback) cb_buffer_received, fd_data,
-        (GDestroyNotify) destroy_media_flow_data);
+        (GDestroyNotify) stop_clock_id);
     gst_clock_id_wait_async (fd_data->clock_id, check_if_flow_media, fd_data,
-        NULL);
+        (GDestroyNotify) destroy_media_flow_data);
   }
 
   return pad;
