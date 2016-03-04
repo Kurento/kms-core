@@ -247,11 +247,16 @@ create_media_flow_data (KmsElement * self, const gchar * description,
 }
 
 static void
-destroy_media_flow_data (KmsMediaFlowData * data)
+stop_clock_id (KmsMediaFlowData * data)
 {
   //detroy periodic callback
   gst_clock_id_unschedule (data->clock_id);
   gst_clock_id_unref (data->clock_id);
+}
+
+static void
+destroy_media_flow_data (KmsMediaFlowData * data)
+{
   g_free (data->pad_description);
   g_weak_ref_clear (&data->element);
 
@@ -651,10 +656,10 @@ kms_element_get_audio_output_element (KmsElement * self,
   sink_pad = gst_element_get_static_pad (odata->element, "sink");
   gst_pad_add_probe (sink_pad, GST_PAD_PROBE_TYPE_BUFFER,
       (GstPadProbeCallback) cb_buffer_received, fd_data,
-      (GDestroyNotify) destroy_media_flow_data);
+      (GDestroyNotify) stop_clock_id);
   g_object_unref (sink_pad);
   gst_clock_id_wait_async (fd_data->clock_id,
-      check_if_flow_media, fd_data, NULL);
+      check_if_flow_media, fd_data, (GDestroyNotify) destroy_media_flow_data);
 
   gst_bin_add (GST_BIN (self), odata->element);
   gst_element_sync_state_with_parent (odata->element);
