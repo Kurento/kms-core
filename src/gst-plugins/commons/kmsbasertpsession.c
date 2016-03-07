@@ -55,8 +55,7 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 enum
 {
   PROP_0,
-  PROP_CONNECTION_STATE,
-  PROP_STATS
+  PROP_CONNECTION_STATE
 };
 
 KmsBaseRtpSession *
@@ -786,11 +785,6 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       g_param_spec_enum ("connection-state", "Connection state",
           "Connection state", KMS_TYPE_CONNECTION_STATE,
           DEFAULT_CONNECTION_STATE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (gobject_class, PROP_STATS,
-      g_param_spec_boxed ("stats", "Stats",
-          "Base RTP Session statistics", GST_TYPE_STRUCTURE,
-          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   obj_signals[CONNECTION_STATE_CHANGED] =
       g_signal_new ("connection-state-changed",
