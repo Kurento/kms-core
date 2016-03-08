@@ -25,7 +25,6 @@
 #include "kmsfiltertype.h"
 
 #define PLUGIN_NAME "filterelement"
-#define LEAKY_TIME 200000       /*200 ms */
 
 #define DEFAULT_FILTER_TYPE KMS_FILTER_TYPE_AUTODETECT
 
@@ -83,29 +82,10 @@ kms_filter_element_connect_filter (KmsFilterElement * self,
 
   self->priv->filter = filter;
 
-  if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    GstElement *queue;
-    GstPad *pad;
+  gst_element_link (filter, agnosticbin);
+  gst_element_sync_state_with_parent (filter);
 
-    queue = gst_element_factory_make ("queue", NULL);
-    pad = gst_element_get_static_pad (queue, "sink");
-
-    gst_bin_add (GST_BIN (self), queue);
-
-    g_object_set (queue, "max-size-time", LEAKY_TIME, "leaky",
-        2 /*downstream */ , NULL);
-
-    gst_element_link (queue, filter);
-    gst_element_link (filter, agnosticbin);
-    gst_element_sync_state_with_parent (filter);
-    gst_element_sync_state_with_parent (queue);
-    kms_element_connect_sink_target (KMS_ELEMENT (self), pad, type);
-    gst_object_unref (pad);
-  } else {
-    gst_element_link (filter, agnosticbin);
-    gst_element_sync_state_with_parent (filter);
-    kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
-  }
+  kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
 }
 
 static void
