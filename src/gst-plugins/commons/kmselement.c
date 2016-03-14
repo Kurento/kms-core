@@ -1097,8 +1097,10 @@ static void
 set_min_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MIN_BITRATE,
-        self->priv->min_bitrate);
+    if (odata->element != NULL) {
+      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MIN_BITRATE,
+          self->priv->min_bitrate);
+    }
   }
 }
 
@@ -1106,8 +1108,10 @@ static void
 set_max_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MAX_BITRATE,
-        self->priv->max_bitrate);
+    if (odata->element != NULL) {
+      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MAX_BITRATE,
+          self->priv->max_bitrate);
+    }
   }
 }
 
