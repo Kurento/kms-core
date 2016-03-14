@@ -664,11 +664,21 @@
       "properties": [
         {
           "name": "minOuputBitrate",
+          "doc": "@deprecated\nDeprecated due to a typo. Use minOutputBitrate instead of this function. Minimum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
+          "type": "int"
+        },
+        {
+          "name": "minOutputBitrate",
           "doc": "Minimum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
           "type": "int"
         },
         {
           "name": "maxOuputBitrate",
+          "doc": "@deprecated\nDeprecated due to a typo. Use maxOutputBitrate instead of this function. Maximum video bandwidth for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "type": "int"
+        },
+        {
+          "name": "maxOutputBitrate",
           "doc": "Maximum video bandwidth for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
           "type": "int"
         }

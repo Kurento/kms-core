@@ -26,8 +26,7 @@ class MediaFlowData;
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,
-                   const std::shared_ptr<MediaType> &b) const
-  {
+                   const std::shared_ptr<MediaType> &b) const {
     return a->getValue () < b->getValue ();
   }
 };
@@ -48,8 +47,7 @@ public:
 
   virtual ~MediaElementImpl ();
 
-  GstElement *getGstreamerElement()
-  {
+  GstElement *getGstreamerElement() {
     return element;
   };
 
@@ -112,8 +110,14 @@ public:
   virtual int getMinOuputBitrate () override;
   virtual void setMinOuputBitrate (int minOuputBitrate) override;
 
+  virtual int getMinOutputBitrate () override;
+  virtual void setMinOutputBitrate (int minOutputBitrate) override;
+
   virtual int getMaxOuputBitrate () override;
   virtual void setMaxOuputBitrate (int maxOuputBitrate) override;
+
+  virtual int getMaxOutputBitrate () override;
+  virtual void setMaxOutputBitrate (int maxOutputBitrate) override;
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,

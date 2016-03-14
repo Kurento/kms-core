@@ -1083,6 +1083,17 @@ int MediaElementImpl::getMinOuputBitrate ()
 {
   gint bitrate;
 
+  GST_WARNING ("minOuputBitrate property is deprecated, use property "
+               "minOutputBitrate");
+  g_object_get (G_OBJECT (element), MIN_OUTPUT_BITRATE, &bitrate, NULL);
+
+  return bitrate;
+}
+
+int MediaElementImpl::getMinOutputBitrate ()
+{
+  gint bitrate;
+
   g_object_get (G_OBJECT (element), MIN_OUTPUT_BITRATE, &bitrate, NULL);
 
   return bitrate;
@@ -1090,11 +1101,30 @@ int MediaElementImpl::getMinOuputBitrate ()
 
 void MediaElementImpl::setMinOuputBitrate (int minOuputBitrate)
 {
+  GST_WARNING ("minOuputBitrate property is deprecated, use property "
+               "minOutputBitrate");
   g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, minOuputBitrate,
                 NULL);
 }
 
+void MediaElementImpl::setMinOutputBitrate (int minOutputBitrate)
+{
+  g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, minOutputBitrate,
+                NULL);
+}
+
 int MediaElementImpl::getMaxOuputBitrate ()
+{
+  gint bitrate;
+
+  GST_WARNING ("maxOuputBitrate property is deprecated, use property "
+               "maxOutputBitrate");
+  g_object_get (G_OBJECT (element), MAX_OUTPUT_BITRATE, &bitrate, NULL);
+
+  return bitrate;
+}
+
+int MediaElementImpl::getMaxOutputBitrate ()
 {
   gint bitrate;
 
@@ -1105,7 +1135,15 @@ int MediaElementImpl::getMaxOuputBitrate ()
 
 void MediaElementImpl::setMaxOuputBitrate (int maxOuputBitrate)
 {
+  GST_WARNING ("maxOuputBitrate property is deprecated, use property "
+               "maxOutputBitrate");
   g_object_set (G_OBJECT (element), MAX_OUTPUT_BITRATE, maxOuputBitrate,
+                NULL);
+}
+
+void MediaElementImpl::setMaxOutputBitrate (int maxOutputBitrate)
+{
+  g_object_set (G_OBJECT (element), MAX_OUTPUT_BITRATE, maxOutputBitrate,
                 NULL);
 }
 
