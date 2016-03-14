@@ -86,6 +86,7 @@ struct _KmsAgnosticBin2Private
   gint min_bitrate;
 
   GstStructure *codec_config;
+  gboolean bitrate_unlimited;
 };
 
 enum
@@ -1055,8 +1056,13 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
     case PROP_MAX_BITRATE:{
       gint v;
 
+      self->priv->bitrate_unlimited = FALSE;
       v = g_value_get_int (value);
       KMS_AGNOSTIC_BIN2_LOCK (self);
+      if (v == 0) {
+        self->priv->bitrate_unlimited = TRUE;
+        v = MAX_BITRATE_DEFAULT;
+      }
       if (v < self->priv->min_bitrate) {
         v = self->priv->min_bitrate;
 
@@ -1097,7 +1103,11 @@ kms_agnostic_bin2_get_property (GObject * object, guint property_id,
       break;
     case PROP_MAX_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      g_value_set_int (value, self->priv->max_bitrate);
+      if (self->priv->bitrate_unlimited) {
+        g_value_set_int (value, 0);
+      } else {
+        g_value_set_int (value, self->priv->max_bitrate);
+      }
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     case PROP_CODEC_CONFIG:
@@ -1275,6 +1285,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   g_rec_mutex_init (&self->priv->thread_mutex);
   self->priv->min_bitrate = MIN_BITRATE_DEFAULT;
   self->priv->max_bitrate = MAX_BITRATE_DEFAULT;
+  self->priv->bitrate_unlimited = FALSE;
 }
 
 gboolean

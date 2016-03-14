@@ -669,7 +669,7 @@
         },
         {
           "name": "maxOuputBitrate",
-          "doc": "Maximum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "doc": "Maximum video bandwidth for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
           "type": "int"
         }
       ],
