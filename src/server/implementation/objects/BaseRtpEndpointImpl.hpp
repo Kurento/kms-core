@@ -53,6 +53,7 @@ public:
   sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
 
   /* Next methods are automatically implemented by code generator */
+  using SdpEndpointImpl::connect;
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,

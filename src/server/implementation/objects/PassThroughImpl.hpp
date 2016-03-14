@@ -38,6 +38,7 @@ public:
   virtual ~PassThroughImpl () {};
 
   /* Next methods are automatically implemented by code generator */
+  using MediaElementImpl::connect;
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler);
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,

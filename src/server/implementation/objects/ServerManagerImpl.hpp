@@ -40,32 +40,32 @@ public:
 
   virtual ~ServerManagerImpl () {};
 
-  std::string getKmd (const std::string &moduleName);
+  std::string getKmd (const std::string &moduleName) override;
 
-  virtual std::shared_ptr<ServerInfo> getInfo ();
+  virtual std::shared_ptr<ServerInfo> getInfo () override;
 
-  virtual std::vector<std::shared_ptr<MediaPipeline>> getPipelines ();
+  virtual std::vector<std::shared_ptr<MediaPipeline>> getPipelines () override;
 
-  virtual std::vector<std::string> getSessions ();
+  virtual std::vector<std::string> getSessions () override;
 
   virtual std::string getId() override
   {
     return "manager_ServerManager";
   }
 
-  virtual std::string getMetadata ();
+  virtual std::string getMetadata () override;
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
-                        std::shared_ptr<EventHandler> handler);
+                        std::shared_ptr<EventHandler> handler) override;
 
   sigc::signal<void, ObjectCreated> signalObjectCreated;
   sigc::signal<void, ObjectDestroyed> signalObjectDestroyed;
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
-                       Json::Value &response);
+                       Json::Value &response) override;
 
-  virtual void Serialize (JsonSerializer &serializer);
+  virtual void Serialize (JsonSerializer &serializer) override;
 
 private:
 

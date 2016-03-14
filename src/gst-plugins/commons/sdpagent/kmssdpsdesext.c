@@ -78,7 +78,9 @@ static const gchar *crypto_suites[] = {
 static const gchar *
 srtp_crypto_suite_to_str (SrtpCryptoSuite crypto)
 {
-  if (crypto <= G_N_ELEMENTS (crypto_suites)) {
+  int suite = crypto;
+
+  if (suite <= G_N_ELEMENTS (crypto_suites)) {
     return crypto_suites[crypto];
   } else {
     return NULL;
