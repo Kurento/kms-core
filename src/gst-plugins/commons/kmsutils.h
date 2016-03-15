@@ -78,6 +78,8 @@ const gchar * kms_utils_get_uuid (GObject *obj);
 
 const char * kms_utils_media_type_to_str (KmsMediaType type);
 
+gchar * generate_fingerprint_from_pem (const gchar * pem);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)

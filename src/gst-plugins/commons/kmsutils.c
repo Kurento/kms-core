@@ -18,6 +18,7 @@
 #include "kmsagnosticcaps.h"
 #include <gst/video/video-event.h>
 #include <uuid/uuid.h>
+#include <string.h>
 
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -28,6 +29,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
 #define KMS_KEY_ID "kms-key-id"
+#define BEGIN_CERTIFICATE "-----BEGIN CERTIFICATE-----"
+#define END_CERTIFICATE "-----END CERTIFICATE-----"
 
 static gboolean
 debug_graph (gpointer bin)
@@ -959,6 +962,64 @@ kms_utils_media_type_to_str (KmsMediaType type)
     default:
       return "<unsupported>";
   }
+}
+
+gchar *
+generate_fingerprint_from_pem (const gchar * pem)
+{
+  guint i;
+  gchar *line;
+  guchar *der, *tmp;
+  gchar **lines;
+  gint state = 0;
+  guint save = 0;
+  gsize der_length = 0;
+  GChecksum *checksum;
+  guint8 *digest;
+  gsize digest_length;
+  GString *fingerprint;
+  gchar *ret;
+
+  if (pem == NULL) {
+    GST_ERROR ("Pem certificate is null");
+    return NULL;
+  }
+  der = tmp = g_new0 (guchar, (strlen (pem) / 4) * 3 + 3);
+  lines = g_strsplit (pem, "\n", 0);
+
+  for (i = 0, line = lines[i]; line; line = lines[++i]) {
+    if (line[0] && g_str_has_prefix (line, BEGIN_CERTIFICATE)) {
+      i++;
+      break;
+    }
+  }
+
+  for (line = lines[i]; line; line = lines[++i]) {
+    if (line[0] && g_str_has_prefix (line, END_CERTIFICATE)) {
+      break;
+    }
+    tmp += g_base64_decode_step (line, strlen (line), tmp, &state, &save);
+  }
+  der_length = tmp - der;
+  checksum = g_checksum_new (G_CHECKSUM_SHA256);
+  digest_length = g_checksum_type_get_length (G_CHECKSUM_SHA256);
+  digest = g_new (guint8, digest_length);
+  g_checksum_update (checksum, der, der_length);
+  g_checksum_get_digest (checksum, digest, &digest_length);
+  fingerprint = g_string_new (NULL);
+  for (i = 0; i < digest_length; i++) {
+    if (i)
+      g_string_append (fingerprint, ":");
+    g_string_append_printf (fingerprint, "%02X", digest[i]);
+  }
+  ret = g_string_free (fingerprint, FALSE);
+
+  g_free (digest);
+  g_checksum_free (checksum);
+  g_free (der);
+  g_strfreev (lines);
+
+  return ret;
 }
 
 static void init_debug (void) __attribute__ ((constructor));
