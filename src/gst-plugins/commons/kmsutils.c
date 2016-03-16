@@ -965,7 +965,7 @@ kms_utils_media_type_to_str (KmsMediaType type)
 }
 
 gchar *
-generate_fingerprint_from_pem (const gchar * pem)
+kms_utils_generate_fingerprint_from_pem (const gchar * pem)
 {
   guint i;
   gchar *line;
