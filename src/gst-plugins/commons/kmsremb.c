@@ -38,6 +38,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define DEFAULT_REMB_THRESHOLD_FACTOR 0.8
 #define DEFAULT_REMB_UP_LOSSES 12       /* 4% losses */
 
+#define REMB_MAX_FACTOR_INPUT_BR 2
+
 static void
 kms_remb_base_destroy (KmsRembBase * rb)
 {
@@ -282,7 +284,7 @@ kms_remb_local_update (KmsRembLocal * rl)
   if (rl->fraction_lost_record == 0) {
     gint remb_base, remb_new;
 
-    remb_base = MIN (rl->remb, rl->max_br);
+    remb_base = MAX (rl->remb, rl->max_br);
 
     if (remb_base < rl->threshold) {
       GST_TRACE_OBJECT (KMS_REMB_BASE (rl)->rtpsess, "A.1) Exponential (%f)",
@@ -316,6 +318,8 @@ kms_remb_local_update (KmsRembLocal * rl)
       rl->avg_br = 0;
     }
   }
+
+  rl->remb = MIN (rl->remb, rl->max_br * REMB_MAX_FACTOR_INPUT_BR);
 
   if (rl->max_bw > 0) {
     rl->remb = MIN (rl->remb, rl->max_bw * 1000);
