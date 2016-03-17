@@ -622,7 +622,7 @@ kms_remb_remote_update (KmsRembRemote * rm,
         "REMB packet without any SSRC");
     return;
   } else if (remb_packet->n_ssrcs > 1) {
-    GST_WARNING_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
+    GST_FIXME_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
         "REMB packet with %" G_GUINT32_FORMAT " SSRCs."
         " A inconsistent management could take place", remb_packet->n_ssrcs);
   }
