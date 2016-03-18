@@ -38,12 +38,16 @@
 #include "kmsbufferlacentymeta.h"
 #include "kmsstats.h"
 
+#include <glib/gstdio.h>
+
 #define PLUGIN_NAME "base_rtp_endpoint"
 
 GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_rtp_endpoint_debug
 
 #define kms_base_rtp_endpoint_parent_class parent_class
+
+static gboolean create_stats_files = FALSE;
 
 static void
 kms_i_rtp_session_manager_interface_init (KmsIRtpSessionManagerInterface *
@@ -77,6 +81,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
   __pos = (gint)(__c - str);  \
   __pos;                      \
 })
+
+#define STATS_DIR "/tmp/kms_stats/"
 
 typedef struct _KmsSSRCStats KmsSSRCStats;
 struct _KmsSSRCStats
@@ -225,6 +231,10 @@ struct _KmsBaseRtpEndpointPrivate
 
   /* RTP statistics */
   KmsBaseRTPStats stats;
+
+  /* Timestamps */
+  gssize init_stats;
+  FILE *stats_file;
 };
 
 /* Signals and args */
@@ -1752,6 +1762,77 @@ kms_base_rtp_endpoint_change_latency_probe (GstPad * pad,
   return GST_PAD_PROBE_REMOVE;
 }
 
+static GstPadProbeReturn
+timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER) {
+    KmsBaseRtpEndpoint *self = user_data;
+    GstBuffer *buff = gst_pad_probe_info_get_buffer (info);
+    GstRTPBuffer rtp = { 0 };
+
+    if (!create_stats_files) {
+      return GST_PAD_PROBE_OK;
+    }
+
+    if (gst_rtp_buffer_map (buff, GST_MAP_READ, &rtp)) {
+      guint32 ssrc = gst_rtp_buffer_get_ssrc (&rtp);
+      guint32 clock_rate;
+
+      if (ssrc == self->priv->sess->remote_video_ssrc) {
+        clock_rate = 90000;
+      } else {
+        clock_rate = 48000;
+      }
+
+      if (g_once_init_enter (&self->priv->init_stats)) {
+        GDateTime *datetime = g_date_time_new_now_local ();
+        gchar *date_str = g_date_time_format (datetime, "%Y%m%d%H%M%S");
+        gchar *stats_file_name;
+
+        g_date_time_unref (datetime);
+        stats_file_name =
+            g_strdup_printf ("%s%s_%p.csv", STATS_DIR, date_str, self);
+        g_free (date_str);
+
+        if (g_mkdir_with_parents (STATS_DIR, 0777) < 0) {
+          GST_ERROR_OBJECT (self,
+              "Directory for stats files cannot be created");
+          goto init_error;
+        }
+
+        self->priv->stats_file = g_fopen (stats_file_name, "w+");
+
+        if (self->priv->stats_file == NULL) {
+          GST_ERROR_OBJECT (self, "Stats file cannot be created");
+        } else {
+          g_fprintf (self->priv->stats_file, "SSRC,CLOCK_RATE,PTS,DTS,RTP\n");
+        }
+
+      init_error:
+        g_free (stats_file_name);
+        g_once_init_leave (&self->priv->init_stats, 1);
+      }
+
+      if (self->priv->stats_file) {
+        g_fprintf (self->priv->stats_file,
+            "%" G_GUINT32_FORMAT ",%" G_GUINT32_FORMAT ",%" G_GUINT64_FORMAT
+            ",%" G_GUINT64_FORMAT ",%" G_GUINT32_FORMAT "\n", ssrc, clock_rate,
+            GST_BUFFER_PTS (buff), GST_BUFFER_DTS (buff),
+            gst_rtp_buffer_get_timestamp (&rtp));
+      }
+
+      gst_rtp_buffer_unmap (&rtp);
+    } else {
+      GST_WARNING_OBJECT (self, "Buffer cannot be mapped");
+    }
+
+  } else {
+    GST_WARNING ("Buffer list not supported!!");
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
 static void
 kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
     GstElement * jitterbuffer,
@@ -1771,6 +1852,9 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
       GINT_TO_POINTER (session ==
           VIDEO_RTP_SESSION ? JB_READY_VIDEO_LATENCY : JB_READY_AUDIO_LATENCY),
       NULL);
+  gst_pad_add_probe (src_pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      timestamps_probe, self, NULL);
   g_object_unref (src_pad);
 
   KMS_ELEMENT_LOCK (self);
@@ -2312,6 +2396,10 @@ kms_base_rtp_endpoint_finalize (GObject * gobject)
   g_hash_table_foreach (sessions,
       kms_base_rtp_endpoint_disable_connections_stats, NULL);
 
+  if (self->priv->stats_file) {
+    fclose (self->priv->stats_file);
+  }
+
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->finalize (gobject);
 }
 
@@ -2694,6 +2782,8 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       NULL, __kms_core_marshal_BOOLEAN__VOID, G_TYPE_BOOLEAN, 0);
 
   g_type_class_add_private (klass, sizeof (KmsBaseRtpEndpointPrivate));
+
+  create_stats_files = g_getenv ("KURENTO_GENERATE_RTP_PTS_STATS") != NULL;
 }
 
 static void
