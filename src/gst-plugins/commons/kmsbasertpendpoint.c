@@ -2361,7 +2361,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_MIN_VIDEO_SEND_BW:{
       guint v = g_value_get_uint (value);
 
-      if (v > self->priv->max_video_send_bw) {
+      if ((v != 0) && (v > self->priv->max_video_send_bw)) {
         v = self->priv->max_video_send_bw;
         GST_WARNING_OBJECT (object,
             "Trying to set min > max. Setting %" G_GUINT32_FORMAT, v);
@@ -2373,7 +2373,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_MAX_VIDEO_SEND_BW:{
       guint v = g_value_get_uint (value);
 
-      if (v < self->priv->min_video_send_bw) {
+      if ((v != 0) && (v < self->priv->min_video_send_bw)) {
         v = self->priv->min_video_send_bw;
         GST_WARNING_OBJECT (object,
             "Trying to set max < min. Setting %" G_GUINT32_FORMAT, v);
