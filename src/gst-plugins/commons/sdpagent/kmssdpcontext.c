@@ -368,7 +368,8 @@ kms_sdp_media_config_get_sdp_media (SdpMediaConfig * mconf)
 gboolean
 kms_sdp_media_config_is_inactive (SdpMediaConfig * mconf)
 {
-  return gst_sdp_media_get_port (mconf->media) == 0;
+  return (gst_sdp_media_get_attribute_val (mconf->media, "inactive") != NULL)
+      || (gst_sdp_media_get_port (mconf->media) == 0);
 }
 
 gint
