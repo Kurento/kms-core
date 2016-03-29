@@ -2517,7 +2517,7 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
   rtp_media_config_unref (self->priv->audio_config);
   rtp_media_config_unref (self->priv->video_config);
 
-  g_mutex_free (&self->priv->sync_mutex);
+  g_mutex_clear (&self->priv->sync_mutex);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->dispose (gobject);
 }
