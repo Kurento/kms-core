@@ -34,6 +34,7 @@
 
 #include <gst/rtp/gstrtpdefs.h>
 #include <gst/rtp/gstrtpbuffer.h>
+#include <gst/rtp/gstrtcpbuffer.h>
 #include <gst/video/video-event.h>
 #include "kmsbufferlacentymeta.h"
 #include "kmsstats.h"
@@ -197,6 +198,15 @@ ext_data_new ()
   return edata;
 }
 
+typedef struct _SsrcSyncData
+{
+  GstClockTime last_sr_ext_ts;
+  GstClockTime last_sr_ntp_ns_time;
+  GstClockTime ext_ts;
+  gint clock_rate;
+  guint8 pt;
+} SsrcSyncData;
+
 struct _KmsBaseRtpEndpointPrivate
 {
   KmsBaseRtpSession *sess;
@@ -235,6 +245,13 @@ struct _KmsBaseRtpEndpointPrivate
   /* Timestamps */
   gssize init_stats;
   FILE *stats_file;
+
+  /* Synchronization */
+  SsrcSyncData audio_sync;
+  SsrcSyncData video_sync;
+  GstClockTime base_sync_time;
+  GstClockTime base_ntp_ns_time;
+  GMutex sync_mutex;
 };
 
 /* Signals and args */
@@ -1770,26 +1787,56 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     GstBuffer *buff = gst_pad_probe_info_get_buffer (info);
     GstRTPBuffer rtp = { 0 };
 
-    if (!create_stats_files) {
-      return GST_PAD_PROBE_OK;
-    }
-
     if (gst_rtp_buffer_map (buff, GST_MAP_READ, &rtp)) {
       guint32 ssrc = gst_rtp_buffer_get_ssrc (&rtp);
+      guint8 pt = gst_rtp_buffer_get_payload_type (&rtp);
+      guint32 rtp_time = gst_rtp_buffer_get_timestamp (&rtp);
+      SsrcSyncData *sync_data;
       guint32 clock_rate;
+      guint64 diff_ntpnstime, diff_rtptime, diff_rtpnstime, last_sr_ntp_ns_time,
+          last_sr_ext_ts;
 
       if (ssrc == self->priv->sess->remote_video_ssrc) {
-        clock_rate = 90000;
+        sync_data = &self->priv->video_sync;
       } else {
-        clock_rate = 48000;
+        sync_data = &self->priv->audio_sync;
       }
 
+      if (pt != sync_data->pt) {
+        GstCaps *caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
+
+        if (caps != NULL) {
+          GstStructure *st = gst_caps_get_structure (caps, 0);
+
+          if (!gst_structure_get_int (st, "clock-rate", &sync_data->clock_rate)) {
+            GST_ERROR_OBJECT (self,
+                "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
+          } else {
+            sync_data->pt = pt;
+          }
+
+          gst_caps_unref (caps);
+        } else {
+          GST_ERROR_OBJECT (self,
+              "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
+        }
+      }
+
+      clock_rate = sync_data->clock_rate;
+
       if (g_once_init_enter (&self->priv->init_stats)) {
-        GDateTime *datetime = g_date_time_new_now_local ();
-        gchar *date_str = g_date_time_format (datetime, "%Y%m%d%H%M%S");
+        GDateTime *datetime;
+        gchar *date_str;
         gchar *stats_file_name;
 
+        if (!create_stats_files) {
+          goto init_end;
+        }
+
+        datetime = g_date_time_new_now_local ();
+        date_str = g_date_time_format (datetime, "%Y%m%d%H%M%S");
         g_date_time_unref (datetime);
+
         stats_file_name =
             g_strdup_printf ("%s%s_%p.csv", STATS_DIR, date_str, self);
         g_free (date_str);
@@ -1805,20 +1852,63 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         if (self->priv->stats_file == NULL) {
           GST_ERROR_OBJECT (self, "Stats file cannot be created");
         } else {
-          g_fprintf (self->priv->stats_file, "SSRC,CLOCK_RATE,PTS,DTS,RTP\n");
+          g_fprintf (self->priv->stats_file,
+              "SSRC,CLOCK_RATE,PTS,DTS,RTP,NTP_SR,RTP_SR\n");
         }
 
       init_error:
         g_free (stats_file_name);
+      init_end:
         g_once_init_leave (&self->priv->init_stats, 1);
       }
 
+      gst_rtp_buffer_ext_timestamp (&sync_data->ext_ts, rtp_time);
+
+      g_mutex_lock (&self->priv->sync_mutex);
+
+      if (self->priv->base_sync_time != 0 && sync_data->last_sr_ext_ts != 0) {
+        // Perform bufffer synchronization
+        buff = gst_buffer_make_writable (buff);
+        GST_BUFFER_PTS (buff) = self->priv->base_sync_time;
+
+        if (sync_data->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
+          diff_ntpnstime =
+              sync_data->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
+          GST_BUFFER_PTS (buff) += diff_ntpnstime;
+        } else if (sync_data->last_sr_ntp_ns_time <
+            self->priv->base_ntp_ns_time) {
+          diff_ntpnstime =
+              self->priv->base_ntp_ns_time - sync_data->last_sr_ntp_ns_time;
+          GST_BUFFER_PTS (buff) -= diff_ntpnstime;
+        }
+
+        if (sync_data->ext_ts > sync_data->last_sr_ext_ts) {
+          diff_rtptime = sync_data->ext_ts - sync_data->last_sr_ext_ts;
+          diff_rtpnstime =
+              gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
+              sync_data->clock_rate);
+          GST_BUFFER_PTS (buff) += diff_rtpnstime;
+        } else if (sync_data->ext_ts < sync_data->last_sr_ext_ts) {
+          diff_rtptime = sync_data->last_sr_ext_ts - sync_data->ext_ts;
+          diff_rtpnstime =
+              gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
+              sync_data->clock_rate);
+          GST_BUFFER_PTS (buff) -= diff_rtpnstime;
+        }
+      }
+
+      last_sr_ntp_ns_time = sync_data->last_sr_ntp_ns_time;
+      last_sr_ext_ts = sync_data->last_sr_ext_ts;
+      g_mutex_unlock (&self->priv->sync_mutex);
+
+      // Write stats if enabled
       if (self->priv->stats_file) {
         g_fprintf (self->priv->stats_file,
             "%" G_GUINT32_FORMAT ",%" G_GUINT32_FORMAT ",%" G_GUINT64_FORMAT
-            ",%" G_GUINT64_FORMAT ",%" G_GUINT32_FORMAT "\n", ssrc, clock_rate,
-            GST_BUFFER_PTS (buff), GST_BUFFER_DTS (buff),
-            gst_rtp_buffer_get_timestamp (&rtp));
+            ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT
+            ",%" G_GUINT64_FORMAT "\n", ssrc, clock_rate, GST_BUFFER_PTS (buff),
+            GST_BUFFER_DTS (buff), sync_data->ext_ts, last_sr_ntp_ns_time,
+            last_sr_ext_ts);
       }
 
       gst_rtp_buffer_unmap (&rtp);
@@ -1831,6 +1921,90 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   }
 
   return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn
+rtcp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) | GST_PAD_PROBE_TYPE_BUFFER) {
+    KmsBaseRtpEndpoint *self = user_data;
+    GstBuffer *buff = gst_pad_probe_info_get_buffer (info);
+    GstRTCPBuffer rtcp = { 0 };
+
+    if (gst_rtcp_buffer_map (buff, GST_MAP_READ, &rtcp)) {
+      GstRTCPPacket packet;
+      GstRTCPType type;
+      guint32 ssrc, rtptime;
+      guint64 ntptime, ntpnstime;
+      SsrcSyncData *sync_data;
+
+      if (!gst_rtcp_buffer_get_first_packet (&rtcp, &packet)) {
+        GST_WARNING_OBJECT (pad, "Empty buffer");
+        goto unmap;
+      }
+
+      type = gst_rtcp_packet_get_type (&packet);
+
+      if (type != GST_RTCP_TYPE_SR) {
+        GST_ERROR_OBJECT (pad, "Received RTCP buffer of type: %d", type);
+        goto unmap;
+      }
+
+      gst_rtcp_packet_sr_get_sender_info (&packet, &ssrc, &ntptime, &rtptime,
+          NULL, NULL);
+
+      if (ssrc == self->priv->sess->remote_video_ssrc) {
+        sync_data = &self->priv->video_sync;
+      } else {
+        sync_data = &self->priv->audio_sync;
+      }
+
+      /* convert ntptime to nanoseconds */
+      ntpnstime =
+          gst_util_uint64_scale (ntptime, GST_SECOND,
+          (G_GINT64_CONSTANT (1) << 32));
+
+      g_mutex_lock (&self->priv->sync_mutex);
+      if (g_once_init_enter (&self->priv->base_sync_time)) {
+        GstClockTime base_time =
+            gst_clock_get_time (GST_ELEMENT (self)->clock) -
+            GST_ELEMENT (self)->base_time;
+
+        self->priv->base_ntp_ns_time = ntpnstime;
+        g_once_init_leave (&self->priv->base_sync_time, base_time);
+      }
+
+      sync_data->last_sr_ext_ts =
+          gst_rtp_buffer_ext_timestamp (&sync_data->last_sr_ext_ts, rtptime);
+      sync_data->last_sr_ntp_ns_time = ntpnstime;
+      g_mutex_unlock (&self->priv->sync_mutex);
+
+      GST_DEBUG_OBJECT (pad,
+          "Received RTCP SR packet SSRC: %u, rtptime: %u, ntptime: %lu, ntpnstime: %"
+          GST_TIME_FORMAT, ssrc, rtptime, ntptime, GST_TIME_ARGS (ntpnstime));
+    unmap:
+      gst_rtcp_buffer_unmap (&rtcp);
+    } else {
+      GST_WARNING_OBJECT (self, "Buffer cannot be mapped");
+    }
+
+  } else {
+    GST_WARNING ("Buffer list not supported!!");
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+static void
+pad_added_jb (GstElement * jitterbuffer, GstPad * new_pad, gpointer self)
+{
+  if (g_strcmp0 (GST_OBJECT_NAME (new_pad), "sink_rtcp") != 0) {
+    return;
+  }
+
+  gst_pad_add_probe (new_pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      rtcp_probe, self, NULL);
 }
 
 static void
@@ -1856,6 +2030,8 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
       GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       timestamps_probe, self, NULL);
   g_object_unref (src_pad);
+
+  g_signal_connect (jitterbuffer, "pad-added", G_CALLBACK (pad_added_jb), self);
 
   KMS_ELEMENT_LOCK (self);
 
@@ -2340,6 +2516,8 @@ kms_base_rtp_endpoint_dispose (GObject * gobject)
 
   rtp_media_config_unref (self->priv->audio_config);
   rtp_media_config_unref (self->priv->video_config);
+
+  g_mutex_free (&self->priv->sync_mutex);
 
   G_OBJECT_CLASS (kms_base_rtp_endpoint_parent_class)->dispose (gobject);
 }
@@ -3201,6 +3379,12 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->min_port = DEFAULT_MIN_PORT;
   self->priv->max_port = DEFAULT_MAX_PORT;
+
+  // As default pt is 0 default clockrate should be 8000
+  self->priv->audio_sync.clock_rate = 8000;
+  self->priv->video_sync.clock_rate = 8000;
+
+  g_mutex_init (&self->priv->sync_mutex);
 }
 
 static void
