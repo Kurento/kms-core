@@ -75,6 +75,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define DEFAULT_MIN_PORT 1
 #define DEFAULT_MAX_PORT G_MAXUINT16
 
+#define PICTURE_ID_15_BIT 2
+
 #define index_of(str,chr) ({  \
   gint __pos;                 \
   gchar *__c;                 \
@@ -1170,6 +1172,15 @@ gst_base_rtp_get_payloader_for_caps (GstCaps * caps)
       "config-interval");
   if (pspec != NULL && G_PARAM_SPEC_VALUE_TYPE (pspec) == G_TYPE_UINT) {
     g_object_set (payloader, "config-interval", 1, NULL);
+  }
+
+  pspec =
+      g_object_class_find_property (G_OBJECT_GET_CLASS (payloader),
+      "picture-id-mode");
+  if (pspec != NULL && G_TYPE_IS_ENUM (G_PARAM_SPEC_VALUE_TYPE (pspec))) {
+    /* Set picture id so that remote peer can determine continuity if there */
+    /* are lost FEC packets and if it has to NACK them */
+    g_object_set (payloader, "picture-id-mode", PICTURE_ID_15_BIT, NULL);
   }
 
 end:
