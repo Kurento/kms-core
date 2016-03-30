@@ -587,10 +587,26 @@ static gint
 kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
+  GError *err = NULL;
   SdpHandler *sdp_handler;
   const gchar *addr_type;
 
   sdp_handler = kms_sdp_agent_create_media_handler (agent, media, handler);
+
+  if (!kms_sdp_media_handler_set_parent (handler, agent, &err)) {
+    GST_WARNING_OBJECT (agent, "%s", err->message);
+    kms_sdp_agent_remove_media_handler (agent, sdp_handler);
+    g_error_free (err);
+    return -1;
+  }
+
+  if (!kms_sdp_media_handler_set_id (handler, sdp_handler->sdph->id, &err)) {
+    GST_WARNING_OBJECT (agent, "%s", err->message);
+    kms_sdp_agent_remove_media_handler (agent, sdp_handler);
+    kms_sdp_media_handler_remove_parent (handler);
+    g_error_free (err);
+    return -1;
+  }
 
   agent->priv->handlers = g_slist_append (agent->priv->handlers, sdp_handler);
 
@@ -654,6 +670,45 @@ kms_sdp_agent_remove_handler_from_groups (KmsSdpAgent * agent,
   }
 }
 
+gint
+kms_sdp_agent_get_handler_index_impl (KmsSdpAgent * agent, gint hid)
+{
+  SdpHandler *sdp_handler;
+  gint index = -1;
+
+  SDP_AGENT_LOCK (agent);
+
+  sdp_handler = kms_sdp_agent_get_handler (agent, hid);
+
+  if (sdp_handler == NULL) {
+    goto end;
+  }
+
+  if (sdp_handler->disabled) {
+    /* Handler is disabled but is still required by the agent. Do not  */
+    /* provide a vaid index in this case so it is not considered for   */
+    /* effective media negotiation any more. */
+    goto end;
+  }
+
+  index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
+
+  if (index >= 0) {
+    goto end;
+  }
+
+  /* Perhaps this handler is offered but not yet negotiated so we get the */
+  /* index which it has been assgined in the offer */
+  if (sdp_handler->offer) {
+    index = sdp_handler->sdph->index;
+  }
+
+end:
+  SDP_AGENT_UNLOCK (agent);
+
+  return index;
+}
+
 gboolean
 kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
 {
@@ -677,6 +732,9 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
     goto end;
   }
 
+  kms_sdp_agent_remove_handler_from_groups (agent, sdp_handler);
+  kms_sdp_media_handler_remove_parent (sdp_handler->sdph->handler);
+
   if (!sdp_handler->sdph->negotiated) {
     /* No previous offer generated so we can just remove the handler */
     kms_sdp_agent_remove_media_handler (agent, sdp_handler);
@@ -684,8 +742,6 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
     /* Desactive handler */
     sdp_handler->disabled = TRUE;
   }
-
-  kms_sdp_agent_remove_handler_from_groups (agent, sdp_handler);
 
 end:
   SDP_AGENT_UNLOCK (agent);
@@ -765,7 +821,10 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   guint index;
 
   if (sdp_handler->disabled) {
-    GST_WARNING ("Removed negotiated media %u, %s", sdp_handler->sdph->index,
+    /* Try to generate an offer to provide a rejected media in the offer. */
+    /* Objects that use the agent could realize this is a fake offer      */
+    /* checking the index attribute of the media handler */
+    GST_DEBUG ("Removed negotiated media %u, %s", sdp_handler->sdph->index,
         sdp_handler->sdph->media);
     media = kms_sdp_agent_get_negotiated_media (agent, sdp_handler, err);
     if (media != NULL) {
@@ -1649,8 +1708,7 @@ update_rejected_medias (KmsSdpAgent * agent, const GstSDPMessage * desc)
     handler = g_slist_nth_data (agent->priv->offer_handlers, i);
 
     if (handler == NULL) {
-      GST_ERROR_OBJECT (agent, "Can not update rejected state for handler %u",
-          i);
+      GST_DEBUG_OBJECT (agent, "No handler for media at position %u", i);
       continue;
     }
 
@@ -1948,6 +2006,7 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
       N_PROPERTIES, obj_properties);
 
   klass->add_proto_handler = kms_sdp_agent_add_proto_handler_impl;
+  klass->get_handler_index = kms_sdp_agent_get_handler_index_impl;
   klass->create_offer = kms_sdp_agent_create_offer_impl;
   klass->create_answer = kms_sdp_agent_create_answer_impl;
   klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
@@ -2139,4 +2198,12 @@ kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid)
   SDP_AGENT_UNLOCK (agent);
 
   return ret;
+}
+
+gint
+kms_sdp_agent_get_handler_index (KmsSdpAgent * agent, gint hid)
+{
+  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
+
+  return KMS_SDP_AGENT_GET_CLASS (agent)->get_handler_index (agent, hid);
 }

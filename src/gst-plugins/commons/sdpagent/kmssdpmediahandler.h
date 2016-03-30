@@ -73,6 +73,7 @@ struct _KmsSdpMediaHandlerClass
   GObjectClass parent_class;
 
   /* public methods */
+  gboolean (*set_id) (KmsSdpMediaHandler *handler, guint id, GError **error);
   GstSDPMedia * (*create_offer) (KmsSdpMediaHandler *handler, const gchar *media, GError **error);
   GstSDPMedia * (*create_answer) (KmsSdpMediaHandler *handler, SdpMessageContext *ctx, const GstSDPMedia * offer, GError **error);
   gboolean (*process_answer) (KmsSdpMediaHandler *handler, const GstSDPMedia * answer, GError **error);
@@ -100,6 +101,9 @@ gboolean kms_sdp_media_handler_process_answer (KmsSdpMediaHandler *handler, cons
 void kms_sdp_media_handler_add_bandwidth (KmsSdpMediaHandler *handler, const gchar *bwtype, guint bandwidth);
 gboolean kms_sdp_media_handler_manage_protocol (KmsSdpMediaHandler *handler, const gchar *protocol);
 gboolean kms_sdp_media_handler_add_media_extension (KmsSdpMediaHandler *handler, KmsISdpMediaExtension *ext);
+
+void kms_sdp_media_handler_remove_parent (KmsSdpMediaHandler *handler);
+gboolean kms_sdp_media_handler_set_id (KmsSdpMediaHandler *handler, guint id, GError **error);
 
 G_END_DECLS
 

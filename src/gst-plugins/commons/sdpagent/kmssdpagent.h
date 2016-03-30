@@ -90,6 +90,7 @@ struct _KmsSdpAgentClass
 
   /* methods */
   gint (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
+  gint (*get_handler_index) (KmsSdpAgent * agent, gint hid);
   GstSDPMessage *(*create_offer) (KmsSdpAgent * agent, GError **error);
   SdpMessageContext *(*create_answer) (KmsSdpAgent * agent, GError **error);
   gboolean (*cancel_offer) (KmsSdpAgent * agent, GError **error);
@@ -107,6 +108,7 @@ GType kms_sdp_agent_get_type ();
 KmsSdpAgent * kms_sdp_agent_new ();
 gint kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
 gboolean kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid);
+gint kms_sdp_agent_get_handler_index (KmsSdpAgent * agent, gint hid);
 SdpMessageContext * kms_sdp_agent_create_answer (KmsSdpAgent * agent, GError **error);
 gboolean kms_sdpagent_cancel_offer (KmsSdpAgent * agent, GError **error);
 GstSDPMessage * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
@@ -127,6 +129,8 @@ void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
                                              KmsSdpAgentConfigureMediaCallback callback,
                                              gpointer user_data,
                                              GDestroyNotify destroy);
+
+gboolean kms_sdp_media_handler_set_parent (KmsSdpMediaHandler *handler, KmsSdpAgent * parent, GError **error);
 
 G_END_DECLS
 
