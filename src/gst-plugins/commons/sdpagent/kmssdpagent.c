@@ -765,7 +765,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   guint index;
 
   if (sdp_handler->disabled) {
-    GST_WARNING ("Removed nedotiated media %u, %s", sdp_handler->sdph->index,
+    GST_WARNING ("Removed negotiated media %u, %s", sdp_handler->sdph->index,
         sdp_handler->sdph->media);
     media = kms_sdp_agent_get_negotiated_media (agent, sdp_handler, err);
     if (media != NULL) {
