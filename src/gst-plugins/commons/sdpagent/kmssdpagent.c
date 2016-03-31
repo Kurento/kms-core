@@ -1486,7 +1486,6 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 answer:
   {
     SdpMediaConfig *mconf;
-    gboolean do_call = TRUE;
 
     if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {
       gst_sdp_media_copy (answer_media, &sdp_handler->unsupported_media);
@@ -1498,7 +1497,7 @@ answer:
       goto end;
     }
 
-    if (do_call && data->agent->priv->configure_media_callback_data != NULL) {
+    if (data->agent->priv->configure_media_callback_data != NULL) {
       data->agent->priv->configure_media_callback_data->callback (data->agent,
           mconf, data->agent->priv->configure_media_callback_data->user_data);
     }
