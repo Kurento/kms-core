@@ -518,7 +518,6 @@ collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
   n = gst_structure_n_fields (stats);
 
   for (i = 0; i < n; i++) {
-    std::shared_ptr<RTCStats> rtcStats;
     const GValue *value;
     const gchar *name;
 
