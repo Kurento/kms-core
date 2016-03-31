@@ -960,7 +960,7 @@
        "properties": [
          {
            "name": "name",
-           "doc": "The pad name",
+           "doc": "The identifier of the media stream",
            "type": "String"
          },
          {
