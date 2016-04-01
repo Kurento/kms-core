@@ -123,6 +123,7 @@ gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, gui
 gboolean kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid, guint hid);
 
 typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
+                                                   KmsSdpMediaHandler *handler,
                                                    SdpMediaConfig *mconf,
                                                    gpointer user_data);
 void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,

@@ -112,11 +112,18 @@ struct _KmsBaseSdpEndpointPrivate
 
 static gboolean
 kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
-    SdpMediaConfig * mconf, gpointer user_data)
+    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf, gpointer user_data)
 {
   KmsSdpSession *sess = KMS_SDP_SESSION (user_data);
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (sess->ep));
+  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
+  gint id, index;
+
+  g_object_get (handler, "id", &id, "index", &index, NULL);
+
+  GST_LOG ("Handler id: %d, SDP index: %d, Media: %s", id, index,
+      gst_sdp_media_get_media (media));
 
   return base_sdp_endpoint_class->configure_media (sess->ep, sess, mconf);
 }

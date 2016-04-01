@@ -960,7 +960,8 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 
   if (data->agent->priv->configure_media_callback_data != NULL) {
     data->agent->priv->configure_media_callback_data->callback (data->agent,
-        m_conf, data->agent->priv->configure_media_callback_data->user_data);
+        sdp_handler->sdph->handler, m_conf,
+        data->agent->priv->configure_media_callback_data->user_data);
   }
 }
 
@@ -1425,6 +1426,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
   GstSDPMedia *answer_media = NULL, *offer_media;
+  SdpMediaConfig *mconf = NULL;
   SdpHandler *sdp_handler;
   GError **err = data->err;
   gboolean ret = TRUE;
@@ -1484,23 +1486,13 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   gst_sdp_media_free (offer_media);
 
 answer:
-  {
-    SdpMediaConfig *mconf;
+  if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {
+    gst_sdp_media_copy (answer_media, &sdp_handler->unsupported_media);
+  }
 
-    if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {
-      gst_sdp_media_copy (answer_media, &sdp_handler->unsupported_media);
-    }
-
-    mconf = kms_sdp_message_context_add_media (data->ctx, answer_media, err);
-    if (mconf == NULL) {
-      ret = FALSE;
-      goto end;
-    }
-
-    if (data->agent->priv->configure_media_callback_data != NULL) {
-      data->agent->priv->configure_media_callback_data->callback (data->agent,
-          mconf, data->agent->priv->configure_media_callback_data->user_data);
-    }
+  mconf = kms_sdp_message_context_add_media (data->ctx, answer_media, err);
+  if (mconf == NULL) {
+    ret = FALSE;
   }
 
 end:
@@ -1518,6 +1510,12 @@ end:
     sdp_handler->sdph->index = data->index;
     agent->priv->offer_handlers = g_slist_append (agent->priv->offer_handlers,
         sdp_handler);
+  }
+
+  if (mconf != NULL && data->agent->priv->configure_media_callback_data != NULL) {
+    data->agent->priv->configure_media_callback_data->callback (data->agent,
+        sdp_handler->sdph->handler, mconf,
+        data->agent->priv->configure_media_callback_data->user_data);
   }
 
   /* Update index for next media */
