@@ -304,14 +304,34 @@ check_unsupported_medias (const GstSDPMessage * offer,
   }
 }
 
+static KmsSdpMediaHandler *
+rejected_on_handler_required (KmsSdpAgent * agent, const GstSDPMedia * media,
+    gpointer user_data)
+{
+  gint *rejected = user_data;
+
+  (*rejected)++;
+
+  GST_DEBUG_OBJECT (agent, "Ignore %s", gst_sdp_media_as_text (media));
+
+  return NULL;
+}
+
 GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
 {
   KmsSdpAgent *answerer;
   KmsSdpMediaHandler *handler;
-  gint id;
+  KmsSdpAgentCallbacks callbacks;
+  gint id, rejected = 0;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  callbacks.on_handler_required = rejected_on_handler_required;
+  callbacks.on_media_answer = NULL;
+  callbacks.on_media_offer = NULL;
+
+  kms_sdp_agent_set_callbacks (answerer, &callbacks, &rejected, NULL);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
@@ -325,6 +345,7 @@ GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
       check_unsupported_medias, NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id) != 0);
+  fail_unless (rejected == 2);
 
   g_object_unref (answerer);
 }

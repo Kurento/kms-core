@@ -920,6 +920,38 @@ end:
 }
 
 static void
+kms_sdp_agent_fire_on_offer_callback (KmsSdpAgent * agent,
+    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf)
+{
+  /* deprecated */
+  if (agent->priv->configure_media_callback_data != NULL) {
+    agent->priv->configure_media_callback_data->callback (agent, handler, mconf,
+        agent->priv->configure_media_callback_data->user_data);
+  }
+
+  if (agent->priv->callbacks.callbacks.on_media_offer != NULL) {
+    agent->priv->callbacks.callbacks.on_media_offer (agent, handler, mconf,
+        agent->priv->callbacks.user_data);
+  }
+}
+
+static void
+kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
+    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf)
+{
+  /* deprecated */
+  if (agent->priv->configure_media_callback_data != NULL) {
+    agent->priv->configure_media_callback_data->callback (agent, handler, mconf,
+        agent->priv->configure_media_callback_data->user_data);
+  }
+
+  if (agent->priv->callbacks.callbacks.on_media_answer != NULL) {
+    agent->priv->callbacks.callbacks.on_media_answer (agent, handler, mconf,
+        agent->priv->callbacks.user_data);
+  }
+}
+
+static void
 create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
 {
   SdpMediaConfig *m_conf;
@@ -971,11 +1003,8 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
     }
   }
 
-  if (data->agent->priv->configure_media_callback_data != NULL) {
-    data->agent->priv->configure_media_callback_data->callback (data->agent,
-        sdp_handler->sdph->handler, m_conf,
-        data->agent->priv->configure_media_callback_data->user_data);
-  }
+  kms_sdp_agent_fire_on_offer_callback (data->agent, sdp_handler->sdph->handler,
+      m_conf);
 }
 
 static gboolean
@@ -1301,6 +1330,53 @@ struct SdpAnswerData
 };
 
 static SdpHandler *
+kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
+{
+  KmsSdpMediaHandler *handler;
+  gchar *proto;
+  gint hid;
+
+  if (agent->priv->callbacks.callbacks.on_handler_required == NULL) {
+    return NULL;
+  }
+
+  handler = agent->priv->callbacks.callbacks.on_handler_required (agent, media,
+      agent->priv->callbacks.user_data);
+
+  if (handler == NULL) {
+    return NULL;
+  }
+
+  g_object_get (handler, "proto", &proto, NULL);
+
+  if (proto == NULL) {
+    GST_WARNING_OBJECT (agent, "Handler's proto can't be NULL");
+    g_object_unref (handler);
+    return NULL;
+  }
+
+  g_free (proto);
+
+  if (!kms_sdp_media_handler_manage_protocol (handler,
+          gst_sdp_media_get_proto (media))) {
+    GST_WARNING_OBJECT (agent, "Handler can not manage media: %s",
+        gst_sdp_media_get_proto (media));
+    g_object_unref (handler);
+    return NULL;
+  }
+
+  hid = kms_sdp_agent_append_media_handler (agent,
+      gst_sdp_media_get_proto (media), handler);
+
+  if (hid < 0) {
+    g_object_unref (handler);
+    return NULL;
+  } else {
+    return kms_sdp_agent_get_handler (agent, hid);
+  }
+}
+
+static SdpHandler *
 kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
     const GstSDPMedia * media)
 {
@@ -1326,10 +1402,15 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
       continue;
     }
 
+    if (g_slist_find (agent->priv->offer_handlers, sdp_handler)) {
+      /* Handler used for answering other media */
+      continue;
+    }
+
     return sdp_handler;
   }
 
-  return NULL;
+  return kms_sdp_agent_request_handler (agent, media);
 }
 
 static SdpHandler *
@@ -1525,10 +1606,9 @@ end:
         sdp_handler);
   }
 
-  if (mconf != NULL && data->agent->priv->configure_media_callback_data != NULL) {
-    data->agent->priv->configure_media_callback_data->callback (data->agent,
-        sdp_handler->sdph->handler, mconf,
-        data->agent->priv->configure_media_callback_data->user_data);
+  if (mconf != NULL) {
+    kms_sdp_agent_fire_on_answer_callback (data->agent,
+        sdp_handler->sdph->handler, mconf);
   }
 
   /* Update index for next media */

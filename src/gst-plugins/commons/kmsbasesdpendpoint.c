@@ -128,11 +128,48 @@ kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
   return base_sdp_endpoint_class->configure_media (sess->ep, sess, mconf);
 }
 
+static KmsSdpMediaHandler *
+on_handler_required_cb (KmsSdpAgent * agent, const GstSDPMedia * media,
+    gpointer user_data)
+{
+  KmsSdpSession *session = KMS_SDP_SESSION (user_data);
+
+  GST_LOG_OBJECT (session, "Ignored handler request for media '%s'",
+      gst_sdp_media_as_text (media));
+
+  return NULL;
+}
+
+static gboolean
+on_media_answer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
+    SdpMediaConfig * mconf, gpointer user_data)
+{
+  KmsSdpSession *session = KMS_SDP_SESSION (user_data);
+
+  GST_LOG_OBJECT (session, "Answer media");
+
+  return kms_base_sdp_endpoint_configure_media (agent, handler, mconf,
+      user_data);
+}
+
+static gboolean
+on_media_offer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
+    SdpMediaConfig * mconf, gpointer user_data)
+{
+  KmsSdpSession *session = KMS_SDP_SESSION (user_data);
+
+  GST_LOG_OBJECT (session, "Offered media");
+
+  return kms_base_sdp_endpoint_configure_media (agent, handler, mconf,
+      user_data);
+}
+
 static const gchar *
 kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));
+  KmsSdpAgentCallbacks callbacks;
   gint id;
   gchar *ret = NULL;
   KmsSdpSession *sess = NULL;
@@ -160,8 +197,11 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
   gst_bin_add (GST_BIN (self), GST_ELEMENT (sess));
   gst_element_sync_state_with_parent (GST_ELEMENT (sess));
 
-  kms_sdp_agent_set_configure_media_callback (sess->agent,
-      kms_base_sdp_endpoint_configure_media, sess, NULL);
+  callbacks.on_handler_required = on_handler_required_cb;
+  callbacks.on_media_answer = on_media_answer_cb;
+  callbacks.on_media_offer = on_media_offer_cb;
+
+  kms_sdp_agent_set_callbacks (sess->agent, &callbacks, sess, NULL);
 
   g_hash_table_insert (self->priv->sessions, g_strdup (sess->id_str), sess);
 
