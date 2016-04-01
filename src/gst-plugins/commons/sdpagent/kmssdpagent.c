@@ -185,6 +185,13 @@ typedef struct _SdpSessionDescription
   gchar *version;
 } SdpSessionDescription;
 
+typedef struct _KmsSdpAgentCallbacksData
+{
+  KmsSdpAgentCallbacks callbacks;
+  gpointer user_data;
+  GDestroyNotify destroy;
+} KmsSdpAgentCallbacksData;
+
 struct _KmsSdpAgentPrivate
 {
   KmsSdpGroupManager *group_manager;
@@ -200,7 +207,8 @@ struct _KmsSdpAgentPrivate
   guint hids;                   /* handler ids */
   guint gids;                   /* group ids */
 
-  KmsSdpAgentConfigureMediaCallbackData *configure_media_callback_data;
+  KmsSdpAgentConfigureMediaCallbackData *configure_media_callback_data; /* deprecated */
+  KmsSdpAgentCallbacksData callbacks;
 
   GRecMutex mutex;
 
@@ -446,8 +454,13 @@ kms_sdp_agent_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  kms_sdp_agent_configure_media_callback_data_clear (&self->priv->
-      configure_media_callback_data);
+  kms_sdp_agent_configure_media_callback_data_clear (&self->
+      priv->configure_media_callback_data);
+
+  if (self->priv->callbacks.destroy != NULL &&
+      self->priv->callbacks.user_data != NULL) {
+    self->priv->callbacks.destroy (self->priv->callbacks.user_data);
+  }
 
   if (self->priv->local_description != NULL) {
     kms_sdp_message_context_unref (self->priv->local_description);
@@ -2017,6 +2030,16 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
 }
 
 static void
+kms_sdp_agent_init_callbacks (KmsSdpAgent * self)
+{
+  self->priv->callbacks.user_data = NULL;
+  self->priv->callbacks.destroy = NULL;
+  self->priv->callbacks.callbacks.on_media_answer = NULL;
+  self->priv->callbacks.callbacks.on_media_offer = NULL;
+  self->priv->callbacks.callbacks.on_handler_required = NULL;
+}
+
+static void
 kms_sdp_agent_init (KmsSdpAgent * self)
 {
   self->priv = KMS_SDP_AGENT_GET_PRIVATE (self);
@@ -2025,6 +2048,8 @@ kms_sdp_agent_init (KmsSdpAgent * self)
 
   g_rec_mutex_init (&self->priv->mutex);
   self->priv->state = KMS_SDP_AGENT_STATE_UNNEGOTIATED;
+
+  kms_sdp_agent_init_callbacks (self);
 }
 
 KmsSdpAgent *
@@ -2135,6 +2160,35 @@ kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
   SDP_AGENT_UNLOCK (agent);
 
   kms_sdp_agent_configure_media_callback_data_clear (&old_data);
+}
+
+void
+kms_sdp_agent_set_callbacks (KmsSdpAgent * agent,
+    KmsSdpAgentCallbacks * callbacks, gpointer user_data,
+    GDestroyNotify destroy)
+{
+  GDestroyNotify notify;
+  gpointer old_data;
+
+  g_return_if_fail (KMS_IS_SDP_AGENT (agent));
+
+  SDP_AGENT_LOCK (agent);
+
+  notify = agent->priv->callbacks.destroy;
+  old_data = agent->priv->callbacks.user_data;
+
+  agent->priv->callbacks.destroy = destroy;
+  agent->priv->callbacks.user_data = user_data;
+  agent->priv->callbacks.callbacks.on_media_answer = callbacks->on_media_answer;
+  agent->priv->callbacks.callbacks.on_media_offer = callbacks->on_media_offer;
+  agent->priv->callbacks.callbacks.on_handler_required =
+      callbacks->on_handler_required;
+
+  SDP_AGENT_UNLOCK (agent);
+
+  if (notify != NULL && old_data != NULL) {
+    notify (old_data);
+  }
 }
 
 gint

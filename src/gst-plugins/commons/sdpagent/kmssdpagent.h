@@ -117,7 +117,7 @@ gboolean kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessag
 gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, const char *optname1, ...);
 gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
 
-/* Deprecated */
+/* Deprecated begin */
 gint kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent);
 gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid, guint hid);
@@ -130,6 +130,20 @@ void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
                                              KmsSdpAgentConfigureMediaCallback callback,
                                              gpointer user_data,
                                              GDestroyNotify destroy);
+/* Deprecated end */
+
+typedef struct {
+    gboolean (*on_media_offer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
+                                SdpMediaConfig *mconf, gpointer user_data);
+    gboolean (*on_media_answer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
+                                SdpMediaConfig *mconf, gpointer user_data);
+    KmsSdpMediaHandler * (*on_handler_required) (KmsSdpAgent *agent,
+                                                 const GstSDPMedia *media,
+                                                 gpointer user_data);
+} KmsSdpAgentCallbacks;
+
+void kms_sdp_agent_set_callbacks (KmsSdpAgent * agent,
+  KmsSdpAgentCallbacks * callbacks, gpointer user_data, GDestroyNotify destroy);
 
 gboolean kms_sdp_media_handler_set_parent (KmsSdpMediaHandler *handler, KmsSdpAgent * parent, GError **error);
 
