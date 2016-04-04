@@ -48,7 +48,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 
 #define kms_base_rtp_endpoint_parent_class parent_class
 
-static gboolean create_stats_files = FALSE;
+static const gchar *stats_files_dir = NULL;
 
 static void
 kms_i_rtp_session_manager_interface_init (KmsIRtpSessionManagerInterface *
@@ -82,8 +82,6 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
   __pos = (gint)(__c - str);  \
   __pos;                      \
 })
-
-#define STATS_DIR "/tmp/kms_stats/"
 
 typedef struct _KmsSSRCStats KmsSSRCStats;
 struct _KmsSSRCStats
@@ -1829,7 +1827,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         gchar *date_str;
         gchar *stats_file_name;
 
-        if (!create_stats_files) {
+        if (!stats_files_dir) {
           goto init_end;
         }
 
@@ -1838,12 +1836,13 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         g_date_time_unref (datetime);
 
         stats_file_name =
-            g_strdup_printf ("%s%s_%p.csv", STATS_DIR, date_str, self);
+            g_strdup_printf ("%s/%s_%p.csv", stats_files_dir, date_str, self);
         g_free (date_str);
 
-        if (g_mkdir_with_parents (STATS_DIR, 0777) < 0) {
+        if (g_mkdir_with_parents (stats_files_dir, 0777) < 0) {
           GST_ERROR_OBJECT (self,
-              "Directory for stats files cannot be created");
+              "Directory %s for stats files cannot be created",
+              stats_file_name);
           goto init_error;
         }
 
@@ -2961,7 +2960,7 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
 
   g_type_class_add_private (klass, sizeof (KmsBaseRtpEndpointPrivate));
 
-  create_stats_files = g_getenv ("KURENTO_GENERATE_RTP_PTS_STATS") != NULL;
+  stats_files_dir = g_getenv ("KURENTO_GENERATE_RTP_PTS_STATS");
 }
 
 static void
