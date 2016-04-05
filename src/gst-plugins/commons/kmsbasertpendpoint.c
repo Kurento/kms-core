@@ -1788,6 +1788,105 @@ kms_base_rtp_endpoint_change_latency_probe (GstPad * pad,
   return GST_PAD_PROBE_REMOVE;
 }
 
+static void
+init_timestamp_stats_file (KmsBaseRtpEndpoint * self)
+{
+  gchar *stats_file_name;
+  GDateTime *datetime;
+  gchar *date_str;
+
+  if (!stats_files_dir) {
+    GST_DEBUG_OBJECT (self, "Not timestamp file provided");
+    return;
+  }
+
+  datetime = g_date_time_new_now_local ();
+  date_str = g_date_time_format (datetime, "%Y%m%d%H%M%S");
+  g_date_time_unref (datetime);
+
+  stats_file_name =
+      g_strdup_printf ("%s/%s_%p.csv", stats_files_dir, date_str, self);
+  g_free (date_str);
+
+  if (g_mkdir_with_parents (stats_files_dir, 0777) < 0) {
+    GST_ERROR_OBJECT (self,
+        "Directory %s for stats files cannot be created", stats_file_name);
+    goto init_error;
+  }
+
+  self->priv->stats_file = g_fopen (stats_file_name, "w+");
+
+  if (self->priv->stats_file == NULL) {
+    GST_ERROR_OBJECT (self, "Stats file cannot be created");
+  } else {
+    g_fprintf (self->priv->stats_file,
+        "SSRC,CLOCK_RATE,PTS,DTS,RTP,NTP_SR,RTP_SR\n");
+  }
+
+init_error:
+  g_free (stats_file_name);
+}
+
+static void
+kms_base_rtp_endpoint_update_sync_data (KmsBaseRtpEndpoint * self,
+    SsrcSyncData * sync_data, guint8 pt)
+{
+  GstStructure *st;
+  GstCaps *caps;
+
+  caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
+
+  if (caps == NULL) {
+    GST_WARNING_OBJECT (self, "Can not get valid caps for pt %u", pt);
+    return;
+  }
+
+  st = gst_caps_get_structure (caps, 0);
+  if (gst_structure_get_int (st, "clock-rate", &sync_data->clock_rate)) {
+    sync_data->pt = pt;
+  } else {
+    GST_ERROR_OBJECT (self,
+        "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
+  }
+
+  gst_caps_unref (caps);
+}
+
+static GstClockTime
+kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
+    SsrcSyncData * sync_data)
+{
+  GstClockTime pts, diff_ntpnstime, diff_rtptime, diff_rtpnstime;
+
+  pts = self->priv->base_sync_time;
+
+  if (sync_data->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
+    diff_ntpnstime =
+        sync_data->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
+    pts += diff_ntpnstime;
+  } else if (sync_data->last_sr_ntp_ns_time < self->priv->base_ntp_ns_time) {
+    diff_ntpnstime =
+        self->priv->base_ntp_ns_time - sync_data->last_sr_ntp_ns_time;
+    pts -= diff_ntpnstime;
+  }
+
+  if (sync_data->ext_ts > sync_data->last_sr_ext_ts) {
+    diff_rtptime = sync_data->ext_ts - sync_data->last_sr_ext_ts;
+    diff_rtpnstime =
+        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
+        sync_data->clock_rate);
+    pts += diff_rtpnstime;
+  } else if (sync_data->ext_ts < sync_data->last_sr_ext_ts) {
+    diff_rtptime = sync_data->last_sr_ext_ts - sync_data->ext_ts;
+    diff_rtpnstime =
+        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
+        sync_data->clock_rate);
+    pts -= diff_rtpnstime;
+  }
+
+  return pts;
+}
+
 static GstPadProbeReturn
 timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
@@ -1802,8 +1901,12 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       guint32 rtp_time = gst_rtp_buffer_get_timestamp (&rtp);
       SsrcSyncData *sync_data;
       guint32 clock_rate;
-      guint64 diff_ntpnstime, diff_rtptime, diff_rtpnstime, last_sr_ntp_ns_time,
-          last_sr_ext_ts;
+      guint64 last_sr_ntp_ns_time, last_sr_ext_ts;
+
+      if (g_once_init_enter (&self->priv->init_stats)) {
+        init_timestamp_stats_file (self);
+        g_once_init_leave (&self->priv->init_stats, 1);
+      }
 
       if (ssrc == self->priv->sess->remote_video_ssrc) {
         sync_data = &self->priv->video_sync;
@@ -1812,103 +1915,24 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       }
 
       if (pt != sync_data->pt) {
-        GstCaps *caps = kms_base_rtp_endpoint_get_caps_for_pt (self, pt);
-
-        if (caps != NULL) {
-          GstStructure *st = gst_caps_get_structure (caps, 0);
-
-          if (!gst_structure_get_int (st, "clock-rate", &sync_data->clock_rate)) {
-            GST_ERROR_OBJECT (self,
-                "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
-          } else {
-            sync_data->pt = pt;
-          }
-
-          gst_caps_unref (caps);
-        } else {
-          GST_ERROR_OBJECT (self,
-              "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
-        }
+        kms_base_rtp_endpoint_update_sync_data (self, sync_data, pt);
       }
-
-      clock_rate = sync_data->clock_rate;
-
-      if (g_once_init_enter (&self->priv->init_stats)) {
-        GDateTime *datetime;
-        gchar *date_str;
-        gchar *stats_file_name;
-
-        if (!stats_files_dir) {
-          goto init_end;
-        }
-
-        datetime = g_date_time_new_now_local ();
-        date_str = g_date_time_format (datetime, "%Y%m%d%H%M%S");
-        g_date_time_unref (datetime);
-
-        stats_file_name =
-            g_strdup_printf ("%s/%s_%p.csv", stats_files_dir, date_str, self);
-        g_free (date_str);
-
-        if (g_mkdir_with_parents (stats_files_dir, 0777) < 0) {
-          GST_ERROR_OBJECT (self,
-              "Directory %s for stats files cannot be created",
-              stats_file_name);
-          goto init_error;
-        }
-
-        self->priv->stats_file = g_fopen (stats_file_name, "w+");
-
-        if (self->priv->stats_file == NULL) {
-          GST_ERROR_OBJECT (self, "Stats file cannot be created");
-        } else {
-          g_fprintf (self->priv->stats_file,
-              "SSRC,CLOCK_RATE,PTS,DTS,RTP,NTP_SR,RTP_SR\n");
-        }
-
-      init_error:
-        g_free (stats_file_name);
-      init_end:
-        g_once_init_leave (&self->priv->init_stats, 1);
-      }
-
-      gst_rtp_buffer_ext_timestamp (&sync_data->ext_ts, rtp_time);
 
       g_mutex_lock (&self->priv->sync_mutex);
+
+      gst_rtp_buffer_ext_timestamp (&sync_data->ext_ts, rtp_time);
 
       if (self->priv->base_sync_time != 0 && sync_data->last_sr_ext_ts != 0) {
         // Perform bufffer synchronization
         buff = gst_buffer_make_writable (buff);
-        GST_BUFFER_PTS (buff) = self->priv->base_sync_time;
-
-        if (sync_data->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
-          diff_ntpnstime =
-              sync_data->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
-          GST_BUFFER_PTS (buff) += diff_ntpnstime;
-        } else if (sync_data->last_sr_ntp_ns_time <
-            self->priv->base_ntp_ns_time) {
-          diff_ntpnstime =
-              self->priv->base_ntp_ns_time - sync_data->last_sr_ntp_ns_time;
-          GST_BUFFER_PTS (buff) -= diff_ntpnstime;
-        }
-
-        if (sync_data->ext_ts > sync_data->last_sr_ext_ts) {
-          diff_rtptime = sync_data->ext_ts - sync_data->last_sr_ext_ts;
-          diff_rtpnstime =
-              gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
-              sync_data->clock_rate);
-          GST_BUFFER_PTS (buff) += diff_rtpnstime;
-        } else if (sync_data->ext_ts < sync_data->last_sr_ext_ts) {
-          diff_rtptime = sync_data->last_sr_ext_ts - sync_data->ext_ts;
-          diff_rtpnstime =
-              gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
-              sync_data->clock_rate);
-          GST_BUFFER_PTS (buff) -= diff_rtpnstime;
-        }
+        GST_BUFFER_PTS (buff) = kms_base_rtp_endpoint_calculate_new_pts (self,
+            sync_data);
       }
 
       last_sr_ntp_ns_time = sync_data->last_sr_ntp_ns_time;
       last_sr_ext_ts = sync_data->last_sr_ext_ts;
+      clock_rate = sync_data->clock_rate;
+
       g_mutex_unlock (&self->priv->sync_mutex);
 
       // Write stats if enabled
