@@ -75,10 +75,9 @@ public:
 
   virtual void Serialize (JsonSerializer &serializer);
 
-protected:
-
   template <class T>
-  T getConfigValue (const std::string &key)
+  static T getConfigValue (const boost::property_tree::ptree &config,
+                           const std::string &key)
   {
     auto child = config.get_child (key);
     std::stringstream ss;
@@ -101,10 +100,11 @@ protected:
   }
 
   template <class T>
-  T getConfigValue (const std::string &key, T defaultValue)
+  static T getConfigValue (const boost::property_tree::ptree &config,
+                           const std::string &key, T defaultValue)
   {
     try {
-      return getConfigValue<T> (key);
+      return getConfigValue<T> (config, key);
     } catch (boost::property_tree::ptree_bad_path &e) {
       /* This case is expected, the config does not have the requested key */
     } catch (KurentoException &e) {
@@ -114,47 +114,36 @@ protected:
     }
 
     return defaultValue;
+  }
+
+protected:
+
+  template <class T>
+  T getConfigValue (const std::string &key)
+  {
+    return getConfigValue <T> (config, key);
+  }
+
+  template <class T>
+  T getConfigValue (const std::string &key, T defaultValue)
+  {
+    return getConfigValue <T> (config, key, defaultValue);
   }
 
   template <class T, class C>
   T getConfigValue (const std::string &key)
   {
-    auto child = config.get_child ("modules." + dynamic_cast <C *>
-                                   (this)->getModule() + "."
-                                   + dynamic_cast <C *> (this)->getType() + "." + key);
-    std::stringstream ss;
-    Json::Value val;
-    Json::Reader reader;
-    kurento::JsonSerializer serializer (false);
-    boost::property_tree::ptree array;
-
-    array.push_back (std::make_pair ("val", child) );
-    boost::property_tree::write_json (ss, array);
-
-    reader.parse (ss.str(), val);
-
-    T ret {};
-
-    serializer.JsonValue = val;
-    serializer.Serialize ("val", ret);
-
-    return ret;
+    return getConfigValue <T> ("modules." + dynamic_cast <C *>
+                               (this)->getModule() + "."
+                               + dynamic_cast <C *> (this)->getType() + "." + key);
   }
 
   template <class T, class C>
   T getConfigValue (const std::string &key, T defaultValue)
   {
-    try {
-      return getConfigValue<T, C> (key);
-    } catch (boost::property_tree::ptree_bad_path &e) {
-      /* This case is expected, the config does not have the requested key */
-    } catch (KurentoException &e) {
-      GST_WARNING ("Posible error deserializing %s from config", key.c_str() );
-    } catch (std::exception &e) {
-      GST_WARNING ("Unknown error getting%s from config", key.c_str() );
-    }
-
-    return defaultValue;
+    return getConfigValue <T> ("modules." + dynamic_cast <C *>
+                               (this)->getModule() + "."
+                               + dynamic_cast <C *> (this)->getType() + "." + key, defaultValue);
   }
 
   /*
