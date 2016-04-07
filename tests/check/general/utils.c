@@ -97,6 +97,85 @@ GST_START_TEST (check_sdp_utils_media_get_fid_ssrc)
 
 GST_END_TEST;
 
+GMainLoop *loop = NULL;
+gint callbacks = 2;
+gint destroy_count = 0;
+
+static gboolean
+quit_main_loop_idle (gpointer data)
+{
+  g_main_loop_quit (loop);
+  return FALSE;
+}
+
+static gboolean
+test_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
+{
+  gint *var = pad->eventdata;
+
+  GST_DEBUG_OBJECT (pad, "Event received: %d", *var);
+
+  /* Decrement var data */
+  (*var)--;
+
+  if (g_atomic_int_dec_and_test (&callbacks)) {
+    /* Finish test */
+    g_idle_add (quit_main_loop_idle, NULL);
+  }
+
+  return TRUE;
+}
+
+static void
+test_destroy_function (gpointer data)
+{
+  g_atomic_int_inc (&destroy_count);
+}
+
+GST_START_TEST (check_kms_utils_set_pad_event_function_full)
+{
+  GstElement *e = gst_element_factory_make ("fakesink", NULL);
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  gint v1 = 1, v2 = 2;
+  GstPad *pad;
+
+  loop = g_main_loop_new (NULL, FALSE);
+
+  pad = gst_element_get_static_pad (e, "sink");
+
+  /* overwrite previous event function */
+  kms_utils_set_pad_event_function_full (pad, test_event_function, &v1,
+      test_destroy_function, FALSE);
+  /* chain with previous event function */
+  kms_utils_set_pad_event_function_full (pad, test_event_function, &v2,
+      test_destroy_function, TRUE);
+
+  g_object_unref (pad);
+
+  gst_bin_add (GST_BIN (pipeline), e);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* Test chained callbacks */
+  fail_if (!gst_pad_send_event (pad, gst_event_new_eos ()));
+
+  GST_DEBUG ("Pipeline running");
+  g_main_loop_run (loop);
+
+  GST_DEBUG ("Test finished");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_if (destroy_count != 2);
+
+  /* Check manipullation of data */
+  fail_if (v1 != 0);
+  fail_if (v2 != 1);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 utils_suite (void)
@@ -108,6 +187,7 @@ utils_suite (void)
   tcase_add_test (tc_chain, check_urls);
 
   tcase_add_test (tc_chain, check_sdp_utils_media_get_fid_ssrc);
+  tcase_add_test (tc_chain, check_kms_utils_set_pad_event_function_full);
 
   return s;
 }

@@ -1022,6 +1022,94 @@ kms_utils_generate_fingerprint_from_pem (const gchar * pem)
   return ret;
 }
 
+typedef struct _KmsEventData KmsEventData;
+struct _KmsEventData
+{
+  GstPadEventFunction user_func;
+  gpointer user_data;
+  GDestroyNotify user_notify;
+  KmsEventData *next;
+};
+
+static void
+kms_event_data_destroy (gpointer user_data)
+{
+  KmsEventData *data = user_data;
+
+  if (data->next != NULL) {
+    kms_event_data_destroy (data->next);
+  }
+
+  if (data->user_notify != NULL) {
+    data->user_notify (data->user_data);
+  }
+
+  g_slice_free (KmsEventData, data);
+}
+
+static gboolean
+kms_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
+{
+  KmsEventData *data, *first = pad->eventdata;
+  gboolean ret = TRUE;
+
+  for (data = first; data != NULL && ret; data = data->next) {
+    if (data->user_func != NULL) {
+      /* Set data expected by the callback */
+      pad->eventdata = data->user_data;
+      ret = data->user_func (pad, parent, event);
+    }
+  }
+
+  /* Restore pad event data */
+  pad->eventdata = first;
+
+  return ret;
+}
+
+void
+kms_utils_set_pad_event_function_full (GstPad * pad, GstPadEventFunction event,
+    gpointer user_data, GDestroyNotify notify, gboolean chain_callbacks)
+{
+  GstPadEventFunction prev_func;
+  KmsEventData *data;
+
+  /* Create new data */
+  data = g_slice_new0 (KmsEventData);
+  data->user_func = event;
+  data->user_data = user_data;
+  data->user_notify = notify;
+
+  if (!chain_callbacks) {
+    goto set_func;
+  }
+
+  prev_func = GST_PAD_EVENTFUNC (pad);
+
+  if (prev_func != kms_event_function) {
+    /* Keep first data to chain to it */
+    KmsEventData *first;
+
+    first = g_slice_new0 (KmsEventData);
+    first->user_func = GST_PAD_EVENTFUNC (pad);
+    first->user_data = pad->eventdata;
+    first->user_notify = pad->eventnotify;
+    data->next = first;
+  } else {
+    /* Point to previous data to be chained  */
+    data->next = pad->eventdata;
+  }
+
+  /* Do not destroy previous data when set_event is called */
+  pad->eventnotify = NULL;
+  pad->eventdata = NULL;
+
+set_func:
+
+  gst_pad_set_event_function_full (pad, kms_event_function, data,
+      kms_event_data_destroy);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void
