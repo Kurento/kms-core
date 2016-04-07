@@ -18,6 +18,7 @@
 #endif
 
 #include "kmstreebin.h"
+#include "kmsutils.h"
 
 #define GST_DEFAULT_NAME "treebin"
 #define GST_CAT_DEFAULT kms_tree_bin_debug
@@ -135,7 +136,8 @@ tee_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
     kms_tree_bin_set_input_caps (self, caps);
   }
 
-  return gst_pad_event_default (pad, parent, event);
+  /* Return TRUE so that next handler chained can manage this stuff too */
+  return TRUE;
 }
 
 static void
@@ -166,7 +168,8 @@ kms_tree_bin_init (KmsTreeBin * self)
   sink = gst_element_get_static_pad (self->priv->output_tee, "sink");
   if (sink) {
     gst_pad_set_query_function (sink, tee_query_function);
-    gst_pad_set_event_function (sink, tee_event_function);
+    kms_utils_set_pad_event_function_full (sink, tee_event_function, NULL, NULL,
+        TRUE);
     g_object_unref (sink);
   }
 
