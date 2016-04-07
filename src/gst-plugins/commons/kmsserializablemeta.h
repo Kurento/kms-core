@@ -49,6 +49,19 @@ GType kms_serializable_meta_api_get_type (void);
 const GstMetaInfo *kms_serializable_meta_get_info (void);
 #define KMS_SERIALIZABLE_META_INFO (kms_serializable_meta_get_info ())
 
+
+/**
+ * kms_buffer_add_serializable_meta
+ *
+ * If the buffer doesn't contains any metadata of type KMS_SERIALIZABLE_META_INFO,
+ * the data will be inserted, else the data contained in the buffer is merged
+ * with the new data passed by the user. In case of collision, the old data
+ * will be overwritten.
+ *
+ * @param buffer: the buffer where add the metadata
+ * @param data: the structure to add as metadata
+ * @return The metadata inserted in the buffer
+ */
 KmsSerializableMeta * kms_buffer_add_serializable_meta (GstBuffer *buffer,
   GstStructure *data);
 

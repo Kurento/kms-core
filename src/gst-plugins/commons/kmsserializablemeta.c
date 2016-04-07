@@ -91,6 +91,16 @@ kms_serializable_meta_get_info (void)
   return meta_info;
 }
 
+gboolean
+add_fields_to_structure (GQuark field_id, const GValue * value, gpointer st)
+{
+  GstStructure *data = GST_STRUCTURE (st);
+
+  gst_structure_id_set_value (data, field_id, value);
+
+  return TRUE;
+}
+
 KmsSerializableMeta *
 kms_buffer_add_serializable_meta (GstBuffer * buffer, GstStructure * data)
 {
@@ -98,10 +108,19 @@ kms_buffer_add_serializable_meta (GstBuffer * buffer, GstStructure * data)
 
   g_return_val_if_fail (GST_IS_BUFFER (buffer), NULL);
 
-  meta = (KmsSerializableMeta *) gst_buffer_add_meta (buffer,
-      KMS_SERIALIZABLE_META_INFO, NULL);
+  meta = (KmsSerializableMeta *) gst_buffer_get_meta (buffer,
+      KMS_SERIALIZABLE_META_API_TYPE);
 
-  meta->data = data;
+  if (meta != NULL) {
+    gst_structure_foreach (data, add_fields_to_structure, meta->data);
+    gst_structure_free (data);
+
+  } else {
+    meta = (KmsSerializableMeta *) gst_buffer_add_meta (buffer,
+        KMS_SERIALIZABLE_META_INFO, NULL);
+
+    meta->data = data;
+  }
 
   return meta;
 }
