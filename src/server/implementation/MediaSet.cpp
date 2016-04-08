@@ -233,26 +233,18 @@ MediaSet::setServerManager (std::shared_ptr <ServerManagerImpl> serverManager)
 std::shared_ptr<MediaObjectImpl>
 MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
 {
-  bool created = false;
   std::unique_lock <std::recursive_mutex> lock (recMutex);
-
   std::shared_ptr<MediaObjectImpl> mediaObject;
 
   if (mediaObjectPtr == NULL) {
     throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Invalid object");
   }
 
-  try {
-    mediaObject = std::dynamic_pointer_cast<MediaObjectImpl>
-                  (mediaObjectPtr->shared_from_this() );
-  } catch (std::bad_weak_ptr e) {
-    created = true;
-    mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
-    MediaObjectImpl * obj) {
-      // this will always exist because destructor is waiting for its threads
-      this->releasePointer (obj);
-    });
-  }
+  mediaObject =  std::shared_ptr<MediaObjectImpl> (mediaObjectPtr, [this] (
+  MediaObjectImpl * obj) {
+    // this will always exist because destructor is waiting for its threads
+    this->releasePointer (obj);
+  });
 
   objectsMap[mediaObject->getId()] = std::weak_ptr<MediaObjectImpl> (mediaObject);
 
@@ -260,11 +252,10 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     std::shared_ptr<MediaObjectImpl> parent = std::dynamic_pointer_cast
         <MediaObjectImpl> (mediaObject->getParent() );
 
-    ref (parent.get() );
     childrenMap[parent->getId()][mediaObject->getId()] = mediaObject;
   }
 
-  if (this->serverManager && created) {
+  if (this->serverManager) {
     lock.unlock ();
     serverManager->signalObjectCreated (ObjectCreated (this->serverManager,
                                         std::dynamic_pointer_cast<MediaObject> (mediaObject) ) );
@@ -293,7 +284,6 @@ MediaSet::ref (const std::string &sessionId,
 
   sessionMap[sessionId][mediaObject->getId()] = mediaObject;
   reverseSessionMap[mediaObject->getId()].insert (sessionId);
-  ref (mediaObject.get() );
 }
 
 void
