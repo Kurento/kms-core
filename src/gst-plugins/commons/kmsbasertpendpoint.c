@@ -2009,7 +2009,7 @@ rtcp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       }
 
       sync_data->last_sr_ext_ts =
-          gst_rtp_buffer_ext_timestamp (&sync_data->last_sr_ext_ts, rtptime);
+          gst_rtp_buffer_ext_timestamp (&sync_data->ext_ts, rtptime);
       sync_data->last_sr_ntp_ns_time = ntpnstime;
       g_mutex_unlock (&self->priv->sync_mutex);
 
@@ -3417,6 +3417,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   // As default pt is 0 default clockrate should be 8000
   self->priv->audio_sync.clock_rate = 8000;
   self->priv->video_sync.clock_rate = 8000;
+
+  self->priv->audio_sync.ext_ts = -1;
+  self->priv->video_sync.ext_ts = -1;
 
   g_mutex_init (&self->priv->sync_mutex);
 }
