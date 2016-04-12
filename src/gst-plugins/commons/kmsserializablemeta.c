@@ -124,3 +124,20 @@ kms_buffer_add_serializable_meta (GstBuffer * buffer, GstStructure * data)
 
   return meta;
 }
+
+GstStructure *
+kms_serializable_meta_get_metadata (GstBuffer * buffer)
+{
+  KmsSerializableMeta *meta;
+
+  g_return_val_if_fail (GST_IS_BUFFER (buffer), NULL);
+
+  meta = (KmsSerializableMeta *) gst_buffer_get_meta (buffer,
+      KMS_SERIALIZABLE_META_API_TYPE);
+
+  if (meta == NULL) {
+    return NULL;
+  }
+
+  return meta->data;
+}

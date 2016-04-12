@@ -65,6 +65,17 @@ const GstMetaInfo *kms_serializable_meta_get_info (void);
 KmsSerializableMeta * kms_buffer_add_serializable_meta (GstBuffer *buffer,
   GstStructure *data);
 
+/**
+ * kms_serializable_meta_get_metadata
+ *
+ * This function returns the metadata into a buffer. The metadata has the same
+ * life cycle than the type which contains it in the buffer.
+ *
+ * @param b: the buffer which contains the metadata
+ * @return The metadata [transfer none]
+ */
+GstStructure * kms_serializable_meta_get_metadata (GstBuffer *buffer);
+
 G_END_DECLS
 
 #endif /* __KMS_SERIALIZABLE_META_H__ */
