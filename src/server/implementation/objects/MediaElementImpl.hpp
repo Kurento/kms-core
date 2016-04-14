@@ -22,7 +22,31 @@ class MediaType;
 class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
-class MediaFlowData;
+
+class MediaFlowData
+{
+public:
+  MediaFlowData (std::shared_ptr<MediaType> type,
+                 const std::string &description,
+                 std::shared_ptr<MediaFlowState> state) {
+    this->type = type;
+    this->state = state;
+    this->description = description;
+  }
+
+  void setState (std::shared_ptr<MediaFlowState> state ) {
+    this->state = state;
+  }
+
+  std::shared_ptr<MediaFlowState>  getState () {
+    return this->state;
+  }
+
+private:
+  std::shared_ptr<MediaType> type;
+  std::shared_ptr<MediaFlowState> state;
+  std::string description;
+};
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,

@@ -174,31 +174,6 @@ private:
   gchar *sourcePadName;
 };
 
-class MediaFlowData
-{
-public:
-  MediaFlowData (std::shared_ptr<MediaType> type,
-                 const std::string &description,
-                 std::shared_ptr<MediaFlowState> state) {
-    this->type = type;
-    this->state = state;
-    this->description = description;
-  }
-
-  void setState (std::shared_ptr<MediaFlowState> state ) {
-    this->state = state;
-  }
-
-  std::shared_ptr<MediaFlowState>  getState () {
-    return this->state;
-  }
-
-private:
-  std::shared_ptr<MediaType> type;
-  std::shared_ptr<MediaFlowState> state;
-  std::string description;
-};
-
 static KmsElementPadType
 convertMediaType (std::shared_ptr<MediaType> mediaType)
 {
