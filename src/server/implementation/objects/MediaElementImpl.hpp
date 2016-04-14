@@ -138,6 +138,8 @@ protected:
   GstElement *element;
   GstBus *bus;
   gulong handlerId;
+  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataIn;
+  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataOut;
 
   virtual void postConstructor () override;
   void collectLatencyStats (std::vector<std::shared_ptr<MediaLatencyStat>>
@@ -161,8 +163,6 @@ private:
   gulong padAddedHandlerId;
   gulong mediaFlowOutHandler;
   gulong mediaFlowInHandler;
-  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataIn;
-  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataOut;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
