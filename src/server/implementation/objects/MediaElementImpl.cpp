@@ -1295,8 +1295,12 @@ bool MediaElementImpl::isMediaFlowingIn (std::shared_ptr<MediaType> mediaType,
 
   if (mediaType->getValue () == MediaType::VIDEO) {
     key = std::string (TYPE_VIDEO) + std::string (sinkMediaDescription);
-  } else {
+  } else if (mediaType->getValue () == MediaType::AUDIO) {
     key = std::string (TYPE_AUDIO) + std::string (sinkMediaDescription);
+  } else {
+    GST_ERROR ("Media type DATA is not supported for MediaFlowingIn");
+    throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
+                            "Media type DATA is not supported for MediaFlowingIn");
   }
 
   it = mediaFlowDataIn.find (key);
@@ -1324,8 +1328,12 @@ bool MediaElementImpl::isMediaFlowingOut (std::shared_ptr<MediaType> mediaType,
 
   if (mediaType->getValue () == MediaType::VIDEO) {
     key = std::string (TYPE_VIDEO) + std::string (sourceMediaDescription);
-  } else {
+  } else if (mediaType->getValue () == MediaType::AUDIO) {
     key = std::string (TYPE_AUDIO) + std::string (sourceMediaDescription);
+  } else {
+    GST_ERROR ("Media type DATA is not supported for MediaFlowingOut");
+    throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
+                            "Media type DATA is not supported for MediaFlowingOut");
   }
 
   it = mediaFlowDataOut.find (key);
