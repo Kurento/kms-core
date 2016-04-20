@@ -40,10 +40,6 @@ install(
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
-set(KMS_UTILS
-  kmsutils.c kmsutils.h
-)
-
 add_library(kmsrefstruct kmsrefstruct.c kmsrefstruct.h)
 
 target_link_libraries(kmsrefstruct
@@ -58,7 +54,13 @@ install(
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
+set(KMS_UTILS
+  kmsutils.c kmsutils.h
+)
+
 add_library(kmsutils ${KMS_UTILS})
+
+set_target_properties(kmsutils PROPERTIES PUBLIC_HEADER kmsutils.h)
 
 target_link_libraries(kmsutils
   ${gstreamer-1.5_LIBRARIES}
@@ -73,6 +75,7 @@ install(
   TARGETS kmsutils
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
 set(KMS_COMMONS_SOURCES
@@ -116,7 +119,6 @@ set(KMS_COMMONS_HEADERS
   kmshubport.h
   kmsbasehub.h
   kmsagnosticcaps.h
-  kmsutils.h
   kmsuriendpointstate.h
   kmsmediatype.h
   kmsuriendpoint.h
