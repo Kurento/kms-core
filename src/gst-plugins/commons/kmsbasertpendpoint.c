@@ -202,6 +202,8 @@ typedef struct _SsrcSyncData
 {
   GstClockTime last_sr_ext_ts;
   GstClockTime last_sr_ntp_ns_time;
+  GstClockTime last_ext_ts;
+  GstClockTime last_pts;
   GstClockTime ext_ts;
   gint clock_rate;
   guint8 pt;
@@ -1857,16 +1859,26 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
     SsrcSyncData * sync_data)
 {
   GstClockTime pts, diff_ntpnstime, diff_rtptime, diff_rtpnstime;
+  gboolean wrapped_down, wrapped_up, is_lower;
+
+  is_lower = wrapped_down = wrapped_up = FALSE;
+
+  if (sync_data->ext_ts == sync_data->last_ext_ts) {
+    return sync_data->last_pts;
+  }
 
   pts = self->priv->base_sync_time;
+  diff_ntpnstime = diff_rtptime = diff_rtpnstime = G_GUINT64_CONSTANT (0);
 
   if (sync_data->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
     diff_ntpnstime =
         sync_data->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
+    wrapped_up = diff_ntpnstime > (G_MAXUINT64 - pts);
     pts += diff_ntpnstime;
   } else if (sync_data->last_sr_ntp_ns_time < self->priv->base_ntp_ns_time) {
     diff_ntpnstime =
         self->priv->base_ntp_ns_time - sync_data->last_sr_ntp_ns_time;
+    wrapped_down = pts < diff_ntpnstime;
     pts -= diff_ntpnstime;
   }
 
@@ -1875,13 +1887,28 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
     diff_rtpnstime =
         gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
         sync_data->clock_rate);
-    pts += diff_rtpnstime;
+    is_lower = wrapped_down &&
+        diff_rtpnstime < (G_MAXUINT64 - pts + self->priv->base_sync_time);
+    if (!is_lower) {
+      pts += diff_rtpnstime;
+    }
   } else if (sync_data->ext_ts < sync_data->last_sr_ext_ts) {
     diff_rtptime = sync_data->last_sr_ext_ts - sync_data->ext_ts;
     diff_rtpnstime =
         gst_util_uint64_scale_int (diff_rtptime, GST_SECOND,
         sync_data->clock_rate);
-    pts -= diff_rtpnstime;
+    is_lower = wrapped_down || (wrapped_up &&
+        diff_rtpnstime > G_MAXUINT64 - self->priv->base_sync_time + pts);
+    if (!is_lower) {
+      pts -= diff_rtpnstime;
+    }
+  }
+
+  if (is_lower || pts < sync_data->last_pts) {
+    GST_WARNING_OBJECT (self, "Trying to assign a lower PTS");
+    pts = sync_data->last_pts;
+  } else {
+    sync_data->last_pts = pts;
   }
 
   return pts;
@@ -1927,6 +1954,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         buff = gst_buffer_make_writable (buff);
         GST_BUFFER_PTS (buff) = kms_base_rtp_endpoint_calculate_new_pts (self,
             sync_data);
+        sync_data->last_ext_ts = sync_data->ext_ts;
       }
 
       last_sr_ntp_ns_time = sync_data->last_sr_ntp_ns_time;
@@ -3417,6 +3445,9 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   // As default pt is 0 default clockrate should be 8000
   self->priv->audio_sync.clock_rate = 8000;
   self->priv->video_sync.clock_rate = 8000;
+
+  self->priv->video_sync.last_ext_ts = GST_CLOCK_TIME_NONE;
+  self->priv->audio_sync.last_ext_ts = GST_CLOCK_TIME_NONE;
 
   self->priv->audio_sync.ext_ts = -1;
   self->priv->video_sync.ext_ts = -1;
