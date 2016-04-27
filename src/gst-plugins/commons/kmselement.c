@@ -660,14 +660,35 @@ add_flow_event_probes (GstPad * pad, KmsMediaFlowData * fd_data)
 }
 
 static void
+add_flow_event_probes_pad_added (GstElement * element, GstPad * pad,
+    KmsMediaFlowData * fd_data)
+{
+  if (!GST_PAD_IS_SINK (pad)) {
+    return;
+  }
+
+  add_flow_event_probes (pad, fd_data);
+}
+
+static void
+media_flow_data_clock_id_unref_closure (gpointer data, GClosure * closure)
+{
+  KmsMediaFlowData *fd_data = data;
+
+  media_flow_data_clock_id_unref (fd_data);
+}
+
+static void
 add_flow_out_event_probes_to_element_sinks (GstElement * element,
     KmsMediaFlowData * fd_data)
 {
-  GstPad *sink_pad;
+  media_flow_data_clock_id_ref (fd_data);
+  g_signal_connect_data (element, "pad-added",
+      G_CALLBACK (add_flow_event_probes_pad_added), fd_data,
+      media_flow_data_clock_id_unref_closure, 0);
 
-  sink_pad = gst_element_get_static_pad (element, "sink");
-  add_flow_event_probes (sink_pad, fd_data);
-  g_object_unref (sink_pad);
+  kms_element_for_each_sink_pad (element,
+      (KmsPadCallback) add_flow_event_probes, fd_data);
 }
 
 GstElement *
