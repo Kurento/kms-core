@@ -398,14 +398,14 @@ kms_utils_control_key_frames_request_duplicates (GstPad * pad)
       NULL, NULL);
 }
 
-void
-kms_element_for_each_src_pad (GstElement * element,
-    KmsPadCallback action, gpointer data)
+static gboolean
+kms_element_iterate_pads (GstIterator * it, KmsPadCallback action,
+    gpointer data)
 {
-  GstIterator *it = gst_element_iterate_src_pads (element);
   gboolean done = FALSE;
   GstPad *pad;
   GValue item = G_VALUE_INIT;
+  gboolean success = TRUE;
 
   while (!done) {
     switch (gst_iterator_next (it, &item)) {
@@ -418,6 +418,7 @@ kms_element_for_each_src_pad (GstElement * element,
         gst_iterator_resync (it);
         break;
       case GST_ITERATOR_ERROR:
+        success = FALSE;
       case GST_ITERATOR_DONE:
         done = TRUE;
         break;
@@ -425,7 +426,31 @@ kms_element_for_each_src_pad (GstElement * element,
   }
 
   g_value_unset (&item);
+
+  return success;
+}
+
+void
+kms_element_for_each_src_pad (GstElement * element,
+    KmsPadCallback action, gpointer data)
+{
+  GstIterator *it = gst_element_iterate_src_pads (element);
+
+  kms_element_iterate_pads (it, action, data);
   gst_iterator_free (it);
+}
+
+gboolean
+kms_element_for_each_sink_pad (GstElement * element,
+    KmsPadCallback action, gpointer data)
+{
+  GstIterator *it = gst_element_iterate_sink_pads (element);
+  gboolean ret;
+
+  ret = kms_element_iterate_pads (it, action, data);
+  gst_iterator_free (it);
+
+  return ret;
 }
 
 typedef struct _PadBlockedData
