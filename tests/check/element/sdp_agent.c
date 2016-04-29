@@ -309,10 +309,12 @@ rejected_on_handler_required (KmsSdpAgent * agent, const GstSDPMedia * media,
     gpointer user_data)
 {
   gint *rejected = user_data;
+  gchar *str = NULL;
 
   (*rejected)++;
 
-  GST_DEBUG_OBJECT (agent, "Ignore %s", gst_sdp_media_as_text (media));
+  GST_DEBUG_OBJECT (agent, "Ignore %s", (str = gst_sdp_media_as_text (media)));
+  g_free (str);
 
   return NULL;
 }
