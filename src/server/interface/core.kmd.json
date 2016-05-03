@@ -27,47 +27,57 @@
   "remoteClasses": [
     {
       "name": "MediaObject",
-      "doc": "Base for all objects that can be created in the media server.",
+      "doc": "<p>This is the base interface for all elements. It is used to manage properties common to all Kurento objects:
+      <ul>
+        <li>ID: every object has a unique identifier based on a GUID and the suffix `_kurento.elemenType`. In the case of pipelines, this ID would be GUID_kurento.MediaPipeline. For the rest of media elements, it is prefixed with the MediaPipeline's ID where the endpoint was created. For instance, a WebRtcEndpoint would be GUID_kureto.MediaPipeline/GUID_kureto.WebRtcEndpoint. Needless to say, both GUIDs are different in each case.</li>
+        <li>name: This is a free text that can be used to provide a firendly name for the endpoint. By default, it's the same as the ID</li>
+        <li>tags: This is metadata that can be attached to the media element. </li>
+      </ul>
+      </p>
+      <p>
+      <h2>Events fired:</h2>
+      <ul><li>ErrorEvent: In case something goes wrong. Since most errors are asynchronous, it is recommended to suscribe to this event.</li></ul>
+      </p>",
       "abstract": true,
       "properties": [
         {
           "name": "mediaPipeline",
-          "doc": ":rom:cls:`MediaPipeline` to which this MediaObject belong, or the pipeline itself if invoked over a :rom:cls:`MediaPipeline`",
+          "doc": ":rom:cls:`MediaPipeline` to which this MediaObject belongs, or the pipeline itself if invoked on a :rom:cls:`MediaPipeline`",
           "type": "MediaPipeline",
           "final": true
         },
         {
           "name": "parent",
-          "doc": "parent of this media object. The type of the parent depends on the type of the element. The parent of a :rom:cls:`MediaPad` is its :rom:cls:`MediaElement`; the parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, i.e. the property is null",
+          "doc": "parent of this media object. The type of the parent depends on the type of the element. The parent of a :rom:cls:`MediaPad` is its :rom:cls:`MediaElement`; the parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, so this property will be null",
           "type": "MediaObject",
           "final": true
         },
         {
           "name": "id",
-          "doc": "unique identifier of the mediaobject.",
+          "doc": "unique identifier of the mediaobject. It's a synthetic identifier composed by a GUID and the name of the type of the object. In case of media objects that have a parent, the ID of the parent is added to the generated ID, separated by `/`: ID_parent/ID_media-object",
           "type": "String",
           "final": true
         },
         {
           "name": "childs",
-          "doc": "@deprecated\nUse children instead of this property. Children of current object, all returned objects have parent set to current object",
+          "doc": "@deprecated\nUse children instead. Children of current object, all returned objects have parent set to current object",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "children",
-          "doc": "Children of current object, all returned objects have parent set to current object",
+          "doc": "Children of current object. All returned objects have parent set to current object",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "name",
-          "doc": "Object name. This is just a comodity to simplify developers life debugging, it is not used internally for indexing nor idenfiying the objects. By default is the object type followed by the object id.",
+          "doc": "Object name. This is just a comodity to simplify developers' life debugging, it is not used internally for indexing nor idenfiying the objects. By default, it's the object's id.",
           "type": "String"
         },
         {
           "name": "sendTagsInEvents",
-          "doc": "This property allows activate/deactivate sending the element tags in all its events.",
+          "doc": "This property activates or deactivates sending the element's tags in all events fired.",
           "type": "boolean",
           "defaultValue": false
         },
@@ -81,23 +91,23 @@
       "methods": [
         {
           "name": "addTag",
-          "doc": "Request a SessionSpec offer.\n\n   This can be used to initiate a connection.",
+          "doc": "Adds a new tag to the media object. If the tag is already present, it changes the value.",
           "params": [
             {
               "name": "key",
-              "doc": "Key of the tag",
+              "doc": "Key of the tag.",
               "type": "String"
             },
             {
               "name": "value",
-              "doc": "Value of the tag",
+              "doc": "Value assoicated to the key.",
               "type": "String"
             }
           ]
         },
         {
           "name": "removeTag",
-          "doc": "Remove the tag (key and value) associated to a tag",
+          "doc": "Removes an existing tag. If the tag was not defined before, nothing happens.",
           "params": [
             {
               "name": "key",
@@ -108,7 +118,7 @@
         },
         {
           "name": "getTag",
-          "doc": "Returns the value associated to the given key.",
+          "doc": "Returns the value of a certain tag. If the key is not defined, it returns a MEDIA_OBJECT_TAG_KEY_NOT_FOUND",
           "params": [
             {
               "name": "key",
@@ -123,10 +133,10 @@
         },
         {
           "name": "getTags",
-          "doc": "Returns all the MediaObject tags.",
+          "doc": "Returns all this MediaObject's tags.",
           "params": [],
           "return": {
-            "doc": "An array containing all pairs key-value associated to the MediaObject.",
+            "doc": "An array containing all key-value pairs associated with the MediaObject.",
             "type": "Tag[]"
           }
         }
@@ -190,7 +200,7 @@
     },
     {
       "name": "SessionEndpoint",
-      "doc": "Session based endpoint. A session is considered to be started when the media exchange starts. On the other hand, sessions terminate when a timeout, defined by the developer, takes place after the connection is lost.",
+      "doc": "All networked Endpoints that require to manage connection sessions with remote peers implement this interface.",
       "abstract": true,
       "extends": "Endpoint",
       "events": [
@@ -330,23 +340,38 @@
       "name": "SdpEndpoint",
       "abstract": true,
       "extends": "SessionEndpoint",
-      "doc": "Implements an SDP negotiation endpoint able to generate and process offers/responses and that configures resources according to negotiated Session Description",
+      "doc": "This interface is implemented by Endpoints that require an SDP negotiation for the setup of a networked media session with remote peers. The API provides the following functionality:
+      <ul>
+        <li>Generate SDP offers.</li>
+        <li>Process SDP offers.</li>
+        <li>Configure SDP related params.</li>
+      </ul>
+      ",
       "properties": [
         {
           "name": "maxVideoRecvBandwidth",
-          "doc": "Maximum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
+          "doc": " Maximum bandwidth for video reception, in kbps. The default value is 500. A value of 0 sets this as unconstrained. .. note:: This has to be set before the SDP is generated.",
           "type": "int"
         },
         {
           "name": "maxAudioRecvBandwidth",
-          "doc": "Maximum audio bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 0",
+          "doc": " Maximum bandwidth for audio reception, in kbps. The default value is 500. A value of 0 sets this as leaves this unconstrained. .. note:: This has to be set before the SDP is generated.",
           "type": "int"
         }
       ],
       "methods": [
         {
           "name": "generateOffer",
-          "doc": "Request a SessionSpec offer.\n\n   This can be used to initiate a connection.",
+          "doc": " Generates an SDP offer with  media capabilities of the Endpoint.
+          Exceptions
+          <ul>
+            <li>
+              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+            </li>
+            <li>
+              SDP_END_POINT_GENERATE_OFFER_ERROR if the generated offer is empty. This is most likely due to an internal error.
+            </li>
+          </ul>",
           "params": [],
           "return": {
             "doc": "The SDP offer.",
@@ -355,7 +380,19 @@
         },
         {
           "name": "processOffer",
-          "doc": "Request the NetworkConnection to process the given SessionSpec offer (from the remote User Agent)",
+          "doc": " Processes SDP offer of the remote peer, and generates an SDP answer based on the endpoint's capabilities. If no matching capabilities are found, the SDP will contain no codecs.
+          Exceptions
+          <ul>
+            <li>
+              SDP_PARSE_ERROR If the offer is empty or has errors.
+            </li>
+            <li>
+              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+            </li>
+            <li>
+              SDP_END_POINT_PROCESS_OFFER_ERROR if the generated offer is empty. This is most likely due to an internal error.
+            </li>
+          </ul>",
           "params": [
             {
               "name": "offer",
@@ -370,7 +407,22 @@
         },
         {
           "name": "processAnswer",
-          "doc": "Request the NetworkConnection to process the given SessionSpec answer (from the remote User Agent).",
+          "doc": " Generates an SDP offer with  media capabilities of the Endpoint.
+          Exceptions
+          <ul>
+            <li>
+              SDP_PARSE_ERROR If the offer is empty or has errors.
+            </li>
+            <li>
+              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+            </li>
+            <li>
+              SDP_END_POINT_PROCESS_ANSWER_ERROR if the result of processing the answer is an empty string. This is most likely due to an internal error.
+            </li>
+            <li>
+              SDP_END_POINT_NOT_OFFER_GENERATED If the method is invoked before the generateOffer method.
+            </li>
+          </ul>",
           "params": [
             {
               "name": "answer",
@@ -385,7 +437,18 @@
         },
         {
           "name": "getLocalSessionDescriptor",
-          "doc": "This method gives access to the SessionSpec offered by this NetworkConnection.\n\n.. note:: This method returns the local MediaSpec, negotiated or not. If no offer has been generated yet, it returns null. It an offer has been generated it returns the offer and if an answer has been processed it returns the negotiated local SessionSpec.",
+          "doc": "This method returns the local SDP. The output depends on the negotiation stage:
+          <ul>
+            <li>
+              No offer has been generated: returns null.
+            </li>
+            <li>
+              Offer has been generated: return the SDP offer.
+            </li>
+            <li>
+              Offer has been generated and answer processed: retruns the agreed SDP.
+            </li>
+          </ul>",
           "params": [],
           "return": {
             "doc": "The last agreed SessionSpec",
@@ -394,7 +457,7 @@
         },
         {
           "name": "getRemoteSessionDescriptor",
-          "doc": "This method gives access to the remote session description.\n\n.. note:: This method returns the media previously agreed after a complete offer-answer exchange. If no media has been agreed yet, it returns null.",
+          "doc": "This method returns the remote SDP. If the negotiation process is not complete, it will return NULL.",
           "params": [],
           "return": {
             "doc": "The last agreed User Agent session description",
@@ -407,38 +470,89 @@
       "name": "BaseRtpEndpoint",
       "abstract": true,
       "extends": "SdpEndpoint",
-      "doc": "Base class to manage common RTP features.",
+      "doc": "This class extends from the SdpEndpoint, and handles RTP communications. All endpoints that rely on this network protocol, like the RTPEndpoint or the WebRtcEndpoint, inherit from this. The endpoint provides information about the connection state and the media state. These can be consulted at any time through the mediaState and the connectionState properties. It is also possible subscribe to events fired when these properties change.
+      <ul style='list-style-type:circle'>
+        <li>
+          ConnectionStateChangedEvent: This event is raised when the connection between two peers changes. It can have two values
+          <ul>
+            <li>CONNECTED</li>
+            <li>DISCONNECTED</li>
+          </ul>
+        </li>
+        <li>
+          MediaStateChangedEvent: Based on RTCP packet flow, this event provides more reliable information about the state of media flow. Since RTCP packets are not flowing at a constant rate (minimizing a browser with an RTCPeerConnection might affect this interval, for instance), there is a guard period of about 5s. This traduces in a period where there might be no media flowing, but the event hasn't been fired yet. Nevertheless, this is the most reliable and useful way of knowing what the state of media exchange is. Possible values are:
+          <ul>
+            <li>CONNECTED: There is an RTCP packet flow between peers.</li>
+            <li>DISCONNECTED: No RTCP packets have been received, or at least 5s have passed since the last packet arrived.</li>
+          </ul>
+        </li>
+      </ul>
+      Part of the bandwidth control of the video component of the media session is done here. The values of the properties described are in kbps.
+      <ul style='list-style-type:circle'>
+        <li>
+          Input bandwidth control mechanism: Configuration interval used to inform remote peer the range of bitrates that can be pushed into this BaseRtpEndpoint object.
+          <ul>
+            <li>
+              setMinVideoRecvBandwidth: sets min bitrate limits expected for the received video stream. This value is set to limit the lower value of REMB packages, if supported by the implementing class.
+            </li>
+          </ul>
+          Max values are announced in the SDP, while min values are set to limit the lower value of REMB packages. It follows that min values will only have effect in peers that support this control mechanism, such as Chrome.
+        </li>
+        <li>
+          Output bandwidth control mechanism: Configuration interval used to control bitrate of the output video stream sent to remote peer. It is important to keep in mind that pushed bitrate depends on network and remote peer capabilities. Remote peers can also announce bandwidth limitation in their SDPs (through the b=<modifier>:<value> tag).   Kurento will always enforce bitrate limitations specified by the remote peer over internal configurations.
+          <ul>
+            <li>
+              setMinVideoSendBandwidth: sets the minimum bitrate for video to be sent to remote peer. 0 is considered unconstrained.
+            </li>
+            <li>
+              setMaxVideoSendBandwidth: sets maximum bitrate limits for video sent to remote peer. 0 is considered unconstrained.
+            </li>
+          </ul>
+        </li>
+      </ul>
+      All bandwidth control parameters must be changed before the SDP negotiation takes place, and can't be changed afterwards.
+      </p>
+      ",
       "properties": [
         {
           "name": "minVideoRecvBandwidth",
-          "doc": "Minimum video bandwidth for receiving.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 100",
+          "doc": "Minimum bandwidth announced for video reception, in kbps. The default value is 100 kbps. 0 is considered unconstrained.",
           "type": "int"
         },
         {
           "name": "minVideoSendBandwidth",
-          "doc": "Minimum video bandwidth for sending.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 100",
+          "doc": "Minimum bandwidth for video transmission, in kbps. The default value is 100 kbps. 0 is considered unconstrained.",
           "type": "int"
         },
         {
           "name": "maxVideoSendBandwidth",
-          "doc": "Maximum video bandwidth for sending.\n  Unit: kbps(kilobits per second).\n   0: unlimited.\n  Default value: 500",
+          "doc": "Maximum bandwidth for video transmission, in kbps. The default value is 500 kbps. 0 is considered unconstrained.",
           "type": "int"
         },
         {
           "name": "mediaState",
-          "doc": "State of the media",
+          "doc": "Media flow state. Possible values are
+          <ul>
+            <li>CONNECTED: There is an RTCP flow.</li>
+            <li>DISCONNECTED: No RTCP packets have been received for at least 5 sec.</li>
+          </ul>
+          ",
           "type": "MediaState",
           "readOnly": true
         },
         {
           "name": "connectionState",
-          "doc": "State of the connection",
+          "doc": "Connection state. Possible values are
+          <ul>
+            <li>CONNECTED</li>
+            <li>DISCONNECTED</li>
+          </ul>",
           "type": "ConnectionState",
           "readOnly": true
         },
         {
           "name": "rembParams",
-          "doc": "Parameters of the congestion control algorithm",
+          "doc": "Advanced parameters to configure the congestion control algorithm.",
           "type": "RembParams"
         }
       ],
@@ -453,11 +567,18 @@
       "name": "MediaElement",
       "abstract": true,
       "extends": "MediaObject",
-      "doc": "Basic building blocks of the media server, that can be interconnected through the API. A :rom:cls:`MediaElement` is a module that encapsulates a specific media capability. They can be connected to create media pipelines where those capabilities are applied, in sequence, to the stream going through the pipeline.\n\n   :rom:cls:`MediaElement` objects are classified by its supported media type (audio, video, etc.)",
+      "doc": "<p>This is the basic building block of the media server, that can be interconnected inside a pipeline. A :rom:cls:`MediaElement` is a module that encapsulates a specific media capability, and that is able to exchange media with other :rom:cls:`MediaElement`s through an internal element called pad.
+      </p>
+      <p>
+      A pad can be defined as an input or output interface. Input pads are called sinks, and it's where the media elements receive media from other media elements. Output interfaces are called sources, and it's the pad used by the media element to feed media to other media elements. There can be only one sink pad per media element. On the other hand, the number of source pads is unconstrained. This means that a certain media element can receive media only from one element at a time, while it can send media to many others. Pads are created on demand, when the connect method is invoked. When two media elements are connected, one media pad is created for each type of media connected. For example, if you connect AUDIO and VIDEO between two media elements, each one will need to create two new pads: one for AUDIO and one for VIDEO.
+      </p>
+      <p>
+      When media elements are connected, it can be case that the encoding used by the elements is not the same, and thus it needs to be transcoded. This is something that is handled transparently by the media elements internals. In practice, the user needs not be aware that the transcodification is taking place. However, this process has a toll in the form of a higher CPU load, so connecting media elements that need media encoded in different formats is something to consider as a high load operation.
+      </p>",
       "methods": [
         {
           "name": "getSourceConnections",
-          "doc": "Get the connections information of the elements that are sending media to this element :rom:cls:`MediaElement`",
+          "doc": "Gets information about the sink pads of this media element. Since sink pads are the interface through which a media element gets it's media, whatever is connected to an element's sink pad is formally a source of media. Media can be filtered by type, or by the description given to the pad though which both elements are connected.",
           "params": [
             {
               "name": "mediaType",
@@ -479,7 +600,7 @@
         },
         {
           "name": "getSinkConnections",
-          "doc": "Returns a list of the connections information of the elements that ere receiving media from this element.",
+          "doc": "Gets information about the source pads of this media element. Since source pads connect to other media element's sinks, this is formally the sink of media from the element's perspective. Media can be filtered by type, or by the description given to the pad though which both elements are connected.",
           "params": [
             {
               "name": "mediaType",
@@ -495,13 +616,24 @@
             }
           ],
           "return": {
-            "doc": "A list of the connections information that arereceiving media from this element. The list will be empty if no sinks are found.",
+            "doc": "A list of the connections information that are receiving media from this element. The list will be empty if no sources are found.",
             "type": "ElementConnectionData[]"
           }
         },
         {
           "name": "connect",
-          "doc": "Connects two elements, with the given restrictions, current :rom:cls:`MediaElement` will start emmit media to sink element. Connection could take place in the future, when both media element show capabilities for connecting with the given restrictions",
+          "doc": "<p>Connects two elements, with the media flowing from left to right: the elements that invokes the connect wil be the source of media, creating one sink pad for each type of media connected. The element given as parameter to the method will be the sink, and it will create one sink pad per media type connected.
+          </p>
+          <p>
+          If otherwise not specified, all types of media are connected by default (AUDIO, VIDEO and DATA). It is recommended to connect the specific types of media if not all of them will be used. For this purpose, the connect method can be invoked more than once on the same two elements, but with different media types.
+          </p>
+          <p>
+          The connection is unidirectional. If a bidirectional connection is desired, the position of the media elements must be inverted. For instance, webrtc1.connect(webrtc2) is connecting webrtc1 as source of webrtc2. In order to create a WebRTC one-2one conversation, the user would need to especify the connection on the other direction with webrtc2.connect(webrtc1).
+          </p>
+          <p>
+          Even though one media element can have one sink pad per type of media, only one media element can be connected to another at a given time. If a media element is connected to another, the former will become the source of the sink media element, regardles whether there was another element connected or not.
+          </p>
+          ",
           "params": [
             {
               "name": "sink",
@@ -530,7 +662,7 @@
         },
         {
           "name": "disconnect",
-          "doc": "Disconnects two elements, with the given restrictions, current :rom:cls:`MediaElement` stops sending media to sink element. If the previously requested connection didn't took place it is also removed",
+          "doc": "Disconnectes two media elements. This will release the source pads of the source media element, and the sink pads of the sink media element.",
           "params": [
             {
               "name": "sink",
@@ -559,7 +691,7 @@
         },
         {
           "name": "setAudioFormat",
-          "doc": "Sets the type of data for the audio stream. MediaElements that do not support configuration of audio capabilities will raise an exception",
+          "doc": "Sets the type of data for the audio stream. MediaElements that do not support configuration of audio capabilities will throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception.",
           "params": [
             {
               "name": "caps",
@@ -570,7 +702,7 @@
         },
         {
           "name": "setVideoFormat",
-          "doc": "Sets the type of data for the video stream. MediaElements that do not support configuration of video capabilities will raise an exception",
+          "doc": "Sets the type of data for the video stream. MediaElements that do not support configuration of video capabilities will throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception",
           "params": [
             {
               "name": "caps",
@@ -581,7 +713,17 @@
         },
         {
           "name": "getGstreamerDot",
-          "doc": "Returns a string in dot (graphviz) format that represents the gstreamer elements inside",
+          "doc": "This method returns a .dot file describing the topology of the media element. The element can be queried for certain type of data
+          <ul>
+            <li>SHOW_ALL: default value</li>
+            <li>SHOW_CAPS_DETAILS</li>
+            <li>SHOW_FULL_PARAMS</li>
+            <li>SHOW_MEDIA_TYPE</li>
+            <li>SHOW_NON_DEFAULT_PARAMS</li>
+            <li>SHOW_STATES</li>
+            <li>SHOW_VERBOSE</li>
+          </ul>
+          ",
           "params": [
             {
               "name": "details",
@@ -608,7 +750,7 @@
         },
         {
           "name": "getStats",
-          "doc": "Provides statistics collected for this endpoint",
+          "doc": "Gets the statistics related to an endpoint. If no media type is specified, it returns statistics for all available types.",
           "params": [
             {
               "name": "mediaType",
@@ -624,7 +766,7 @@
         },
         {
           "name": "isMediaFlowingIn",
-          "doc": "Returns if there is media flowing from the pipeline to the MediaElement through a pad",
+          "doc": "This method indicates whether the media element is receiving media of a certain type. The media sink pad can be identified individually, if needed. It is only supported for AUDIO and VIDEO types, raising a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR otherwise. If the pad indicated does not exist, if will return false.",
           "params": [
             {
               "name": "mediaType",
@@ -646,7 +788,7 @@
         },
         {
           "name": "isMediaFlowingOut",
-          "doc": "Returns if there is media flowing from the MediaElement to the pipeline through a pad",
+          "doc": "This method indicates whether the media element is emitting media of a certain type. The media source pad can be identified individually, if needed. It is only supported for AUDIO and VIDEO types, raising a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR otherwise. If the pad indicated does not exist, if will return false.",
           "params": [
             {
               "name": "mediaType",
@@ -675,7 +817,7 @@
         },
         {
           "name": "minOutputBitrate",
-          "doc": "Minimum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
+          "doc": "Minimum video bitrate for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
           "type": "int"
         },
         {
@@ -685,7 +827,7 @@
         },
         {
           "name": "maxOutputBitrate",
-          "doc": "Maximum video bandwidth for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "doc": "Maximum video bitrate for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
           "type": "int"
         }
       ],
@@ -1715,7 +1857,7 @@
       ],
       "name": "Error",
       "extends": "RaiseBase",
-      "doc": "An error related to the MediaObject has occurred"
+      "doc": "Fired whenever an undefined error related to the MediaObject has occurred"
     },
     {
       "properties": [],
@@ -1768,7 +1910,11 @@
     {
       "name": "MediaStateChanged",
       "extends": "Media",
-      "doc": "Indicates that the state of the media has changed",
+      "doc": "This event is fired when the media connection between two peers changes, based on the RTCP packet flow. It contains the old and the new state. Possible values are
+      <ul>
+        <li>CONNECTED</li>
+        <li>DISCONNECTED</li>
+      </ul>",
       "properties": [
         {
           "name": "oldState",
@@ -1785,7 +1931,11 @@
     {
       "name": "ConnectionStateChanged",
       "extends": "Media",
-      "doc": "Indicates that the state of the connection has changed",
+      "doc": "This event is raised when the connection between two peers changes. It contains the old and the new state. Possible values are
+      <ul>
+        <li>CONNECTED</li>
+        <li>DISCONNECTED</li>
+      </ul>",
       "properties": [
         {
           "name": "oldState",
@@ -1802,7 +1952,12 @@
     {
       "name": "MediaFlowOutStateChange",
       "extends": "Media",
-      "doc": "Indicates that the Media Element is sending data to the MediaPipeline",
+      "doc": "Fired when the outgoing media flow begins or ends. The event contains:
+      <ul>
+        <li>State: whether the endpoint is sending media (FLOWING) or not (NOT_FLOWING).</li>
+        <li>padName. The name of the pad that changed state.</li>
+        <li>MediaType: The type of media flowing.</li>
+      </ul>",
       "properties": [
         {
           "name": "state",
@@ -1824,7 +1979,12 @@
     {
       "name": "MediaFlowInStateChange",
       "extends": "Media",
-      "doc": "Indicates that the Media Element is receiving media from the MediaPipeline",
+      "doc": "Fired when the incoming media flow begins or ends. The event contains:
+      <ul>
+        <li>State: whether the endpoint is receiving media (FLOWING) or not (NOT_FLOWING).</li>
+        <li>padName. The name of the pad that changed state.</li>
+        <li>MediaType: The type of media flowing.</li>
+      </ul>",
       "properties": [
         {
           "name": "state",
@@ -1846,7 +2006,7 @@
     {
       "name": "ElementConnected",
       "extends": "Media",
-      "doc": "Indicates that an element has been connected to other",
+      "doc": "Indicates that an element has been connected to another",
       "properties": [
         {
           "name": "sink",
@@ -1873,7 +2033,7 @@
     {
       "name": "ElementDisconnected",
       "extends": "Media",
-      "doc": "Indicates that an element has been disconnected",
+      "doc": "Indicates that an element has been disconnected from another",
       "properties": [
         {
           "name": "sink",
