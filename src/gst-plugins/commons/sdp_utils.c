@@ -216,6 +216,47 @@ sdp_utils_media_config_get_direction (const GstSDPMedia * media)
   return dir;
 }
 
+gboolean
+sdp_utils_media_config_set_direction (GstSDPMedia * media,
+    GstSDPDirection direction)
+{
+  const gchar *dir_str;
+  guint i, len;
+
+  if (direction == RECVONLY) {
+    dir_str = RECVONLY_STR;
+  } else if (direction == SENDONLY) {
+    dir_str = SENDONLY_STR;
+  } else if (direction == SENDRECV) {
+    dir_str = SENDRECV_STR;
+  } else if (direction == INACTIVE) {
+    dir_str = INACTIVE_STR;
+  } else {
+    GST_WARNING ("Invalid attribute direction: %d", direction);
+    return FALSE;
+  }
+
+  len = gst_sdp_media_attributes_len (media);
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_media_get_attribute (media, i);
+    if (sdp_utils_attribute_is_direction (a, NULL)) {
+      if (gst_sdp_media_remove_attribute (media, i) != GST_SDP_OK) {
+        gchar *str = NULL;
+
+        GST_WARNING ("Cannot remove attribute '%d' from media:\n%s", i, (str =
+                gst_sdp_media_as_text (media)));
+        g_free (str);
+
+        return FALSE;
+      }
+    }
+  }
+
+  return gst_sdp_media_add_attribute (media, dir_str, "") == GST_SDP_OK;
+}
+
 /**
  * Returns : a string or NULL if any.
  */

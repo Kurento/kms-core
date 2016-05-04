@@ -47,6 +47,7 @@ gboolean sdp_utils_attribute_is_direction (const GstSDPAttribute * attr, GstSDPD
 guint sdp_utils_media_get_ssrc (const GstSDPMedia * media);
 guint sdp_utils_media_get_fid_ssrc (const GstSDPMedia * media, guint pos);
 GstSDPDirection sdp_utils_media_config_get_direction (const GstSDPMedia * media);
+gboolean sdp_utils_media_config_set_direction (GstSDPMedia * media, GstSDPDirection direction);
 
 const gchar *sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media,
     const gchar * format);
