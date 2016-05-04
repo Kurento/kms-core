@@ -35,6 +35,7 @@
 #include "kmssdpconnectionext.h"
 #include "kmssdpulpfecext.h"
 #include "kmssdpredundantext.h"
+#include "kmssdpmediadirext.h"
 #include "kmssdpbundlegroup.h"
 #include "kmssdpagentcommon.h"
 
@@ -5282,6 +5283,104 @@ GST_START_TEST (sdp_agent_redundant_ext)
 
 GST_END_TEST;
 
+static GstSDPDirection
+sdp_agent_test_media_direction_on_offer_dir (KmsSdpMediaDirectionExt * ext,
+    gpointer user_data)
+{
+  return RECVONLY;
+}
+
+static void
+sdp_agent_test_media_direction_on_answered_dir (KmsSdpMediaDirectionExt * ext,
+    GstSDPDirection dir, gpointer user_data)
+{
+  fail_if (dir != SENDONLY);
+}
+
+static GstSDPDirection
+sdp_agent_test_media_direction_on_answer_dir (KmsSdpMediaDirectionExt * ext,
+    GstSDPDirection dir, gpointer user_data)
+{
+  fail_if (dir != RECVONLY);
+
+  return SENDONLY;
+}
+
+GST_START_TEST (sdp_agent_media_direction_ext)
+{
+  KmsSdpAgent *offerer, *answerer;
+  KmsSdpMediaHandler *handler;
+  SdpMessageContext *ctx;
+  GstSDPMessage *offer, *answer;
+  KmsSdpMediaDirectionExt *ext1, *ext2;
+  GError *err = NULL;
+  gchar *sdp_str = NULL;
+
+  offerer = kms_sdp_agent_new ();
+  fail_if (offerer == NULL);
+
+  answerer = kms_sdp_agent_new ();
+  fail_if (answerer == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext1 = kms_sdp_media_direction_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext1)));
+
+  g_signal_connect (ext1, "on-offer-media-direction",
+      G_CALLBACK (sdp_agent_test_media_direction_on_offer_dir), NULL);
+  g_signal_connect (ext1, "on-answered-media-direction",
+      G_CALLBACK (sdp_agent_test_media_direction_on_answered_dir), NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (offerer, "video", handler) < 0);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  ext2 = kms_sdp_media_direction_ext_new ();
+  fail_if (!kms_sdp_media_handler_add_media_extension (handler,
+          KMS_I_SDP_MEDIA_EXTENSION (ext2)));
+
+  g_signal_connect (ext2, "on-answer-media-direction",
+      G_CALLBACK (sdp_agent_test_media_direction_on_answer_dir), NULL);
+
+  fail_if (kms_sdp_agent_add_proto_handler (answerer, "video", handler) < 0);
+
+  offer = kms_sdp_agent_create_offer (offerer, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
+  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
+  fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
+
+  g_object_unref (offerer);
+  g_object_unref (answerer);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -5318,6 +5417,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_test_connection_ext);
   tcase_add_test (tc_chain, sdp_agent_ulpfec_ext);
   tcase_add_test (tc_chain, sdp_agent_redundant_ext);
+  tcase_add_test (tc_chain, sdp_agent_media_direction_ext);
 
   tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
 
