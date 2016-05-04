@@ -24,6 +24,8 @@
 #include "kmssdpgroupmanager.h"
 #include "kmssdpbasegroup.h"
 #include "kmssdprejectmediahandler.h"
+#include "kmssdpmediadirext.h"
+#include "kmssdpmidext.h"
 
 #define PLUGIN_NAME "sdpagent"
 
@@ -815,14 +817,66 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
   return media;
 }
 
-static void
-reject_sdp_media (GstSDPMedia * media)
+static GstSDPDirection
+kms_sdp_agent_on_offer_dir (KmsSdpMediaDirectionExt * ext, gpointer user_data)
 {
-  /* [rfc3264] To reject an offered stream, the port number in the */
-  /* corresponding stream in the answer MUST be set to zero. Any   */
-  /* media formats listed are ignored. */
+  return INACTIVE;
+}
 
-  gst_sdp_media_set_port_info (media, 0, 1);
+static GstSDPDirection
+kms_sdp_agent_on_answer_dir (KmsSdpMediaDirectionExt * ext,
+    GstSDPDirection dir, gpointer user_data)
+{
+  return INACTIVE;
+}
+
+static gboolean
+kms_sdp_agent_on_answer_mid (KmsISdpMediaExtension * ext, gchar * mid,
+    gpointer user_data)
+{
+  return TRUE;
+}
+
+static KmsSdpMediaHandler *
+create_reject_handler ()
+{
+  KmsSdpMediaDirectionExt *ext;
+  KmsSdpMediaHandler *handler;
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_reject_media_handler_new ());
+  ext = kms_sdp_media_direction_ext_new ();
+
+  g_signal_connect (ext, "on-offer-media-direction",
+      G_CALLBACK (kms_sdp_agent_on_offer_dir), NULL);
+  g_signal_connect (ext, "on-answer-media-direction",
+      G_CALLBACK (kms_sdp_agent_on_answer_dir), NULL);
+
+  kms_sdp_media_handler_add_media_extension (handler,
+      KMS_I_SDP_MEDIA_EXTENSION (ext));
+
+  return handler;
+}
+
+static void
+reject_sdp_media (GstSDPMedia ** media)
+{
+  KmsSdpMediaHandler *handler = create_reject_handler ();
+  GstSDPMedia *rejected;
+  KmsSdpMidExt *ext;
+
+  ext = kms_sdp_mid_ext_new ();
+
+  g_signal_connect (ext, "on-answer-mid",
+      G_CALLBACK (kms_sdp_agent_on_answer_mid), NULL);
+
+  kms_sdp_media_handler_add_media_extension (handler,
+      KMS_I_SDP_MEDIA_EXTENSION (ext));
+
+  rejected = kms_sdp_media_handler_create_answer (handler, NULL, *media, NULL);
+  g_object_unref (handler);
+
+  gst_sdp_media_free (*media);
+  *media = rejected;
 }
 
 static GstSDPMedia *
@@ -841,7 +895,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
         sdp_handler->sdph->media);
     media = kms_sdp_agent_get_negotiated_media (agent, sdp_handler, err);
     if (media != NULL) {
-      reject_sdp_media (media);
+      reject_sdp_media (&media);
     }
 
     return media;
@@ -1418,8 +1472,7 @@ kms_sdp_agent_create_reject_media_handler (KmsSdpAgent * agent,
     const GstSDPMedia * media)
 {
   return kms_sdp_agent_create_media_handler (agent,
-      gst_sdp_media_get_media (media),
-      KMS_SDP_MEDIA_HANDLER (kms_sdp_reject_media_handler_new ()));
+      gst_sdp_media_get_media (media), create_reject_handler ());
 }
 
 static SdpHandler *
@@ -1551,7 +1604,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 
     /* RFC rfc3264 [8.2]: A stream that is offered with a port */
     /* of zero MUST be marked with port zero in the answer     */
-    reject_sdp_media (answer_media);
+    reject_sdp_media (&answer_media);
     goto answer;
   }
 
