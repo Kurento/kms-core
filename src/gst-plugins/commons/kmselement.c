@@ -691,57 +691,6 @@ add_flow_out_event_probes_to_element_sinks (GstElement * element,
       (KmsPadCallback) add_flow_event_probes, fd_data);
 }
 
-GstElement *
-kms_element_get_audio_output_element (KmsElement * self,
-    const gchar * description)
-{
-  KmsOutputElementData *odata;
-  const gchar *desc;
-  KmsMediaFlowData *fd_data;
-
-  desc = KMS_FORMAT_PAD_DESCRIPTION (description);
-
-  GST_DEBUG_OBJECT (self, "Output element requested for track %s, stream %s",
-      kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_AUDIO), desc);
-
-  KMS_ELEMENT_LOCK (self);
-
-  odata = kms_element_get_output_element_data (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
-      desc);
-  if (odata == NULL) {
-    gchar *key;
-
-    key = create_id_from_pad_attrs (KMS_ELEMENT_PAD_TYPE_AUDIO, GST_PAD_SRC,
-        desc);
-    GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
-        kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_AUDIO), key);
-    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_AUDIO);
-    g_hash_table_insert (self->priv->output_elements, key, odata);
-  }
-
-  if (odata->element != NULL) {
-    KMS_ELEMENT_UNLOCK (self);
-    return odata->element;
-  }
-
-  odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
-
-  fd_data =
-      create_media_flow_data (self, desc, KMS_ELEMENT_PAD_TYPE_AUDIO,
-      KMS_MEDIA_FLOW_OUT);
-  add_flow_out_event_probes_to_element_sinks (odata->element, fd_data);
-  media_flow_data_clock_id_unref (fd_data);
-
-  gst_bin_add (GST_BIN (self), odata->element);
-  gst_element_sync_state_with_parent (odata->element);
-  KMS_ELEMENT_UNLOCK (self);
-
-  kms_element_create_pending_src_pads (self, KMS_ELEMENT_PAD_TYPE_AUDIO, desc,
-      odata->element);
-
-  return odata->element;
-}
-
 static void
 kms_element_set_video_output_properties (KmsElement * self,
     GstElement * element)
@@ -757,7 +706,7 @@ kms_element_set_video_output_properties (KmsElement * self,
 }
 
 GstElement *
-kms_element_get_video_output_element (KmsElement * self,
+kms_element_get_output_element (KmsElement * self, KmsElementPadType pad_type,
     const gchar * description)
 {
   KmsOutputElementData *odata;
@@ -767,20 +716,18 @@ kms_element_get_video_output_element (KmsElement * self,
   desc = KMS_FORMAT_PAD_DESCRIPTION (description);
 
   GST_DEBUG_OBJECT (self, "Output element requested for track %s, stream %s",
-      kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_VIDEO), desc);
+      kms_element_pad_type_str (pad_type), desc);
 
   KMS_ELEMENT_LOCK (self);
 
-  odata = kms_element_get_output_element_data (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
-      desc);
+  odata = kms_element_get_output_element_data (self, pad_type, desc);
   if (odata == NULL) {
     gchar *key;
 
-    key = create_id_from_pad_attrs (KMS_ELEMENT_PAD_TYPE_VIDEO, GST_PAD_SRC,
-        desc);
+    key = create_id_from_pad_attrs (pad_type, GST_PAD_SRC, desc);
     GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
-        kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_VIDEO), key);
-    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_VIDEO);
+        kms_element_pad_type_str (pad_type), key);
+    odata = create_output_element_data (pad_type);
     g_hash_table_insert (self->priv->output_elements, key, odata);
   }
 
@@ -791,23 +738,63 @@ kms_element_get_video_output_element (KmsElement * self,
 
   odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
 
-  fd_data =
-      create_media_flow_data (self, desc, KMS_ELEMENT_PAD_TYPE_VIDEO,
-      KMS_MEDIA_FLOW_OUT);
+  fd_data = create_media_flow_data (self, desc, pad_type, KMS_MEDIA_FLOW_OUT);
   add_flow_out_event_probes_to_element_sinks (odata->element, fd_data);
   media_flow_data_clock_id_unref (fd_data);
 
   /* Set video properties to the new element */
-  kms_element_set_video_output_properties (self, odata->element);
+  if (pad_type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+    kms_element_set_video_output_properties (self, odata->element);
+  }
 
   gst_bin_add (GST_BIN (self), odata->element);
   gst_element_sync_state_with_parent (odata->element);
   KMS_ELEMENT_UNLOCK (self);
 
-  kms_element_create_pending_src_pads (self, KMS_ELEMENT_PAD_TYPE_VIDEO, desc,
-      odata->element);
+  kms_element_create_pending_src_pads (self, pad_type, desc, odata->element);
 
   return odata->element;
+}
+
+GstElement *
+kms_element_get_output_element_from_media_type (KmsElement * self,
+    KmsMediaType media_type, const gchar * description)
+{
+  KmsElementPadType pad_type;
+
+  switch (media_type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      pad_type = KMS_ELEMENT_PAD_TYPE_AUDIO;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      pad_type = KMS_ELEMENT_PAD_TYPE_VIDEO;
+      break;
+    case KMS_MEDIA_TYPE_DATA:
+      pad_type = KMS_ELEMENT_PAD_TYPE_DATA;
+      break;
+    default:
+      GST_ERROR_OBJECT (self,
+          "Invalid media type while requesting output element");
+      return NULL;
+  }
+
+  return kms_element_get_output_element (self, pad_type, description);
+}
+
+GstElement *
+kms_element_get_audio_output_element (KmsElement * self,
+    const gchar * description)
+{
+  return kms_element_get_output_element (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
+      description);
+}
+
+GstElement *
+kms_element_get_video_output_element (KmsElement * self,
+    const gchar * description)
+{
+  return kms_element_get_output_element (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
+      description);
 }
 
 static void

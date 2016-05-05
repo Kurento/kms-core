@@ -17,6 +17,7 @@
 
 #include <gst/gst.h>
 #include "kmselementpadtype.h"
+#include "kmsmediatype.h"
 
 G_BEGIN_DECLS
 
@@ -107,6 +108,10 @@ GstElement * kms_element_get_video_output_element (KmsElement * self,
   const gchar *description);
 GstElement * kms_element_get_data_output_element (KmsElement * self,
   const gchar *description);
+GstElement * kms_element_get_output_element (KmsElement * self,
+    KmsElementPadType pad_type, const gchar * description);
+GstElement * kms_element_get_output_element_from_media_type (KmsElement * self,
+    KmsMediaType media_type, const gchar * description);
 
 #define kms_element_connect_sink_target(self, target, type)   \
   kms_element_connect_sink_target_full (self, target, type, NULL, NULL, NULL)
