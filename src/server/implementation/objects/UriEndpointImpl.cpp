@@ -3,6 +3,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
+#include <boost/regex.hpp>
 
 #define GST_CAT_DEFAULT kurento_uri_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -20,6 +21,28 @@ typedef enum {
   KMS_URI_END_POINT_STATE_PAUSE
 } KmsUriEndPointState;
 
+void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
+{
+  boost::regex re ("//*");
+  std::string uriWithoutProtocol (gst_uri_get_location (uri.c_str () ) );
+  std::string uriProtocol (gst_uri_get_protocol (uri.c_str () ) );
+
+  // if protocol is file:/// glib only remove the two first slashes and we need
+  // to remove the last one.
+  if (uriWithoutProtocol[0] == '/') {
+    uriWithoutProtocol.erase (0, 1);
+  }
+
+  std::string uriWithoutSlash (boost::regex_replace (uriWithoutProtocol, re,
+                               "/") );
+
+  if (uriProtocol == "file") {
+    uri = uriProtocol + ":///" + uriWithoutSlash;
+  } else {
+    uri = uriProtocol + "://" + uriWithoutSlash;
+  }
+}
+
 void UriEndpointImpl::checkUri ()
 {
   this->absolute_uri = this->uri;
@@ -31,8 +54,10 @@ void UriEndpointImpl::checkUri ()
     path = getConfigValue <std::string, UriEndpoint> (DEFAULT_PATH,
            DEFAULT_PATH_VALUE);
 
-    this->absolute_uri = path + this->uri;
+    this->absolute_uri = path + "/" + this->uri;
   }
+
+  removeDuplicateSlashes (this->absolute_uri);
 }
 
 UriEndpointImpl::UriEndpointImpl (const boost::property_tree::ptree &config,

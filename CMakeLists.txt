@@ -28,7 +28,7 @@ set (GLIBMM_REQUIRED ^2.37)
 
 include (GenericFind)
 
-generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework)
+generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework regex)
 
 #gst-plugins dependencies
 generic_find (LIBNAME gstreamer-1.5 VERSION ${GST_REQUIRED} REQUIRED)

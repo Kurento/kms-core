@@ -22,6 +22,7 @@ Build-Depends: debhelper (>= 8.0.0),
  libboost-system-dev,
  libboost-filesystem-dev,
  libboost-test-dev,
+ libboost-regex-dev,
  libxml2-utils,
  uuid-dev
 Standards-Version: 3.9.4

@@ -50,6 +50,7 @@ private:
   std::string absolute_uri;
 
   void checkUri ();
+  void removeDuplicateSlashes (std::string &uri);
 
   class StaticConstructor
   {
