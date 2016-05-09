@@ -50,7 +50,13 @@
         },
         {
           "name": "childs",
-          "doc": "Childs of current object, all returned objects have parent set to current object",
+          "doc": "@deprecated\nUse children instead of this property. Children of current object, all returned objects have parent set to current object",
+          "type": "MediaObject[]",
+          "readOnly": true
+        },
+        {
+          "name": "children",
+          "doc": "Children of current object, all returned objects have parent set to current object",
           "type": "MediaObject[]",
           "readOnly": true
         },

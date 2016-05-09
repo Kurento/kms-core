@@ -72,7 +72,7 @@ public:
   std::vector<std::string> getSessions ();
   std::list<std::shared_ptr<MediaObjectImpl>> getPipelines (
         const std::string &sessionId = "");
-  std::list<std::shared_ptr<MediaObjectImpl>> getChilds (
+  std::list<std::shared_ptr<MediaObjectImpl>> getChildren (
         std::shared_ptr<MediaObjectImpl> obj);
 
   void setServerManager (std::shared_ptr <ServerManagerImpl> serverManager);

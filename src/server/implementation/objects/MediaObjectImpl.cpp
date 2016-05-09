@@ -87,16 +87,23 @@ MediaObjectImpl::setName (const std::string &name)
   this->name = name;
 }
 
-std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
+std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChildren ()
 {
-  std::vector<std::shared_ptr<MediaObject>> childs;
+  std::vector<std::shared_ptr<MediaObject>> children;
 
-  for (auto it : MediaSet::getMediaSet ()->getChilds (std::dynamic_pointer_cast
+  for (auto it : MediaSet::getMediaSet ()->getChildren (std::dynamic_pointer_cast
        <MediaObjectImpl> (shared_from_this() ) ) ) {
-    childs.push_back (it);
+    children.push_back (it);
   }
 
-  return childs;
+  return children;
+}
+
+std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
+{
+  GST_ERROR ("Deprecated property. Use getChildren instead of this property");
+
+  return getChildren ();
 }
 
 bool MediaObjectImpl::getSendTagsInEvents ()

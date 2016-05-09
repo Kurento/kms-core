@@ -660,7 +660,7 @@ std::list<std::shared_ptr<MediaObjectImpl>>
 }
 
 std::list<std::shared_ptr<MediaObjectImpl>>
-    MediaSet::getChilds (std::shared_ptr<MediaObjectImpl> obj)
+    MediaSet::getChildren (std::shared_ptr<MediaObjectImpl> obj)
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::list<std::shared_ptr<MediaObjectImpl>> ret;

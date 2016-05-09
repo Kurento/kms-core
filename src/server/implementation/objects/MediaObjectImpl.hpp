@@ -41,12 +41,12 @@ public:
 
   virtual std::shared_ptr<MediaPipeline> getMediaPipeline ();
 
-  virtual std::shared_ptr<MediaObject> getParent ()
-  {
+  virtual std::shared_ptr<MediaObject> getParent () {
     return parent;
   }
 
   virtual std::vector<std::shared_ptr<MediaObject>> getChilds ();
+  virtual std::vector<std::shared_ptr<MediaObject>> getChildren ();
 
   virtual std::string getId ();
 
@@ -58,8 +58,7 @@ public:
 
   virtual int getCreationTime ();
 
-  virtual void release ()
-  {
+  virtual void release () {
 
   }
 
@@ -77,8 +76,7 @@ public:
 
   template <class T>
   static T getConfigValue (const boost::property_tree::ptree &config,
-                           const std::string &key)
-  {
+                           const std::string &key) {
     auto child = config.get_child (key);
     std::stringstream ss;
     Json::Value val;
@@ -101,8 +99,7 @@ public:
 
   template <class T>
   static T getConfigValue (const boost::property_tree::ptree &config,
-                           const std::string &key, T defaultValue)
-  {
+                           const std::string &key, T defaultValue) {
     try {
       return getConfigValue<T> (config, key);
     } catch (boost::property_tree::ptree_bad_path &e) {
@@ -119,28 +116,24 @@ public:
 protected:
 
   template <class T>
-  T getConfigValue (const std::string &key)
-  {
+  T getConfigValue (const std::string &key) {
     return getConfigValue <T> (config, key);
   }
 
   template <class T>
-  T getConfigValue (const std::string &key, T defaultValue)
-  {
+  T getConfigValue (const std::string &key, T defaultValue) {
     return getConfigValue <T> (config, key, defaultValue);
   }
 
   template <class T, class C>
-  T getConfigValue (const std::string &key)
-  {
+  T getConfigValue (const std::string &key) {
     return getConfigValue <T> ("modules." + dynamic_cast <C *>
                                (this)->getModule() + "."
                                + dynamic_cast <C *> (this)->getType() + "." + key);
   }
 
   template <class T, class C>
-  T getConfigValue (const std::string &key, T defaultValue)
-  {
+  T getConfigValue (const std::string &key, T defaultValue) {
     return getConfigValue <T> ("modules." + dynamic_cast <C *>
                                (this)->getModule() + "."
                                + dynamic_cast <C *> (this)->getType() + "." + key, defaultValue);
