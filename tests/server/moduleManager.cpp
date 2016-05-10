@@ -55,6 +55,9 @@ BOOST_AUTO_TEST_CASE (load_modules)
 
   moduleManager->loadModule (moduleName);
 
+  // Test if factory can be get with our without module preffix
+  mediaPipelineFactory = moduleManager->getFactory ("kurento.MediaPipeline");
+
   mediaPipelineFactory = moduleManager->getFactory ("MediaPipeline");
 
   mediaPipeline = mediaPipelineFactory->createObject (

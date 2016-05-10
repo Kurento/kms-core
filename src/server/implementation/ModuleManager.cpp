@@ -95,7 +95,22 @@ ModuleManager::loadModule (std::string modulePath)
   if (!module.get_symbol ("getModuleName", getName) ) {
     GST_WARNING ("Cannot get module name");
   } else {
+    std::string finalModuleName;
+
     moduleName = ( (GetVersionFunc) getName) ();
+
+    // Factories are also registered using the module name as a prefix
+    // Modules core, elements and filters use kurento as prefix
+    if (moduleName == "core" || moduleName == "elements"
+        || moduleName == "filters")  {
+      finalModuleName = "kurento";
+    } else {
+      finalModuleName = moduleName;
+    }
+
+    for (auto it : factories) {
+      loadedFactories [finalModuleName + "." + it.first] = it.second;
+    }
   }
 
   if (!module.get_symbol ("getModuleDescriptor", getDescriptor) ) {
