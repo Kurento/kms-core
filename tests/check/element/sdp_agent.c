@@ -332,6 +332,7 @@ GST_START_TEST (sdp_agent_test_rejected_unsupported_media)
 
   callbacks.on_handler_required = rejected_on_handler_required;
   callbacks.on_media_answer = NULL;
+  callbacks.on_media_answered = NULL;
   callbacks.on_media_offer = NULL;
 
   kms_sdp_agent_set_callbacks (answerer, &callbacks, &rejected, NULL);
@@ -2935,6 +2936,24 @@ check_if_media_is_removed (GstSDPMessage * msg, guint index)
   return gst_sdp_media_get_port (media) == 0;
 }
 
+typedef struct _OnMediaAnsweredData
+{
+  gint num_medias;
+  gboolean local_offerer;
+} OnMediaAnsweredData;
+
+static gboolean
+on_media_answered (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
+    SdpMediaConfig * mconf, gboolean local_offerer, gpointer gp)
+{
+  OnMediaAnsweredData *data = gp;
+
+  (data->num_medias)++;
+  data->local_offerer = local_offerer;
+
+  return TRUE;
+}
+
 GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 {
   KmsSdpAgent *offerer, *answerer;
@@ -2947,9 +2966,22 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   guint64 v1, v2, v3;
   const GstSDPMedia *media;
   SdpMessageContext *ctx;
+  KmsSdpAgentCallbacks callbacks_offerer, callbacks_answerer;
+  OnMediaAnsweredData offerer_cb_data, answerer_cb_data;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  callbacks_answerer.on_handler_required = NULL;
+  callbacks_answerer.on_media_answer = NULL;
+  callbacks_answerer.on_media_answered = on_media_answered;
+  callbacks_answerer.on_media_offer = NULL;
+
+  answerer_cb_data.num_medias = 0;
+  answerer_cb_data.local_offerer = FALSE;
+
+  kms_sdp_agent_set_callbacks (answerer, &callbacks_answerer,
+      &answerer_cb_data, NULL);
 
   g_object_set (answerer, "addr", ANSWERER_ADDR, NULL);
 
@@ -2971,6 +3003,17 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
+
+  callbacks_offerer.on_handler_required = NULL;
+  callbacks_offerer.on_media_answer = NULL;
+  callbacks_offerer.on_media_answered = on_media_answered;
+  callbacks_offerer.on_media_offer = NULL;
+
+  offerer_cb_data.num_medias = 0;
+  offerer_cb_data.local_offerer = FALSE;
+
+  kms_sdp_agent_set_callbacks (offerer, &callbacks_offerer, &offerer_cb_data,
+      NULL);
 
   g_object_set (offerer, "addr", OFFERER_ADDR, NULL);
 
@@ -3043,6 +3086,12 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
+  fail_unless (offerer_cb_data.num_medias == 2);
+  fail_unless (offerer_cb_data.local_offerer);
+  fail_unless (answerer_cb_data.num_medias == 2);
+  fail_unless (!answerer_cb_data.local_offerer);
+  offerer_cb_data.num_medias = answerer_cb_data.num_medias = 0;
+
   GST_DEBUG ("Add a new media for data channels");
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_sctp_media_handler_new ());
   fail_if (handler == NULL);
@@ -3105,6 +3154,11 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
+
+  fail_unless (offerer_cb_data.num_medias == 3);
+  fail_unless (offerer_cb_data.local_offerer);
+  fail_unless (answerer_cb_data.num_medias == 3);
+  fail_unless (!answerer_cb_data.local_offerer);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);

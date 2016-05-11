@@ -199,6 +199,7 @@ kms_base_sdp_endpoint_create_session (KmsBaseSdpEndpoint * self)
 
   callbacks.on_handler_required = on_handler_required_cb;
   callbacks.on_media_answer = on_media_answer_cb;
+  callbacks.on_media_answered = NULL;
   callbacks.on_media_offer = on_media_offer_cb;
 
   kms_sdp_agent_set_callbacks (sess->agent, &callbacks, sess, NULL);

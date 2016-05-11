@@ -1775,6 +1775,82 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
   return ctx;
 }
 
+static void
+kms_sdp_agent_fire_on_answered_callback (KmsSdpAgent * agent,
+    SdpHandler * sdp_handler, SdpMediaConfig * mconf, gboolean local_offerer)
+{
+  if (agent->priv->callbacks.callbacks.on_media_answered != NULL) {
+    agent->priv->callbacks.callbacks.on_media_answered (agent,
+        sdp_handler->sdph->handler, mconf, local_offerer,
+        agent->priv->callbacks.user_data);
+  }
+}
+
+static gint
+handler_media_config_cmp_func (SdpHandler * h, gconstpointer * mid_pointer)
+{
+  gint mid = GPOINTER_TO_INT (mid_pointer);
+
+  return h->sdph->index - mid;
+}
+
+typedef struct _KmsSdpAgentProcessAnsweredMediaConfigData
+{
+  KmsSdpAgent *agent;
+  gboolean local_offerer;
+} KmsSdpAgentProcessAnsweredMediaConfigData;
+
+static void
+kms_sdp_agent_process_answered_media_config (SdpMediaConfig * mconf,
+    KmsSdpAgentProcessAnsweredMediaConfigData * data)
+{
+  KmsSdpAgent *agent = data->agent;
+  gboolean local_offerer = data->local_offerer;
+  gint mid = kms_sdp_media_config_get_id (mconf);
+  GSList *l;
+
+  l = g_slist_find_custom (agent->priv->offer_handlers, GINT_TO_POINTER (mid),
+      (GCompareFunc) handler_media_config_cmp_func);
+  if (l == NULL) {
+    GST_WARNING_OBJECT (agent, "SDP handler not found for media posistion '%u'",
+        mid);
+    return;
+  }
+
+  kms_sdp_agent_fire_on_answered_callback (agent, l->data, mconf,
+      local_offerer);
+}
+
+static void
+kms_sdp_agent_process_answered_context (KmsSdpAgent * agent,
+    SdpMessageContext * ctx, gboolean local_offerer)
+{
+  KmsSdpAgentProcessAnsweredMediaConfigData data;
+
+  data.agent = agent;
+  data.local_offerer = local_offerer;
+  g_slist_foreach (kms_sdp_message_context_get_medias (ctx),
+      (GFunc) kms_sdp_agent_process_answered_media_config, &data);
+}
+
+static void
+kms_sdp_agent_process_answered_description (KmsSdpAgent * agent,
+    GstSDPMessage * desc, gboolean local_offerer)
+{
+  SdpMessageContext *ctx;
+  GError *err = NULL;
+
+  ctx = kms_sdp_message_context_new_from_sdp (desc, &err);
+  if (err != NULL) {
+    GST_ERROR_OBJECT (agent, "Error generating SDP message context (%s)",
+        err->message);
+    g_error_free (err);
+    return;
+  }
+
+  kms_sdp_agent_process_answered_context (agent, ctx, local_offerer);
+}
+
 static gboolean
 kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
@@ -1829,6 +1905,11 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
       KMS_SDP_AGENT_STATE_WAIT_NEGO : KMS_SDP_AGENT_STATE_NEGOTIATED;
   SDP_AGENT_NEW_STATE (agent, new_state);
   ret = TRUE;
+
+  if (new_state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    kms_sdp_agent_process_answered_context (agent,
+        agent->priv->local_description, FALSE);
+  }
 
 end:
   SDP_AGENT_UNLOCK (agent);
@@ -1968,6 +2049,10 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
   if (ret) {
     kms_sdp_agent_release_sdp (&agent->priv->remote_description);
     agent->priv->remote_description = description;
+
+    if (agent->priv->state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
+      kms_sdp_agent_process_answered_description (agent, description, TRUE);
+    }
   }
 
   SDP_AGENT_UNLOCK (agent);
@@ -2313,6 +2398,8 @@ kms_sdp_agent_set_callbacks (KmsSdpAgent * agent,
   agent->priv->callbacks.destroy = destroy;
   agent->priv->callbacks.user_data = user_data;
   agent->priv->callbacks.callbacks.on_media_answer = callbacks->on_media_answer;
+  agent->priv->callbacks.callbacks.on_media_answered =
+      callbacks->on_media_answered;
   agent->priv->callbacks.callbacks.on_media_offer = callbacks->on_media_offer;
   agent->priv->callbacks.callbacks.on_handler_required =
       callbacks->on_handler_required;
