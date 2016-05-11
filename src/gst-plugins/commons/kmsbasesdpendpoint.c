@@ -140,7 +140,7 @@ on_handler_required_cb (KmsSdpAgent * agent, const GstSDPMedia * media,
   return NULL;
 }
 
-static gboolean
+static void
 on_media_answer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
     SdpMediaConfig * mconf, gpointer user_data)
 {
@@ -148,11 +148,10 @@ on_media_answer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
 
   GST_LOG_OBJECT (session, "Answer media");
 
-  return kms_base_sdp_endpoint_configure_media (agent, handler, mconf,
-      user_data);
+  kms_base_sdp_endpoint_configure_media (agent, handler, mconf, user_data);
 }
 
-static gboolean
+static void
 on_media_offer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
     SdpMediaConfig * mconf, gpointer user_data)
 {
@@ -160,8 +159,7 @@ on_media_offer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
 
   GST_LOG_OBJECT (session, "Offered media");
 
-  return kms_base_sdp_endpoint_configure_media (agent, handler, mconf,
-      user_data);
+  kms_base_sdp_endpoint_configure_media (agent, handler, mconf, user_data);
 }
 
 static const gchar *

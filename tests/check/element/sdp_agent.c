@@ -2942,7 +2942,7 @@ typedef struct _OnMediaAnsweredData
   gboolean local_offerer;
 } OnMediaAnsweredData;
 
-static gboolean
+static void
 on_media_answered (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
     SdpMediaConfig * mconf, gboolean local_offerer, gpointer gp)
 {
@@ -2950,8 +2950,6 @@ on_media_answered (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
 
   (data->num_medias)++;
   data->local_offerer = local_offerer;
-
-  return TRUE;
 }
 
 GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
