@@ -522,53 +522,8 @@ GstElement *
 kms_element_get_data_output_element (KmsElement * self,
     const gchar * description)
 {
-  GstElement *sink, *tee;
-  KmsOutputElementData *odata;
-  const gchar *desc;
-
-  desc = KMS_FORMAT_PAD_DESCRIPTION (description);
-
-  GST_DEBUG_OBJECT (self, "Output element requested for track %s, stream %s",
-      kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_DATA), desc);
-
-  KMS_ELEMENT_LOCK (self);
-
-  odata = kms_element_get_output_element_data (self, KMS_ELEMENT_PAD_TYPE_DATA,
-      desc);
-  if (odata == NULL) {
-    gchar *key;
-
-    key = create_id_from_pad_attrs (KMS_ELEMENT_PAD_TYPE_DATA, GST_PAD_SRC,
-        desc);
-    GST_DEBUG_OBJECT (self, "New output element for track %s, stream %s",
-        kms_element_pad_type_str (KMS_ELEMENT_PAD_TYPE_DATA), key);
-    odata = create_output_element_data (KMS_ELEMENT_PAD_TYPE_DATA);
-    g_hash_table_insert (self->priv->output_elements, key, odata);
-  }
-
-  if (odata->element != NULL) {
-    KMS_ELEMENT_UNLOCK (self);
-    return odata->element;
-  }
-
-  tee = gst_element_factory_make ("tee", NULL);
-
-  sink = gst_element_factory_make ("fakesink", NULL);
-  g_object_set (sink, "sync", FALSE, "async", FALSE, NULL);
-
-  gst_bin_add_many (GST_BIN (self), tee, sink, NULL);
-  gst_element_link (tee, sink);
-
-  odata->element = tee;
-  KMS_ELEMENT_UNLOCK (self);
-
-  gst_element_sync_state_with_parent (sink);
-  gst_element_sync_state_with_parent (tee);
-
-  kms_element_create_pending_src_pads (self, KMS_ELEMENT_PAD_TYPE_DATA, desc,
-      odata->element);
-
-  return odata->element;
+  return kms_element_get_output_element (self, KMS_ELEMENT_PAD_TYPE_DATA,
+      description);
 }
 
 static GstPadProbeReturn
@@ -736,20 +691,38 @@ kms_element_get_output_element (KmsElement * self, KmsElementPadType pad_type,
     return odata->element;
   }
 
-  odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
+  if (pad_type == KMS_ELEMENT_PAD_TYPE_DATA) {
+    GstElement *tee, *sink;
 
-  fd_data = create_media_flow_data (self, desc, pad_type, KMS_MEDIA_FLOW_OUT);
-  add_flow_out_event_probes_to_element_sinks (odata->element, fd_data);
-  media_flow_data_clock_id_unref (fd_data);
+    tee = gst_element_factory_make ("tee", NULL);
 
-  /* Set video properties to the new element */
-  if (pad_type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    kms_element_set_video_output_properties (self, odata->element);
+    sink = gst_element_factory_make ("fakesink", NULL);
+    g_object_set (sink, "sync", FALSE, "async", FALSE, NULL);
+
+    gst_bin_add_many (GST_BIN (self), tee, sink, NULL);
+    gst_element_link (tee, sink);
+
+    odata->element = tee;
+    KMS_ELEMENT_UNLOCK (self);
+
+    gst_element_sync_state_with_parent (sink);
+    gst_element_sync_state_with_parent (tee);
+  } else {
+    odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
+
+    fd_data = create_media_flow_data (self, desc, pad_type, KMS_MEDIA_FLOW_OUT);
+    add_flow_out_event_probes_to_element_sinks (odata->element, fd_data);
+    media_flow_data_clock_id_unref (fd_data);
+
+    /* Set video properties to the new element */
+    if (pad_type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
+      kms_element_set_video_output_properties (self, odata->element);
+    }
+
+    gst_bin_add (GST_BIN (self), odata->element);
+    gst_element_sync_state_with_parent (odata->element);
+    KMS_ELEMENT_UNLOCK (self);
   }
-
-  gst_bin_add (GST_BIN (self), odata->element);
-  gst_element_sync_state_with_parent (odata->element);
-  KMS_ELEMENT_UNLOCK (self);
 
   kms_element_create_pending_src_pads (self, pad_type, desc, odata->element);
 
