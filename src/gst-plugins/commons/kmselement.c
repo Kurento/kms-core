@@ -1324,7 +1324,7 @@ kms_element_request_new_srcpad (KmsElement * self,
   KmsOutputElementData *odata;
   gchar *pad_name, *key;
   guint counter = 0;
-  gboolean added = FALSE;
+  gboolean added = TRUE;
 
   desc = KMS_FORMAT_PAD_DESCRIPTION (description);
 
@@ -1364,7 +1364,7 @@ kms_element_request_new_srcpad (KmsElement * self,
       return NULL;
     }
 
-    added = ret == KMS_REQUEST_NEW_SRC_ELEMENT_OK;
+    added = ret != KMS_REQUEST_NEW_SRC_ELEMENT_NOT_SUPPORTED;
   }
 
   if (odata->element == NULL) {
@@ -1378,7 +1378,7 @@ kms_element_request_new_srcpad (KmsElement * self,
     KMS_ELEMENT_UNLOCK (self);
   } else {
     KMS_ELEMENT_UNLOCK (self);
-    if (!added) {
+    if (added) {
       kms_element_add_src_pad (self, odata->element, pad_name, templ_name);
     }
   }
