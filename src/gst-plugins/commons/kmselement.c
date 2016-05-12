@@ -607,7 +607,8 @@ static void
 add_flow_event_probes (GstPad * pad, KmsMediaFlowData * fd_data)
 {
   media_flow_data_clock_id_ref (fd_data);
-  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
+  gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       (GstPadProbeCallback) cb_buffer_received, fd_data,
       (GDestroyNotify) media_flow_data_clock_id_unref);
 
