@@ -32,7 +32,6 @@ Factory::createObject (const boost::property_tree::ptree &conf,
   std::shared_ptr< MediaObjectImpl > object;
   object = MediaSet::getMediaSet()->ref (dynamic_cast <MediaObjectImpl *>
                                          (createObjectPointer (conf, params) ) );
-  object->postConstructor ();
 
   MediaSet::getMediaSet()->ref (session, object);
 

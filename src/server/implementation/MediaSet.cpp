@@ -234,6 +234,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     // this will always exist because destructor is waiting for its threads
     this->releasePointer (obj);
   });
+  mediaObject->postConstructor ();
 
   objectsMap[mediaObject->getId()] = std::weak_ptr<MediaObjectImpl> (mediaObject);
 
