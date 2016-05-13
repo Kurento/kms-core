@@ -27,63 +27,73 @@
   "remoteClasses": [
     {
       "name": "MediaObject",
-      "doc": "<p>This is the base interface for all elements. It is used to manage properties common to all Kurento objects:
+      "doc": "<p>Base interface used to manage capabilities common to all Kurento elements. This includes both: :rom:cls:`MediaElement` and :rom:cls:`MediaPipeline`</p>
+      <h4>Properties</h4>
       <ul>
-        <li>ID: every object has a unique identifier based on a GUID and the suffix `_kurento.elemenType`. In the case of pipelines, this ID would be GUID_kurento.MediaPipeline. For the rest of media elements, it is prefixed with the MediaPipeline's ID where the endpoint was created. For instance, a WebRtcEndpoint would be GUID_kureto.MediaPipeline/GUID_kureto.WebRtcEndpoint. Needless to say, both GUIDs are different in each case.</li>
-        <li>name: This is a free text that can be used to provide a firendly name for the endpoint. By default, it's the same as the ID</li>
-        <li>tags: This is metadata that can be attached to the media element. </li>
+        <li><b>id</b>: unique identifier assigned to this <code>MediaObject</code> at instantiation time. :rom:cls:`MediaPipeline` IDs are generated with a GUID followed by suffix <code>_kurento.MediaPipeline</code>. :rom:cls:`MediaElement` IDs are also a GUID with suffix <code>_kurento.elemenType</code> and prefixed by parent's ID.
+          <blockquote>
+          <dl>
+            <dt><i>MediaPipeline ID example</i></dt>
+            <dd><code>907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline</code></dd>
+            <dt><i>MediaElement ID example</i></dt> <dd><code>907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline/403da25a-805b-4cf1-8c55-f190588e6c9b_kurento.WebRtcEndpoint</code></dd>
+          </dl>
+          </blockquote>
+        </li>
+        <li><b>name</b>: free text intended to provide a friendly name for this <code>MediaObject</code>. Its default value is the same as the ID.</li>
+        <li><b>tags</b>: key-value pairs intended for applications to associate metadata to this <code>MediaObject</code> instance.</li>
       </ul>
-      </p>
       <p>
-      <h2>Events fired:</h2>
-      <ul><li>ErrorEvent: In case something goes wrong. Since most errors are asynchronous, it is recommended to suscribe to this event.</li></ul>
-      </p>",
+      <h4>Events</h4>
+      <ul>
+        <li>`ErrorEvent`: reports asynchronous error events. It is recommended to always subscribe a listener to this event, as regular error from the pipeline will be notified through it, instead of through an exception when invoking a method.</li>
+      </ul>
+      ",
       "abstract": true,
       "properties": [
         {
           "name": "mediaPipeline",
-          "doc": ":rom:cls:`MediaPipeline` to which this MediaObject belongs, or the pipeline itself if invoked on a :rom:cls:`MediaPipeline`",
+          "doc": ":rom:cls:`MediaPipeline` to which this <code>MediaObject</code> belongs. It returns itself when invoked for a pipeline object.",
           "type": "MediaPipeline",
           "final": true
         },
         {
           "name": "parent",
-          "doc": "parent of this media object. The type of the parent depends on the type of the element. The parent of a :rom:cls:`MediaPad` is its :rom:cls:`MediaElement`; the parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, so this property will be null",
+          "doc": "parent of this <code>MediaObject</code>. The parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, so this property will be null.",
           "type": "MediaObject",
           "final": true
         },
         {
           "name": "id",
-          "doc": "unique identifier of the mediaobject. It's a synthetic identifier composed by a GUID and the name of the type of the object. In case of media objects that have a parent, the ID of the parent is added to the generated ID, separated by `/`: ID_parent/ID_media-object",
+          "doc": "unique identifier of this <code>MediaObject</code>. It's a synthetic identifier composed by a GUID and <code>MediaObject</code> type. The ID is prefixed with the parent ID when the object has parent: <i>ID_parent/ID_media-object</i>.",
           "type": "String",
           "final": true
         },
         {
           "name": "childs",
-          "doc": "@deprecated\nUse children instead. Children of current object, all returned objects have parent set to current object",
+          "doc": "@deprecated\n (Use children instead) children of this <code>MediaObject</code>.",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "children",
-          "doc": "Children of current object. All returned objects have parent set to current object",
+          "doc": "children of this <code>MediaObject</code>.",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "name",
-          "doc": "Object name. This is just a comodity to simplify developers' life debugging, it is not used internally for indexing nor idenfiying the objects. By default, it's the object's id.",
+          "doc": "this <code>MediaObject</code>'s name. This is just a comodity to simplify developers' life debugging, it is not used internally for indexing nor idenfiying the objects. By default, it's the object's ID.",
           "type": "String"
         },
         {
           "name": "sendTagsInEvents",
-          "doc": "This property activates or deactivates sending the element's tags in all events fired.",
+          "doc": "flag activating or deactivating sending the element's tags in fired events.",
           "type": "boolean",
           "defaultValue": false
         },
         {
           "name": "creationTime",
-          "doc": "Number of seconds since Epoch when the element was created",
+          "doc": "<code>MediaObject</code> creation time in seconds since Epoch.",
           "type": "int",
           "final": true
         }
@@ -91,34 +101,34 @@
       "methods": [
         {
           "name": "addTag",
-          "doc": "Adds a new tag to the media object. If the tag is already present, it changes the value.",
+          "doc": "Adds a new tag to this <code>MediaObject</code>. If the tag is already present, it changes the value.",
           "params": [
             {
               "name": "key",
-              "doc": "Key of the tag.",
+              "doc": "Tag name.",
               "type": "String"
             },
             {
               "name": "value",
-              "doc": "Value assoicated to the key.",
+              "doc": "Value associated to this tag.",
               "type": "String"
             }
           ]
         },
         {
           "name": "removeTag",
-          "doc": "Removes an existing tag. If the tag was not defined before, nothing happens.",
+          "doc": "Removes an existing tag. Exists silently with no error if tag is not defined.",
           "params": [
             {
               "name": "key",
-              "doc": "Key of the tag to remove",
+              "doc": "Tag name to be removed",
               "type": "String"
             }
           ]
         },
         {
           "name": "getTag",
-          "doc": "Returns the value of a certain tag. If the key is not defined, it returns a MEDIA_OBJECT_TAG_KEY_NOT_FOUND",
+          "doc": "Returns the value of given tag, or MEDIA_OBJECT_TAG_KEY_NOT_FOUND if tag is not defined.",
           "params": [
             {
               "name": "key",
@@ -133,10 +143,10 @@
         },
         {
           "name": "getTags",
-          "doc": "Returns all this MediaObject's tags.",
+          "doc": "Returns all tags attached to this <code>MediaObject</code>.",
           "params": [],
           "return": {
-            "doc": "An array containing all key-value pairs associated with the MediaObject.",
+            "doc": "An array containing all key-value pairs associated with this <code>MediaObject</code>.",
             "type": "Tag[]"
           }
         }
