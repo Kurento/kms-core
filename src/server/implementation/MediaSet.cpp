@@ -361,6 +361,16 @@ call_release (std::shared_ptr<MediaObjectImpl> mediaObject)
   }
 }
 
+bool
+MediaSet::isServerManager (std::shared_ptr< MediaObjectImpl > mediaObject)
+{
+  if (mediaObject && serverManager) {
+    return mediaObject.get() == serverManager.get();
+  } else {
+    return false;
+  }
+}
+
 void
 MediaSet::unref (const std::string &sessionId,
                  std::shared_ptr< MediaObjectImpl > mediaObject)
@@ -377,11 +387,9 @@ MediaSet::unref (const std::string &sessionId,
   if (it != sessionMap.end() ) {
     auto it2 = it->second.find (mediaObject->getId() );
 
-    if (it2 == it->second.end() ) {
-      return;
+    if (it2 != it->second.end() ) {
+      it->second.erase (it2);
     }
-
-    it->second.erase (it2);
   }
 
   auto childrenIt = childrenMap.find (mediaObject->getId() );
@@ -400,20 +408,21 @@ MediaSet::unref (const std::string &sessionId,
     it3->second.erase (sessionId);
 
     if (it3->second.empty() ) {
-      std::shared_ptr<MediaObjectImpl> parent;
-
-      released = mediaObject.get() != serverManager.get();
-
-      if (released) {
-        parent = std::dynamic_pointer_cast<MediaObjectImpl> (mediaObject->getParent() );
-
-        if (parent) {
-          childrenMap[parent->getId()].erase (mediaObject->getId() );
-        }
-
-        childrenMap.erase (mediaObject->getId() );
-      }
+      released = true;
     }
+  } else {
+    released = true;
+  }
+
+  if (released && !isServerManager (mediaObject) ) {
+    std::shared_ptr<MediaObjectImpl> parent;
+    parent = std::dynamic_pointer_cast<MediaObjectImpl> (mediaObject->getParent() );
+
+    if (parent) {
+      childrenMap[parent->getId()].erase (mediaObject->getId() );
+    }
+
+    childrenMap.erase (mediaObject->getId() );
   }
 
   auto eventIt = eventHandler.find (sessionId);

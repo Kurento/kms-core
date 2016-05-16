@@ -97,6 +97,7 @@ private:
   void releasePointer (MediaObjectImpl *obj);
 
   void checkEmpty ();
+  bool isServerManager (std::shared_ptr< MediaObjectImpl > mediaObject);
 
   void post (std::function<void (void) > f);
 
