@@ -43,7 +43,8 @@ public:
                                  std::shared_ptr<MediaElement> sink,
                                  std::shared_ptr<MediaType> type,
                                  const std::string &sourceDescription,
-                                 const std::string &sinkDescription) {
+                                 const std::string &sinkDescription)
+  {
     this->source = source;
     this->sink = sink;
     this->type = type;
@@ -53,13 +54,15 @@ public:
     setSinkPadName ();
   }
 
-  ~ElementConnectionDataInternal() {
+  ~ElementConnectionDataInternal()
+  {
     if (sourcePadName != NULL) {
       free (sourcePadName);
     }
   }
 
-  ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data) {
+  ElementConnectionDataInternal (std::shared_ptr<ElementConnectionData> data)
+  {
     this->source = data->getSource();
     this->sink = data->getSink();
     this->type = data->getType();
@@ -69,7 +72,8 @@ public:
     setSinkPadName ();
   }
 
-  void setSinkPadName() {
+  void setSinkPadName()
+  {
     std::string desc = "_" + (sourceDescription.empty () ?
                               KMS_DEFAULT_MEDIA_DESCRIPTION : sourceDescription);
 
@@ -88,7 +92,8 @@ public:
     }
   }
 
-  void setSourcePadName (gchar *padName) {
+  void setSourcePadName (gchar *padName)
+  {
     if (this->sourcePadName != NULL) {
       GST_WARNING ("Resetting padName for connection");
 
@@ -100,11 +105,13 @@ public:
     this->sourcePadName = padName;
   }
 
-  const gchar *getSourcePadName () {
+  const gchar *getSourcePadName ()
+  {
     return sourcePadName;
   }
 
-  std::shared_ptr<MediaElementImpl> getSource () {
+  std::shared_ptr<MediaElementImpl> getSource ()
+  {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
     } catch (std::bad_cast) {
@@ -113,7 +120,8 @@ public:
     }
   }
 
-  std::shared_ptr<MediaElementImpl> getSink () {
+  std::shared_ptr<MediaElementImpl> getSink ()
+  {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
     } catch (std::bad_cast) {
@@ -122,11 +130,13 @@ public:
     }
   }
 
-  std::string getSinkPadName () {
+  std::string getSinkPadName ()
+  {
     return sinkPadName;
   }
 
-  GstPad *getSinkPad () {
+  GstPad *getSinkPad ()
+  {
     std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
 
     if (!sinkLocked) {
@@ -137,7 +147,8 @@ public:
                                        getSinkPadName ().c_str() );
   }
 
-  GstPad *getSourcePad () {
+  GstPad *getSourcePad ()
+  {
     std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
 
     if (!sourceLocked || sourcePadName == NULL) {
@@ -148,7 +159,8 @@ public:
                                        sourcePadName);
   }
 
-  std::shared_ptr<ElementConnectionData> toInterface () {
+  std::shared_ptr<ElementConnectionData> toInterface ()
+  {
     std::shared_ptr<ElementConnectionData> iface (new ElementConnectionData (
           source.lock(), sink.lock(), type, sourceDescription, sinkDescription) );
 
