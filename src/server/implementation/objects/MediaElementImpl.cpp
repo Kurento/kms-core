@@ -811,7 +811,7 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
 
   if (sinkImpl->getMediaPipeline ()->getId () != getMediaPipeline ()->getId() ) {
     throw KurentoException (CONNECT_ERROR,
-                            "Media elements does not share pipeline");
+                            "Media elements do not share pipeline");
   }
 
   std::unique_lock<std::recursive_timed_mutex> lock (sinksMutex);
