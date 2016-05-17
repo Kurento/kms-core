@@ -14,9 +14,12 @@
  */
 
 #include "EventHandler.hpp"
+#include <WorkerPool.hpp>
 
 namespace kurento
 {
+
+static WorkerPool workers (1);
 
 EventHandler::EventHandler (std::shared_ptr <MediaObjectImpl> object) :
   object (object)
@@ -33,6 +36,12 @@ EventHandler::~EventHandler()
     }
   } catch (...) {
   }
+}
+
+void
+EventHandler::sendEventAsync  (std::function <void () > cb)
+{
+  workers.post (cb);
 }
 
 } /* kurento */

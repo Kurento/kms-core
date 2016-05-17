@@ -20,6 +20,7 @@
 #include <sigc++/sigc++.h>
 #include <string>
 #include <json/json.h>
+#include <functional>
 
 namespace kurento
 {
@@ -34,6 +35,7 @@ public:
   virtual ~EventHandler();
 
   virtual void sendEvent (Json::Value &value) = 0;
+  void sendEventAsync  (std::function <void () > cb);
 
   void setConnection (sigc::connection conn)
   {
