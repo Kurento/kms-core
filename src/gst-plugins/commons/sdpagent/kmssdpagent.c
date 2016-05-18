@@ -1973,6 +1973,17 @@ kms_sdp_agent_process_answer (KmsSdpAgent * agent)
 }
 
 static gboolean
+is_valid_session_version (const gchar * session1, const gchar * session2)
+{
+  guint64 v1, v2;
+
+  v1 = g_ascii_strtoull (session1, NULL, 10);
+  v2 = g_ascii_strtoull (session2, NULL, 10);
+
+  return (v1 == v2 || (v1 + 1) == v2);
+}
+
+static gboolean
 kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
 {
@@ -1990,13 +2001,17 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
         /* First answer received from remote side => establish the session */
         set_sdp_session_description (&agent->priv->remote, orig->sess_id,
             orig->sess_version);
-      } else if (g_strcmp0 (agent->priv->remote.id, orig->sess_id) != 0 ||
-          g_strcmp0 (agent->priv->remote.version, orig->sess_version) != 0) {
+      } else if (g_strcmp0 (agent->priv->remote.id, orig->sess_id) == 0 &&
+          is_valid_session_version (agent->priv->remote.version,
+              orig->sess_version)) {
+        agent->priv->remote.version = g_strdup (orig->sess_version);
+      } else {
         g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
             "Invalid sdp session %s %s, expected %s %s", orig->sess_id,
             orig->sess_version, agent->priv->remote.id,
             agent->priv->remote.version);
         ret = FALSE;
+        break;
       }
 
       if (agent->priv->prev_sdp != NULL) {
@@ -2021,14 +2036,12 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
     }
     case KMS_SDP_AGENT_STATE_NEGOTIATED:{
       const GstSDPOrigin *orig;
-      guint64 v1, v2;
 
       orig = gst_sdp_message_get_origin (description);
-      v1 = g_ascii_strtoull (agent->priv->remote.version, NULL, 10);
-      v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
       if ((g_strcmp0 (agent->priv->remote.id, orig->sess_id) == 0) &&
-          (v1 == v2 || (v1 + 1) == v2)) {
+          is_valid_session_version (agent->priv->remote.version,
+              orig->sess_version)) {
         update_rejected_medias (agent, description);
         g_free (agent->priv->remote.version);
         agent->priv->remote.version = g_strdup (orig->sess_version);
