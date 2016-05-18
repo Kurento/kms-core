@@ -1849,6 +1849,8 @@ kms_sdp_agent_process_answered_description (KmsSdpAgent * agent,
   }
 
   kms_sdp_agent_process_answered_context (agent, ctx, local_offerer);
+
+  kms_sdp_message_context_unref (ctx);
 }
 
 static gboolean
