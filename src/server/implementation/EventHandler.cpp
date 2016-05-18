@@ -19,7 +19,13 @@
 namespace kurento
 {
 
-static WorkerPool workers (1);
+static void
+post_task (std::function <void () > cb)
+{
+  static WorkerPool workers (1);
+
+  workers.post (cb);
+}
 
 EventHandler::EventHandler (std::shared_ptr <MediaObjectImpl> object) :
   object (object)
@@ -41,7 +47,7 @@ EventHandler::~EventHandler()
 void
 EventHandler::sendEventAsync  (std::function <void () > cb)
 {
-  workers.post (cb);
+  post_task (cb);
 }
 
 } /* kurento */
