@@ -75,6 +75,7 @@ gchar * kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mco
 gboolean kms_utils_contains_proto (const gchar *search_term, const gchar *proto);
 const GstStructure * kms_utils_get_structure_by_name (const GstStructure *str, const gchar *name);
 
+gchar * kms_utils_generate_uuid ();
 void kms_utils_set_uuid (GObject *obj);
 const gchar * kms_utils_get_uuid (GObject *obj);
 

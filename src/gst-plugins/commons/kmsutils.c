@@ -953,8 +953,8 @@ kms_utils_get_structure_by_name (const GstStructure * str, const gchar * name)
   return gst_value_get_structure (value);
 }
 
-void
-kms_utils_set_uuid (GObject * obj)
+gchar *
+kms_utils_generate_uuid ()
 {
   gchar *uuid_str;
   uuid_t uuid;
@@ -963,8 +963,16 @@ kms_utils_set_uuid (GObject * obj)
   uuid_generate (uuid);
   uuid_unparse (uuid, uuid_str);
 
-  /* Assign a unique ID to each SSRC which will */
-  /* be provided in statistics */
+  return uuid_str;
+}
+
+void
+kms_utils_set_uuid (GObject * obj)
+{
+  gchar *uuid_str;
+
+  uuid_str = kms_utils_generate_uuid ();
+
   g_object_set_data_full (obj, KMS_KEY_ID, uuid_str, g_free);
 }
 

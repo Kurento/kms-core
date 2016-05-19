@@ -2313,7 +2313,10 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     id = kms_utils_get_uuid (source);
 
     if (id == NULL) {
+      /* Assign a unique ID to each SSRC which will */
+      /* be provided in statistics */
       kms_utils_set_uuid (source);
+
       id = kms_utils_get_uuid (source);
     }
 
