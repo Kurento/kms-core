@@ -22,8 +22,11 @@
 #define KMS_AGNOSTIC_RAW_CAPS \
   KMS_AGNOSTIC_RAW_AUDIO_CAPS \
   KMS_AGNOSTIC_RAW_VIDEO_CAPS
+#define KMS_AGNOSTIC_RTP_CAPS \
+  "application/x-rtp;"
 #define KMS_AGNOSTIC_AUDIO_CAPS \
   KMS_AGNOSTIC_RAW_AUDIO_CAPS \
+  KMS_AGNOSTIC_RTP_CAPS \
   "audio/x-sbc;" \
   "audio/x-mulaw;" \
   "audio/x-flac;" \
@@ -55,6 +58,7 @@
   "audio/x-gsm;"
 #define KMS_AGNOSTIC_VIDEO_CAPS \
   KMS_AGNOSTIC_RAW_VIDEO_CAPS \
+  KMS_AGNOSTIC_RTP_CAPS \
   "video/x-dirac;" \
   "image/png;" \
   "image/jpeg;" \
