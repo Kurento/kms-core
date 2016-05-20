@@ -45,10 +45,10 @@ MediaObjectImpl::createId()
   std::string uuid = generateUUID();
 
   if (parent) {
-    std::shared_ptr<MediaPipelineImpl> pipeline;
+    std::shared_ptr<MediaObjectImpl> parent;
 
-    pipeline = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
-    return pipeline->getId() + "/" +
+    parent = std::dynamic_pointer_cast<MediaObjectImpl> (getParent() );
+    return parent->getId() + "/" +
            uuid;
   } else {
     return uuid;
