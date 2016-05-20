@@ -1156,6 +1156,95 @@ set_func:
       kms_event_data_destroy);
 }
 
+typedef struct _KmsQueryData KmsQueryData;
+struct _KmsQueryData
+{
+  GstPadQueryFunction user_func;
+  gpointer user_data;
+  GDestroyNotify user_notify;
+  KmsQueryData *next;
+};
+
+static void
+kms_query_data_destroy (gpointer user_data)
+{
+  KmsQueryData *data = user_data;
+
+  if (data->next != NULL) {
+    kms_query_data_destroy (data->next);
+  }
+
+  if (data->user_notify != NULL) {
+    data->user_notify (data->user_data);
+  }
+
+  g_slice_free (KmsQueryData, data);
+}
+
+static gboolean
+kms_query_function (GstPad * pad, GstObject * parent, GstQuery * query)
+{
+  KmsQueryData *data, *first = pad->querydata;
+  gboolean ret = FALSE;
+
+  for (data = first; data != NULL && !ret; data = data->next) {
+    if (data->user_func != NULL) {
+      /* Set data expected by the callback */
+      pad->querydata = data->user_data;
+      ret = data->user_func (pad, parent, query);
+    }
+  }
+
+  /* Restore pad query data */
+  pad->querydata = first;
+
+  return ret;
+}
+
+void
+kms_utils_set_pad_query_function_full (GstPad * pad,
+    GstPadQueryFunction query_func, gpointer user_data, GDestroyNotify notify,
+    gboolean chain_callbacks)
+{
+  GstPadQueryFunction prev_func;
+  KmsQueryData *data;
+
+  /* Create new data */
+  data = g_slice_new0 (KmsQueryData);
+  data->user_func = query_func;
+  data->user_data = user_data;
+  data->user_notify = notify;
+
+  if (!chain_callbacks) {
+    goto set_func;
+  }
+
+  prev_func = GST_PAD_QUERYFUNC (pad);
+
+  if (prev_func != kms_query_function) {
+    /* Keep first data to chain to it */
+    KmsQueryData *first;
+
+    first = g_slice_new0 (KmsQueryData);
+    first->user_func = GST_PAD_QUERYFUNC (pad);
+    first->user_data = pad->querydata;
+    first->user_notify = pad->querynotify;
+    data->next = first;
+  } else {
+    /* Point to previous data to be chained  */
+    data->next = pad->querydata;
+  }
+
+  /* Do not destroy previous data when set_query is called */
+  pad->querynotify = NULL;
+  pad->querydata = NULL;
+
+set_func:
+
+  gst_pad_set_query_function_full (pad, kms_query_function, data,
+      kms_query_data_destroy);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

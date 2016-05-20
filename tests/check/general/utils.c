@@ -126,6 +126,24 @@ test_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
   return TRUE;
 }
 
+static gboolean
+test_query_function (GstPad * pad, GstObject * parent, GstQuery * query)
+{
+  gint *var = pad->querydata;
+
+  GST_DEBUG_OBJECT (pad, "Query received: %d", *var);
+
+  /* Decrement var data */
+  (*var)--;
+
+  if (g_atomic_int_dec_and_test (&callbacks)) {
+    /* Finish test */
+    g_idle_add (quit_main_loop_idle, NULL);
+  }
+
+  return FALSE;
+}
+
 static void
 test_destroy_function (gpointer data)
 {
@@ -176,6 +194,52 @@ GST_START_TEST (check_kms_utils_set_pad_event_function_full)
 
 GST_END_TEST;
 
+GST_START_TEST (check_kms_utils_set_pad_query_function_full)
+{
+  GstElement *e = gst_element_factory_make ("fakesink", NULL);
+  GstElement *pipeline = gst_pipeline_new (NULL);
+  gint v1 = 1, v2 = 2;
+  GstPad *pad;
+  GstCaps *query_caps;
+
+  loop = g_main_loop_new (NULL, FALSE);
+
+  pad = gst_element_get_static_pad (e, "sink");
+
+  /* overwrite previous query function */
+  kms_utils_set_pad_query_function_full (pad, test_query_function, &v1,
+      test_destroy_function, TRUE);
+  /* chain with previous query function */
+  kms_utils_set_pad_query_function_full (pad, test_query_function, &v2,
+      test_destroy_function, TRUE);
+
+  g_object_unref (pad);
+
+  gst_bin_add (GST_BIN (pipeline), e);
+  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  /* Test chained callbacks */
+  query_caps = gst_pad_query_caps (pad, NULL);
+  gst_caps_unref (query_caps);
+
+  GST_DEBUG ("Pipeline running");
+  g_main_loop_run (loop);
+
+  GST_DEBUG ("Test finished");
+
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+  g_object_unref (pipeline);
+  g_main_loop_unref (loop);
+
+  fail_if (destroy_count != 2);
+
+  /* Check manipullation of data */
+  fail_if (v1 != 0);
+  fail_if (v2 != 1);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 utils_suite (void)
@@ -188,6 +252,8 @@ utils_suite (void)
 
   tcase_add_test (tc_chain, check_sdp_utils_media_get_fid_ssrc);
   tcase_add_test (tc_chain, check_kms_utils_set_pad_event_function_full);
+
+  tcase_add_test (tc_chain, check_kms_utils_set_pad_query_function_full);
 
   return s;
 }
