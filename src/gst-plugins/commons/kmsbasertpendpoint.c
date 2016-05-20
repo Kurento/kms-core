@@ -809,6 +809,8 @@ kms_base_rtp_endpoint_configure_rtp_media (KmsBaseRtpEndpoint * self,
   g_object_get (self->priv->rtpbin, "sdes", &sdes, NULL);
   cname = gst_structure_get_string (sdes, "cname");
   g_object_get (rtpsession, "internal-ssrc", &ssrc, NULL);
+  /* HACK: force this SSRC in the payloader. */
+  g_object_set (rtpsession, "internal-ssrc", ssrc, NULL);
   g_object_unref (rtpsession);
 
   str = g_strdup_printf ("%" G_GUINT32_FORMAT " cname:%s", ssrc, cname);
