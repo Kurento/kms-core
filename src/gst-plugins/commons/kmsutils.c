@@ -187,6 +187,19 @@ kms_utils_create_rate_for_caps (const GstCaps * caps)
   return rate;
 }
 
+const gchar *
+kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name)
+{
+  if (g_ascii_strcasecmp (OPUS_ENCONDING_NAME, codec_name) == 0) {
+    return "OPUS";
+  }
+  if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
+    return "VP8";
+  }
+
+  return codec_name;
+}
+
 /* key frame management */
 
 #define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"

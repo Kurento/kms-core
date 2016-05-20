@@ -44,6 +44,8 @@ GstElement * kms_utils_create_convert_for_caps (const GstCaps * caps);
 GstElement * kms_utils_create_mediator_element (const GstCaps * caps);
 GstElement * kms_utils_create_rate_for_caps (const GstCaps * caps);
 
+const gchar * kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name);
+
 /* key frame management */
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);
 void kms_utils_manage_gaps (GstPad *pad);

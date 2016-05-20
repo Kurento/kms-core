@@ -1092,19 +1092,6 @@ kms_base_rtp_endpoint_request_local_key_frame (KmsBaseRtpEndpoint * self)
 
 /* Connect input elements begin */
 /* Payloading configuration begin */
-static const gchar *
-get_caps_codec_name (const gchar * codec_name)
-{
-  if (g_ascii_strcasecmp (OPUS_ENCONDING_NAME, codec_name) == 0) {
-    return "X-GST-OPUS-DRAFT-SPITTKA-00";
-  }
-  if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
-    return "VP8-DRAFT-IETF-01";
-  }
-
-  return codec_name;
-}
-
 static GstCaps *
 kms_base_rtp_endpoint_get_caps_from_rtpmap (const gchar * media,
     const gchar * pt, const gchar * rtpmap)
@@ -1126,7 +1113,8 @@ kms_base_rtp_endpoint_get_caps_from_rtpmap (const gchar * media,
       "media", G_TYPE_STRING, media,
       "payload", G_TYPE_INT, atoi (pt),
       "clock-rate", G_TYPE_INT, clock_rate,
-      "encoding-name", G_TYPE_STRING, get_caps_codec_name (codec_name), NULL);
+      "encoding-name", G_TYPE_STRING,
+      kms_utils_get_caps_codec_name_from_sdp (codec_name), NULL);
 
   g_free (codec_name);
 
