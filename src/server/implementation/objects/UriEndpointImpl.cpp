@@ -24,8 +24,16 @@ typedef enum {
 void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 {
   boost::regex re ("//*");
-  std::string uriWithoutProtocol (gst_uri_get_location (uri.c_str () ) );
-  std::string uriProtocol (gst_uri_get_protocol (uri.c_str () ) );
+  gchar *location, *protocol;
+
+  location = gst_uri_get_location (uri.c_str () );
+  protocol = gst_uri_get_protocol (uri.c_str () );
+
+  std::string uriWithoutProtocol (location );
+  std::string uriProtocol (protocol );
+
+  g_free (location);
+  g_free (protocol);
 
   // if protocol is file:/// glib only remove the two first slashes and we need
   // to remove the last one.
