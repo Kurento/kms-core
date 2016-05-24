@@ -104,6 +104,7 @@ static GstStaticCaps static_audio_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
 GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
+static GstStaticCaps static_rtp_caps = GST_STATIC_CAPS (KMS_AGNOSTIC_RTP_CAPS);
 static GstStaticCaps static_raw_caps =
     GST_STATIC_CAPS
     ("video/x-raw; video/x-raw(ANY); audio/x-raw; audio/x-raw(ANY);");
@@ -143,6 +144,19 @@ kms_utils_caps_are_raw (const GstCaps * caps)
 {
   gboolean ret;
   GstCaps *raw_caps = gst_static_caps_get (&static_raw_caps);
+
+  ret = gst_caps_is_always_compatible (caps, raw_caps);
+
+  gst_caps_unref (raw_caps);
+
+  return ret;
+}
+
+gboolean
+kms_utils_caps_are_rtp (const GstCaps * caps)
+{
+  gboolean ret;
+  GstCaps *raw_caps = gst_static_caps_get (&static_rtp_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
 
