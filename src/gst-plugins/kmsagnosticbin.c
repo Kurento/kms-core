@@ -23,6 +23,7 @@
 #include "kmsparsetreebin.h"
 #include "kmsdectreebin.h"
 #include "kmsenctreebin.h"
+#include "kmsrtppaytreebin.h"
 
 #define PLUGIN_NAME "agnosticbin"
 
@@ -111,6 +112,9 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
 
 static gboolean kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self,
     GstPad * pad);
+
+static GstBin *kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 *
+    self, GstCaps * caps);
 
 static void
 kms_agnostic_bin2_insert_bin (KmsAgnosticBin2 * self, GstBin * bin)
@@ -590,11 +594,48 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 }
 
 static GstBin *
+kms_agnostic_bin2_create_rtp_pay_bin (KmsAgnosticBin2 * self, GstCaps * caps)
+{
+  KmsRtpPayTreeBin *bin;
+  GstBin *enc_bin;
+  GstElement *output_tee, *input_element;
+  GstCaps *input_caps;
+  GstPad *sink;
+
+  bin = kms_rtp_pay_tree_bin_new (caps);
+
+  if (bin == NULL) {
+    return NULL;
+  }
+
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (bin));
+  gst_element_sync_state_with_parent (GST_ELEMENT (bin));
+
+  input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (bin));
+  sink = gst_element_get_static_pad (input_element, "sink");
+  input_caps = gst_pad_query_caps (sink, NULL);
+  g_object_unref (sink);
+
+  enc_bin = kms_agnostic_bin2_find_or_create_bin_for_caps (self, input_caps);
+  kms_agnostic_bin2_insert_bin (self, GST_BIN (bin));
+  gst_caps_unref (input_caps);
+
+  output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (enc_bin));
+  link_element_to_tee (output_tee, input_element);
+
+  return GST_BIN (bin);
+}
+
+static GstBin *
 kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstBin *dec_bin;
   KmsEncTreeBin *enc_bin;
   GstElement *input_element, *output_tee;
+
+  if (kms_utils_caps_are_rtp (caps)) {
+    return kms_agnostic_bin2_create_rtp_pay_bin (self, caps);
+  }
 
   dec_bin = kms_agnostic_bin2_get_or_create_dec_bin (self, caps);
   if (dec_bin == NULL) {
@@ -625,6 +666,22 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   return GST_BIN (enc_bin);
 }
 
+static GstBin *
+kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
+    GstCaps * caps)
+{
+  GstBin *bin;
+
+  bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
+
+  if (bin == NULL) {
+    bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
+    GST_DEBUG_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
+  }
+
+  return bin;
+}
+
 /**
  * Link a pad internally
  *
@@ -647,17 +704,14 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   }
 
   GST_DEBUG ("Query caps are: %" GST_PTR_FORMAT, caps);
-  bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
-
-  if (bin == NULL) {
-    bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
-    GST_DEBUG_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
-  }
+  bin = kms_agnostic_bin2_find_or_create_bin_for_caps (self, caps);
 
   if (bin != NULL) {
     GstElement *tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (bin));
 
-    kms_utils_drop_until_keyframe (pad, TRUE);
+    if (!kms_utils_caps_are_rtp (caps)) {
+      kms_utils_drop_until_keyframe (pad, TRUE);
+    }
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
   }
 

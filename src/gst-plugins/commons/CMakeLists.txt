@@ -100,6 +100,7 @@ set(KMS_COMMONS_SOURCES
   kmsdectreebin.c
   kmsenctreebin.c
   kmsparsetreebin.c
+  kmsrtppaytreebin.c
   kmslist.c
 )
 
@@ -129,6 +130,7 @@ set(KMS_COMMONS_HEADERS
   kmsdectreebin.h
   kmsenctreebin.h
   kmsparsetreebin.h
+  kmsrtppaytreebin.h
   kmslist.h
 )
 
