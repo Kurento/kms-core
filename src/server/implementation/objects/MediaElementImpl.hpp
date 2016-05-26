@@ -28,17 +28,20 @@ class MediaFlowData
 public:
   MediaFlowData (std::shared_ptr<MediaType> type,
                  const std::string &description,
-                 std::shared_ptr<MediaFlowState> state) {
+                 std::shared_ptr<MediaFlowState> state)
+  {
     this->type = type;
     this->state = state;
     this->description = description;
   }
 
-  void setState (std::shared_ptr<MediaFlowState> state ) {
+  void setState (std::shared_ptr<MediaFlowState> state )
+  {
     this->state = state;
   }
 
-  std::shared_ptr<MediaFlowState>  getState () {
+  std::shared_ptr<MediaFlowState>  getState ()
+  {
     return this->state;
   }
 
@@ -50,7 +53,8 @@ private:
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,
-                   const std::shared_ptr<MediaType> &b) const {
+                   const std::shared_ptr<MediaType> &b) const
+  {
     return a->getValue () < b->getValue ();
   }
 };
@@ -71,7 +75,8 @@ public:
 
   virtual ~MediaElementImpl ();
 
-  GstElement *getGstreamerElement() {
+  GstElement *getGstreamerElement()
+  {
     return element;
   };
 
