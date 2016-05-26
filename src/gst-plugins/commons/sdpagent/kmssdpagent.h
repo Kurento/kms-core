@@ -136,14 +136,14 @@ void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
 
 typedef struct {
     void (*on_media_offer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
-                                SdpMediaConfig *mconf, gpointer user_data);
+                                SdpMediaConfig *local_mconf, gpointer user_data);
     void (*on_media_answered) (KmsSdpAgent *agent,
                                    KmsSdpMediaHandler *handler,
-                                   SdpMediaConfig *mconf,
+                                   SdpMediaConfig *neg_mconf,
                                    gboolean local_offerer,
                                    gpointer user_data);
     void (*on_media_answer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
-                                SdpMediaConfig *mconf, gpointer user_data);
+                                SdpMediaConfig *local_mconf, gpointer user_data);
     KmsSdpMediaHandler * (*on_handler_required) (KmsSdpAgent *agent,
                                                  const GstSDPMedia *media,
                                                  gpointer user_data);

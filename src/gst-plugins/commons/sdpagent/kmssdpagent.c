@@ -927,33 +927,33 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
 
 static void
 kms_sdp_agent_fire_on_offer_callback (KmsSdpAgent * agent,
-    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf)
+    KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
 {
   /* deprecated */
   if (agent->priv->configure_media_callback_data != NULL) {
-    agent->priv->configure_media_callback_data->callback (agent, handler, mconf,
-        agent->priv->configure_media_callback_data->user_data);
+    agent->priv->configure_media_callback_data->callback (agent, handler,
+        local_mconf, agent->priv->configure_media_callback_data->user_data);
   }
 
   if (agent->priv->callbacks.callbacks.on_media_offer != NULL) {
-    agent->priv->callbacks.callbacks.on_media_offer (agent, handler, mconf,
-        agent->priv->callbacks.user_data);
+    agent->priv->callbacks.callbacks.on_media_offer (agent, handler,
+        local_mconf, agent->priv->callbacks.user_data);
   }
 }
 
 static void
 kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
-    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf)
+    KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
 {
   /* deprecated */
   if (agent->priv->configure_media_callback_data != NULL) {
-    agent->priv->configure_media_callback_data->callback (agent, handler, mconf,
-        agent->priv->configure_media_callback_data->user_data);
+    agent->priv->configure_media_callback_data->callback (agent, handler,
+        local_mconf, agent->priv->configure_media_callback_data->user_data);
   }
 
   if (agent->priv->callbacks.callbacks.on_media_answer != NULL) {
-    agent->priv->callbacks.callbacks.on_media_answer (agent, handler, mconf,
-        agent->priv->callbacks.user_data);
+    agent->priv->callbacks.callbacks.on_media_answer (agent, handler,
+        local_mconf, agent->priv->callbacks.user_data);
   }
 }
 
@@ -1739,11 +1739,12 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 
 static void
 kms_sdp_agent_fire_on_answered_callback (KmsSdpAgent * agent,
-    SdpHandler * sdp_handler, SdpMediaConfig * mconf, gboolean local_offerer)
+    SdpHandler * sdp_handler, SdpMediaConfig * neg_mconf,
+    gboolean local_offerer)
 {
   if (agent->priv->callbacks.callbacks.on_media_answered != NULL) {
     agent->priv->callbacks.callbacks.on_media_answered (agent,
-        sdp_handler->sdph->handler, mconf, local_offerer,
+        sdp_handler->sdph->handler, neg_mconf, local_offerer,
         agent->priv->callbacks.user_data);
   }
 }
