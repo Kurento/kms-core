@@ -1897,7 +1897,9 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
   }
 
   if (is_lower || pts < sync_data->last_pts) {
-    GST_WARNING_OBJECT (self, "Trying to assign a lower PTS");
+    GST_WARNING_OBJECT (self, "Trying to assign a lower PTS. Calculated pts %"
+        G_GUINT64_FORMAT " old pts %" G_GUINT64_FORMAT, pts,
+        sync_data->last_pts);
     pts = sync_data->last_pts;
   } else {
     sync_data->last_pts = pts;
