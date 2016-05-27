@@ -1,3 +1,17 @@
+6.5.0
+=====
+
+  * Change license to Apache 2.0
+  * Fix bugs in Flow IN - Flow OUT event (caused a segmentation fault)
+  * REMB algorithm improvements
+  * Fix max/min video bandwidth parameters (now 0 means unlimited)
+  * Improve the API changing some event/methods names and deprecating old ones
+    (even they are still available, it's recommended to not use them as they
+     can be remoted on the next major release)
+  * Documentation inprovement
+  * Raise events from differents threads
+  * Agnosticbin: Add support for rtp format (only at output)
+
 6.4.0
 =====
 

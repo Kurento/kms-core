@@ -1,3 +1,208 @@
+kms-core-6.0 (6.5.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ David Fernandez ]
+  * kmselement: Add a weak_ptr to avoid race conditions
+
+  [ Miguel París Díaz ]
+  * remb: reduce log level
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement.c: Ensure the flow_data is not destroyed while in use
+
+  [ David Fernandez ]
+  * MediaObjectImpl: Add functions to get values from any node of the config file
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaObjectImpl: Set destroy functions for media flow data everywhere
+
+  [ Santiago Carot-Nemesio ]
+  * kmsstats: Move common code to stats
+  * kmslist: Fix segmentation fault releasing a NULL pointer value
+  * kmsbasertpendpoint: Fix e2e stats
+  * kmsbasertpendpoint: bring down severity log
+
+  [ Miguel París Díaz ]
+  * basertpsession: remove references to "stats" property
+
+  [ David Fernandez ]
+  * Revert "kmsfilterelement: Add a leaky queue before video filters"
+  * kmsagnosticbin: Set the queue at the video RAW outputs as leaky
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdp_utils: Add function to get pt from codec name
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdprtpavpmediahandler: Fix debug name
+  * kmssdprtpavpmediahandler: Process attributes after analize supported payloads
+  * kmssdpulpfecext: Add extension to manage ulpfec RFC 5109
+  * kmssdpredundantext: Add extension to manage redundancy RFC 2198
+  * kmsbasertpendpoint: Configure FEC if it's supported
+
+  [ Jose Antonio Santos Cadenas ]
+  * Fix compilation warning when using clang
+
+  [ Raúl Benítez Mejías ]
+  * Add badges into all README.md
+
+  [ David Fernandez ]
+  * kmsutils: Add generate_fingerprint_from_pem to utils
+  * kmselement: Avoid error if output elements are still not configured
+  * kmsutils: Add kms_utils_ prefix to generate_fingerprint_from_pem
+
+  [ Miguel París Díaz ]
+  * remb: make increment phase more aggressive
+  * remb: reduce log level when received REMB packets contain more than one ssrc
+  * sdpcontext: fix is_inactive function
+
+  [ Jose Antonio Santos Cadenas ]
+  * basertpendpoint: Print csv stats if a environment variable is set
+  * basertpendpoint: Perform synchronization based on rtcp packages
+  * basertpendpoint: Release mutex correctly
+
+  [ David Fernandez ]
+  * kmsagnosticbin: Set to unlimited the max output bitrate if it set to 0
+  * MediaElementImpl: Fix typo max/minOutput methods
+  * BaseRtpEndpointImpl: Remove unused variable
+  * core.kmd.json: Change doc of field name in MediaLatencyStat
+
+  [ Miguel París Díaz ]
+  * kmsbasertpendpoint: fix unlimited (0) management for "max-video-send-bandwidth"
+
+  [ Jose Antonio Santos Cadenas ]
+  * basertpendpoint: Generate stats on a user defined directory
+
+  [ Santiago Carot-Nemesio ]
+  * kmsbasertpendpoint: Set picture id in vp8 payloader
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediObjectImpl.hpp: Reformat source
+  * MediaObject: Unify all the functions to get values from config
+
+  [ Santiago Carot-Nemesio ]
+  * kmsutils: Add helper function to chain event functions avoiding infinite nested calls
+  * kmstreebin: Use new helper function to add a new event callback
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet: Simplify ref function and call it only from factories.
+
+  [ Santiago Carot-Nemesio ]
+  * kmsbasertpendpoint: Refactored synchronization code
+  * kmssdpagent: Fix typo
+  * kmssdpagent: Provide a way to get the index used by any handler
+  * kmssdpagent: Remove deprecated code
+  * kmssdpagent: Provide handler in callback.
+  * kmssdpagent: Use callbacks for renegotiation
+  * kmssdpagent: Provide callbacks for renegotiation
+
+  [ David Fernandez ]
+  * kmsserializablemeta: Merge data if buffer already contains metadata
+
+  [ Jose Antonio Santos Cadenas ]
+  * basertpendpoint: Initialize ext_ts properly
+
+  [ David Fernandez ]
+  * kmsserializabelmeta: Create a function that returns the metadata
+  * kmsserializablemeta: Depecrate kms_buffer_get_serializable_meta
+  * MediaElementImpl: Move mediaFlow structures from private to protected
+  * MediaElementImpl: Move MediaFlowData class to code file to header file
+  * BaseRtpEndpointImpl: Change getMediaState behaviour
+  * MediaElementImpl: Throw an exception in isMediaFlowing method
+  * BaseRtpEndpointImpl: Fix error in getMediaState comparison
+
+  [ Santiago Carot-Nemesio ]
+  * Fix kmsutil library
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Unify the function that configures flow events
+  * kmsutils: Add utility to iterate sink pads of an element
+  * kmselement: Add flow_event callbacks to all sink pads
+
+  [ Santiago Carot-Nemesio ]
+  * kmsbasertpendpoint: Fix assignment of decreasing PTS
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Create generic functions to get output elements
+
+  [ David Fernandez ]
+  * MediaObjectImpl: Create the children property and deprecate childs
+  * UriEndpointImpl: Accept uris with slashes duplicated
+
+  [ Miguel París Díaz ]
+  * sdp_agent: fix memory leak if debug is activated
+
+  [ Santiago Carot-Nemesio ]
+  * sdp_utils: Set direction for a media
+  * kmssdpmediadirext: Add extension to manage media direction
+  * kmssdpagent: Reject media using extensions
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet.cpp: Remove sigc definitions that are already in the library
+  * CMake: Disable error date time
+  * ModuleManager: Allow usage of factories qualified
+  * kmselement: Return data output elements correctly
+
+  [ Miguel París Díaz ]
+  * sdpagent: add callback to allow answered medias management
+  * sdpagent: avoid returning boolean for callbacks that is not needed
+  * kmselement: take into account BufferLists in flow probes
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Do not add pads only when they are not supported
+
+  [ Ivan Gracia ]
+  * kmd: Improvements in method and interface headers
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet: Call Objects post_constructor from mediaSet instead of from factories
+  * MediaSet: Check children during release method, even if the object is not in a session
+
+  [ Miguel París Díaz ]
+  * constants: remove SRTP_REPLAY_WINDOW_SIZE
+
+  [ Jose Antonio Santos Cadenas ]
+  * EventHandler: Add method so send events asynchronously
+  * MediaElementImpl: Format source correctly
+  * MediaElementImpl: Fix typo
+  * EventHandler: Do not create workers until it is required
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Fix memory leak
+  * kmssdpagent: Fix checking of session version
+
+  [ Miguel París Díaz ]
+  * kmsutils: add generate_uuid functionality
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmsagnosticcaps: Add rtp caps as audio and video caps
+  * kmsutils: Generate utility to get codec_name from sdp
+  * sdpmediadirext: Fix inclusion of other headers
+  * MediaObject: Fix Id creation, using parent id not pipeline id
+  * kmsutils: Add utility to overwrite default query function keeping previous one
+
+  [ Miguel París Díaz ]
+  * basertpendpoint: force using the SSRC generated by the internal RtpSession for payloading
+
+  [ Jose Antonio Santos Cadenas ]
+  * dummytest: Remove example tests
+  * UriEndpoint: Fix memory leak
+  * kmsutils: Add utility to check rtp caps
+  * agnosticbin: Allow output rtp
+  * Fix format
+  * Change license to Apache 2.0
+
+  [ David Fernandez ]
+  * basertpendpoint: Add more info to PTS logs
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare release 6.5.0
+
+  [ Jose Antonio Santos ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 27 May 2016 17:22:31 +0200
+
 kms-core-6.0 (6.4.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
