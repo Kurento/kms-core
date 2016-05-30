@@ -2006,6 +2006,7 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
       } else if (g_strcmp0 (agent->priv->remote.id, orig->sess_id) == 0 &&
           is_valid_session_version (agent->priv->remote.version,
               orig->sess_version)) {
+        g_free (agent->priv->remote.version);
         agent->priv->remote.version = g_strdup (orig->sess_version);
       } else {
         g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
