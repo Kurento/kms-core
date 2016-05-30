@@ -3197,8 +3197,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id5) != 2);
 
-  /* sdp is the same so version should not have changed */
-  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 == v3);
+  /* sdp is not the same because the application line is offered with port 0 */
+  fail_unless (g_strcmp0 (session, o->sess_id) == 0 && v2 + 1 == v3);
 
   kms_sdp_agent_set_local_description (offerer, offer, &err);
 
@@ -4474,8 +4474,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   o = gst_sdp_message_get_origin (offer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 == tmp);
+  /* The new SDP must be different */
+  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 + 1 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
 
@@ -4549,8 +4549,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   o = gst_sdp_message_get_origin (offer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 == tmp);
+  /* The SDP must cyhange because setup attribute is now provided as actpass */
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
 
@@ -4586,12 +4586,12 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   o = gst_sdp_message_get_origin (answer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  /* The SDP must be the same */
-  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 == tmp);
-
   GST_DEBUG ("Answer from offerer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
+
+  /* The SDP must be the same */
+  fail_unless (g_strcmp0 (session1, o->sess_id) == 0 && v1 + 1 == tmp);
 
   media = gst_sdp_message_get_media (answer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4648,7 +4648,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4728,7 +4728,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4828,7 +4828,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 4 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0);

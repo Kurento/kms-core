@@ -885,9 +885,7 @@ static GstSDPMedia *
 kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** err)
 {
-  GstSDPMessage *desc;
   GstSDPMedia *media;
-  guint index;
 
   if (sdp_handler->disabled) {
     /* Try to generate an offer to provide a rejected media in the offer. */
@@ -908,6 +906,12 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return media;
   }
 
+  if (sdp_handler->rejected) {
+    gst_sdp_media_copy (sdp_handler->offer_media, &media);
+    reject_sdp_media (&media);
+    return media;
+  }
+
   media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
       sdp_handler->sdph->media, err);
 
@@ -915,62 +919,8 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return NULL;
   }
 
-  if (!sdp_handler->sdph->negotiated) {
-    update_media_offered (sdp_handler, media);
-    sdp_handler->offer = TRUE;
-    return media;
-  }
-
-  /* Check if this handler has provided new capabilities, if so, renegotiate */
-  if (!sdp_utils_equal_medias (sdp_handler->offer_media, media)) {
-    sdp_handler->offer = TRUE;
-    return media;
-  }
-
-  /* Handler has the same capabilities. Do not renegotiate */
-  index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
-  gst_sdp_media_free (media);
-
-  if (sdp_handler->offer) {
-    /* We offered this media. Remote description has the negotiated media */
-    desc = agent->priv->remote_description;
-  } else {
-    /* Local description has the media negotiated */
-    desc = kms_sdp_message_context_pack (agent->priv->local_description, err);
-  }
-
-  if (desc == NULL) {
-    return NULL;
-  }
-
-  if (index >= gst_sdp_message_medias_len (desc)) {
-    if (!sdp_handler->sdph->negotiated && sdp_handler->offer) {
-      GST_DEBUG_OBJECT (agent,
-          "Media '%s' at %u canceled before finishing negotiation",
-          gst_sdp_media_get_media (sdp_handler->offer_media), index);
-      gst_sdp_media_copy (sdp_handler->offer_media, &media);
-      goto end;
-    }
-    g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->sdph->media);
-    return NULL;
-  }
-
-  gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
-
-  if (!sdp_handler->offer) {
-    /* Free packed SDP message */
-    gst_sdp_message_free (desc);
-  }
-
-end:
-  if (g_strcmp0 (gst_sdp_media_get_media (media),
-          sdp_handler->sdph->media) != 0) {
-    g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Mismatching media '%s' for handler", sdp_handler->sdph->media);
-    gst_sdp_media_free (media);
-    return NULL;
-  }
+  update_media_offered (sdp_handler, media);
+  sdp_handler->offer = TRUE;
 
   return media;
 }
@@ -1097,7 +1047,8 @@ static gboolean
 kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
     SdpMessageContext * new_offer, GError ** error)
 {
-  GstSDPMessage *new_sdp;
+  GstSDPMessage *prev_sdp = NULL;
+  GstSDPMessage *new_sdp = NULL;
   gboolean ret = TRUE;
 
   /* rfc3264 8 Modifying the Session:                                         */
@@ -1105,8 +1056,14 @@ kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
   /* new SDP MUST be identical to that in the previous SDP, except that the   */
   /* version in the origin field MUST increment by one from the previous SDP. */
 
-  if (agent->priv->prev_sdp == NULL) {
+  if (agent->priv->local_description == NULL) {
     return TRUE;
+  }
+
+  prev_sdp = kms_sdp_message_context_pack (agent->priv->local_description, error);
+  if (prev_sdp == NULL) {
+   ret = FALSE;
+   goto end;
   }
 
   new_sdp = kms_sdp_message_context_pack (new_offer, error);
@@ -1115,12 +1072,15 @@ kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
     goto end;
   }
 
-  if (!sdp_utils_equal_messages (agent->priv->prev_sdp, new_sdp)) {
-    GST_DEBUG_OBJECT (agent, "Updating sdp session version");
+  if (!sdp_utils_equal_messages (prev_sdp, new_sdp)) {
     ret = increment_sess_version (agent, new_offer, error);
   }
 
 end:
+  if (prev_sdp != NULL) {
+    gst_sdp_message_free (prev_sdp);
+  }
+
   if (new_sdp != NULL) {
     gst_sdp_message_free (new_sdp);
   }
