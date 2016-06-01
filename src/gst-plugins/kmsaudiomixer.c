@@ -159,7 +159,7 @@ link_new_agnosticbin (gchar * key, GstElement * adder, GstElement * agnosticbin)
   }
 
   sinkpad = gst_element_get_request_pad (adder, "sink_%u");
-  if (srcpad == NULL) {
+  if (sinkpad == NULL) {
     GST_ERROR ("Could not get sink pad in %" GST_PTR_FORMAT, adder);
     gst_element_release_request_pad (agnosticbin, srcpad);
     goto end;
@@ -221,7 +221,7 @@ link_new_adder (gchar * key, GstElement * agnosticbin, GstElement * adder)
   }
 
   sinkpad = gst_element_get_request_pad (adder, "sink_%u");
-  if (srcpad == NULL) {
+  if (sinkpad == NULL) {
     GST_ERROR ("Could not get sink pad in %" GST_PTR_FORMAT, adder);
     gst_element_release_request_pad (agnosticbin, srcpad);
     goto end;
