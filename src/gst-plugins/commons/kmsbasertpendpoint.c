@@ -1848,7 +1848,7 @@ kms_base_rtp_endpoint_update_sync_data (KmsBaseRtpEndpoint * self,
 
 static GstClockTime
 kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
-    SsrcSyncData * sync_data)
+    SsrcSyncData * sync_data, GstClockTime buffer_pts)
 {
   GstClockTime pts, diff_ntpnstime, diff_rtptime, diff_rtpnstime;
   gboolean wrapped_down, wrapped_up, is_lower;
@@ -1894,6 +1894,28 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
     if (!is_lower) {
       pts -= diff_rtpnstime;
     }
+  }
+
+  if (pts > (3 * buffer_pts)) {
+    GST_WARNING_OBJECT (self, "Wrong calculated pts %" G_GUINT64_FORMAT
+        " . Using buffer pts %" G_GUINT64_FORMAT, pts, buffer_pts);
+    GST_WARNING_OBJECT (self, "Data used: base_sync_time %" G_GUINT64_FORMAT
+        " sync_data->last_pts %" G_GUINT64_FORMAT
+        " sync_data->ext_ts %" G_GUINT64_FORMAT
+        " sync_data->last_sr_ntp_ns_time %" G_GUINT64_FORMAT
+        " self->priv->base_ntp_ns_time %" G_GUINT64_FORMAT
+        " sync_data->last_sr_ext_ts %" G_GUINT64_FORMAT
+        " diff_ntpnstime %" G_GUINT64_FORMAT
+        " diff_rtptime %" G_GUINT64_FORMAT
+        " diff_rtpnstime %" G_GUINT64_FORMAT,
+        self->priv->base_sync_time,
+        sync_data->last_pts,
+        sync_data->ext_ts,
+        sync_data->last_sr_ntp_ns_time,
+        self->priv->base_ntp_ns_time,
+        sync_data->last_sr_ext_ts,
+        diff_ntpnstime, diff_rtptime, diff_rtpnstime);
+    pts = buffer_pts;
   }
 
   if (is_lower || pts < sync_data->last_pts) {
@@ -1947,7 +1969,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         // Perform bufffer synchronization
         buff = gst_buffer_make_writable (buff);
         GST_BUFFER_PTS (buff) = kms_base_rtp_endpoint_calculate_new_pts (self,
-            sync_data);
+            sync_data, buff->pts);
         sync_data->last_ext_ts = sync_data->ext_ts;
       }
 
