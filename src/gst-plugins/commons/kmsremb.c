@@ -28,8 +28,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define KMS_REMB_REMOTE "kms-remb-remote"
 
-/* KmsRembLocal begin */
-
 #define KMS_REMB_LOCAL "kms-remb-local"
 
 #define DEFAULT_REMB_PACKETS_RECV_INTERVAL_TOP 100
@@ -82,6 +80,8 @@ kms_remb_base_update_stats (KmsRembBase * rb, guint ssrc, guint bitrate)
 
   KMS_REMB_BASE_UNLOCK (rb);
 }
+
+/* KmsRembLocal begin */
 
 typedef struct _KmsRlRemoteSession
 {
