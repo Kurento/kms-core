@@ -671,7 +671,7 @@ std::list<std::shared_ptr<MediaObjectImpl>>
       ret.push_back (it.second);
     }
   } catch (std::out_of_range) {
-    GST_ERROR ("Cannot get childrens of object %s", obj->getId().c_str() );
+    GST_DEBUG ("Object %s has not children", obj->getId().c_str() );
   }
 
   return ret;
