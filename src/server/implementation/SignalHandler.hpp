@@ -48,7 +48,7 @@ signal_handler_adaptor (Args... args, gpointer data)
   std::shared_ptr <MediaObjectImpl> aux (adaptor->object.lock() );
 
   if (!aux) {
-    return;
+    return (R) 0;
   }
 
   return adaptor->func (args...);
