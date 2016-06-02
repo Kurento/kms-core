@@ -29,8 +29,8 @@
 
 #define PLUGIN_NAME "agnosticbin"
 
-#define LINKING_DATA "linking-data"
 #define UNLINKING_DATA "unlinking-data"
+G_DEFINE_QUARK (UNLINKING_DATA, unlinking_data);
 
 #define KMS_AGNOSTIC_PAD_STARTED (GST_PAD_FLAG_LAST << 1)
 
@@ -202,7 +202,7 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
   GST_DEBUG_OBJECT (pad, "Unlinking pad");
 
   GST_OBJECT_LOCK (pad);
-  if (g_object_get_data (G_OBJECT (pad), UNLINKING_DATA)) {
+  if (g_object_get_qdata (G_OBJECT (pad), unlinking_data_quark ())) {
     GST_OBJECT_UNLOCK (pad);
     if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_QUERY_BOTH) {
       /* Queries must be answered */
@@ -212,7 +212,8 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
     }
   }
 
-  g_object_set_data (G_OBJECT (pad), UNLINKING_DATA, GINT_TO_POINTER (TRUE));
+  g_object_set_qdata (G_OBJECT (pad), unlinking_data_quark (),
+      GINT_TO_POINTER (TRUE));
 
   GST_OBJECT_UNLOCK (pad);
 

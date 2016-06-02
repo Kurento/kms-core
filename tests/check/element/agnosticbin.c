@@ -20,11 +20,19 @@
 #include <glib.h>
 
 #define AGNOSTIC_KEY "agnostic"
+G_DEFINE_QUARK (AGNOSTIC_KEY, agnostic_key);
+
 #define DECODER_KEY "decoder"
+G_DEFINE_QUARK (DECODER_KEY, decoder_key);
+
 #define FAKESINK_KEY "fakesink"
+G_DEFINE_QUARK (FAKESINK_KEY, fakesink_key);
 
 #define VALVE_KEY "valve"
+G_DEFINE_QUARK (VALVE_KEY, valve_key);
+
 #define COUNT_KEY "count"
+G_DEFINE_QUARK (COUNT_KEY, count_key);
 
 /*
  * By now we only enable one output, otherwise the test will probably fail
@@ -149,8 +157,10 @@ static gboolean
 link_again (gpointer data)
 {
   GstElement *decoder = (GstElement *) data;
-  GstElement *agnostic = g_object_get_data (G_OBJECT (data), AGNOSTIC_KEY);
-  GstElement *fakesink = g_object_get_data (G_OBJECT (decoder), FAKESINK_KEY);
+  GstElement *agnostic =
+      g_object_get_qdata (G_OBJECT (data), agnostic_key_quark ());
+  GstElement *fakesink =
+      g_object_get_qdata (G_OBJECT (decoder), fakesink_key_quark ());
 
   GST_DEBUG ("Linking again %" GST_PTR_FORMAT ", %" GST_PTR_FORMAT, agnostic,
       decoder);
@@ -167,7 +177,8 @@ idle_unlink (gpointer data)
   GstPad *sink, *src;
 
   GstElement *decoder = (GstElement *) data;
-  GstElement *agnostic = g_object_get_data (G_OBJECT (decoder), AGNOSTIC_KEY);
+  GstElement *agnostic =
+      g_object_get_qdata (G_OBJECT (decoder), agnostic_key_quark ());
 
   sink = gst_element_get_static_pad (decoder, "sink");
   src = gst_pad_get_peer (sink);
@@ -199,7 +210,7 @@ fakesink_hand_off2 (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
       g_idle_add (quit_main_loop_idle, loop);
     } else {
       GstElement *decoder =
-          g_object_get_data (G_OBJECT (fakesink), DECODER_KEY);
+          g_object_get_qdata (G_OBJECT (fakesink), decoder_key_quark ());
 
       g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
       mark_point ();
@@ -227,7 +238,8 @@ static gpointer
 toggle_thread (gpointer data)
 {
   GstElement *pipeline = GST_ELEMENT (data);
-  GstElement *valve = g_object_get_data (G_OBJECT (pipeline), VALVE_KEY);
+  GstElement *valve =
+      g_object_get_qdata (G_OBJECT (pipeline), valve_key_quark ());
   GstPad *sink = gst_element_get_static_pad (valve, "sink");
   gint i;
 
@@ -391,7 +403,7 @@ static gboolean
 check_pipeline_termination (gpointer data)
 {
   GstElement *pipeline = GST_ELEMENT (data);
-  int *count = g_object_get_data (G_OBJECT (pipeline), COUNT_KEY);
+  int *count = g_object_get_qdata (G_OBJECT (pipeline), count_key_quark ());
 
   if (count != NULL && g_atomic_int_dec_and_test (count)) {
     GST_DEBUG ("Terminating main loop");
@@ -404,12 +416,13 @@ check_pipeline_termination (gpointer data)
 static GstFlowReturn
 appsink_handle_many (GstElement * appsink, gpointer data)
 {
-  int *count = g_object_get_data (G_OBJECT (appsink), COUNT_KEY);
+  int *count = g_object_get_qdata (G_OBJECT (appsink), count_key_quark ());
   GstSample *sample;
 
   if (count == NULL) {
     count = g_malloc0 (sizeof (int));
-    g_object_set_data_full (G_OBJECT (appsink), COUNT_KEY, count, g_free);
+    g_object_set_qdata_full (G_OBJECT (appsink), count_key_quark (), count,
+        g_free);
   }
 
   g_signal_emit_by_name (appsink, "pull-sample", &sample);
@@ -635,7 +648,7 @@ GST_START_TEST (valve_test)
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   GThread *thread;
 
-  g_object_set_data (G_OBJECT (pipeline), VALVE_KEY, valve);
+  g_object_set_qdata (G_OBJECT (pipeline), valve_key_quark (), valve);
 
   loop = g_main_loop_new (NULL, TRUE);
   g_object_set (G_OBJECT (videotestsrc), "is-live", TRUE, NULL);
@@ -643,8 +656,8 @@ GST_START_TEST (valve_test)
   gst_bus_add_signal_watch (bus);
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
-  g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
-  g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
+  g_object_set_qdata (G_OBJECT (fakesink2), decoder_key_quark (), decoder);
+  g_object_set_qdata (G_OBJECT (decoder), agnostic_key_quark (), agnosticbin);
 
   g_object_set (G_OBJECT (fakesink2), "sync", TRUE, "async", FALSE, NULL);
   g_object_set (G_OBJECT (fakesink), "sync", TRUE, "async", FALSE, NULL);
@@ -700,9 +713,9 @@ GST_START_TEST (reconnect_test)
       "async", FALSE, NULL);
   g_signal_connect (G_OBJECT (fakesink2), "handoff",
       G_CALLBACK (fakesink_hand_off2), loop);
-  g_object_set_data (G_OBJECT (fakesink2), DECODER_KEY, decoder);
-  g_object_set_data (G_OBJECT (decoder), AGNOSTIC_KEY, agnosticbin);
-  g_object_set_data (G_OBJECT (decoder), FAKESINK_KEY, fakesink2);
+  g_object_set_qdata (G_OBJECT (fakesink2), decoder_key_quark (), decoder);
+  g_object_set_qdata (G_OBJECT (decoder), agnostic_key_quark (), agnosticbin);
+  g_object_set_qdata (G_OBJECT (decoder), fakesink_key_quark (), fakesink2);
 
   mark_point ();
   gst_bin_add_many (GST_BIN (pipeline), videotestsrc, agnosticbin, fakesink,
@@ -813,7 +826,8 @@ GST_START_TEST (encoded_input_n_encoded_output)
 
   count = g_malloc0 (sizeof (int));
   *count = N_ITERS;
-  g_object_set_data_full (G_OBJECT (pipeline), COUNT_KEY, count, g_free);
+  g_object_set_qdata_full (G_OBJECT (pipeline), count_key_quark (), count,
+      g_free);
   GST_INFO ("Connecting %d outputs", N_ITERS);
 
   g_timeout_add_seconds (6, timeout_check, pipeline);

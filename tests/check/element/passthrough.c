@@ -22,7 +22,10 @@
 #define KMS_AUDIO_PREFIX "audio_src_"
 
 #define AUDIO_SINK "audio-sink"
+G_DEFINE_QUARK (AUDIO_SINK, audio_sink);
+
 #define VIDEO_SINK "video-sink"
+G_DEFINE_QUARK (VIDEO_SINK, video_sink);
 
 #define BITRATE 500000
 
@@ -149,10 +152,10 @@ connect_sink_on_srcpad_added (GstElement * element, GstPad * pad)
 
   if (g_str_has_prefix (GST_PAD_NAME (pad), KMS_AUDIO_PREFIX)) {
     GST_DEBUG_OBJECT (pad, "Connecting video stream");
-    sink = g_object_get_data (G_OBJECT (element), AUDIO_SINK);
+    sink = g_object_get_qdata (G_OBJECT (element), audio_sink_quark ());
   } else if (g_str_has_prefix (GST_PAD_NAME (pad), KMS_VIDEO_PREFIX)) {
     GST_DEBUG_OBJECT (pad, "Connecting audio stream");
-    sink = g_object_get_data (G_OBJECT (element), VIDEO_SINK);
+    sink = g_object_get_qdata (G_OBJECT (element), video_sink_quark ());
   } else {
     GST_TRACE_OBJECT (pad, "Not src pad type");
     return;
@@ -212,7 +215,7 @@ GST_START_TEST (check_connecion)
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_hand_off), loop);
 
-  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, fakesink);
+  g_object_set_qdata (G_OBJECT (passthrough), video_sink_quark (), fakesink);
   g_signal_connect (passthrough, "pad-added",
       G_CALLBACK (on_pad_added_cb), &data);
 
@@ -275,7 +278,7 @@ GST_START_TEST (check_bitrate)
   g_object_set (passthrough, "min-output-bitrate", BITRATE,
       "max-output-bitrate", BITRATE, NULL);
 
-  g_object_set_data (G_OBJECT (passthrough), VIDEO_SINK, capsfilter);
+  g_object_set_qdata (G_OBJECT (passthrough), video_sink_quark (), capsfilter);
   g_signal_connect (passthrough, "pad-added",
       G_CALLBACK (on_pad_added_cb), NULL);
 

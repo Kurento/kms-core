@@ -27,8 +27,10 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define REMB_MAX 2000000        /* bps */
 
 #define KMS_REMB_REMOTE "kms-remb-remote"
+G_DEFINE_QUARK (KMS_REMB_REMOTE, kms_remb_remote);
 
 #define KMS_REMB_LOCAL "kms-remb-local"
+G_DEFINE_QUARK (KMS_REMB_LOCAL, kms_remb_local);
 
 #define DEFAULT_REMB_PACKETS_RECV_INTERVAL_TOP 100
 #define DEFAULT_REMB_EXPONENTIAL_FACTOR 0.04
@@ -45,8 +47,8 @@ kms_remb_base_destroy (KmsRembBase * rb)
 {
   g_signal_handler_disconnect (rb->rtpsess, rb->signal_id);
   rb->signal_id = 0;
-  g_object_set_data (rb->rtpsess, KMS_REMB_LOCAL, NULL);
-  g_object_set_data (rb->rtpsess, KMS_REMB_REMOTE, NULL);
+  g_object_set_qdata (rb->rtpsess, kms_remb_local_quark (), NULL);
+  g_object_set_qdata (rb->rtpsess, kms_remb_remote_quark (), NULL);
   g_clear_object (&rb->rtpsess);
   g_rec_mutex_clear (&rb->mutex);
   g_hash_table_unref (rb->remb_stats);
@@ -369,7 +371,7 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
   guint packet_ssrc;
   AddSsrcsData data;
 
-  rl = g_object_get_data (sess, KMS_REMB_LOCAL);
+  rl = g_object_get_qdata (sess, kms_remb_local_quark ());
 
   if (!rl) {
     GST_WARNING ("Invalid RembLocal");
@@ -455,7 +457,7 @@ kms_remb_local_create (GObject * rtpsess, guint min_bw, guint max_bw)
 {
   KmsRembLocal *rl = g_slice_new0 (KmsRembLocal);
 
-  g_object_set_data (rtpsess, KMS_REMB_LOCAL, rl);
+  g_object_set_qdata (rtpsess, kms_remb_local_quark (), rl);
   rl->base.signal_id = g_signal_connect (rtpsess, "on-sending-rtcp",
       G_CALLBACK (on_sending_rtcp), NULL);
 
@@ -672,7 +674,7 @@ process_psfb_afb (GObject * sess, guint ssrc, GstBuffer * fci_buffer)
     return;
   }
 
-  rm = g_object_get_data (sess, KMS_REMB_REMOTE);
+  rm = g_object_get_qdata (sess, kms_remb_remote_quark ());
 
   if (!rm) {
     GST_WARNING ("Invalid RembRemote");
@@ -747,7 +749,7 @@ kms_remb_remote_create (GObject * rtpsess, guint local_ssrc,
 {
   KmsRembRemote *rm = g_slice_new0 (KmsRembRemote);
 
-  g_object_set_data (rtpsess, KMS_REMB_REMOTE, rm);
+  g_object_set_qdata (rtpsess, kms_remb_remote_quark (), rm);
   rm->base.signal_id = g_signal_connect (rtpsess, "on-feedback-rtcp",
       G_CALLBACK (on_feedback_rtcp), NULL);
 

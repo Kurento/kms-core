@@ -25,12 +25,16 @@
 #define GST_CAT_DEFAULT kmsutils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "kmsutils"
-#define LAST_KEY_FRAME_REQUEST_TIME "kmslastkeyframe"
+
+#define LAST_KEY_FRAME_REQUEST_TIME "last-key-frame-request-time"
+G_DEFINE_QUARK (LAST_KEY_FRAME_REQUEST_TIME, last_key_frame_request_time);
+
+#define KMS_KEY_ID "kms-key-id"
+G_DEFINE_QUARK (KMS_KEY_ID, kms_key_id);
 
 #define DEFAULT_KEYFRAME_DISPERSION GST_SECOND  /* 1s */
 
 #define UUID_STR_SIZE 37        /* 36-byte string (plus tailing '\0') */
-#define KMS_KEY_ID "kms-key-id"
 #define BEGIN_CERTIFICATE "-----BEGIN CERTIFICATE-----"
 #define END_CERTIFICATE "-----END CERTIFICATE-----"
 
@@ -218,21 +222,22 @@ kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name)
 
 /* key frame management */
 
-#define DROPPING_UNTIL_KEY_FRAME "dropping_until_key_frame"
+#define DROPPING_UNTIL_KEY_FRAME "dropping-until-key-frame"
+G_DEFINE_QUARK (DROPPING_UNTIL_KEY_FRAME, dropping_until_key_frame);
 
 /* Call this function holding the lock */
 static inline gboolean
 is_dropping (GstPad * pad)
 {
-  return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pad),
-          DROPPING_UNTIL_KEY_FRAME));
+  return GPOINTER_TO_INT (g_object_get_qdata (G_OBJECT (pad),
+          dropping_until_key_frame_quark ()));
 }
 
 /* Call this function holding the lock */
 static inline void
 set_dropping (GstPad * pad, gboolean dropping)
 {
-  g_object_set_data (G_OBJECT (pad), DROPPING_UNTIL_KEY_FRAME,
+  g_object_set_qdata (G_OBJECT (pad), dropping_until_key_frame_quark (),
       GINT_TO_POINTER (dropping));
 }
 
@@ -383,11 +388,13 @@ check_last_request_time (GstPad * pad)
 
   GST_OBJECT_LOCK (pad);
 
-  last = g_object_get_data (G_OBJECT (pad), LAST_KEY_FRAME_REQUEST_TIME);
+  last =
+      g_object_get_qdata (G_OBJECT (pad), last_key_frame_request_time_quark ());
 
   if (last == NULL) {
     last = g_slice_new (GstClockTime);
-    g_object_set_data_full (G_OBJECT (pad), LAST_KEY_FRAME_REQUEST_TIME, last,
+    g_object_set_qdata_full (G_OBJECT (pad),
+        last_key_frame_request_time_quark (), last,
         (GDestroyNotify) kms_utils_destroy_GstClockTime);
 
     *last = now;
@@ -1002,13 +1009,13 @@ kms_utils_set_uuid (GObject * obj)
 
   uuid_str = kms_utils_generate_uuid ();
 
-  g_object_set_data_full (obj, KMS_KEY_ID, uuid_str, g_free);
+  g_object_set_qdata_full (obj, kms_key_id_quark (), uuid_str, g_free);
 }
 
 const gchar *
 kms_utils_get_uuid (GObject * obj)
 {
-  return (const gchar *) g_object_get_data (obj, KMS_KEY_ID);
+  return (const gchar *) g_object_get_qdata (obj, kms_key_id_quark ());
 }
 
 const char *

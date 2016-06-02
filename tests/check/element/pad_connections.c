@@ -30,6 +30,9 @@
 #define KMS_ELEMENT_PAD_TYPE_AUDIO 1
 #define KMS_ELEMENT_PAD_TYPE_VIDEO 2
 
+#define DISCONNECTED "disconnected"
+G_DEFINE_QUARK (VIDEO_SINK, disconnected);
+
 #define MAX_CHECKS 10
 
 static GMainLoop *loop;
@@ -708,7 +711,7 @@ remove_src_pad (gpointer user_data)
   g_object_unref (sink);
   g_object_unref (dummysrc);
 
-  g_object_set_data (G_OBJECT (bufferinjector), "disconnected",
+  g_object_set_qdata (G_OBJECT (bufferinjector), disconnected_quark (),
       GINT_TO_POINTER (TRUE));
 
   return G_SOURCE_REMOVE;
@@ -735,8 +738,8 @@ unlink_buffer_injector_on_handoff (GstElement * object, GstBuffer * buff,
     }
 
     disconnected =
-        GPOINTER_TO_INT (g_object_get_data (G_OBJECT (bufferinjector),
-            "disconnected"));
+        GPOINTER_TO_INT (g_object_get_qdata (G_OBJECT (bufferinjector),
+            disconnected_quark ()));
 
     if (disconnected) {
       count++;

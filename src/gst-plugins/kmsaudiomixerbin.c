@@ -25,7 +25,10 @@
 #include "kmsloop.h"
 
 #define PLUGIN_NAME "audiomixerbin"
+
 #define KMS_AUDIO_MIXER_BIN_PROBE_ID_KEY "kms-audio-mixer-bin-probe-id"
+G_DEFINE_QUARK (KMS_AUDIO_MIXER_BIN_PROBE_ID_KEY,
+    kms_audio_mixer_bin_probe_id_key);
 
 #define KMS_AUDIO_MIXER_BIN_LOCK(mixer) \
   (g_rec_mutex_lock (&(mixer)->priv->mutex))
@@ -249,7 +252,8 @@ kms_audio_mixer_bin_unlink_elements (KmsAudioMixerBin * self,
   gulong *id;
 
   srcpad = gst_element_get_static_pad (agnosticbin, "src_0");
-  id = g_object_get_data (G_OBJECT (srcpad), KMS_AUDIO_MIXER_BIN_PROBE_ID_KEY);
+  id = g_object_get_qdata (G_OBJECT (srcpad),
+      kms_audio_mixer_bin_probe_id_key_quark ());
 
   gst_element_unlink_pads (typefind, "src", agnosticbin, "sink");
 
@@ -275,8 +279,8 @@ kms_audio_mixer_bin_unlink_elements (KmsAudioMixerBin * self,
 end:
   if (id != NULL) {
     gst_pad_remove_probe (srcpad, *id);
-    g_object_set_data_full (G_OBJECT (srcpad), KMS_AUDIO_MIXER_BIN_PROBE_ID_KEY,
-        NULL, NULL);
+    g_object_set_qdata_full (G_OBJECT (srcpad),
+        kms_audio_mixer_bin_probe_id_key_quark (), NULL, NULL);
   }
 
   gst_object_unref (srcpad);
@@ -398,8 +402,9 @@ event_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   data = (ProbeData *) refdata->data;
 
   id = create_gulong (GST_PAD_PROBE_INFO_ID (info));
-  g_object_set_data_full (G_OBJECT (pad), KMS_AUDIO_MIXER_BIN_PROBE_ID_KEY,
-      id, (GDestroyNotify) destroy_gulong);
+  g_object_set_qdata_full (G_OBJECT (pad),
+      kms_audio_mixer_bin_probe_id_key_quark (), id,
+      (GDestroyNotify) destroy_gulong);
 
   /* We can not access to some GstPad functions because of mutex deadlocks */
   /* So we are going to manage all the stuff in a separate thread */

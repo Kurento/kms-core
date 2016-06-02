@@ -25,8 +25,13 @@
 #define PLUGIN_NAME "hubport"
 
 #define KEY_ELEM_DATA "kms-hub-elem-data"
+G_DEFINE_QUARK (KEY_ELEM_DATA, key_elem_data);
+
 #define KEY_TYPE_DATA "kms-hub-type-data"
+G_DEFINE_QUARK (KEY_TYPE_DATA, key_type_data);
+
 #define KEY_PAD_DATA "kms-hub-pad-data"
+G_DEFINE_QUARK (KEY_PAD_DATA, key_pad_data);
 
 GST_DEBUG_CATEGORY_STATIC (kms_hub_port_debug_category);
 #define GST_CAT_DEFAULT kms_hub_port_debug_category
@@ -149,13 +154,13 @@ kms_hub_port_request_new_pad (GstElement * element,
 static void
 kms_hub_port_internal_src_unhandled (KmsHubPort * self, GstPad * pad)
 {
-  GstPad *sink = g_object_get_data (G_OBJECT (pad), KEY_PAD_DATA);
+  GstPad *sink = g_object_get_qdata (G_OBJECT (pad), key_pad_data_quark ());
 
   g_return_if_fail (sink);
 
   kms_element_remove_sink (KMS_ELEMENT (self), sink);
 
-  g_object_set_data (G_OBJECT (pad), KEY_PAD_DATA, NULL);
+  g_object_set_qdata (G_OBJECT (pad), key_pad_data_quark (), NULL);
 }
 
 void
@@ -185,7 +190,7 @@ kms_hub_port_internal_src_pad_linked (GstPad * pad, GstPad * peer,
   KmsElement *self;
   KmsElementPadType type;
 
-  capsfilter = g_object_get_data (G_OBJECT (pad), KEY_ELEM_DATA);
+  capsfilter = g_object_get_qdata (G_OBJECT (pad), key_elem_data_quark ());
   g_return_if_fail (capsfilter);
   self = KMS_ELEMENT (gst_object_get_parent (GST_OBJECT (capsfilter)));
   g_return_if_fail (self);
@@ -195,11 +200,13 @@ kms_hub_port_internal_src_pad_linked (GstPad * pad, GstPad * peer,
     goto end;
   }
 
-  type = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (pad), KEY_TYPE_DATA));
+  type =
+      GPOINTER_TO_INT (g_object_get_qdata (G_OBJECT (pad),
+          key_type_data_quark ()));
   new_pad = kms_element_connect_sink_target (self, target, type);
   g_object_unref (target);
-  g_object_set_data_full (G_OBJECT (pad), KEY_PAD_DATA, g_object_ref (new_pad),
-      g_object_unref);
+  g_object_set_qdata_full (G_OBJECT (pad), key_pad_data_quark (),
+      g_object_ref (new_pad), g_object_unref);
 
 end:
   g_object_unref (self);
@@ -218,9 +225,9 @@ kms_hub_port_start_media_type (KmsElement * self, KmsElementPadType type,
 
   internal_src = gst_ghost_pad_new_from_template (pad_name, src, templ);
 
-  g_object_set_data_full (G_OBJECT (internal_src), KEY_ELEM_DATA,
+  g_object_set_qdata_full (G_OBJECT (internal_src), key_elem_data_quark (),
       g_object_ref (capsfilter), g_object_unref);
-  g_object_set_data (G_OBJECT (internal_src), KEY_TYPE_DATA,
+  g_object_set_qdata (G_OBJECT (internal_src), key_type_data_quark (),
       GINT_TO_POINTER (type));
 
   g_signal_connect (internal_src, "linked",
