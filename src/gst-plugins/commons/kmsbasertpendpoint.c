@@ -1799,7 +1799,8 @@ init_timestamp_stats_file (KmsBaseRtpEndpoint * self)
   g_date_time_unref (datetime);
 
   stats_file_name =
-      g_strdup_printf ("%s/%s_%p.csv", stats_files_dir, date_str, self);
+      g_strdup_printf ("%s/%s_%s_%p.csv", stats_files_dir, date_str,
+      GST_OBJECT_NAME (self), self);
   g_free (date_str);
 
   if (g_mkdir_with_parents (stats_files_dir, 0777) < 0) {
