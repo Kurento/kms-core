@@ -1848,7 +1848,7 @@ kms_base_rtp_endpoint_update_sync_data (KmsBaseRtpEndpoint * self,
 
 static GstClockTime
 kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
-    SsrcSyncData * sync_data, GstClockTime buffer_pts)
+    SsrcSyncData * sync_data, GstClockTime buffer_pts, GstClockTime buffer_dts)
 {
   GstClockTime pts, diff_ntpnstime, diff_rtptime, diff_rtpnstime;
   gboolean wrapped_down, wrapped_up, is_lower;
@@ -1900,7 +1900,7 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
     }
   }
 
-  if (pts > (3 * buffer_pts)) {
+  if (pts > (buffer_dts + (JB_READY_VIDEO_LATENCY * GST_MSECOND * 2))) {
     GST_WARNING_OBJECT (self, "Wrong calculated pts %" G_GUINT64_FORMAT
         " . Using buffer pts %" G_GUINT64_FORMAT, pts, buffer_pts);
     GST_WARNING_OBJECT (self, "Data used: base_sync_time %" G_GUINT64_FORMAT
@@ -1973,7 +1973,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         // Perform bufffer synchronization
         buff = gst_buffer_make_writable (buff);
         GST_BUFFER_PTS (buff) = kms_base_rtp_endpoint_calculate_new_pts (self,
-            sync_data, buff->pts);
+            sync_data, buff->pts, buff->dts);
         sync_data->last_ext_ts = sync_data->ext_ts;
       }
 
