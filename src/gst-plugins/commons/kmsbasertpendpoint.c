@@ -1891,8 +1891,12 @@ kms_base_rtp_endpoint_calculate_new_pts (KmsBaseRtpEndpoint * self,
         sync_data->clock_rate);
     is_lower = wrapped_down || (wrapped_up &&
         diff_rtpnstime > G_MAXUINT64 - self->priv->base_sync_time + pts);
-    if (!is_lower) {
+    if (!is_lower && pts >= diff_rtpnstime) {
       pts -= diff_rtpnstime;
+    } else {
+      GST_ERROR_OBJECT (self,
+          "Warning, pts seems to be negative, setting to 0");
+      pts = 0;
     }
   }
 
