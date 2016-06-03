@@ -855,6 +855,10 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
     goto no_audiotestsrc;
   }
 
+  gst_pad_add_probe (sinkpad,
+      GST_PAD_PROBE_TYPE_QUERY_UPSTREAM,
+      (GstPadProbeCallback) cb_latency, NULL, NULL);
+
   GST_DEBUG ("Linking %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, srcpad,
       sinkpad);
 
