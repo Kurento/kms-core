@@ -2014,6 +2014,7 @@ rtcp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       GstRTCPType type;
       guint32 ssrc, rtptime;
       guint64 ntptime, ntpnstime;
+      guint32 packet_count;
       SsrcSyncData *sync_data;
 
       if (!gst_rtcp_buffer_get_first_packet (&rtcp, &packet)) {
@@ -2029,7 +2030,13 @@ rtcp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       }
 
       gst_rtcp_packet_sr_get_sender_info (&packet, &ssrc, &ntptime, &rtptime,
-          NULL, NULL);
+          &packet_count, NULL);
+
+      if (packet_count == 0) {
+        GST_ERROR_OBJECT (self,
+            "Received RTCP SR package without previous RTP, ignoring");
+        goto unmap;
+      }
 
       if (ssrc == self->priv->sess->remote_video_ssrc) {
         sync_data = &self->priv->video_sync;
