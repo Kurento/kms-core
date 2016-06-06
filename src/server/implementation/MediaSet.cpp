@@ -253,6 +253,14 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
                                         std::dynamic_pointer_cast<MediaObject> (mediaObject) ) );
   }
 
+  auto parent = mediaObject->getParent();
+
+  if (parent) {
+    for (auto session : reverseSessionMap[parent->getId()]) {
+      ref (session, mediaObject);
+    }
+  }
+
   return mediaObject;
 }
 
