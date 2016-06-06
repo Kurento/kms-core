@@ -199,7 +199,7 @@ sdp_utils_media_get_fid_ssrc (const GstSDPMedia * media, guint pos)
 GstSDPDirection
 sdp_utils_media_config_get_direction (const GstSDPMedia * media)
 {
-  GstSDPDirection dir = SENDRECV;
+  GstSDPDirection dir = GST_SDP_DIRECTION_SENDRECV;
 
   guint i, len;
 
@@ -225,13 +225,13 @@ sdp_utils_media_config_set_direction (GstSDPMedia * media,
   const gchar *dir_str;
   guint i, len;
 
-  if (direction == RECVONLY) {
+  if (direction == GST_SDP_DIRECTION_RECVONLY) {
     dir_str = RECVONLY_STR;
-  } else if (direction == SENDONLY) {
+  } else if (direction == GST_SDP_DIRECTION_SENDONLY) {
     dir_str = SENDONLY_STR;
-  } else if (direction == SENDRECV) {
+  } else if (direction == GST_SDP_DIRECTION_SENDRECV) {
     dir_str = SENDRECV_STR;
-  } else if (direction == INACTIVE) {
+  } else if (direction == GST_SDP_DIRECTION_INACTIVE) {
     dir_str = INACTIVE_STR;
   } else {
     GST_WARNING ("Invalid attribute direction: %d", direction);

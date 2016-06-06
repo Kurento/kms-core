@@ -5341,23 +5341,23 @@ static GstSDPDirection
 sdp_agent_test_media_direction_on_offer_dir (KmsSdpMediaDirectionExt * ext,
     gpointer user_data)
 {
-  return RECVONLY;
+  return GST_SDP_DIRECTION_RECVONLY;
 }
 
 static void
 sdp_agent_test_media_direction_on_answered_dir (KmsSdpMediaDirectionExt * ext,
     GstSDPDirection dir, gpointer user_data)
 {
-  fail_if (dir != SENDONLY);
+  fail_if (dir != GST_SDP_DIRECTION_SENDONLY);
 }
 
 static GstSDPDirection
 sdp_agent_test_media_direction_on_answer_dir (KmsSdpMediaDirectionExt * ext,
     GstSDPDirection dir, gpointer user_data)
 {
-  fail_if (dir != RECVONLY);
+  fail_if (dir != GST_SDP_DIRECTION_RECVONLY);
 
-  return SENDONLY;
+  return GST_SDP_DIRECTION_SENDONLY;
 }
 
 GST_START_TEST (sdp_agent_media_direction_ext)

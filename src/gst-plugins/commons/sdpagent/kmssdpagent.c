@@ -822,14 +822,14 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
 static GstSDPDirection
 kms_sdp_agent_on_offer_dir (KmsSdpMediaDirectionExt * ext, gpointer user_data)
 {
-  return INACTIVE;
+  return GST_SDP_DIRECTION_INACTIVE;
 }
 
 static GstSDPDirection
 kms_sdp_agent_on_answer_dir (KmsSdpMediaDirectionExt * ext,
     GstSDPDirection dir, gpointer user_data)
 {
-  return INACTIVE;
+  return GST_SDP_DIRECTION_INACTIVE;
 }
 
 static gboolean

@@ -55,13 +55,13 @@ static const gchar *
 kms_sdp_media_direction_to_string (GstSDPDirection dir)
 {
   switch (dir) {
-    case SENDONLY:
+    case GST_SDP_DIRECTION_SENDONLY:
       return SENDONLY_STR;
-    case RECVONLY:
+    case GST_SDP_DIRECTION_RECVONLY:
       return RECVONLY_STR;
-    case SENDRECV:
+    case GST_SDP_DIRECTION_SENDRECV:
       return SENDRECV_STR;
-    case INACTIVE:
+    case GST_SDP_DIRECTION_INACTIVE:
       return INACTIVE_STR;
     default:
       return NULL;

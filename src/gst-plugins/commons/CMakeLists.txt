@@ -142,6 +142,7 @@ set(ENUM_HEADERS
   kmselementpadtype.h
   kmsmediastate.h
   kmsconnectionstate.h
+  gstsdpdirection.h
 )
 
 list(APPEND KMS_COMMONS_HEADERS ${ENUM_HEADERS})

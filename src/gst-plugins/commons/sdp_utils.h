@@ -19,6 +19,7 @@
 #define __SDP_H__
 
 #include <gst/sdp/gstsdpmessage.h>
+#include "gstsdpdirection.h"
 
 #define SENDONLY_STR  "sendonly"
 #define RECVONLY_STR  "recvonly"
@@ -32,14 +33,6 @@
 #define RTCP_FB_REMB "goog-remb"
 
 #define EXT_MAP "extmap"
-
-typedef enum GstSDPDirection
-{
-  SENDONLY,
-  RECVONLY,
-  SENDRECV,
-  INACTIVE
-} GstSDPDirection;
 
 typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
 typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, gpointer user_data);

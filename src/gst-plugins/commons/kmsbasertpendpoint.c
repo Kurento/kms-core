@@ -2267,13 +2267,13 @@ static gboolean
 filter_rtp_source (GstSDPDirection direction, gboolean internal)
 {
   switch (direction) {
-    case SENDONLY:
+    case GST_SDP_DIRECTION_SENDONLY:
       /* filter non internal sources */
       return !internal;
-    case RECVONLY:
+    case GST_SDP_DIRECTION_RECVONLY:
       /* filter internal sources */
       return internal;
-    case SENDRECV:
+    case GST_SDP_DIRECTION_SENDRECV:
       return FALSE;
     default:
       return TRUE;
