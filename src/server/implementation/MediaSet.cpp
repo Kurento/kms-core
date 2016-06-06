@@ -236,7 +236,6 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     // this will always exist because destructor is waiting for its threads
     this->releasePointer (obj);
   });
-  mediaObject->postConstructor ();
 
   objectsMap[mediaObject->getId()] = std::weak_ptr<MediaObjectImpl> (mediaObject);
 
@@ -247,18 +246,20 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
     childrenMap[parent->getId()][mediaObject->getId()] = mediaObject;
   }
 
-  if (this->serverManager) {
-    lock.unlock ();
-    serverManager->signalObjectCreated (ObjectCreated (this->serverManager,
-                                        std::dynamic_pointer_cast<MediaObject> (mediaObject) ) );
-  }
-
   auto parent = mediaObject->getParent();
 
   if (parent) {
     for (auto session : reverseSessionMap[parent->getId()]) {
       ref (session, mediaObject);
     }
+  }
+
+  mediaObject->postConstructor ();
+
+  if (this->serverManager) {
+    lock.unlock ();
+    serverManager->signalObjectCreated (ObjectCreated (this->serverManager,
+                                        std::dynamic_pointer_cast<MediaObject> (mediaObject) ) );
   }
 
   return mediaObject;
