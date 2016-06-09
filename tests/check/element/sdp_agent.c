@@ -3045,7 +3045,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   v1 = g_ascii_strtoull (o->sess_version, NULL, 10);
   session = g_strdup (o->sess_id);
 
-  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("Offerer's offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   fail_unless (gst_sdp_message_medias_len (offer) == 2);
@@ -3080,7 +3080,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (err != NULL);
   kms_sdp_message_context_unref (ctx);
 
-  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  GST_DEBUG ("Answerer's answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
@@ -3111,7 +3111,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   o = gst_sdp_message_get_origin (offer);
   v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  GST_DEBUG ("New Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("New Offerer's offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
@@ -3149,7 +3149,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (err != NULL);
   kms_sdp_message_context_unref (ctx);
 
-  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  GST_DEBUG ("Answerer's answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
@@ -3170,7 +3170,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
 
-  GST_DEBUG ("New Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  GST_DEBUG ("New Offerer's offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
 
   o = gst_sdp_message_get_origin (offer);
@@ -4549,8 +4549,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   o = gst_sdp_message_get_origin (offer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  /* The SDP must cyhange because setup attribute is now provided as actpass */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
 
@@ -4648,7 +4647,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4728,7 +4727,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4828,7 +4827,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 4 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0);
@@ -5435,6 +5434,150 @@ GST_START_TEST (sdp_agent_media_direction_ext)
 
 GST_END_TEST;
 
+static const gchar *sdp_chrome_offer =
+    "v=0\r\n"
+    "o=- 9112637149779242531 2 IN IP4 127.0.0.1\r\n"
+    "s=-\r\n"
+    "t=0 0\r\n"
+    "a=msid-semantic: WMS *\r\n"
+    "a=group:BUNDLE audio-100010 video-100020\r\n"
+    "m=audio 9 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 126\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "a=rtpmap:111 opus/48000/2\r\n"
+    "a=rtpmap:103 ISAC/16000\r\n"
+    "a=rtpmap:104 ISAC/32000\r\n"
+    "a=rtpmap:9 G722/8000\r\n"
+    "a=rtpmap:0 PCMU/8000\r\n"
+    "a=rtpmap:8 PCMA/8000\r\n"
+    "a=rtpmap:106 CN/32000\r\n"
+    "a=rtpmap:105 CN/16000\r\n"
+    "a=rtpmap:13 CN/8000\r\n"
+    "a=rtpmap:126 telephone-event/8000\r\n"
+    "a=fmtp:111 minptime=10; useinbandfec=1\r\n"
+    "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+    "a=rtcp-fb:111 transport-cc\r\n"
+    "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\n"
+    "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+    "a=setup:actpass\r\n"
+    "a=mid:audio-100010\r\n"
+    "a=msid:97tjCrfgycD7aLu8L1kFwCpaARd4dvZOzcoE 12f15712-4d0d-4d08-8f7e-09c3087ee4ad\r\n"
+    "a=maxptime:60\r\n"
+    "a=sendrecv\r\n"
+    "a=ice-ufrag:5E9apHXc228AnqJl\r\n"
+    "a=ice-pwd:Adq18Kq1IgPby078eoJKnFPH\r\n"
+    "a=fingerprint:sha-256 D7:60:7A:DE:56:03:32:1C:FB:E8:1C:D7:4A:56:71:60:54:59:DE:2F:1B:68:3A:15:36:E1:E0:D1:4C:C8:90:45\r\n"
+    "a=ssrc:100010 cname:k/mtykpGVf9V+s2/\r\n"
+    "a=ssrc:100010 mslabel:97tjCrfgycD7aLu8L1kFwCpaARd4dvZOzcoE\r\n"
+    "a=ssrc:100010 label:12f15712-4d0d-4d08-8f7e-09c3087ee4ad\r\n"
+    "a=rtcp-mux\r\n"
+    "m=video 9 UDP/TLS/RTP/SAVPF 100 101 116 117 96 97 98\r\n"
+    "c=IN IP4 0.0.0.0\r\n"
+    "a=rtpmap:100 VP8/90000\r\n"
+    "a=rtpmap:101 VP9/90000\r\n"
+    "a=rtpmap:116 red/90000\r\n"
+    "a=rtpmap:117 ulpfec/90000\r\n"
+    "a=rtpmap:96 rtx/90000\r\n"
+    "a=rtpmap:97 rtx/90000\r\n"
+    "a=rtpmap:98 rtx/90000\r\n"
+    "a=fmtp:96 apt=100\r\n"
+    "a=fmtp:97 apt=101\r\n"
+    "a=fmtp:98 apt=116\r\n"
+    "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+    "a=rtcp-fb:100 ccm fir\r\n"
+    "a=rtcp-fb:100 nack\r\n"
+    "a=rtcp-fb:100 nack pli\r\n"
+    "a=rtcp-fb:100 goog-remb\r\n"
+    "a=rtcp-fb:100 transport-cc\r\n"
+    "a=rtcp-fb:101 ccm fir\r\n"
+    "a=rtcp-fb:101 nack\r\n"
+    "a=rtcp-fb:101 nack pli\r\n"
+    "a=rtcp-fb:101 goog-remb\r\n"
+    "a=rtcp-fb:101 transport-cc\r\n"
+    "a=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\n"
+    "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+    "a=extmap:4 urn:3gpp:video-orientation\r\n"
+    "a=setup:actpass\r\n"
+    "a=mid:video-100020\r\n"
+    "a=msid:97tjCrfgycD7aLu8L1kFwCpaARd4dvZOzcoE f327238b-f989-4fbf-bd06-0148b3dcc3f2\r\n"
+    "a=sendrecv\r\n"
+    "a=ice-ufrag:5E9apHXc228AnqJl\r\n"
+    "a=ice-pwd:Adq18Kq1IgPby078eoJKnFPH\r\n"
+    "a=fingerprint:sha-256 D7:60:7A:DE:56:03:32:1C:FB:E8:1C:D7:4A:56:71:60:54:59:DE:2F:1B:68:3A:15:36:E1:E0:D1:4C:C8:90:45\r\n"
+    "a=ssrc:100020 cname:k/mtykpGVf9V+s2/\r\n"
+    "a=ssrc:100020 mslabel:97tjCrfgycD7aLu8L1kFwCpaARd4dvZOzcoE\r\n"
+    "a=ssrc:100020 label:f327238b-f989-4fbf-bd06-0148b3dcc3f2\r\n"
+    "a=ssrc:607622965 cname:k/mtykpGVf9V+s2/\r\n"
+    "a=ssrc:607622965 mslabel:97tjCrfgycD7aLu8L1kFwCpaARd4dvZOzcoE\r\n"
+    "a=ssrc:607622965 label:f327238b-f989-4fbf-bd06-0148b3dcc3f2\r\n"
+    "a=ssrc-group:FID 100020 607622965\r\n"
+    "a=rtcp-mux\r\n";
+
+GST_START_TEST (sdp_agent_renegotiation_chrome)
+{
+  KmsSdpAgent *agent;
+  gchar *sdp_str = NULL;
+  GstSDPMessage *offer, *answer;
+  KmsSdpMediaHandler *handler;
+  SdpMessageContext *ctx;
+  GError *err = NULL;
+
+  agent = kms_sdp_agent_new ();
+  fail_if (agent == NULL);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  add_media_handler (agent, "video", handler);
+
+  handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
+  fail_if (handler == NULL);
+
+  set_default_codecs (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), audio_codecs,
+      G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
+
+  add_media_handler (agent, "audio", handler);
+
+  fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
+  fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
+          sdp_chrome_offer, -1, offer) == GST_SDP_OK);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_remote_description (agent, offer, &err));
+  ctx = kms_sdp_agent_create_answer (agent, &err);
+  fail_if (err != NULL);
+
+  answer = kms_sdp_message_context_pack (ctx, &err);
+  fail_if (err != NULL);
+  kms_sdp_message_context_unref (ctx);
+
+  GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (agent, answer, &err));
+
+  GST_INFO ("Generating offer from agent");
+
+  offer = kms_sdp_agent_create_offer (agent, &err);
+  fail_if (err != NULL);
+
+  GST_DEBUG ("Offer:\n%s", (sdp_str = gst_sdp_message_as_text (offer)));
+  g_free (sdp_str);
+
+  fail_if (!kms_sdp_agent_set_local_description (agent, offer, &err));
+
+  gst_sdp_message_free (answer);
+  gst_sdp_message_free (offer);
+
+  g_object_unref (agent);
+}
+
+GST_END_TEST;
+
 static Suite *
 sdp_agent_suite (void)
 {
@@ -5482,6 +5625,8 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_renegotiation_complex_case);
 
   tcase_add_test (tc_chain, sdp_agent_groups);
+
+  tcase_add_test (tc_chain, sdp_agent_renegotiation_chrome);
 
   return s;
 }

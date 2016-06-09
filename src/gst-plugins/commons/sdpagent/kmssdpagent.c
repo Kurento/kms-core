@@ -885,7 +885,9 @@ static GstSDPMedia *
 kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** err)
 {
+  GstSDPMessage *local_sdp;
   GstSDPMedia *media;
+  guint index;
 
   if (sdp_handler->disabled) {
     /* Try to generate an offer to provide a rejected media in the offer. */
@@ -912,15 +914,40 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return media;
   }
 
-  media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
-      sdp_handler->sdph->media, err);
+  if (!sdp_handler->sdph->negotiated) {
+    /* new offer */
+    media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
+        sdp_handler->sdph->media, err);
 
-  if (media == NULL) {
+    if (media != NULL) {
+      update_media_offered (sdp_handler, media);
+      sdp_handler->offer = TRUE;
+    }
+
+    return media;
+  }
+
+  /* Renegotiate media */
+
+  local_sdp =
+      kms_sdp_message_context_pack (agent->priv->local_description, err);
+
+  if (local_sdp == NULL) {
     return NULL;
   }
 
-  update_media_offered (sdp_handler, media);
-  sdp_handler->offer = TRUE;
+  index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
+  if (index >= gst_sdp_message_medias_len (local_sdp)) {
+    g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
+        "Could not process media '%s'", sdp_handler->sdph->media);
+    gst_sdp_message_free (local_sdp);
+    return NULL;
+  }
+
+  /* TODO: Let handler and extensions to incorporate new attributes */
+
+  gst_sdp_media_copy (gst_sdp_message_get_media (local_sdp, index), &media);
+  gst_sdp_message_free (local_sdp);
 
   return media;
 }
