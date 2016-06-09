@@ -993,6 +993,33 @@ end:
   return pad;
 }
 
+GstPad *
+kms_element_connect_sink_target_full_by_media_type (KmsElement * self,
+    GstPad * target, KmsMediaType media_type, const gchar * description,
+    KmsAddPadFunc func, gpointer user_data)
+{
+  KmsElementPadType pad_type;
+
+  switch (media_type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      pad_type = KMS_ELEMENT_PAD_TYPE_AUDIO;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      pad_type = KMS_ELEMENT_PAD_TYPE_VIDEO;
+      break;
+    case KMS_MEDIA_TYPE_DATA:
+      pad_type = KMS_ELEMENT_PAD_TYPE_DATA;
+      break;
+    default:
+      GST_ERROR_OBJECT (self,
+          "Invalid media type while requesting output element");
+      return NULL;
+  }
+
+  return kms_element_connect_sink_target_full (self, target, pad_type,
+      description, func, user_data);
+}
+
 static gint
 find_stat_probe (KmsStatsProbe * probe, GstPad * pad)
 {

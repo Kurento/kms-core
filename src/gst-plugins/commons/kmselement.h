@@ -122,6 +122,8 @@ typedef void (*KmsAddPadFunc) (GstPad *pad, gpointer data);
 
 GstPad *kms_element_connect_sink_target_full (KmsElement *self, GstPad * target,
     KmsElementPadType type, const gchar *description, KmsAddPadFunc func, gpointer user_data);
+GstPad *kms_element_connect_sink_target_full_by_media_type (KmsElement *self, GstPad * target,
+    KmsMediaType media_type, const gchar *description, KmsAddPadFunc func, gpointer user_data);
 void kms_element_remove_sink (KmsElement *self, GstPad * pad);
 
 #define kms_element_remove_sink_by_type(self, type) \
