@@ -989,7 +989,8 @@
       "values": [
         "OPUS",
         "PCMU",
-        "RAW"
+        "RAW",
+        "SPEEX"
       ],
       "name": "AudioCodec",
       "doc": "Codec used for transmission of audio."

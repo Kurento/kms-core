@@ -216,7 +216,7 @@ kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name)
   if (g_ascii_strcasecmp (VP8_ENCONDING_NAME, codec_name) == 0) {
     return "VP8";
   }
-  if (g_ascii_strcasecmp ("speex", codec_name) == 0) {
+  if (g_ascii_strcasecmp (SPEEX_ENCONDING_NAME, codec_name) == 0) {
     return "SPEEX";
   }
 
