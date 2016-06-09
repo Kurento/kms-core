@@ -46,6 +46,7 @@ typedef enum
   X264,
   OPENH264,
   OPUS,
+  SPEEX,
   UNSUPPORTED
 } EncoderType;
 
@@ -77,6 +78,8 @@ kms_enc_tree_bin_get_name_from_type (EncoderType enc_type)
       return "openh264";
     case OPUS:
       return "opus";
+    case SPEEX:
+      return "speex";
     case UNSUPPORTED:
     default:
       return NULL;
@@ -183,6 +186,11 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate,
           "perfect-timestamp", TRUE, NULL);
       break;
     }
+    case SPEEX:
+    {
+      g_object_set (G_OBJECT (encoder), "complexity", 4, NULL);
+      break;
+    }
     default:
       GST_DEBUG ("Codec %" GST_PTR_FORMAT
           " not configured because it is not supported", encoder);
@@ -207,6 +215,8 @@ kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
     self->priv->enc_type = OPENH264;
   } else if (g_str_has_prefix (name, "opusenc")) {
     self->priv->enc_type = OPUS;
+  } else if (g_str_has_prefix (name, "speexenc")) {
+    self->priv->enc_type = SPEEX;
   } else {
     self->priv->enc_type = UNSUPPORTED;
   }

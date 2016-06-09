@@ -1012,6 +1012,10 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
     str_caps = "audio/x-raw";
     break;
 
+  case AudioCodec::SPEEX:
+    str_caps = "audio/x-speex";
+    break;
+
   default:
     throw KurentoException (MEDIA_OBJECT_ILLEGAL_PARAM_ERROR,
                             "Invalid parameter provided: " + codec->getString() );

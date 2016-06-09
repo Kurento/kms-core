@@ -19,6 +19,9 @@
     },
     {
       "name" : "AMR/8000"
+    },
+    {
+      "name" : "speex/16000"
     }
   ],
   "videoCodecs" : [
