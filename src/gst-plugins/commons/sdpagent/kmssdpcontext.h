@@ -38,7 +38,6 @@ const gchar * kms_sdp_message_context_ipv2str (SdpIPv ipv);
 
 SdpMessageContext *kms_sdp_message_context_new (GError **error);
 gboolean kms_sdp_message_context_set_origin(SdpMessageContext *ctx, const GstSDPOrigin *origin, GError **error);
-const GstSDPOrigin * kms_sdp_message_context_get_origin (const SdpMessageContext *ctx);
 
 SdpMessageContext * kms_sdp_message_context_ref (SdpMessageContext *ctx);
 void kms_sdp_message_context_unref (SdpMessageContext *ctx);

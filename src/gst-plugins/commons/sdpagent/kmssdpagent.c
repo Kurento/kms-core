@@ -180,7 +180,6 @@ typedef struct _SdpHandler
   gboolean rejected;            /* unsupported by remote agent */
   gboolean offer;
   GstSDPMedia *unsupported_media;
-  GstSDPMedia *offer_media;
 } SdpHandler;
 
 typedef struct _SdpSessionDescription
@@ -304,18 +303,6 @@ disable_handler_cmp_func (SdpHandler * handler, gconstpointer * data)
 }
 
 static void
-update_media_offered (SdpHandler * handler, GstSDPMedia * media)
-{
-  if (handler->offer_media != NULL) {
-    gst_sdp_media_free (handler->offer_media);
-  }
-
-  if (media != NULL) {
-    gst_sdp_media_copy (media, &handler->offer_media);
-  }
-}
-
-static void
 kms_sdp_agent_remove_media_handler (KmsSdpAgent * agent, SdpHandler * handler)
 {
   if (!kms_sdp_group_manager_remove_handler (agent->priv->group_manager,
@@ -371,10 +358,6 @@ sdp_handler_destroy (SdpHandler * handler)
 {
   if (handler->unsupported_media != NULL) {
     gst_sdp_media_free (handler->unsupported_media);
-  }
-
-  if (handler->offer_media != NULL) {
-    gst_sdp_media_free (handler->offer_media);
   }
 
   kms_sdp_agent_common_unref_sdp_handler (handler->sdph);
@@ -877,7 +860,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   GstSDPMedia *media, *prev;
   guint index;
 
-  if (sdp_handler->disabled) {
+  if (sdp_handler->disabled || sdp_handler->rejected) {
     /* Try to generate an offer to provide a rejected media in the offer. */
     /* Objects that use the agent could realize this is a fake offer      */
     /* checking the index attribute of the media handler */
@@ -896,26 +879,17 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return media;
   }
 
-  if (sdp_handler->rejected) {
-    gst_sdp_media_copy (sdp_handler->offer_media, &media);
-    reject_sdp_media (&media);
-    return media;
-  }
-
   if (!sdp_handler->sdph->negotiated) {
     /* new offer */
     media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
         sdp_handler->sdph->media, NULL, err);
 
     if (media != NULL) {
-      update_media_offered (sdp_handler, media);
       sdp_handler->offer = TRUE;
     }
 
     return media;
   }
-
-  /* Renegotiate media */
 
   index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
   if (index >= gst_sdp_message_medias_len (agent->priv->local_description)) {
@@ -1536,7 +1510,7 @@ static gboolean
 create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
-  GstSDPMedia *answer_media = NULL, *offer_media;
+  GstSDPMedia *answer_media = NULL;
   SdpMediaConfig *mconf = NULL;
   SdpHandler *sdp_handler;
   GError **err = data->err;
@@ -1580,21 +1554,6 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     ret = FALSE;
     goto end;
   }
-
-  if (sdp_handler->unsupported) {
-    goto answer;
-  }
-
-  offer_media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
-      gst_sdp_media_get_media (media), NULL, data->err);
-
-  if (offer_media == NULL) {
-    ret = FALSE;
-    goto end;
-  }
-
-  update_media_offered (sdp_handler, offer_media);
-  gst_sdp_media_free (offer_media);
 
 answer:
   if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {

@@ -774,12 +774,6 @@ kms_sdp_message_context_set_origin (SdpMessageContext * ctx,
   return TRUE;
 }
 
-const GstSDPOrigin *
-kms_sdp_message_context_get_origin (const SdpMessageContext * ctx)
-{
-  return gst_sdp_message_get_origin (ctx->msg);
-}
-
 KmsSdpMessageType kms_sdp_message_context_get_type (SdpMessageContext * ctx);
 
 static void init_debug (void) __attribute__ ((constructor));
