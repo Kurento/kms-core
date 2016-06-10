@@ -138,6 +138,8 @@ tee_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
     kms_tree_bin_set_input_caps (self, caps);
   }
 
+  gst_event_unref (event);
+
   /* Return TRUE so that next handler chained can manage this stuff too */
   return TRUE;
 }

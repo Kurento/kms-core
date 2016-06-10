@@ -1172,12 +1172,14 @@ kms_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
     if (data->user_func != NULL) {
       /* Set data expected by the callback */
       pad->eventdata = data->user_data;
-      ret = data->user_func (pad, parent, event);
+      ret = data->user_func (pad, parent, gst_event_ref (event));
     }
   }
 
   /* Restore pad event data */
   pad->eventdata = first;
+
+  gst_event_unref (event);
 
   return ret;
 }

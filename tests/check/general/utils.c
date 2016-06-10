@@ -128,6 +128,8 @@ test_event_function (GstPad * pad, GstObject * parent, GstEvent * event)
     g_idle_add (quit_main_loop_idle, NULL);
   }
 
+  gst_event_unref (event);
+
   return TRUE;
 }
 
@@ -173,13 +175,12 @@ GST_START_TEST (check_kms_utils_set_pad_event_function_full)
   kms_utils_set_pad_event_function_full (pad, test_event_function, &v2,
       test_destroy_function, TRUE);
 
-  g_object_unref (pad);
-
   gst_bin_add (GST_BIN (pipeline), e);
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
 
   /* Test chained callbacks */
   fail_if (!gst_pad_send_event (pad, gst_event_new_eos ()));
+  g_object_unref (pad);
 
   GST_DEBUG ("Pipeline running");
   g_main_loop_run (loop);
