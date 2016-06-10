@@ -200,7 +200,7 @@ struct _KmsSdpAgentPrivate
 {
   KmsSdpGroupManager *group_manager;
 
-  SdpMessageContext *local_description;
+  GstSDPMessage *local_description;
   GstSDPMessage *remote_description;
   gboolean use_ipv6;
   gchar *addr;
@@ -467,7 +467,7 @@ kms_sdp_agent_finalize (GObject * object)
   }
 
   if (self->priv->local_description != NULL) {
-    kms_sdp_message_context_unref (self->priv->local_description);
+    gst_sdp_message_free (self->priv->local_description);
   }
 
   if (self->priv->prev_sdp != NULL) {
@@ -506,15 +506,8 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_LOCAL_DESC:{
-      GError *err = NULL;
-      GstSDPMessage *desc =
-          kms_sdp_message_context_pack (self->priv->local_description, &err);
-      if (err != NULL) {
-        GST_WARNING_OBJECT (self, "Cannot get local description (%s)",
-            err->message);
-        g_error_free (err);
-        break;
-      }
+      GstSDPMessage *desc;
+      gst_sdp_message_copy (self->priv->local_description, &desc);
       g_value_take_boxed (value, desc);
       break;
     }
@@ -796,7 +789,7 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
     desc = agent->priv->remote_description;
   } else {
     /* Local description has the media negotiated */
-    desc = kms_sdp_message_context_pack (agent->priv->local_description, error);
+    desc = agent->priv->local_description;
   }
 
   if (desc == NULL) {
@@ -810,10 +803,6 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
         "Could not process media '%s'", sdp_handler->sdph->media);
   } else {
     gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
-  }
-
-  if (!sdp_handler->offer) {
-    gst_sdp_message_free (desc);
   }
 
   return media;
@@ -885,7 +874,6 @@ static GstSDPMedia *
 kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** err)
 {
-  GstSDPMessage *local_sdp;
   GstSDPMedia *media;
   guint index;
 
@@ -929,25 +917,17 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
 
   /* Renegotiate media */
 
-  local_sdp =
-      kms_sdp_message_context_pack (agent->priv->local_description, err);
-
-  if (local_sdp == NULL) {
-    return NULL;
-  }
-
   index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
-  if (index >= gst_sdp_message_medias_len (local_sdp)) {
+  if (index >= gst_sdp_message_medias_len (agent->priv->local_description)) {
     g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
         "Could not process media '%s'", sdp_handler->sdph->media);
-    gst_sdp_message_free (local_sdp);
     return NULL;
   }
 
   /* TODO: Let handler and extensions to incorporate new attributes */
 
-  gst_sdp_media_copy (gst_sdp_message_get_media (local_sdp, index), &media);
-  gst_sdp_message_free (local_sdp);
+  gst_sdp_media_copy (gst_sdp_message_get_media (agent->priv->local_description,
+          index), &media);
 
   return media;
 }
@@ -1049,7 +1029,7 @@ increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
   GstSDPOrigin new_orig;
   gboolean ret;
 
-  orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
+  orig = gst_sdp_message_get_origin (agent->priv->local_description);
 
   sess_version = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
@@ -1074,7 +1054,6 @@ static gboolean
 kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
     SdpMessageContext * new_offer, GError ** error)
 {
-  GstSDPMessage *prev_sdp = NULL;
   GstSDPMessage *new_sdp = NULL;
   gboolean ret = TRUE;
 
@@ -1087,26 +1066,17 @@ kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
     return TRUE;
   }
 
-  prev_sdp = kms_sdp_message_context_pack (agent->priv->local_description, error);
-  if (prev_sdp == NULL) {
-   ret = FALSE;
-   goto end;
-  }
-
   new_sdp = kms_sdp_message_context_pack (new_offer, error);
   if (new_sdp == NULL) {
     ret = FALSE;
     goto end;
   }
 
-  if (!sdp_utils_equal_messages (prev_sdp, new_sdp)) {
+  if (!sdp_utils_equal_messages (agent->priv->local_description, new_sdp)) {
     ret = increment_sess_version (agent, new_offer, error);
   }
 
 end:
-  if (prev_sdp != NULL) {
-    gst_sdp_message_free (prev_sdp);
-  }
 
   if (new_sdp != NULL) {
     gst_sdp_message_free (new_sdp);
@@ -1293,7 +1263,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   if (agent->priv->state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
     const GstSDPOrigin *orig;
 
-    orig = kms_sdp_message_context_get_origin (agent->priv->local_description);
+    orig = gst_sdp_message_get_origin (agent->priv->local_description);
     set_sdp_session_description (&agent->priv->local, orig->sess_id,
         orig->sess_version);
   } else {
@@ -1849,7 +1819,6 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
 {
   KmsSdpAgentState new_state;
   const GstSDPOrigin *orig;
-  GError *err = NULL;
   gboolean ret = FALSE;
 
   SDP_AGENT_LOCK (agent);
@@ -1869,28 +1838,17 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
   }
 
   if (agent->priv->local_description != NULL) {
-    kms_sdp_message_context_unref (agent->priv->local_description);
+    gst_sdp_message_free (agent->priv->local_description);
   }
 
-  agent->priv->local_description =
-      kms_sdp_message_context_new_from_sdp (description, error);
-  if (agent->priv->local_description == NULL) {
-    goto end;
-  }
+  gst_sdp_message_copy (description, &agent->priv->local_description);
 
   if (agent->priv->state == KMS_SDP_AGENT_STATE_REMOTE_OFFER) {
     if (agent->priv->prev_sdp != NULL) {
       gst_sdp_message_free (agent->priv->prev_sdp);
     }
 
-    agent->priv->prev_sdp =
-        kms_sdp_message_context_pack (agent->priv->local_description, &err);
-
-    if (agent->priv->prev_sdp == NULL) {
-      GST_ERROR_OBJECT (agent, "%s", err->message);
-      g_error_free (err);
-      goto end;
-    }
+    gst_sdp_message_copy (description, &agent->priv->prev_sdp);
   }
 
   new_state = (agent->priv->state == KMS_SDP_AGENT_STATE_LOCAL_OFFER) ?
@@ -1899,7 +1857,7 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
   ret = TRUE;
 
   if (new_state == KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    kms_sdp_agent_process_answered_context (agent,
+    kms_sdp_agent_process_answered_description (agent,
         agent->priv->local_description, FALSE);
   }
 
@@ -2158,10 +2116,8 @@ kms_sdp_agent_remove_handler_from_group_impl (KmsSdpAgent * agent, guint gid,
     guint hid)
 {
   SdpHandlerGroup *group;
-  SdpMediaGroup *m_group;
   SdpHandler *handler;
   gboolean ret = FALSE;
-  gint index;
 
   SDP_AGENT_LOCK (agent);
 
@@ -2189,19 +2145,6 @@ kms_sdp_agent_remove_handler_from_group_impl (KmsSdpAgent * agent, guint gid,
 
   group->handlers = g_slist_remove (group->handlers, handler);
   ret = TRUE;
-
-  if (!agent->priv->local_description) {
-    goto end;
-  }
-
-  m_group = kms_sdp_message_context_get_group (agent->priv->local_description,
-      group->id);
-  if (m_group == NULL) {
-    goto end;
-  }
-
-  index = g_slist_index (agent->priv->handlers, handler);
-  kms_sdp_message_context_remove_media_from_group (m_group, index, NULL);
 
 end:
   SDP_AGENT_UNLOCK (agent);
