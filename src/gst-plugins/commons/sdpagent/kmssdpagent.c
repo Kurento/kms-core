@@ -874,7 +874,7 @@ static GstSDPMedia *
 kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** err)
 {
-  GstSDPMedia *media;
+  GstSDPMedia *media, *prev;
   guint index;
 
   if (sdp_handler->disabled) {
@@ -905,7 +905,7 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   if (!sdp_handler->sdph->negotiated) {
     /* new offer */
     media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
-        sdp_handler->sdph->media, err);
+        sdp_handler->sdph->media, NULL, err);
 
     if (media != NULL) {
       update_media_offered (sdp_handler, media);
@@ -924,10 +924,15 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
     return NULL;
   }
 
-  /* TODO: Let handler and extensions to incorporate new attributes */
+  /* Start a new negotiation based on the previous one */
 
   gst_sdp_media_copy (gst_sdp_message_get_media (agent->priv->local_description,
-          index), &media);
+          index), &prev);
+
+  media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
+      sdp_handler->sdph->media, prev, err);
+
+  gst_sdp_media_free (prev);
 
   return media;
 }
@@ -1581,7 +1586,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
   }
 
   offer_media = kms_sdp_media_handler_create_offer (sdp_handler->sdph->handler,
-      gst_sdp_media_get_media (media), data->err);
+      gst_sdp_media_get_media (media), NULL, data->err);
 
   if (offer_media == NULL) {
     ret = FALSE;

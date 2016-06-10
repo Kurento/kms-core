@@ -175,7 +175,7 @@ kms_sdp_rtp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler * handler,
 
 static gboolean
 kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
-    GstSDPMedia * offer, GError ** error)
+    GstSDPMedia * offer, const GstSDPMedia * prev_offer, GError ** error)
 {
   KmsSdpRtpMediaHandler *self = KMS_SDP_RTP_MEDIA_HANDLER (handler);
 
@@ -204,7 +204,7 @@ kms_sdp_rtp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
 
   return
       KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,
-      offer, error);
+      offer, prev_offer, error);
 }
 
 static gboolean

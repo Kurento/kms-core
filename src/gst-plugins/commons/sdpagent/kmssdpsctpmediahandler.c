@@ -71,7 +71,7 @@ kms_sdp_sctp_media_handler_constructor (GType gtype, guint n_properties,
 
 static GstSDPMedia *
 kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
-    const gchar * media, GError ** error)
+    const gchar * media, const GstSDPMedia * prev_offer, GError ** error)
 {
   GstSDPMedia *m = NULL;
 
@@ -83,13 +83,13 @@ kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
   /* Create m-line */
   if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->init_offer (handler, media, m,
-          error)) {
+          prev_offer, error)) {
     goto error;
   }
 
   /* Add attributes to m-line */
   if (!KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->add_offer_attributes (handler,
-          m, error)) {
+          m, prev_offer, error)) {
     goto error;
   }
 
@@ -365,7 +365,8 @@ kms_sdp_sctp_media_handler_intersect_sdp_medias (KmsSdpMediaHandler *
 
 static gboolean
 kms_sdp_sctp_media_handler_init_offer (KmsSdpMediaHandler * handler,
-    const gchar * media, GstSDPMedia * offer, GError ** error)
+    const gchar * media, GstSDPMedia * offer, const GstSDPMedia * prev_offer,
+    GError ** error)
 {
   gboolean ret = TRUE;
 
@@ -416,7 +417,7 @@ end:
 
 static gboolean
 kms_sdp_sctp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
-    GstSDPMedia * offer, GError ** error)
+    GstSDPMedia * offer, const GstSDPMedia * prev_offer, GError ** error)
 {
   guint i, len;
 
@@ -446,7 +447,7 @@ kms_sdp_sctp_media_handler_add_offer_attributes (KmsSdpMediaHandler * handler,
   /* Chain up */
   return
       KMS_SDP_MEDIA_HANDLER_CLASS (parent_class)->add_offer_attributes (handler,
-      offer, error);
+      offer, prev_offer, error);
 }
 
 static gboolean

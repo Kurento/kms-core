@@ -203,7 +203,7 @@ kms_sdp_media_handler_finalize (GObject * object)
 
 static GstSDPMedia *
 kms_sdp_media_handler_create_offer_impl (KmsSdpMediaHandler * handler,
-    const gchar * media, GError ** error)
+    const gchar * media, const GstSDPMedia * offer, GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
       "Not implemented");
@@ -334,7 +334,8 @@ kms_sdp_media_handler_intersect_sdp_medias_impl (KmsSdpMediaHandler * handler,
 
 static gboolean
 kms_sdp_media_handler_init_offer_impl (KmsSdpMediaHandler * handler,
-    const gchar * media, GstSDPMedia * offer, GError ** error)
+    const gchar * media, GstSDPMedia * offer, const GstSDPMedia * prev_offer,
+    GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
       "Media offert initialization is not implemented");
@@ -344,7 +345,7 @@ kms_sdp_media_handler_init_offer_impl (KmsSdpMediaHandler * handler,
 
 static gboolean
 kms_sdp_media_handler_add_offer_attributes_impl (KmsSdpMediaHandler * handler,
-    GstSDPMedia * offer, GError ** error)
+    GstSDPMedia * offer, const GstSDPMedia * prev_offer, GError ** error)
 {
   GError *err = NULL;
   GSList *l;
@@ -492,12 +493,12 @@ kms_sdp_media_handler_init (KmsSdpMediaHandler * self)
 
 GstSDPMedia *
 kms_sdp_media_handler_create_offer (KmsSdpMediaHandler * handler,
-    const gchar * media, GError ** error)
+    const gchar * media, const GstSDPMedia * prev_offer, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_offer (handler,
-      media, error);
+      media, prev_offer, error);
 }
 
 GstSDPMedia *

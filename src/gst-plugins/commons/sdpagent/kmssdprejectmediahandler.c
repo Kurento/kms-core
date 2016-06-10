@@ -53,7 +53,7 @@ struct _KmsSdpRejectMediaHandlerPrivate
 
 static GstSDPMedia *
 kms_sdp_reject_media_handler_create_offer (KmsSdpMediaHandler * handler,
-    const gchar * media, GError ** error)
+    const gchar * media, const GstSDPMedia * offer, GError ** error)
 {
   /* Reject handler can not provide offer, it is mainly used for rejecting */
   /* media offers activating all media extensions availables just in case  */

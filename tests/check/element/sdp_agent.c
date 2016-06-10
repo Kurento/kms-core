@@ -4549,7 +4549,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   o = gst_sdp_message_get_origin (offer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
 
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 == tmp);
+  /* Offer sets the setup to actpass */
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
 
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
 
@@ -4647,7 +4648,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 1 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4727,7 +4728,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 2 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0);
@@ -4827,7 +4828,7 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_unless (gst_sdp_message_medias_len (offer) == 3);
 
   /* The SDP must have changed so we added a new media */
-  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 3 == tmp);
+  fail_unless (g_strcmp0 (session2, o->sess_id) == 0 && v2 + 4 == tmp);
 
   media = gst_sdp_message_get_media (offer, 0);
   fail_if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0);
@@ -5512,6 +5513,80 @@ static const gchar *sdp_chrome_offer =
     "a=ssrc-group:FID 100020 607622965\r\n"
     "a=rtcp-mux\r\n";
 
+static gboolean
+check_valid_offer (const GstSDPMessage * offer)
+{
+  const GstSDPMedia *media;
+
+  if (gst_sdp_message_medias_len (offer) != 2) {
+    GST_ERROR ("Medias offered must be equal to 2");
+    return FALSE;
+  }
+
+  /* Checks for audio */
+  media = gst_sdp_message_get_media (offer, 0);
+
+  if (gst_sdp_media_get_port (media) <= 0) {
+    GST_ERROR ("First m= should not be disabled");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_media (media), "audio") != 0) {
+    GST_ERROR ("Audio is not at the position 1");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_proto (media), "UDP/TLS/RTP/SAVPF") != 0) {
+    GST_ERROR ("No UDP/TLS/RTP/SAVPF offered in the first m line");
+    return FALSE;
+  }
+
+  if (gst_sdp_media_formats_len (media) != 2) {
+    GST_ERROR ("Supported audio payloads must be equal to 2");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_format (media, 0), "111") != 0) {
+    GST_ERROR ("Audio payload 0 muste be 111");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_format (media, 1), "0") != 0) {
+    GST_ERROR ("Audio payload 1 muste be 0");
+    return FALSE;
+  }
+
+  /* Checks for video */
+  media = gst_sdp_message_get_media (offer, 1);
+
+  if (gst_sdp_media_get_port (media) <= 0) {
+    GST_ERROR ("Second m= should not be disabled");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_media (media), "video") != 0) {
+    GST_ERROR ("Video is not at the position 2");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_proto (media), "UDP/TLS/RTP/SAVPF") != 0) {
+    GST_ERROR ("No UDP/TLS/RTP/SAVPF offered in the second m line");
+    return FALSE;
+  }
+
+  if (gst_sdp_media_formats_len (media) != 1) {
+    GST_ERROR ("Supported video payloads must be equal to 1");
+    return FALSE;
+  }
+
+  if (g_strcmp0 (gst_sdp_media_get_format (media, 0), "100") != 0) {
+    GST_ERROR ("Video payload 0 muste be 100");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 GST_START_TEST (sdp_agent_renegotiation_chrome)
 {
   KmsSdpAgent *agent;
@@ -5569,6 +5644,8 @@ GST_START_TEST (sdp_agent_renegotiation_chrome)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_local_description (agent, offer, &err));
+
+  fail_if (!check_valid_offer (offer));
 
   gst_sdp_message_free (answer);
   gst_sdp_message_free (offer);
