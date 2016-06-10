@@ -311,18 +311,24 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
         continue;
       }
 
-      //FIXME: This method of pad recognition should change as well as pad names
+      std::string description;
 
-      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio") ) {
+      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio_") ) {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
-      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video") ) {
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("audio_src") );
+      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video_") ) {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("video_src") );
       } else {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("data_src") );
       }
 
+      auto pos = description.find_last_of ("_");
+      description.erase (pos);
+
       try {
-        auto connections = self->sinks.at (type).at ("");
+        auto connections = self->sinks.at (type).at (description);
 
         for (auto it : connections) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
@@ -353,16 +359,22 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
         continue;
       }
 
-      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio") ) {
+      std::string description;
+
+      if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio_") ) {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
-      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video") ) {
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_audio") );
+      } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video_") ) {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_video") );
       } else {
         type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+        description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_data") );
       }
 
       try {
-        auto sourceData = self->sources.at (type).at ("");
+        auto sourceData = self->sources.at (type).at (description);
+
         auto source = sourceData->getSource();
 
         if (source) {
