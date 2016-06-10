@@ -96,6 +96,8 @@ GST_START_TEST (check_sdp_utils_media_get_fid_ssrc)
 
   ssrc = sdp_utils_media_get_ssrc (media);
   fail_if (ssrc != 1733429841);
+
+  gst_sdp_message_free (message);
 }
 
 GST_END_TEST;
