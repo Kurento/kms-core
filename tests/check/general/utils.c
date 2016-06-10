@@ -18,6 +18,7 @@
 #include "sdp_utils.h"
 
 #include <gst/check/gstcheck.h>
+#include <gst/check/gstharness.h>
 #include <glib.h>
 
 GST_START_TEST (check_urls)
@@ -242,6 +243,140 @@ GST_START_TEST (check_kms_utils_set_pad_query_function_full)
 
 GST_END_TEST;
 
+GST_START_TEST (check_kms_utils_drop_until_keyframe_buffer)
+{
+  GstElement *identity = gst_element_factory_make ("identity", NULL);
+  GstHarness *h = gst_harness_new_with_element (identity, "sink", "src");
+  GstBuffer *buf, *out_buf;
+  GstPad *srcpad;
+
+  srcpad = gst_element_get_static_pad (identity, "src");
+  kms_utils_drop_until_keyframe (srcpad, TRUE);
+  g_object_unref (srcpad);
+
+  buf = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_harness_push (h, buf);
+  out_buf = gst_harness_try_pull (h);
+  fail_unless (out_buf == NULL);
+
+  buf = gst_buffer_new ();
+  gst_harness_push (h, buf);
+  out_buf = gst_harness_try_pull (h);
+  fail_unless (out_buf == buf);
+  gst_buffer_unref (buf);
+
+  buf = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_harness_push (h, buf);
+  out_buf = gst_harness_try_pull (h);
+  fail_unless (out_buf == buf);
+  gst_buffer_unref (buf);
+
+  gst_harness_teardown (h);
+  g_object_unref (identity);
+}
+
+GST_END_TEST;
+
+GstFlowReturn
+check_chain_list_func (GstPad * pad, GstObject * parent, GstBufferList * list)
+{
+  *(GstBufferList **) (pad->chainlistdata) = list;
+
+  return GST_FLOW_OK;
+}
+
+GST_START_TEST (check_kms_utils_drop_until_keyframe_bufferlist)
+{
+  GstBuffer *buf, *buf1, *buf2, *buf3;
+  GstBufferList *bufflist;
+  GstPad *sinkpad, *srcpad;
+  GstPadLinkReturn plr;
+  GstBufferList *received_bufflist;
+
+  srcpad = gst_pad_new ("src", GST_PAD_SRC);
+  fail_if (srcpad == NULL);
+  gst_pad_set_active (srcpad, TRUE);
+  kms_utils_drop_until_keyframe (srcpad, TRUE);
+
+  sinkpad = gst_pad_new ("sink", GST_PAD_SINK);
+  fail_if (sinkpad == NULL);
+  gst_pad_set_chain_function (sinkpad, gst_check_chain_func);
+  gst_pad_set_chain_list_function_full (sinkpad, check_chain_list_func,
+      &received_bufflist, NULL);
+  gst_pad_set_active (sinkpad, TRUE);
+
+  plr = gst_pad_link (srcpad, sinkpad);
+  fail_unless (GST_PAD_LINK_SUCCESSFUL (plr));
+
+  GST_DEBUG ("Drop entire list");
+  bufflist = gst_buffer_list_new ();
+  buf = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf);
+  received_bufflist = NULL;
+  gst_pad_push_list (srcpad, bufflist);
+  fail_if (received_bufflist != NULL);
+
+  GST_DEBUG ("Drop entire list");
+  bufflist = gst_buffer_list_new ();
+  buf = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf);
+  buf = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf);
+  received_bufflist = NULL;
+  gst_pad_push_list (srcpad, bufflist);
+  fail_if (received_bufflist != NULL);
+
+  GST_DEBUG ("Keep bufferlist, drop first buffers until keyframe");
+  bufflist = gst_buffer_list_new ();
+  buf1 = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf1, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf1);
+  buf2 = gst_buffer_new ();
+  gst_buffer_list_add (bufflist, buf2);
+  buf3 = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf3, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf3);
+  received_bufflist = NULL;
+  gst_pad_push_list (srcpad, bufflist);
+  fail_unless (received_bufflist != NULL);
+  fail_unless (gst_buffer_list_length (received_bufflist) == 2);
+  fail_unless (gst_buffer_list_get (received_bufflist, 0) == buf2);
+  fail_unless (gst_buffer_list_get (received_bufflist, 1) == buf3);
+  gst_buffer_list_unref (received_bufflist);
+
+  kms_utils_drop_until_keyframe (srcpad, TRUE);
+
+  GST_DEBUG ("Keep bufferlist, the first buffer is keyfram");
+  bufflist = gst_buffer_list_new ();
+  buf1 = gst_buffer_new ();
+  gst_buffer_list_add (bufflist, buf1);
+  buf2 = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf2, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf2);
+  buf3 = gst_buffer_new ();
+  GST_BUFFER_FLAG_SET (buf3, GST_BUFFER_FLAG_DELTA_UNIT);
+  gst_buffer_list_add (bufflist, buf3);
+  received_bufflist = NULL;
+  gst_pad_push_list (srcpad, bufflist);
+  fail_unless (received_bufflist != NULL);
+  fail_unless (gst_buffer_list_length (received_bufflist) == 3);
+  fail_unless (gst_buffer_list_get (received_bufflist, 0) == buf1);
+  fail_unless (gst_buffer_list_get (received_bufflist, 1) == buf2);
+  fail_unless (gst_buffer_list_get (received_bufflist, 2) == buf3);
+  gst_buffer_list_unref (received_bufflist);
+
+  gst_pad_unlink (srcpad, sinkpad);
+  gst_object_unref (srcpad);
+  gst_object_unref (sinkpad);
+}
+
+GST_END_TEST;
+
 /* Suite initialization */
 static Suite *
 utils_suite (void)
@@ -256,6 +391,9 @@ utils_suite (void)
   tcase_add_test (tc_chain, check_kms_utils_set_pad_event_function_full);
 
   tcase_add_test (tc_chain, check_kms_utils_set_pad_query_function_full);
+
+  tcase_add_test (tc_chain, check_kms_utils_drop_until_keyframe_buffer);
+  tcase_add_test (tc_chain, check_kms_utils_drop_until_keyframe_bufferlist);
 
   return s;
 }

@@ -38,6 +38,9 @@ G_DEFINE_QUARK (KMS_KEY_ID, kms_key_id);
 #define BEGIN_CERTIFICATE "-----BEGIN CERTIFICATE-----"
 #define END_CERTIFICATE "-----END CERTIFICATE-----"
 
+#define buffer_is_keyframe(buffer) \
+    (!GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT))
+
 static gboolean
 debug_graph (gpointer bin)
 {
@@ -285,19 +288,61 @@ end:
   gst_caps_unref (caps);
 }
 
+static gboolean
+find_keyframe_idx (GstBuffer ** buf, guint idx, gpointer user_data)
+{
+  if (buffer_is_keyframe (*buf)) {
+    *(gint *) (user_data) = idx;
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 static GstPadProbeReturn
 drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
     gpointer user_data)
 {
-  GstBuffer *buffer;
   gboolean all_headers = GPOINTER_TO_INT (user_data);
+  gboolean drop = FALSE;
 
-  buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
-  if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-    /* Drop buffer until a keyframe is received */
+    drop = !buffer_is_keyframe (buffer);
+    GST_TRACE_OBJECT (pad, "%s",
+        drop ? "Drop buffer" : "Keep buffer (is keyframe)");
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    gint keyframe_idx = -1;
+
+    gst_buffer_list_foreach (bufflist,
+        (GstBufferListFunc) find_keyframe_idx, &keyframe_idx);
+
+    if (keyframe_idx == -1) {
+      GST_TRACE_OBJECT (pad, "Drop bufferlist, there is no keyframe");
+      drop = TRUE;
+    } else if (keyframe_idx == 0) {
+      GST_TRACE_OBJECT (pad, "Keep bufferlist, the first buffer is keyframe");
+      /* keep bufferlist as is */
+    } else {
+      GST_TRACE_OBJECT (pad,
+          "Keep bufferlist, drop first %d buffers until keyframe",
+          keyframe_idx);
+
+      bufflist = gst_buffer_list_make_writable (bufflist);
+      gst_buffer_list_remove (bufflist, 0, keyframe_idx);
+      GST_PAD_PROBE_INFO_DATA (info) = bufflist;
+    }
+  } else {
+    GST_WARNING_OBJECT (pad,
+        "This probe should receive only buffers or buflists");
+    return GST_PAD_PROBE_OK;
+  }
+
+  if (drop) {
+    /* Drop until a keyframe is received */
     send_force_key_unit_event (pad, all_headers);
-    GST_TRACE_OBJECT (pad, "Dropping buffer");
     return GST_PAD_PROBE_DROP;
   }
 
@@ -322,7 +367,8 @@ kms_utils_drop_until_keyframe (GstPad * pad, gboolean all_headers)
     GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
     set_dropping (pad, TRUE);
     GST_OBJECT_UNLOCK (pad);
-    gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
+    gst_pad_add_probe (pad,
+        GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
         drop_until_keyframe_probe, GINT_TO_POINTER (all_headers), NULL);
     send_force_key_unit_event (pad, all_headers);
   }
