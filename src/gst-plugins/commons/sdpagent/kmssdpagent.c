@@ -1352,13 +1352,13 @@ kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
   if (!kms_sdp_media_handler_manage_protocol (handler,
           gst_sdp_media_get_proto (media))) {
     GST_WARNING_OBJECT (agent, "Handler can not manage media: %s",
-        gst_sdp_media_get_proto (media));
+        gst_sdp_media_get_media (media));
     g_object_unref (handler);
     return NULL;
   }
 
   hid = kms_sdp_agent_append_media_handler (agent,
-      gst_sdp_media_get_proto (media), handler);
+      gst_sdp_media_get_media (media), handler);
 
   if (hid < 0) {
     g_object_unref (handler);
