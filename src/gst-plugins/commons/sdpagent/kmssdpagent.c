@@ -742,14 +742,6 @@ end:
   return ret;
 }
 
-struct SdpOfferData
-{
-  guint index;
-  SdpMessageContext *ctx;
-  GstSDPMessage *offer;
-  KmsSdpAgent *agent;
-};
-
 static GstSDPMedia *
 kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
     SdpHandler * sdp_handler, GError ** error)
@@ -943,34 +935,29 @@ kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
   }
 }
 
-static void
-create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
+static gboolean
+kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
+    SdpMessageContext * ctx, guint index, GError ** err)
 {
   SdpMediaConfig *m_conf;
   GstSDPMedia *media;
-  GError *err = NULL;
   GSList *l;
 
-  media =
-      kms_sdp_agent_create_proper_media_offer (data->agent, sdp_handler, &err);
+  media = kms_sdp_agent_create_proper_media_offer (agent, sdp_handler, err);
 
-  if (err != NULL) {
-    GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
-    g_error_free (err);
-    return;
+  if (media == NULL) {
+    return FALSE;
   }
 
   /* update index */
-  sdp_handler->sdph->index = data->index++;
+  sdp_handler->sdph->index = index;
 
-  m_conf = kms_sdp_message_context_add_media (data->ctx, media, &err);
+  m_conf = kms_sdp_message_context_add_media (ctx, media, err);
   if (m_conf == NULL) {
-    GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
-    g_error_free (err);
-    return;
+    return FALSE;
   }
 
-  for (l = data->agent->priv->groups; l != NULL; l = l->next) {
+  for (l = agent->priv->groups; l != NULL; l = l->next) {
     SdpHandlerGroup *group = l->data;
     GSList *ll;
 
@@ -982,21 +969,21 @@ create_media_offers (SdpHandler * sdp_handler, struct SdpOfferData *data)
         continue;
       }
 
-      m_group = kms_sdp_message_context_get_group (data->ctx, group->id);
+      m_group = kms_sdp_message_context_get_group (ctx, group->id);
       if (m_group == NULL) {
-        m_group = kms_sdp_message_context_create_group (data->ctx, group->id);
+        m_group = kms_sdp_message_context_create_group (ctx, group->id);
       }
 
-      if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, &err)) {
-        GST_ERROR_OBJECT (sdp_handler->sdph->handler, "%s", err->message);
-        g_error_free (err);
-        return;
+      if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, err)) {
+        return FALSE;
       }
     }
   }
 
-  kms_sdp_agent_fire_on_offer_callback (data->agent, sdp_handler->sdph->handler,
+  kms_sdp_agent_fire_on_offer_callback (agent, sdp_handler->sdph->handler,
       m_conf);
+
+  return TRUE;
 }
 
 static gboolean
@@ -1169,50 +1156,73 @@ kms_sdp_agent_merge_offer_handlers (KmsSdpAgent * agent)
       (GFunc) kms_sdp_agent_merge_handler_func, agent);
 }
 
-static void
-pre_processing_extensions (KmsISdpSessionExtension * ext,
-    struct SdpOfferData *data)
+static gboolean
+kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, SdpMessageContext * ctx,
+    GError ** error)
 {
-  GstSDPMessage *offer;
-  GError *err = NULL;
-  gboolean pre_proc;
+  guint index = 0;
+  GSList *l;
 
-  g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
-
-  if (!pre_proc) {
-    /* this extension should be executed at the end */
-    return;
+  for (l = agent->priv->offer_handlers; l != NULL; l = g_slist_next (l)) {
+    if (!kms_sdp_agent_make_media_offer (agent, l->data, ctx, index++, error)) {
+      return FALSE;
+    }
   }
 
-  offer = kms_sdp_message_context_get_sdp_message (data->ctx);
-
-  if (!kms_i_sdp_session_extension_add_offer_attributes (ext, offer, &err)) {
-    GST_ERROR_OBJECT (data->agent, "%s", err->message);
-  }
-
-  g_clear_error (&err);
+  return TRUE;
 }
 
-static void
-post_processing_extensions (KmsISdpSessionExtension * ext,
-    struct SdpOfferData *data)
+static gboolean
+kms_sdp_agent_exec_pre_processing_extensions (KmsSdpAgent * agent,
+    SdpMessageContext * ctx, GError ** error)
 {
-  GError *err = NULL;
+  GstSDPMessage *offer;
   gboolean pre_proc;
+  GSList *l;
 
-  g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
+  offer = kms_sdp_message_context_get_sdp_message (ctx);
 
-  if (pre_proc) {
-    /* this extension has been executed already */
-    return;
+  for (l = agent->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpSessionExtension *ext = l->data;
+
+    g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
+
+    if (!pre_proc) {
+      /* this extension should be executed at the end */
+      continue;
+    }
+
+    if (!kms_i_sdp_session_extension_add_offer_attributes (ext, offer, error)) {
+      return FALSE;
+    }
   }
 
-  if (!kms_i_sdp_session_extension_add_offer_attributes (ext, data->offer,
-          &err)) {
-    GST_ERROR_OBJECT (data->agent, "%s", err->message);
+  return TRUE;
+}
+
+static gboolean
+kms_sdp_agent_exec_post_processing_extensions (KmsSdpAgent * agent,
+    GstSDPMessage * offer, GError ** error)
+{
+  gboolean pre_proc;
+  GSList *l;
+
+  for (l = agent->priv->extensions; l != NULL; l = g_slist_next (l)) {
+    KmsISdpSessionExtension *ext = l->data;
+
+    g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
+
+    if (pre_proc) {
+      /* this extension has been executed already */
+      continue;
+    }
+
+    if (!kms_i_sdp_session_extension_add_offer_attributes (ext, offer, error)) {
+      return FALSE;
+    }
   }
 
-  g_clear_error (&err);
+  return TRUE;
 }
 
 static GstSDPMessage *
@@ -1220,10 +1230,9 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
   SdpMessageContext *ctx = NULL;
   GstSDPMessage *offer = NULL;
-  struct SdpOfferData data;
   gchar *ntp = NULL;
   GstSDPOrigin o;
-  GSList *tmp;
+  GSList *tmp = NULL;
 
   SDP_AGENT_LOCK (agent);
 
@@ -1253,41 +1262,30 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
       agent->priv->local.version);
 
   if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
-    SDP_AGENT_UNLOCK (agent);
-    kms_sdp_message_context_unref (ctx);
     g_free (ntp);
-    return NULL;
+    goto end;
   }
 
   g_free (ntp);
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
 
-  data.ctx = ctx;
-  data.agent = agent;
-  data.index = 0;
-
   /* Execute pre-processing extensions */
-  g_slist_foreach (agent->priv->extensions,
-      (GFunc) pre_processing_extensions, &data);
+  if (!kms_sdp_agent_exec_pre_processing_extensions (agent, ctx, error)) {
+    goto end;
+  }
 
   tmp = g_slist_copy_deep (agent->priv->offer_handlers,
       (GCopyFunc) sdp_handler_ref, NULL);
   kms_sdp_agent_merge_offer_handlers (agent);
 
   /* Process medias */
-  g_slist_foreach (agent->priv->offer_handlers, (GFunc) create_media_offers,
-      &data);
+  if (!kms_sdp_agent_create_media_offer (agent, ctx, error)) {
+    goto end;
+  }
 
   if (!kms_sdp_agent_update_session_version (agent, ctx, error)) {
-    kms_sdp_message_context_unref (ctx);
-    g_slist_free_full (agent->priv->offer_handlers,
-        (GDestroyNotify) kms_ref_struct_unref);
-    agent->priv->offer_handlers = tmp;
-    ctx = NULL;
-  } else {
-    g_slist_free_full (tmp, (GDestroyNotify) kms_ref_struct_unref);
-    SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_LOCAL_OFFER);
+    goto end;
   }
 
   offer = kms_sdp_message_context_pack (ctx, error);
@@ -1296,13 +1294,25 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
     goto end;
   }
 
-  data.offer = offer;
-
   /* Execute post-processing extensions */
-  g_slist_foreach (agent->priv->extensions,
-      (GFunc) post_processing_extensions, &data);
+  if (!kms_sdp_agent_exec_post_processing_extensions (agent, offer, error)) {
+    gst_sdp_message_free (offer);
+    offer = NULL;
+    goto end;
+  }
+
+  g_slist_free_full (tmp, (GDestroyNotify) kms_ref_struct_unref);
+  SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_LOCAL_OFFER);
+  tmp = NULL;
 
 end:
+
+  if (tmp != NULL) {
+    g_slist_free_full (agent->priv->offer_handlers,
+        (GDestroyNotify) kms_ref_struct_unref);
+    agent->priv->offer_handlers = tmp;
+  }
+
   SDP_AGENT_UNLOCK (agent);
 
   if (ctx != NULL) {
