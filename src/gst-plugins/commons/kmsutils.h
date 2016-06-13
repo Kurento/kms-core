@@ -19,6 +19,7 @@
 
 #include "gst/gst.h"
 #include "kmsmediatype.h"
+#include "kmselementpadtype.h"
 #include "sdpagent/kmssdpcontext.h"
 
 G_BEGIN_DECLS
@@ -48,6 +49,9 @@ GstElement * kms_utils_create_mediator_element (const GstCaps * caps);
 GstElement * kms_utils_create_rate_for_caps (const GstCaps * caps);
 
 const gchar * kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name);
+
+KmsElementPadType kms_utils_convert_media_type (KmsMediaType media_type);
+KmsMediaType kms_utils_convert_element_pad_type (KmsElementPadType pad_type);
 
 /* key frame management */
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);

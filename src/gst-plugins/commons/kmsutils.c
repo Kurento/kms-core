@@ -223,6 +223,46 @@ kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name)
   return codec_name;
 }
 
+KmsMediaType
+kms_utils_convert_element_pad_type (KmsElementPadType pad_type)
+{
+  switch (pad_type) {
+    case KMS_ELEMENT_PAD_TYPE_AUDIO:
+      return KMS_MEDIA_TYPE_AUDIO;
+      break;
+    case KMS_ELEMENT_PAD_TYPE_VIDEO:
+      return KMS_MEDIA_TYPE_VIDEO;
+      break;
+    case KMS_ELEMENT_PAD_TYPE_DATA:
+      return KMS_MEDIA_TYPE_DATA;
+      break;
+    default:
+      GST_ERROR ("Invalid pad type, cannot be converted");
+      g_assert_not_reached ();
+      return KMS_MEDIA_TYPE_VIDEO;
+  }
+}
+
+KmsElementPadType
+kms_utils_convert_media_type (KmsMediaType media_type)
+{
+  switch (media_type) {
+    case KMS_MEDIA_TYPE_AUDIO:
+      return KMS_ELEMENT_PAD_TYPE_AUDIO;
+      break;
+    case KMS_MEDIA_TYPE_VIDEO:
+      return KMS_ELEMENT_PAD_TYPE_VIDEO;
+      break;
+    case KMS_MEDIA_TYPE_DATA:
+      return KMS_ELEMENT_PAD_TYPE_DATA;
+      break;
+    default:
+      GST_ERROR ("Invalid media type, cannot be converted");
+      g_assert_not_reached ();
+      return KMS_ELEMENT_PAD_TYPE_VIDEO;
+  }
+}
+
 /* key frame management */
 
 #define DROPPING_UNTIL_KEY_FRAME "dropping-until-key-frame"
