@@ -52,6 +52,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+const static std::string DEFAULT = "default";
+
 class ElementConnectionDataInternal
 {
 public:
@@ -807,24 +809,24 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
 {
   // Until mediaDescriptions are really used, we just connect audio an video
   connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) ),
-           "", "");
+           DEFAULT, DEFAULT);
   connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) ),
-           "", "");
+           DEFAULT, DEFAULT);
   connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) ),
-           "", "");
+           DEFAULT, DEFAULT);
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType)
 {
-  connect (sink, mediaType, "", "");
+  connect (sink, mediaType, DEFAULT, DEFAULT);
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType,
                                 const std::string &sourceMediaDescription)
 {
-  connect (sink, mediaType, sourceMediaDescription, "");
+  connect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
@@ -939,24 +941,24 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
 {
   // Until mediaDescriptions are really used, we just disconnect audio an video
   disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::AUDIO) ), "", "");
+                MediaType::AUDIO) ), DEFAULT, DEFAULT);
   disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::VIDEO) ), "", "");
+                MediaType::VIDEO) ), DEFAULT, DEFAULT);
   disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::DATA) ), "", "");
+                MediaType::DATA) ), DEFAULT, DEFAULT);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                    std::shared_ptr<MediaType> mediaType)
 {
-  disconnect (sink, mediaType, "", "");
+  disconnect (sink, mediaType, DEFAULT, DEFAULT);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                    std::shared_ptr<MediaType> mediaType,
                                    const std::string &sourceMediaDescription)
 {
-  disconnect (sink, mediaType, sourceMediaDescription, "");
+  disconnect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,

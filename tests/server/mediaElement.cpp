@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = sink->getSourceConnections (AUDIO);
   BOOST_CHECK (connections.size() == 1);
 
-  connections = sink->getSourceConnections (AUDIO, "");
+  connections = sink->getSourceConnections (AUDIO, "default");
   BOOST_CHECK (connections.size() == 1);
 
   connections = sink->getSourceConnections (AUDIO, "test");
@@ -122,13 +122,13 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = sink->getSourceConnections (VIDEO);
   BOOST_CHECK (connections.size() == 1);
 
-  connections = sink->getSourceConnections (VIDEO, "");
+  connections = sink->getSourceConnections (VIDEO, "default");
   BOOST_CHECK (connections.size() == 1);
 
   connections = sink->getSourceConnections (VIDEO, "test");
   BOOST_CHECK (connections.size() == 0);
 
-  connections = sink->getSourceConnections (DATA, "");
+  connections = sink->getSourceConnections (DATA, "default");
   BOOST_CHECK (connections.size() == 1);
 
   connections = sink->getSourceConnections (DATA, "test");
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE (connection_test)
   connections = src->getSinkConnections ();
   BOOST_CHECK (connections.size() == 1);
 
-  connections = sink->getSourceConnections (VIDEO, "");
+  connections = sink->getSourceConnections (VIDEO, "default");
   BOOST_CHECK (connections.size() == 0);
 
   releaseMediaObject (src->getId() );
