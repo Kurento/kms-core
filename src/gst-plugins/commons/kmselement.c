@@ -1551,28 +1551,27 @@ kms_element_release_requested_pad_action (KmsElement * self,
         gchar *name;
 
         pad = g_value_get_object (&item);
-        name = gst_pad_get_name (pad);
+        name = GST_OBJECT_NAME (pad);
 
-        switch (gst_pad_get_direction (pad)) {
-          case GST_PAD_SRC:
-            if ((released = g_strcmp0 (name, pad_name) == 0)) {
+        if ((released = g_strcmp0 (name, pad_name) == 0)) {
+          switch (gst_pad_get_direction (pad)) {
+            case GST_PAD_SRC:
               kms_element_remove_target_pad (self, pad);
               kms_element_release_pad (GST_ELEMENT (self), pad);
               done = TRUE;
-            }
-            break;
-          case GST_PAD_SINK:
-            /* Dynamic sink pads are managed by subclasses */
-            done = released =
-                KMS_ELEMENT_GET_CLASS (self)->release_requested_sink_pad (self,
-                pad);
-            break;
-          default:
-            GST_WARNING_OBJECT (self, "Unknown direction %" GST_PTR_FORMAT,
-                pad);
+              break;
+            case GST_PAD_SINK:
+              /* Dynamic sink pads are managed by subclasses */
+              done = released =
+                  KMS_ELEMENT_GET_CLASS (self)->release_requested_sink_pad
+                  (self, pad);
+              break;
+            default:
+              GST_WARNING_OBJECT (self, "Unknown direction %" GST_PTR_FORMAT,
+                  pad);
+          }
         }
 
-        g_free (name);
         g_value_reset (&item);
         break;
       }
