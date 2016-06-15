@@ -480,10 +480,16 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
   }
 
   if (current_caps != NULL) {
-    if (gst_caps_can_intersect (caps, current_caps)) {
+    //TODO: Remove this when problem in negotiation with features will be
+    //resolved
+    GstCaps *caps_without_features = gst_caps_make_writable (current_caps);
+
+    gst_caps_set_features (caps_without_features, 0,
+        gst_caps_features_new_empty ());
+    if (gst_caps_can_intersect (caps, caps_without_features)) {
       ret = TRUE;
     }
-    gst_caps_unref (current_caps);
+    gst_caps_unref (caps_without_features);
   }
 
   g_object_unref (tee_sink);
