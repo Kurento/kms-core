@@ -23,6 +23,7 @@
 #include "kms-core-marshal.h"
 #include "sdp_utils.h"
 #include "sdpagent/kmssdprtpavpmediahandler.h"
+#include "sdpagent/kmssdpbundlegroup.h"
 
 #define PLUGIN_NAME "base_sdp_endpoint"
 
@@ -347,7 +348,7 @@ kms_base_sdp_endpoint_add_handler (KmsBaseSdpEndpoint * self,
   }
 
   if (bundle_group_id != -1) {
-    if (!kms_sdp_agent_add_handler_to_group (sess->agent, bundle_group_id, hid)) {
+    if (!kms_sdp_agent_group_add (sess->agent, bundle_group_id, hid)) {
       GST_ERROR_OBJECT (self,
           "Cannot add handler to bundle group for session '%" G_GINT32_FORMAT
           "'", sess->id);
@@ -371,7 +372,8 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
 
   gid = -1;
   if (self->priv->bundle) {
-    gid = kms_sdp_agent_create_bundle_group (sess->agent);
+    gid = kms_sdp_agent_create_group (sess->agent, KMS_TYPE_SDP_BUNDLE_GROUP,
+        NULL);
     if (gid < 0) {
       GST_ERROR_OBJECT (self, "Cannot create bundle group.");
       return FALSE;

@@ -168,7 +168,7 @@ typedef struct _SdpHandlerGroup
   guint index;
   gboolean negotiated;
   KmsSdpBaseGroup *group;
-  GSList *handlers;
+  GSList *handlers;             /* SdpHandler */
 } SdpHandlerGroup;
 
 typedef struct _SdpHandler
@@ -490,6 +490,7 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
   switch (prop_id) {
     case PROP_LOCAL_DESC:{
       GstSDPMessage *desc;
+
       gst_sdp_message_copy (self->priv->local_description, &desc);
       g_value_take_boxed (value, desc);
       break;
@@ -655,6 +656,10 @@ kms_sdp_agent_remove_handler_from_groups (KmsSdpAgent * agent,
 {
   GSList *l;
 
+  kms_sdp_group_manager_remove_handler (agent->priv->group_manager,
+      handler->sdph);
+
+  /* FIXME: Remove next code (decrecated when we get rid of mconf API) */
   for (l = agent->priv->groups; l != NULL; l = l->next) {
     SdpHandlerGroup *group = l->data;
 
@@ -940,8 +945,8 @@ kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
     SdpMessageContext * ctx, guint index, GError ** err)
 {
   SdpMediaConfig *m_conf;
+  KmsSdpBaseGroup *group;
   GstSDPMedia *media;
-  GSList *l;
 
   media = kms_sdp_agent_create_proper_media_offer (agent, sdp_handler, err);
 
@@ -957,26 +962,27 @@ kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
     return FALSE;
   }
 
-  for (l = agent->priv->groups; l != NULL; l = l->next) {
-    SdpHandlerGroup *group = l->data;
-    GSList *ll;
+  /* Generate a MediaConf with mediagroups so elements still need this */
+  /* deprecated structure */
+  group =
+      kms_sdp_group_manager_get_group (agent->priv->group_manager,
+      sdp_handler->sdph);
 
-    for (ll = group->handlers; ll != NULL; ll = ll->next) {
-      SdpHandler *h = ll->data;
-      SdpMediaGroup *m_group;
+  if (group != NULL) {
+    SdpMediaGroup *m_group;
+    guint gid;
 
-      if (sdp_handler->sdph->id != h->sdph->id) {
-        continue;
-      }
+    g_object_get (group, "id", &gid, NULL);
+    g_object_unref (group);
 
-      m_group = kms_sdp_message_context_get_group (ctx, group->id);
-      if (m_group == NULL) {
-        m_group = kms_sdp_message_context_create_group (ctx, group->id);
-      }
+    m_group = kms_sdp_message_context_get_group (ctx, gid);
 
-      if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, err)) {
-        return FALSE;
-      }
+    if (m_group == NULL) {
+      m_group = kms_sdp_message_context_create_group (ctx, gid);
+    }
+
+    if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, err)) {
+      return FALSE;
     }
   }
 
@@ -1378,10 +1384,69 @@ kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
   }
 }
 
+static void
+kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
+    const GstSDPMedia * media, const GstSDPMessage * offer)
+{
+  const gchar *mid, *mids;
+  SdpHandlerGroup *grp;
+  gchar *semantics = NULL;
+  gchar **items;
+  guint i, len;
+
+  len = g_slist_length (agent->priv->groups);
+
+  if (len == 0) {
+    GST_DEBUG_OBJECT (agent, "No groups supported");
+    return;
+  } else if (len > 1) {
+    GST_ERROR_OBJECT (agent, "Only one group is supported");
+    return;
+  }
+
+  mid = gst_sdp_media_get_attribute_val (media, "mid");
+
+  if (mid == NULL) {
+    GST_ERROR_OBJECT (agent, "No mid attribute");
+    return;
+  }
+
+  /* FIXME: Only one group is supported so far */
+  grp = agent->priv->groups->data;
+  mids = gst_sdp_message_get_attribute_val (offer, "group");
+
+  if (mids == NULL) {
+    GST_ERROR_OBJECT (agent, "Invalid group provided");
+    return;
+  }
+
+  g_object_get (grp->group, "semantics", &semantics, NULL);
+
+  items = g_strsplit (mids, " ", 0);
+
+  if (items[0] == NULL || g_strcmp0 (items[0], semantics) != 0) {
+    GST_ERROR_OBJECT (agent, "Invalid group %s", items[0]);
+    goto end;
+  }
+
+  for (i = 1; items[i] != NULL; i++) {
+    if (g_strcmp0 (items[i], mid) == 0) {
+      kms_sdp_group_manager_add_handler_to_group (agent->priv->group_manager,
+          grp->id, handler->sdph->id);
+      break;
+    }
+  }
+
+end:
+  g_strfreev (items);
+  g_free (semantics);
+}
+
 static SdpHandler *
 kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
-    const GstSDPMedia * media)
+    const GstSDPMedia * media, const GstSDPMessage * offer)
 {
+  SdpHandler *handler;
   GSList *l;
 
   for (l = agent->priv->handlers; l != NULL; l = l->next) {
@@ -1412,7 +1477,13 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
     return sdp_handler;
   }
 
-  return kms_sdp_agent_request_handler (agent, media);
+  handler = kms_sdp_agent_request_handler (agent, media);
+
+  if (handler != NULL) {
+    kms_sdp_agent_set_handler_group (agent, handler, media, offer);
+  }
+
+  return handler;
 }
 
 static SdpHandler *
@@ -1425,7 +1496,8 @@ kms_sdp_agent_create_reject_media_handler (KmsSdpAgent * agent,
 
 static SdpHandler *
 kms_sdp_agent_replace_offered_handler (KmsSdpAgent * agent,
-    const GstSDPMedia * media, SdpHandler * handler)
+    const GstSDPMedia * media, const GstSDPMessage * offer,
+    SdpHandler * handler)
 {
   SdpHandler *candidate;
   GSList *l;
@@ -1439,7 +1511,7 @@ kms_sdp_agent_replace_offered_handler (KmsSdpAgent * agent,
   kms_ref_struct_unref (KMS_REF_STRUCT_CAST (l->data));
 
   /* Try to get a new handler for this media */
-  candidate = kms_sdp_agent_get_handler_for_media (agent, media);
+  candidate = kms_sdp_agent_get_handler_for_media (agent, media, offer);
 
   if (candidate == NULL) {
     GST_WARNING_OBJECT (agent,
@@ -1459,7 +1531,8 @@ kms_sdp_agent_replace_offered_handler (KmsSdpAgent * agent,
 
 static SdpHandler *
 kms_sdp_agent_get_proper_handler (KmsSdpAgent * agent,
-    const GstSDPMedia * media, SdpHandler * handler)
+    const GstSDPMedia * media, const GstSDPMessage * offer,
+    SdpHandler * handler)
 {
   if (!handler->rejected) {
     return handler;
@@ -1480,7 +1553,7 @@ kms_sdp_agent_get_proper_handler (KmsSdpAgent * agent,
 
   if (g_strcmp0 (handler->sdph->media, gst_sdp_media_get_media (media)) != 0) {
     /* This handler can not manage this media */
-    return kms_sdp_agent_replace_offered_handler (agent, media, handler);
+    return kms_sdp_agent_replace_offered_handler (agent, media, offer, handler);
   }
 
   if (kms_sdp_media_handler_manage_protocol (handler->sdph->handler,
@@ -1488,7 +1561,7 @@ kms_sdp_agent_get_proper_handler (KmsSdpAgent * agent,
     /* The previously rejected handler is capable of managing this media */
     return handler;
   } else {
-    return kms_sdp_agent_replace_offered_handler (agent, media, handler);
+    return kms_sdp_agent_replace_offered_handler (agent, media, offer, handler);
   }
 }
 
@@ -1499,18 +1572,18 @@ kms_sdp_agent_select_handler_to_answer_media (KmsSdpAgent * agent, guint index,
   SdpHandler *handler;
 
   if (agent->priv->offer_handlers == NULL) {
-    return kms_sdp_agent_get_handler_for_media (agent, media);
+    return kms_sdp_agent_get_handler_for_media (agent, media, offer);
   }
 
   handler = g_slist_nth_data (agent->priv->offer_handlers, index);
 
   if (handler != NULL) {
-    return kms_sdp_agent_get_proper_handler (agent, media, handler);
+    return kms_sdp_agent_get_proper_handler (agent, media, offer, handler);
   }
 
   if (handler == NULL) {
     /* the position is off the end of the list */
-    handler = kms_sdp_agent_get_handler_for_media (agent, media);
+    handler = kms_sdp_agent_get_handler_for_media (agent, media, offer);
   }
 
   return handler;
@@ -2355,6 +2428,15 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
 
   SDP_AGENT_LOCK (agent);
 
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    SDP_AGENT_UNLOCK (agent);
+    g_object_unref (obj);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    return -1;
+  }
+
   gid = kms_sdp_group_manager_add_group (agent->priv->group_manager,
       KMS_SDP_BASE_GROUP (obj));
 
@@ -2382,13 +2464,45 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
 gboolean
 kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid)
 {
-  gboolean ret;
+  gboolean ret = FALSE;
 
   SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    goto end;
+  }
 
   ret = kms_sdp_group_manager_add_handler_to_group (agent->priv->group_manager,
       gid, hid);
 
+end:
+  SDP_AGENT_UNLOCK (agent);
+
+  return ret;
+}
+
+gboolean
+kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid)
+{
+  gboolean ret = FALSE;
+
+  SDP_AGENT_LOCK (agent);
+
+  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
+      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
+    goto end;
+  }
+
+  ret =
+      kms_sdp_group_manager_remove_handler_from_group (agent->
+      priv->group_manager, gid, hid);
+
+end:
   SDP_AGENT_UNLOCK (agent);
 
   return ret;

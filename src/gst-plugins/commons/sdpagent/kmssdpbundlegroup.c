@@ -70,6 +70,21 @@ kms_sdp_bundle_group_add_media_handler (KmsSdpBaseGroup * grp,
       handler, error);
 }
 
+static gboolean
+kms_sdp_bundle_group_add_offer_attributes_impl (KmsSdpBaseGroup * self,
+    GstSDPMessage * offer, GError ** error)
+{
+  if (gst_sdp_message_get_attribute_val (offer, "group") != NULL) {
+    /* FIXME: Old API still inserts group attributes, do not insert here */
+    /* until we remove it once and for all */
+    /* TODO: Check if group is bundle and if there are the same handlers in it */
+    return TRUE;
+  }
+
+  return KMS_SDP_BASE_GROUP_CLASS (parent_class)->add_offer_attributes (self,
+      offer, error);
+}
+
 static void
 kms_sdp_bundle_group_class_init (KmsSdpBundleGroupClass * klass)
 {
@@ -80,6 +95,8 @@ kms_sdp_bundle_group_class_init (KmsSdpBundleGroupClass * klass)
   gobject_class->finalize = kms_sdp_bundle_group_finalize;
 
   base_group_class = KMS_SDP_BASE_GROUP_CLASS (klass);
+  base_group_class->add_offer_attributes =
+      kms_sdp_bundle_group_add_offer_attributes_impl;
   base_group_class->add_media_handler = kms_sdp_bundle_group_add_media_handler;
 
   g_type_class_add_private (klass, sizeof (KmsSdpBundleGroupPrivate));

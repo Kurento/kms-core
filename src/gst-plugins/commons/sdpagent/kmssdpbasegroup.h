@@ -88,6 +88,7 @@ struct _KmsSdpBaseGroupClass
   /*< public >*/
   gboolean (*add_media_handler) (KmsSdpBaseGroup *grp, KmsSdpHandler *handler, GError **error);
   gboolean (*remove_media_handler) (KmsSdpBaseGroup *grp, KmsSdpHandler *handler, GError **error);
+  gboolean (*contains_handler) (KmsSdpBaseGroup *grp, KmsSdpHandler *handler);
 
   /*< protected>*/
   gboolean (*add_offer_attributes) (KmsSdpBaseGroup *grp, GstSDPMessage * offer, GError **error);
@@ -99,6 +100,7 @@ GType kms_sdp_base_group_get_type ();
 
 gboolean kms_sdp_base_group_add_media_handler (KmsSdpBaseGroup *grp, KmsSdpHandler *handler, GError **error);
 gboolean kms_sdp_base_group_remove_media_handler (KmsSdpBaseGroup *grp, KmsSdpHandler *handler, GError **error);
+gboolean kms_sdp_base_group_contains_handler (KmsSdpBaseGroup *grp, KmsSdpHandler *handler);
 
 G_END_DECLS
 

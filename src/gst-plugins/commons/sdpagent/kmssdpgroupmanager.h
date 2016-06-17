@@ -79,6 +79,8 @@ struct _KmsSdpGroupManagerClass
   /*< public >*/
   gint (*add_group) (KmsSdpGroupManager *obj, KmsSdpBaseGroup *group);
   void (*add_handler) (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
+  KmsSdpBaseGroup * (*get_group) (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
+
   gboolean (*remove_handler) (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
   gboolean (*add_handler_to_group) (KmsSdpGroupManager *obj, guint gid, guint hid);
   gboolean (*remove_handler_from_group) (KmsSdpGroupManager *obj, guint gid, guint hid);
@@ -90,6 +92,7 @@ KmsSdpGroupManager * kms_sdp_group_manager_new ();
 
 gint kms_sdp_group_manager_add_group (KmsSdpGroupManager *obj, KmsSdpBaseGroup *group);
 void kms_sdp_group_manager_add_handler (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
+KmsSdpBaseGroup * kms_sdp_group_manager_get_group (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
 gboolean kms_sdp_group_manager_remove_handler (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
 
 gboolean kms_sdp_group_manager_add_handler_to_group (KmsSdpGroupManager *obj, guint gid, guint hid);

@@ -26,6 +26,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_base_group_debug_category);
 #define GST_CAT_DEFAULT kms_sdp_base_group_debug_category
 
 #define parent_class kms_sdp_base_group_parent_class
+#define KMS_BASE_GROUP_DEFAULT_ID (-1)
 
 static void kms_i_sdp_session_extension_init (KmsISdpSessionExtensionInterface *
     iface);
@@ -47,6 +48,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpBaseGroup, kms_sdp_base_group,
 
 struct _KmsSdpBaseGroupPrivate
 {
+  gint id;
   gchar *semantics;
   gboolean pre_proc;
   GSList *handlers;
@@ -56,6 +58,7 @@ struct _KmsSdpBaseGroupPrivate
 enum
 {
   PROP_0,
+  PROP_ID,
   PROP_SEMANTICS,
   PROP_PRE_PROC,
   N_PROPERTIES
@@ -68,6 +71,9 @@ kms_sdp_base_group_get_property (GObject * object, guint prop_id,
   KmsSdpBaseGroup *self = KMS_SDP_BASE_GROUP (object);
 
   switch (prop_id) {
+    case PROP_ID:
+      g_value_set_int (value, self->priv->id);
+      break;
     case PROP_SEMANTICS:
       g_value_set_string (value, self->priv->semantics);
       break;
@@ -87,6 +93,9 @@ kms_sdp_base_group_set_property (GObject * object, guint prop_id,
   KmsSdpBaseGroup *self = KMS_SDP_BASE_GROUP (object);
 
   switch (prop_id) {
+    case PROP_ID:
+      self->priv->id = g_value_get_int (value);
+      break;
     case PROP_SEMANTICS:
       g_free (self->priv->semantics);
       self->priv->semantics = g_value_dup_string (value);
@@ -150,6 +159,11 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
     return;
   }
 
+  if (gst_sdp_media_get_port (media) == 0) {
+    GST_DEBUG_OBJECT (val->group, "Skpping %s from group", mid);
+    return;
+  }
+
   tmp = val->str;
   val->str = g_strdup_printf ("%s %s", tmp, mid);
 
@@ -205,7 +219,11 @@ static gboolean
 kms_sdp_base_group_add_media_handler_impl (KmsSdpBaseGroup * grp,
     KmsSdpHandler * handler, GError ** error)
 {
-  /* Allows to add every handler */
+  if (g_slist_find (grp->priv->handlers, handler) != NULL) {
+    /* Already added */
+    return TRUE;
+  }
+
   grp->priv->handlers = g_slist_append (grp->priv->handlers,
       kms_sdp_agent_common_ref_sdp_handler (handler));
 
@@ -219,10 +237,7 @@ kms_sdp_base_group_remove_media_handler_impl (KmsSdpBaseGroup * grp,
     KmsSdpHandler * handler, GError ** error)
 {
   if (g_slist_find (grp->priv->handlers, handler) == NULL) {
-    g_set_error (error, KMS_SDP_BASE_GROUP_ERROR,
-        SDP_BASE_GROUP_HANDLER_NOT_FOUND,
-        "Media handler with id '%u' not found", handler->id);
-    return FALSE;
+    return TRUE;
   }
 
   grp->priv->handlers = g_slist_remove (grp->priv->handlers, handler);
@@ -231,6 +246,13 @@ kms_sdp_base_group_remove_media_handler_impl (KmsSdpBaseGroup * grp,
   /* TODO: Remove this group from handler->groups in new API */
 
   return TRUE;
+}
+
+static gboolean
+kms_sdp_base_group_contains_handler_impl (KmsSdpBaseGroup * grp,
+    KmsSdpHandler * handler)
+{
+  return g_slist_find (grp->priv->handlers, handler) != NULL;
 }
 
 static void
@@ -243,6 +265,12 @@ kms_sdp_base_group_class_init (KmsSdpBaseGroupClass * klass)
   gobject_class->set_property = kms_sdp_base_group_set_property;
   gobject_class->finalize = kms_sdp_base_group_finalize;
 
+  g_object_class_install_property (gobject_class, PROP_ID,
+      g_param_spec_int ("id", "Identifier",
+          "Group identifier", KMS_BASE_GROUP_DEFAULT_ID, G_MAXINT,
+          KMS_BASE_GROUP_DEFAULT_ID,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (gobject_class, PROP_SEMANTICS,
       g_param_spec_string ("semantics", "Semantics",
           "Semantics of this group", NULL,
@@ -253,6 +281,7 @@ kms_sdp_base_group_class_init (KmsSdpBaseGroupClass * klass)
 
   klass->add_offer_attributes = kms_sdp_base_group_add_offer_attributes_impl;
   klass->add_answer_attributes = kms_sdp_base_group_add_answer_attributes_impl;
+  klass->contains_handler = kms_sdp_base_group_contains_handler_impl;
   klass->can_insert_attribute = kms_sdp_base_group_can_insert_attribute_impl;
 
   klass->add_media_handler = kms_sdp_base_group_add_media_handler_impl;
@@ -265,6 +294,7 @@ static void
 kms_sdp_base_group_init (KmsSdpBaseGroup * self)
 {
   self->priv = KMS_SDP_BASE_GROUP_GET_PRIVATE (self);
+  self->priv->id = -1;
 }
 
 static gboolean
@@ -324,4 +354,13 @@ kms_sdp_base_group_remove_media_handler (KmsSdpBaseGroup * grp,
 
   return KMS_SDP_BASE_GROUP_GET_CLASS (grp)->remove_media_handler (grp, handler,
       error);
+}
+
+gboolean
+kms_sdp_base_group_contains_handler (KmsSdpBaseGroup * grp,
+    KmsSdpHandler * handler)
+{
+  g_return_val_if_fail (KMS_IS_SDP_BASE_GROUP (grp), FALSE);
+
+  return KMS_SDP_BASE_GROUP_GET_CLASS (grp)->contains_handler (grp, handler);
 }

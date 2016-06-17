@@ -107,7 +107,7 @@ kms_sdp_mid_ext_add_answer_attributes (KmsISdpMediaExtension * ext,
   mid = gst_sdp_media_get_attribute_val (answer, MID_ATTR);
   if (mid != NULL) {
     /* do not add more mid attributes */
-    GST_WARNING_OBJECT (ext, "Mid has already set in answer");
+    GST_DEBUG_OBJECT (ext, "Mid has already set in answer");
     return TRUE;
   }
 

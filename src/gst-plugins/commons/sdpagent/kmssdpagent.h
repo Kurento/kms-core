@@ -118,6 +118,7 @@ gboolean kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage
 gboolean kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
 gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, const char *optname1, ...);
 gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
+gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid);
 
 /* Deprecated begin */
 gint kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent);
