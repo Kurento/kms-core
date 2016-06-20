@@ -172,7 +172,7 @@ static void
 remove_on_unlinked_async (gpointer data, gpointer not_used)
 {
   GstElement *elem = GST_ELEMENT_CAST (data);
-  GstObject *parent = gst_object_get_parent (GST_OBJECT (elem));
+  GstObject *parent;
 
   gst_element_set_locked_state (elem, TRUE);
   if (g_strcmp0 (GST_OBJECT_NAME (gst_element_get_factory (elem)),
@@ -180,13 +180,15 @@ remove_on_unlinked_async (gpointer data, gpointer not_used)
     g_object_set (G_OBJECT (elem), "flush-on-eos", TRUE, NULL);
     gst_element_send_event (elem, gst_event_new_eos ());
   }
-  gst_element_set_state (elem, GST_STATE_NULL);
+
+  parent = gst_object_get_parent (GST_OBJECT (elem));
   if (parent != NULL) {
     gst_bin_remove (GST_BIN (parent), elem);
     g_object_unref (parent);
   }
 
-  g_object_unref (data);
+  gst_element_set_state (elem, GST_STATE_NULL);
+  g_object_unref (elem);
 }
 
 static GstPadProbeReturn
