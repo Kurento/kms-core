@@ -563,7 +563,7 @@ kms_agnostic_bin2_create_dec_bin (KmsAgnosticBin2 * self,
   output_tee =
       kms_tree_bin_get_output_tee (KMS_TREE_BIN (self->priv->input_bin));
   input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (dec_bin));
-  link_element_to_tee (output_tee, input_element);
+  gst_element_link (output_tee, input_element);
 
   return GST_BIN (dec_bin);
 }
@@ -632,7 +632,7 @@ kms_agnostic_bin2_create_rtp_pay_bin (KmsAgnosticBin2 * self, GstCaps * caps)
   gst_caps_unref (input_caps);
 
   output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (enc_bin));
-  link_element_to_tee (output_tee, input_element);
+  gst_element_link (output_tee, input_element);
 
   return GST_BIN (bin);
 }
@@ -670,7 +670,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
 
   output_tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (dec_bin));
   input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (enc_bin));
-  link_element_to_tee (output_tee, input_element);
+  gst_element_link (output_tee, input_element);
 
   kms_agnostic_bin2_insert_bin (self, GST_BIN (enc_bin));
 
@@ -879,7 +879,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
   gst_element_sync_state_with_parent (GST_ELEMENT (parse_bin));
 
   input_element = kms_tree_bin_get_input_element (KMS_TREE_BIN (parse_bin));
-  link_element_to_tee (self->priv->input_tee, input_element);
+  gst_element_link (self->priv->input_tee, input_element);
 
   self->priv->started = FALSE;
 
