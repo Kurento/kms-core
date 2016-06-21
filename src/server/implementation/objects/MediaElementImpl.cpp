@@ -984,9 +984,19 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
     std::shared_ptr<ElementConnectionDataInternal> connectionData;
     gboolean ret;
 
-    connectionData = sinkImpl->sources.at (mediaType).at (sourceMediaDescription);
-    sinkImpl->sources.at (mediaType).erase (sourceMediaDescription);
-    sinks.at (mediaType).at (sinkMediaDescription).erase (connectionData);
+    connectionData = sinkImpl->sources.at (mediaType).at (sinkMediaDescription);
+
+    if (connectionData->toInterface()->getSourceDescription() ==
+        sourceMediaDescription) {
+      sinkImpl->sources.at (mediaType).erase (sinkMediaDescription);
+    }
+
+    for (auto conn : sinks.at (mediaType).at (sourceMediaDescription) ) {
+      if (conn->toInterface()->getSinkDescription() == sinkMediaDescription) {
+        sinks.at (mediaType).at (sourceMediaDescription).erase (conn);
+        break;
+      }
+    }
 
     g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
                            connectionData->getSourcePadName (), &ret, NULL);
