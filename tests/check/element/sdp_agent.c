@@ -5651,7 +5651,7 @@ chrome_on_asnwer (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
 }
 
 static void
-negotiate_with_chrome (with_handlers)
+negotiate_with_chrome (gboolean with_handlers)
 {
   KmsSdpAgent *agent;
   gchar *sdp_str = NULL;
