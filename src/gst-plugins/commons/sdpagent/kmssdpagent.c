@@ -1416,7 +1416,7 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
   mids = gst_sdp_message_get_attribute_val (offer, "group");
 
   if (mids == NULL) {
-    GST_ERROR_OBJECT (agent, "Invalid group provided");
+    GST_DEBUG_OBJECT (agent, "Group not provided");
     return;
   }
 
