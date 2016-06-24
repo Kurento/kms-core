@@ -192,6 +192,11 @@ protected:
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
                                 &report, const GstStructure *stats, double timestamp);
 
+  virtual void prepareSinkConnection (std::shared_ptr<MediaElement> src,
+                                      std::shared_ptr<MediaType> mediaType,
+                                      const std::string &sourceMediaDescription,
+                                      const std::string &sinkMediaDescription);
+
 private:
   std::recursive_timed_mutex sourcesMutex;
   std::recursive_timed_mutex sinksMutex;

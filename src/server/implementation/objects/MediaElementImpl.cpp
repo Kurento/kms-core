@@ -829,6 +829,14 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
   connect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 
+void MediaElementImpl::prepareSinkConnection (std::shared_ptr<MediaElement> src,
+    std::shared_ptr< MediaType > mediaType,
+    const std::string &sourceMediaDescription,
+    const std::string &sinkMediaDescription)
+{
+  /* Do nothing by default */
+}
+
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType,
                                 const std::string &sourceMediaDescription,
@@ -865,6 +873,9 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                                          sourceMediaDescription,
                                          connection->getSinkDescription () );
   }
+
+  sinkImpl->prepareSinkConnection (connectionData->getSource(), mediaType,
+                                   sourceMediaDescription, sinkMediaDescription);
 
   type = convertMediaType (mediaType);
   g_signal_emit_by_name (getGstreamerElement (), "request-new-pad", type,
