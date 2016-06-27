@@ -715,8 +715,8 @@ kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc)
   return event;
 }
 
-static gboolean
-is_remb_event (GstEvent * event)
+gboolean
+kms_utils_is_remb_event_upstream (GstEvent * event)
 {
   const GstStructure *s;
 
@@ -738,7 +738,7 @@ kms_utils_remb_event_upstream_parse (GstEvent * event, guint * bitrate,
 {
   const GstStructure *s;
 
-  if (!is_remb_event (event)) {
+  if (!kms_utils_is_remb_event_upstream (event)) {
     return FALSE;
   }
 

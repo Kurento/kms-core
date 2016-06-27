@@ -63,6 +63,7 @@ void kms_utils_execute_with_pad_blocked (GstPad * pad, gboolean drop, KmsPadCall
 
 /* REMB event */
 GstEvent * kms_utils_remb_event_upstream_new (guint bitrate, guint ssrc);
+gboolean kms_utils_is_remb_event_upstream (GstEvent * event);
 gboolean kms_utils_remb_event_upstream_parse (GstEvent *event, guint *bitrate, guint *ssrc);
 
 typedef struct _RembEventManager RembEventManager;
