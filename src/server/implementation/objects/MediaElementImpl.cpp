@@ -92,8 +92,8 @@ public:
 
   void setSinkPadName()
   {
-    std::string desc = "_" + (sourceDescription.empty () ?
-                              KMS_DEFAULT_MEDIA_DESCRIPTION : sourceDescription);
+    std::string desc = "_" + (sinkDescription.empty () ?
+                              KMS_DEFAULT_MEDIA_DESCRIPTION : sinkDescription);
 
     switch (type->getValue () ) {
     case MediaType::AUDIO:
