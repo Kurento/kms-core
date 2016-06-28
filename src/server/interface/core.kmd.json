@@ -201,6 +201,15 @@
             "doc": "The kmd file",
             "type": "String"
           }
+        },
+        {
+          "name": "getUsedMemory",
+          "doc": "Returns the amount of memory that the server is using in KiB",
+          "params": [],
+          "return": {
+            "doc": "The amount of KiB of memory being used",
+            "type": "int64"
+          }
         }
       ],
       "events": [

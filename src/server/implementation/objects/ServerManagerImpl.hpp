@@ -70,6 +70,8 @@ public:
 
   virtual std::string getMetadata () override;
 
+  virtual int64_t getUsedMemory() override;
+
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler) override;

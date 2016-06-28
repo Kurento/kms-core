@@ -100,6 +100,38 @@ std::string ServerManagerImpl::getKmd (const std::string &moduleName)
                           "Requested kmd module doesn't exist");
 }
 
+static int64_t
+get_int64 (std::string &str, char sep, int nToken)
+{
+  size_t start = str.find_first_not_of (sep), end;
+  int count = 0;
+
+  while (start != std::string::npos) {
+    end = str.find (sep, start);
+
+    if (count++ == nToken) {
+      str[end] = '\0';
+      return atol (&str.c_str() [start]);
+    }
+
+    start = str.find_first_not_of (sep, end);
+  }
+
+  return 0;
+}
+
+int64_t
+ServerManagerImpl::getUsedMemory()
+{
+  std::string stat;
+  std::ifstream stat_file ("/proc/self/stat");
+
+  std::getline (stat_file, stat);
+  stat_file.close();
+
+  return get_int64 (stat, ' ', 22) / 1024;
+}
+
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;
 
 ServerManagerImpl::StaticConstructor::StaticConstructor()
