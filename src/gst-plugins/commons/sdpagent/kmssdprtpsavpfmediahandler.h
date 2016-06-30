@@ -74,6 +74,7 @@ struct _KmsSdpRtpSavpfMediaHandlerClass
 GType kms_sdp_rtp_savpf_media_handler_get_type ();
 
 KmsSdpRtpSavpfMediaHandler * kms_sdp_rtp_savpf_media_handler_new ();
+KmsSdpRtpSavpfMediaHandler * kms_sdp_rtp_savpf_media_handler_new_with_udp_tls ();
 
 G_END_DECLS
 

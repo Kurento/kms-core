@@ -126,3 +126,16 @@ kms_sdp_rtp_savpf_media_handler_new ()
 
   return handler;
 }
+
+KmsSdpRtpSavpfMediaHandler *
+kms_sdp_rtp_savpf_media_handler_new_with_udp_tls ()
+{
+  KmsSdpRtpSavpfMediaHandler *handler;
+
+  handler =
+      KMS_SDP_RTP_SAVPF_MEDIA_HANDLER (g_object_new
+      (KMS_TYPE_SDP_RTP_SAVPF_MEDIA_HANDLER, "proto",
+          SDP_MEDIA_UDP_TLS_PROTO_INFO SDP_MEDIA_RTP_SAVPF_PROTO, NULL));
+
+  return handler;
+}
