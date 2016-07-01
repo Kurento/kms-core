@@ -75,6 +75,8 @@ GType kms_sdp_payload_manager_get_type ();
 
 KmsSdpPayloadManager * kms_sdp_payload_manager_new ();
 
+KmsSdpPayloadManager * kms_sdp_payload_manager_new_same_codec_shares_pt ();
+
 G_END_DECLS
 
 #endif /* _KMS_SDP_PAYLOAD_MANAGER_H_ */

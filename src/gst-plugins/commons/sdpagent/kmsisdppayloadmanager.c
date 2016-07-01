@@ -26,11 +26,23 @@ kms_i_sdp_payload_manager_default_init (KmsISdpPayloadManagerInterface * iface)
 }
 
 gint
-kms_i_sdp_payload_manager_get_dynamic_pt (KmsISdpPayloadManager * self,
-    GError ** error)
+kms_i_sdp_payload_manager_get_dynamic_pt (KmsISdpPayloadManager *
+    self, const gchar * codec_name, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_I_SDP_PAYLOAD_MANAGER (self), -1);
 
-  return KMS_I_SDP_PAYLOAD_MANAGER_GET_INTERFACE (self)->get_dynamic_pt (self,
-      error);
+  return
+      KMS_I_SDP_PAYLOAD_MANAGER_GET_INTERFACE (self)->get_dynamic_pt
+      (self, codec_name, error);
+}
+
+gboolean
+kms_i_sdp_payload_manager_register_dynamic_payload (KmsISdpPayloadManager *
+    self, gint pt, const gchar * codec_name, GError ** error)
+{
+  g_return_val_if_fail (KMS_IS_I_SDP_PAYLOAD_MANAGER (self), FALSE);
+
+  return
+      KMS_I_SDP_PAYLOAD_MANAGER_GET_INTERFACE (self)->register_dynamic_payload
+      (self, pt, codec_name, error);
 }

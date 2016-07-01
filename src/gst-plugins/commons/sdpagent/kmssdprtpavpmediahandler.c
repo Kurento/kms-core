@@ -208,7 +208,7 @@ kms_sdp_rtp_map_create_for_codec (KmsSdpRtpAvpMediaHandler * self,
   }
 
   payload = kms_i_sdp_payload_manager_get_dynamic_pt (self->priv->ptmanager,
-      error);
+      name, error);
 
   if (payload >= 0) {
     rtpmap = kms_sdp_rtp_map_new (payload, name);
@@ -462,7 +462,7 @@ error:
 
 static gboolean
 kms_sdp_rtp_avp_media_handler_encoding_supported (KmsSdpRtpAvpMediaHandler *
-    self, const GstSDPMedia * media, const gchar * enc)
+    self, const GstSDPMedia * media, const gchar * enc, gint pt)
 {
   GSList *item = NULL;
 
@@ -485,6 +485,10 @@ kms_sdp_rtp_avp_media_handler_encoding_supported (KmsSdpRtpAvpMediaHandler *
     } else {
       /* Check dynamic pt */
       supported = g_ascii_strcasecmp (rtpmap->name, enc) == 0;
+      if (supported) {
+        kms_i_sdp_payload_manager_register_dynamic_payload (self->
+            priv->ptmanager, pt, rtpmap->name, NULL);
+      }
     }
 
     if (supported) {
@@ -504,19 +508,18 @@ kms_sdp_rtp_avp_media_handler_format_supported (KmsSdpRtpAvpMediaHandler * self,
   const gchar *val;
   gchar **attrs;
   gboolean ret;
+  gint pt;
 
   val = sdp_utils_get_attr_map_value (media, "rtpmap", fmt);
+  pt = atoi (fmt);
 
   if (val == NULL) {
-    gint pt;
-
     /* Check if this is a static payload type so they do not need to be */
     /* set in an rtpmap attribute */
 
-    pt = atoi (fmt);
     if (pt >= 0 && pt <= G_N_ELEMENTS (rtpmaps) && rtpmaps[pt] != NULL) {
       return kms_sdp_rtp_avp_media_handler_encoding_supported (self, media,
-          rtpmaps[pt]);
+          rtpmaps[pt], pt);
     } else {
       return FALSE;
     }
@@ -525,7 +528,7 @@ kms_sdp_rtp_avp_media_handler_format_supported (KmsSdpRtpAvpMediaHandler * self,
   attrs = g_strsplit (val, " ", 0);
   ret =
       kms_sdp_rtp_avp_media_handler_encoding_supported (self, media,
-      attrs[1] /* encoding */ );
+      attrs[1] /* encoding */ , pt);
   g_strfreev (attrs);
 
   return ret;
@@ -603,7 +606,7 @@ static gboolean
       pt = atoi (fmt);
       if (pt >= 0 && pt <= G_N_ELEMENTS (rtpmaps) && rtpmaps[pt] != NULL) {
         if (kms_sdp_rtp_avp_media_handler_encoding_supported (self, offer,
-                rtpmaps[pt])) {
+                rtpmaps[pt], pt)) {
           /* Static payload do not nee to be set as rtpmap attribute */
           continue;
         } else {

@@ -36,10 +36,12 @@ struct _KmsISdpPayloadManagerInterface
 {
   GTypeInterface parent;
 
-  gint (*get_dynamic_pt) (KmsISdpPayloadManager *self, GError **error);
+  gint (*get_dynamic_pt) (KmsISdpPayloadManager *self, const gchar *codec_name, GError **error);
+  gboolean (*register_dynamic_payload) (KmsISdpPayloadManager *self, gint pt, const gchar *codec_name, GError **error);
 };
 
 GType kms_i_sdp_payload_manager_get_type (void);
-gint kms_i_sdp_payload_manager_get_dynamic_pt (KmsISdpPayloadManager *self, GError **error);
+gint kms_i_sdp_payload_manager_get_dynamic_pt (KmsISdpPayloadManager *self, const gchar *codec_name, GError **error);
+gboolean kms_i_sdp_payload_manager_register_dynamic_payload (KmsISdpPayloadManager *self, gint pt, const gchar *codec_name, GError **error);
 
 #endif /* __KMS_I_SDP_PAYLOAD_MANAGER_H__ */
