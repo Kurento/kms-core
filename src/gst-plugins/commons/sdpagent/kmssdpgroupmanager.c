@@ -503,3 +503,17 @@ kms_sdp_group_manager_remove_handler_from_group (KmsSdpGroupManager * obj,
   return KMS_SDP_GROUP_MANAGER_GET_CLASS (obj)->remove_handler_from_group (obj,
       gid, hid);
 }
+
+GList *
+kms_sdp_group_manager_get_groups (KmsSdpGroupManager * obj)
+{
+  GList *groups, *ret = NULL;
+
+  g_return_val_if_fail (KMS_IS_SDP_GROUP_MANAGER (obj), NULL);
+
+  groups = g_hash_table_get_values (obj->priv->groups);
+  ret = g_list_copy_deep (groups, (GCopyFunc) g_object_ref, NULL);
+  g_list_free (groups);
+
+  return ret;
+}

@@ -155,16 +155,6 @@ static void
 
 /* Configure media callback end */
 
-typedef struct _SdpHandlerGroup
-{
-  KmsRefStruct ref;
-  guint id;
-  guint index;
-  gboolean negotiated;
-  KmsSdpBaseGroup *group;
-  GSList *handlers;             /* SdpHandler */
-} SdpHandlerGroup;
-
 typedef struct _SdpHandler
 {
   KmsRefStruct ref;
@@ -199,7 +189,6 @@ struct _KmsSdpAgentPrivate
   gchar *addr;
 
   GSList *handlers;
-  GSList *groups;
 
   guint hids;                   /* handler ids */
   guint gids;                   /* group ids */
@@ -377,31 +366,6 @@ sdp_handler_new (guint id, const gchar * media, KmsSdpMediaHandler * handler)
 }
 
 static void
-sdp_handler_group_destroy (SdpHandlerGroup * group)
-{
-  g_slist_free (group->handlers);
-  g_clear_object (&group->group);
-
-  g_slice_free (SdpHandlerGroup, group);
-}
-
-static SdpHandlerGroup *
-sdp_handler_group_new (guint id, KmsSdpBaseGroup * group)
-{
-  SdpHandlerGroup *sdp_group;
-
-  sdp_group = g_slice_new0 (SdpHandlerGroup);
-
-  kms_ref_struct_init (KMS_REF_STRUCT_CAST (sdp_group),
-      (GDestroyNotify) sdp_handler_group_destroy);
-
-  sdp_group->id = id;
-  sdp_group->group = group;
-
-  return sdp_group;
-}
-
-static void
 kms_sdp_agent_release_sdp (GstSDPMessage ** sdp)
 {
   if (*sdp == NULL) {
@@ -459,7 +423,6 @@ kms_sdp_agent_finalize (GObject * object)
       (GDestroyNotify) kms_ref_struct_unref);
   g_slist_free_full (self->priv->handlers,
       (GDestroyNotify) kms_ref_struct_unref);
-  g_slist_free_full (self->priv->groups, (GDestroyNotify) kms_ref_struct_unref);
 
   g_rec_mutex_clear (&self->priv->mutex);
 
@@ -1381,31 +1344,34 @@ static void
 kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
     const GstSDPMedia * media, const GstSDPMessage * offer)
 {
+  GList *groups;
   const gchar *mid, *mids;
-  SdpHandlerGroup *grp;
+  KmsSdpBaseGroup *group;
   gchar *semantics = NULL;
-  gchar **items;
+  gchar **items = NULL;
   guint i, len;
+  gint gid;
 
-  len = g_slist_length (agent->priv->groups);
+  groups = kms_sdp_group_manager_get_groups (agent->priv->group_manager);
+  len = g_list_length (groups);
 
   if (len == 0) {
     GST_DEBUG_OBJECT (agent, "No groups supported");
-    return;
+    goto end;
   } else if (len > 1) {
     GST_ERROR_OBJECT (agent, "Only one group is supported");
-    return;
+    goto end;
   }
 
   mid = gst_sdp_media_get_attribute_val (media, "mid");
 
   if (mid == NULL) {
     GST_ERROR_OBJECT (agent, "No mid attribute");
-    return;
+    goto end;
   }
 
   /* FIXME: Only one group is supported so far */
-  grp = agent->priv->groups->data;
+  group = groups->data;
   mids = gst_sdp_message_get_attribute_val (offer, "group");
 
   if (mids == NULL) {
@@ -1413,7 +1379,7 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
     return;
   }
 
-  g_object_get (grp->group, "semantics", &semantics, NULL);
+  g_object_get (group, "semantics", &semantics, "id", &gid, NULL);
 
   items = g_strsplit (mids, " ", 0);
 
@@ -1425,12 +1391,13 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
   for (i = 1; items[i] != NULL; i++) {
     if (g_strcmp0 (items[i], mid) == 0) {
       kms_sdp_group_manager_add_handler_to_group (agent->priv->group_manager,
-          grp->id, handler->sdph->id);
+          gid, handler->sdph->id);
       break;
     }
   }
 
 end:
+  g_list_free_full (groups, g_object_unref);
   g_strfreev (items);
   g_free (semantics);
 }
@@ -1708,10 +1675,14 @@ kms_sdp_agent_generate_answer_compat (KmsSdpAgent * agent,
   SdpMessageContext *ctx;
   gboolean bundle;
   GstSDPOrigin o;
+  GList *groups;
 
   kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
       agent->priv->local.version);
-  bundle = g_slist_length (agent->priv->groups) > 0;
+
+  groups = kms_sdp_group_manager_get_groups (agent->priv->group_manager);
+  bundle = g_list_length (groups) > 0;
+  g_list_free_full (groups, g_object_unref);
 
   ctx = kms_sdp_message_context_new (error);
   if (ctx == NULL) {
@@ -2304,8 +2275,6 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
     /* Add group extension */
     agent->priv->extensions = g_slist_append (agent->priv->extensions,
         g_object_ref (obj));
-    agent->priv->groups = g_slist_append (agent->priv->groups,
-        sdp_handler_group_new (gid, g_object_ref (obj)));
   }
 
   SDP_AGENT_UNLOCK (agent);

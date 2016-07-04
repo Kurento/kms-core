@@ -98,6 +98,9 @@ gboolean kms_sdp_group_manager_remove_handler (KmsSdpGroupManager *obj, KmsSdpHa
 gboolean kms_sdp_group_manager_add_handler_to_group (KmsSdpGroupManager *obj, guint gid, guint hid);
 gboolean kms_sdp_group_manager_remove_handler_from_group (KmsSdpGroupManager *obj, guint gid, guint hid);
 
+/* Return all groups managed. Groups provided are transfer full */
+GList * kms_sdp_group_manager_get_groups (KmsSdpGroupManager *obj);
+
 G_END_DECLS
 
 #endif /* __KMS_SDP_GROUP_MANAGER_H__ */
