@@ -116,16 +116,6 @@ gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid);
 gint kms_sdp_agent_get_handler_group_id (KmsSdpAgent * agent, guint hid);
 
-typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
-                                                   KmsSdpMediaHandler *handler,
-                                                   SdpMediaConfig *mconf,
-                                                   gpointer user_data);
-void kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
-                                             KmsSdpAgentConfigureMediaCallback callback,
-                                             gpointer user_data,
-                                             GDestroyNotify destroy);
-/* Deprecated end */
-
 typedef struct {
     void (*on_media_offer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
                                 SdpMediaConfig *local_mconf, gpointer user_data);

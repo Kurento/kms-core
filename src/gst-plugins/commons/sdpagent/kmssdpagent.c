@@ -114,47 +114,6 @@ static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
   )                                       \
 )
 
-/* Configure media callback begin */
-typedef struct _KmsSdpAgentConfigureMediaCallbackData
-{
-  KmsSdpAgentConfigureMediaCallback callback;
-  gpointer user_data;
-  GDestroyNotify destroy;
-} KmsSdpAgentConfigureMediaCallbackData;
-
-static KmsSdpAgentConfigureMediaCallbackData
-    * kms_sdp_agent_configure_media_callback_data_new
-    (KmsSdpAgentConfigureMediaCallback callback, gpointer user_data,
-    GDestroyNotify destroy)
-{
-  KmsSdpAgentConfigureMediaCallbackData *data;
-
-  data = g_slice_new0 (KmsSdpAgentConfigureMediaCallbackData);
-  data->callback = callback;
-  data->user_data = user_data;
-  data->destroy = destroy;
-
-  return data;
-}
-
-static void
-    kms_sdp_agent_configure_media_callback_data_clear
-    (KmsSdpAgentConfigureMediaCallbackData ** data)
-{
-  if (*data == NULL) {
-    return;
-  }
-
-  if ((*data)->destroy) {
-    (*data)->destroy ((*data)->user_data);
-  }
-
-  g_slice_free (KmsSdpAgentConfigureMediaCallbackData, *data);
-  *data = NULL;
-}
-
-/* Configure media callback end */
-
 typedef struct _SdpHandler
 {
   KmsRefStruct ref;
@@ -193,7 +152,6 @@ struct _KmsSdpAgentPrivate
   guint hids;                   /* handler ids */
   guint gids;                   /* group ids */
 
-  KmsSdpAgentConfigureMediaCallbackData *configure_media_callback_data; /* deprecated */
   KmsSdpAgentCallbacksData callbacks;
 
   GRecMutex mutex;
@@ -398,9 +356,6 @@ kms_sdp_agent_finalize (GObject * object)
   KmsSdpAgent *self = KMS_SDP_AGENT (object);
 
   GST_DEBUG_OBJECT (self, "finalize");
-
-  kms_sdp_agent_configure_media_callback_data_clear (&self->
-      priv->configure_media_callback_data);
 
   if (self->priv->callbacks.destroy != NULL &&
       self->priv->callbacks.user_data != NULL) {
@@ -862,12 +817,6 @@ static void
 kms_sdp_agent_fire_on_offer_callback (KmsSdpAgent * agent,
     KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
 {
-  /* deprecated */
-  if (agent->priv->configure_media_callback_data != NULL) {
-    agent->priv->configure_media_callback_data->callback (agent, handler,
-        local_mconf, agent->priv->configure_media_callback_data->user_data);
-  }
-
   if (agent->priv->callbacks.callbacks.on_media_offer != NULL) {
     agent->priv->callbacks.callbacks.on_media_offer (agent, handler,
         local_mconf, agent->priv->callbacks.user_data);
@@ -878,12 +827,6 @@ static void
 kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
     KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
 {
-  /* deprecated */
-  if (agent->priv->configure_media_callback_data != NULL) {
-    agent->priv->configure_media_callback_data->callback (agent, handler,
-        local_mconf, agent->priv->configure_media_callback_data->user_data);
-  }
-
   if (agent->priv->callbacks.callbacks.on_media_answer != NULL) {
     agent->priv->callbacks.callbacks.on_media_answer (agent, handler,
         local_mconf, agent->priv->callbacks.user_data);
@@ -2186,23 +2129,6 @@ kms_sdp_agent_set_remote_description (KmsSdpAgent * agent,
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->set_remote_description (agent,
       description, error);
-}
-
-void
-kms_sdp_agent_set_configure_media_callback (KmsSdpAgent * agent,
-    KmsSdpAgentConfigureMediaCallback callback,
-    gpointer user_data, GDestroyNotify destroy)
-{
-  KmsSdpAgentConfigureMediaCallbackData *old_data;
-
-  SDP_AGENT_LOCK (agent);
-  old_data = agent->priv->configure_media_callback_data;
-  agent->priv->configure_media_callback_data =
-      kms_sdp_agent_configure_media_callback_data_new (callback, user_data,
-      destroy);
-  SDP_AGENT_UNLOCK (agent);
-
-  kms_sdp_agent_configure_media_callback_data_clear (&old_data);
 }
 
 void
