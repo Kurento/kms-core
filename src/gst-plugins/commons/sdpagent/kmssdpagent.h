@@ -114,7 +114,7 @@ gboolean kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessag
 gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, const char *optname1, ...);
 gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid);
-
+gint kms_sdp_agent_get_handler_group_id (KmsSdpAgent * agent, guint hid);
 
 typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
                                                    KmsSdpMediaHandler *handler,

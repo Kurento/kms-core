@@ -5537,8 +5537,9 @@ negotiate_with_chrome (gboolean with_handlers)
         G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
     hid = add_media_handler (agent, "video", handler);
+    fail_unless (kms_sdp_agent_get_handler_group_id (agent, hid) < 0);
     fail_if (!kms_sdp_agent_group_add (agent, gid, hid));
-
+    fail_if (kms_sdp_agent_get_handler_group_id (agent, hid) != gid);
     handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
     fail_if (handler == NULL);
 
@@ -5546,7 +5547,9 @@ negotiate_with_chrome (gboolean with_handlers)
         G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
     hid = add_media_handler (agent, "audio", handler);
+    fail_unless (kms_sdp_agent_get_handler_group_id (agent, hid) < 0);
     fail_if (!kms_sdp_agent_group_add (agent, gid, hid));
+    fail_if (kms_sdp_agent_get_handler_group_id (agent, hid) != gid);
   } else {
     KmsSdpAgentCallbacks cb;
 

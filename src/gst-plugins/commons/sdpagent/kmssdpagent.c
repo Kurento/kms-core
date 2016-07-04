@@ -2336,6 +2336,37 @@ end:
 }
 
 gint
+kms_sdp_agent_get_handler_group_id (KmsSdpAgent * agent, guint hid)
+{
+  KmsSdpBaseGroup *group;
+  SdpHandler *handler;
+  gint gid = -1;
+
+  SDP_AGENT_LOCK (agent);
+
+  handler = kms_sdp_agent_get_handler (agent, hid);
+
+  if (handler == NULL) {
+    goto end;
+  }
+
+  group = kms_sdp_group_manager_get_group (agent->priv->group_manager,
+      handler->sdph);
+
+  if (group == NULL) {
+    goto end;
+  }
+
+  g_object_get (group, "id", &gid, NULL);
+  g_object_unref (group);
+
+end:
+  SDP_AGENT_UNLOCK (agent);
+
+  return gid;
+}
+
+gint
 kms_sdp_agent_get_handler_index (KmsSdpAgent * agent, gint hid)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
