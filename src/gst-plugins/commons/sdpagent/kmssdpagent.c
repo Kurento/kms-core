@@ -651,18 +651,8 @@ static void
 kms_sdp_agent_remove_handler_from_groups (KmsSdpAgent * agent,
     SdpHandler * handler)
 {
-  GSList *l;
-
   kms_sdp_group_manager_remove_handler (agent->priv->group_manager,
       handler->sdph);
-
-  /* FIXME: Remove next code (decrecated when we get rid of mconf API) */
-  for (l = agent->priv->groups; l != NULL; l = l->next) {
-    SdpHandlerGroup *group = l->data;
-
-    kms_sdp_agent_remove_handler_from_group (agent, group->id,
-        handler->sdph->id);
-  }
 }
 
 gint
@@ -2092,134 +2082,6 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
   return ret;
 }
 
-gint
-kms_sdp_agent_create_bundle_group_impl (KmsSdpAgent * agent)
-{
-  SdpHandlerGroup *group;
-  guint id;
-
-  SDP_AGENT_LOCK (agent);
-
-  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
-      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    SDP_AGENT_UNLOCK (agent);
-    GST_WARNING_OBJECT (agent,
-        "Can not manipulate media while negotiation is taking place");
-    return -1;
-  }
-
-  id = agent->priv->gids++;
-  group = sdp_handler_group_new (id, NULL);
-  agent->priv->groups = g_slist_append (agent->priv->groups, group);
-
-  SDP_AGENT_UNLOCK (agent);
-
-  return id;
-}
-
-static SdpHandlerGroup *
-kms_sdp_agent_get_group (KmsSdpAgent * agent, guint gid)
-{
-  GSList *l;
-
-  for (l = agent->priv->groups; l != NULL; l = l->next) {
-    SdpHandlerGroup *group = l->data;
-
-    if (group->id == gid) {
-      return group;
-    }
-  }
-
-  return NULL;
-}
-
-gboolean
-kms_sdp_agent_add_handler_to_group_impl (KmsSdpAgent * agent, guint gid,
-    guint hid)
-{
-  SdpHandlerGroup *group;
-  SdpHandler *handler;
-  gboolean ret = FALSE;
-  GSList *l;
-
-  SDP_AGENT_LOCK (agent);
-
-  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
-      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    SDP_AGENT_UNLOCK (agent);
-    GST_WARNING_OBJECT (agent,
-        "Can not manipulate media while negotiation is taking place");
-    goto end;
-  }
-
-  group = kms_sdp_agent_get_group (agent, gid);
-  if (group == NULL) {
-    goto end;
-  }
-
-  handler = kms_sdp_agent_get_handler (agent, hid);
-  if (handler == NULL) {
-    goto end;
-  }
-
-  ret = TRUE;
-  for (l = group->handlers; l != NULL; l = l->next) {
-    SdpHandler *h = l->data;
-
-    if (h->sdph->id == hid) {
-      goto end;
-    }
-  }
-
-  group->handlers = g_slist_append (group->handlers, handler);
-
-end:
-  SDP_AGENT_UNLOCK (agent);
-
-  return ret;
-}
-
-gboolean
-kms_sdp_agent_remove_handler_from_group_impl (KmsSdpAgent * agent, guint gid,
-    guint hid)
-{
-  SdpHandlerGroup *group;
-  SdpHandler *handler;
-  gboolean ret = FALSE;
-
-  SDP_AGENT_LOCK (agent);
-
-  if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
-      agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    SDP_AGENT_UNLOCK (agent);
-    GST_WARNING_OBJECT (agent,
-        "Can not manipulate media while negotiation is taking place");
-    goto end;
-  }
-
-  group = kms_sdp_agent_get_group (agent, gid);
-  if (group == NULL) {
-    goto end;
-  }
-
-  handler = kms_sdp_agent_get_handler (agent, hid);
-  if (handler == NULL) {
-    goto end;
-  }
-
-  if (!g_slist_find (group->handlers, handler)) {
-    goto end;
-  }
-
-  group->handlers = g_slist_remove (group->handlers, handler);
-  ret = TRUE;
-
-end:
-  SDP_AGENT_UNLOCK (agent);
-
-  return ret;
-}
-
 static void
 kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
 {
@@ -2262,10 +2124,7 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
   klass->cancel_offer = kms_sdp_agent_cancel_offer_impl;
   klass->set_local_description = kms_sdp_agent_set_local_description_impl;
   klass->set_remote_description = kms_sdp_agent_set_remote_description_impl;
-  klass->create_bundle_group = kms_sdp_agent_create_bundle_group_impl;
-  klass->add_handler_to_group = kms_sdp_agent_add_handler_to_group_impl;
-  klass->remove_handler_from_group =
-      kms_sdp_agent_remove_handler_from_group_impl;
+
   g_type_class_add_private (klass, sizeof (KmsSdpAgentPrivate));
 }
 
@@ -2356,33 +2215,6 @@ kms_sdp_agent_set_remote_description (KmsSdpAgent * agent,
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->set_remote_description (agent,
       description, error);
-}
-
-gint
-kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent)
-{
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
-
-  return KMS_SDP_AGENT_GET_CLASS (agent)->create_bundle_group (agent);
-}
-
-gboolean
-kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid)
-{
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
-
-  return KMS_SDP_AGENT_GET_CLASS (agent)->add_handler_to_group (agent, gid,
-      hid);
-}
-
-gboolean
-kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid,
-    guint hid)
-{
-  g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), FALSE);
-
-  return KMS_SDP_AGENT_GET_CLASS (agent)->remove_handler_from_group (agent, gid,
-      hid);
 }
 
 void

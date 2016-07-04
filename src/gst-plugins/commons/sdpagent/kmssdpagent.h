@@ -98,11 +98,6 @@ struct _KmsSdpAgentClass
   gboolean (*cancel_offer) (KmsSdpAgent * agent, GError **error);
   gboolean (*set_local_description) (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
   gboolean (*set_remote_description) (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
-
-  /* Deprecated */
-  gint (*create_bundle_group) (KmsSdpAgent * agent);
-  gboolean (*add_handler_to_group) (KmsSdpAgent * agent, guint gid, guint mid);
-  gboolean (*remove_handler_from_group) (KmsSdpAgent * agent, guint gid, guint hid);
 };
 
 GType kms_sdp_agent_get_type ();
@@ -120,10 +115,6 @@ gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, const ch
 gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
 gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid);
 
-/* Deprecated begin */
-gint kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent);
-gboolean kms_sdp_agent_add_handler_to_group (KmsSdpAgent * agent, guint gid, guint hid);
-gboolean kms_sdp_agent_remove_handler_from_group (KmsSdpAgent * agent, guint gid, guint hid);
 
 typedef gboolean (*KmsSdpAgentConfigureMediaCallback) (KmsSdpAgent *agent,
                                                    KmsSdpMediaHandler *handler,
