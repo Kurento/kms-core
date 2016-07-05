@@ -2292,6 +2292,30 @@ end:
   return gid;
 }
 
+KmsSdpMediaHandler *
+kms_sdp_agent_get_handler_by_index (KmsSdpAgent * agent, guint index)
+{
+  KmsSdpMediaHandler *ret = NULL;
+  SdpHandler *handler;
+  GSList *item;
+
+  SDP_AGENT_LOCK (agent);
+
+  item = g_slist_nth (agent->priv->offer_handlers, index);
+  if (item == NULL) {
+    goto end;
+  }
+
+  handler = item->data;
+
+  ret = g_object_ref (handler->sdph->handler);
+
+end:
+  SDP_AGENT_UNLOCK (agent);
+
+  return ret;
+}
+
 gint
 kms_sdp_agent_get_handler_index (KmsSdpAgent * agent, gint hid)
 {

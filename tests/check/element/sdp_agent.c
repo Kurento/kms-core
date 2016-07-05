@@ -2876,6 +2876,26 @@ on_media_answered (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
   data->local_offerer = local_offerer;
 }
 
+static gboolean
+check_handler_at_index_has_id (KmsSdpAgent * agent, guint index, gint id)
+{
+  KmsSdpMediaHandler *handler;
+  gint hid;
+  gboolean ret;
+
+  handler = kms_sdp_agent_get_handler_by_index (agent, index);
+
+  if (handler == NULL) {
+    return FALSE;
+  }
+
+  g_object_get (handler, "id", &hid, NULL);
+  ret = id == hid;
+  g_object_unref (handler);
+
+  return ret;
+}
+
 GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
 {
   KmsSdpAgent *offerer, *answerer;
@@ -2945,6 +2965,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
   id3 = add_media_handler (offerer, "video", handler);
+  fail_if (kms_sdp_agent_get_handler_by_index (offerer, 0) != NULL);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_savpf_media_handler_new ());
   fail_if (handler == NULL);
@@ -2953,6 +2974,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
       G_N_ELEMENTS (audio_codecs), video_codecs, G_N_ELEMENTS (video_codecs));
 
   id4 = add_media_handler (offerer, "audio", handler);
+  fail_if (kms_sdp_agent_get_handler_by_index (offerer, 0) != NULL);
 
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
@@ -2961,6 +2983,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) >= 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
+  fail_if (!check_handler_at_index_has_id (offerer, 0, id3));
+  fail_if (!check_handler_at_index_has_id (offerer, 1, id4));
 
   o = gst_sdp_message_get_origin (offer);
   v1 = g_ascii_strtoull (o->sess_version, NULL, 10);
@@ -2989,14 +3013,20 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) >= 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
+  fail_if (!check_handler_at_index_has_id (offerer, 0, id3));
+  fail_if (!check_handler_at_index_has_id (offerer, 1, id4));
 
   answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);
+  fail_if (!check_handler_at_index_has_id (answerer, 0, id1));
+  fail_if (!check_handler_at_index_has_id (answerer, 1, id2));
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
+  fail_if (!check_handler_at_index_has_id (offerer, 0, id3));
+  fail_if (!check_handler_at_index_has_id (offerer, 1, id4));
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -3016,6 +3046,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (handler == NULL);
 
   id5 = add_media_handler (offerer, "application", handler);
+  fail_if (kms_sdp_agent_get_handler_by_index (offerer, 2) != NULL);
 
   /* Make a new offer */
   offer = kms_sdp_agent_create_offer (offerer, &err);
@@ -3026,6 +3057,9 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id5) != 2);
+  fail_if (!check_handler_at_index_has_id (offerer, 0, id3));
+  fail_if (!check_handler_at_index_has_id (offerer, 1, id4));
+  fail_if (!check_handler_at_index_has_id (offerer, 2, id5));
 
   o = gst_sdp_message_get_origin (offer);
   v2 = g_ascii_strtoull (o->sess_version, NULL, 10);
