@@ -41,6 +41,7 @@ struct _KmsTreeBinPrivate
 {
   GstElement *input_element, *output_tee;
   GstCaps *input_caps;
+  GMutex input_caps_mutex;
 };
 
 GstElement *
@@ -97,18 +98,27 @@ kms_tree_bin_unlink_input_element_from_tee (KmsTreeBin * self)
 GstCaps *
 kms_tree_bin_get_input_caps (KmsTreeBin * self)
 {
-  return self->priv->input_caps;
+  GstCaps *ret = NULL;
+
+  g_mutex_lock (&self->priv->input_caps_mutex);
+  if (self->priv->input_caps != NULL) {
+    ret = gst_caps_ref (self->priv->input_caps);
+  }
+  g_mutex_unlock (&self->priv->input_caps_mutex);
+
+  return ret;
 }
 
 static void
 kms_tree_bin_set_input_caps (KmsTreeBin * self, GstCaps * caps)
 {
+  g_mutex_lock (&self->priv->input_caps_mutex);
   if (self->priv->input_caps) {
     gst_caps_unref (self->priv->input_caps);
-    self->priv->input_caps = NULL;
   }
 
   self->priv->input_caps = gst_caps_ref (caps);
+  g_mutex_unlock (&self->priv->input_caps_mutex);
 }
 
 static gboolean
@@ -153,6 +163,9 @@ kms_tree_bin_finalize (GObject * object)
     gst_caps_unref (self->priv->input_caps);
     self->priv->input_caps = NULL;
   }
+
+  g_mutex_clear (&self->priv->input_caps_mutex);
+
   /* chain up */
   G_OBJECT_CLASS (kms_tree_bin_parent_class)->finalize (object);
 }
@@ -164,6 +177,8 @@ kms_tree_bin_init (KmsTreeBin * self)
   GstPad *sink;
 
   self->priv = KMS_TREE_BIN_GET_PRIVATE (self);
+
+  g_mutex_init (&self->priv->input_caps_mutex);
 
   self->priv->output_tee = gst_element_factory_make ("tee", NULL);
   fakesink = gst_element_factory_make ("fakesink", NULL);

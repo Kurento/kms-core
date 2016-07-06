@@ -476,7 +476,6 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
     GST_TRACE_OBJECT (tree_bin, "Allowed caps are: %" GST_PTR_FORMAT,
         current_caps);
   } else {
-    gst_caps_ref (current_caps);
     GST_TRACE_OBJECT (tree_bin, "Current caps are: %" GST_PTR_FORMAT,
         current_caps);
   }
