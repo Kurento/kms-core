@@ -210,9 +210,9 @@ private:
   std::mt19937_64 rnd {std::random_device{}() };
   std::uniform_int_distribution<> dist {1, 100};
 
-  gulong padAddedHandlerId;
-  gulong mediaFlowOutHandler;
-  gulong mediaFlowInHandler;
+  gulong padAddedHandlerId = 0;
+  gulong mediaFlowOutHandler = 0;
+  gulong mediaFlowInHandler = 0;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
