@@ -119,13 +119,14 @@ MediaPipelineImpl::~MediaPipelineImpl ()
 {
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
 
+  gst_element_set_state (pipeline, GST_STATE_NULL);
+
   if (busMessageHandler > 0) {
     unregister_signal_handler (bus, busMessageHandler);
   }
 
   gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
-  gst_element_set_state (pipeline, GST_STATE_NULL);
   g_object_unref (pipeline);
 }
 
