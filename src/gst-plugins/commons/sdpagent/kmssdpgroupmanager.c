@@ -42,6 +42,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpGroupManager, kms_sdp_group_manager,
   )                                               \
 )
 
+#define GROUP_ATTR_VALUE "group"
+
 struct _KmsSdpGroupManagerPrivate
 {
   gint gid;
@@ -384,6 +386,116 @@ kms_sdp_group_manager_remove_handler_from_group_impl (KmsSdpGroupManager * self,
   return kms_sdp_base_group_remove_media_handler (group, handler, NULL);
 }
 
+static const gchar *
+kms_sdp_group_manager_get_group_val (KmsSdpGroupManager * obj,
+    const gchar * semantics, const GstSDPMessage * msg)
+{
+  const gchar *val;
+  guint i;
+
+  for (i = 0;; i++) {
+    gchar **values;
+    gboolean found;
+
+    val = gst_sdp_message_get_attribute_val_n (msg, GROUP_ATTR_VALUE, i);
+
+    if (val == NULL) {
+      /* No more group attributes */
+      return NULL;
+    }
+
+    values = g_strsplit (val, " ", 2);
+    found = g_strcmp0 (semantics, values[0]) == 0;
+    g_strfreev (values);
+
+    if (found) {
+      return val;
+    }
+  }
+}
+
+static gboolean
+is_mid_in_group (const gchar * group_attr, const gchar * mid)
+{
+  gboolean ret = FALSE;
+  gchar **values;
+  guint i;
+
+  values = g_strsplit (group_attr, " ", -1);
+
+  for (i = 1; values[i] != NULL; i++) {
+    if (g_strcmp0 (mid, values[i]) == 0) {
+      ret = TRUE;
+      break;
+    }
+  }
+
+  g_strfreev (values);
+
+  return ret;
+}
+
+static gboolean
+kms_sdp_group_manager_is_handler_valid_for_groups_impl (KmsSdpGroupManager *
+    obj, const GstSDPMedia * media, const GstSDPMessage * offer,
+    KmsSdpHandler * handler)
+{
+  KmsSdpBaseGroup *group = NULL;
+  gboolean ret = FALSE;
+  const gchar *mid;
+
+  mid = gst_sdp_media_get_attribute_val (media, "mid");
+  group = kms_sdp_group_manager_get_group (obj, handler);
+
+  if (mid == NULL) {
+    /* handler will be compatible if has no group */
+    ret = group == NULL;
+    goto end;
+  }
+
+  if (group != NULL) {
+    const gchar *val;
+    gchar *semantics;
+
+    g_object_get (group, "semantics", &semantics, NULL);
+
+    val = kms_sdp_group_manager_get_group_val (obj, semantics, offer);
+    g_free (semantics);
+
+    if (val == NULL) {
+      /* handler belongs to a group that this media does not */
+      ret = FALSE;
+    } else {
+      ret = is_mid_in_group (val, mid);
+    }
+  } else {
+    gint i;
+
+    /* handler does not belong to any group, it will be incompatible if */
+    /* media does */
+    for (i = 0;; i++) {
+      const gchar *val;
+
+      val = gst_sdp_message_get_attribute_val_n (offer, GROUP_ATTR_VALUE, i);
+
+      if (val == NULL) {
+        /* No more group attributes */
+        ret = TRUE;
+        break;
+      }
+
+      if (is_mid_in_group (val, mid)) {
+        break;
+      }
+    }
+  }
+
+end:
+  g_clear_object (&group);
+
+  return ret;
+}
+
 KmsSdpBaseGroup *
 kms_sdp_group_manager_get_group_impl (KmsSdpGroupManager * self,
     KmsSdpHandler * handler)
@@ -419,6 +531,8 @@ kms_sdp_group_manager_class_init (KmsSdpGroupManagerClass * klass)
   klass->add_handler_to_group = kms_sdp_group_manager_add_handler_to_group_impl;
   klass->remove_handler_from_group =
       kms_sdp_group_manager_remove_handler_from_group_impl;
+  klass->is_handler_valid_for_groups =
+      kms_sdp_group_manager_is_handler_valid_for_groups_impl;
 
   g_type_class_add_private (klass, sizeof (KmsSdpGroupManagerPrivate));
 }
@@ -516,4 +630,16 @@ kms_sdp_group_manager_get_groups (KmsSdpGroupManager * obj)
   g_list_free (groups);
 
   return ret;
+}
+
+gboolean
+kms_sdp_group_manager_is_handler_valid_for_groups (KmsSdpGroupManager * obj,
+    const GstSDPMedia * media, const GstSDPMessage * offer,
+    KmsSdpHandler * handler)
+{
+  g_return_val_if_fail (KMS_IS_SDP_GROUP_MANAGER (obj), FALSE);
+
+  return
+      KMS_SDP_GROUP_MANAGER_GET_CLASS (obj)->is_handler_valid_for_groups (obj,
+      media, offer, handler);
 }

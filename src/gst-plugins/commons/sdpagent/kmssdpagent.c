@@ -1389,7 +1389,10 @@ kms_sdp_agent_get_handler_for_media (KmsSdpAgent * agent,
       continue;
     }
 
-    return sdp_handler;
+    if (kms_sdp_group_manager_is_handler_valid_for_groups (agent->priv->
+            group_manager, media, offer, sdp_handler->sdph)) {
+      return sdp_handler;
+    }
   }
 
   handler = kms_sdp_agent_request_handler (agent, media);
@@ -2264,8 +2267,8 @@ kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid)
   }
 
   ret =
-      kms_sdp_group_manager_remove_handler_from_group (agent->
-      priv->group_manager, gid, hid);
+      kms_sdp_group_manager_remove_handler_from_group (agent->priv->
+      group_manager, gid, hid);
 
 end:
   SDP_AGENT_UNLOCK (agent);

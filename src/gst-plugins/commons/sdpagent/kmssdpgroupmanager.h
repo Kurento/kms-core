@@ -84,6 +84,7 @@ struct _KmsSdpGroupManagerClass
   gboolean (*remove_handler) (KmsSdpGroupManager *obj, KmsSdpHandler *handler);
   gboolean (*add_handler_to_group) (KmsSdpGroupManager *obj, guint gid, guint hid);
   gboolean (*remove_handler_from_group) (KmsSdpGroupManager *obj, guint gid, guint hid);
+  gboolean (*is_handler_valid_for_groups) (KmsSdpGroupManager *obj, const GstSDPMedia * media, const GstSDPMessage * offer, KmsSdpHandler *handler);
 };
 
 GType kms_sdp_group_manager_get_type ();
@@ -100,6 +101,7 @@ gboolean kms_sdp_group_manager_remove_handler_from_group (KmsSdpGroupManager *ob
 
 /* Return all groups managed. Groups provided are transfer full */
 GList * kms_sdp_group_manager_get_groups (KmsSdpGroupManager *obj);
+gboolean kms_sdp_group_manager_is_handler_valid_for_groups (KmsSdpGroupManager *obj, const GstSDPMedia * media, const GstSDPMessage * offer, KmsSdpHandler *handler);
 
 G_END_DECLS
 
