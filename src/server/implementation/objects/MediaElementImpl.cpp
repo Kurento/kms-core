@@ -1003,7 +1003,8 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
     }
 
     for (auto conn : sinks.at (mediaType).at (sourceMediaDescription) ) {
-      if (conn->toInterface()->getSinkDescription() == sinkMediaDescription) {
+      if (conn->toInterface()->getSink() == sink &&
+          conn->toInterface()->getSinkDescription() == sinkMediaDescription) {
         sinks.at (mediaType).at (sourceMediaDescription).erase (conn);
         break;
       }
