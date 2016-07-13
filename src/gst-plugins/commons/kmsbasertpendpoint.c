@@ -900,10 +900,9 @@ kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpSession * sess,
 
 static GstPad *
 kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
   GstPad *pad;
 
@@ -925,10 +924,9 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
 
 static GstPad *
 kms_base_rtp_endpoint_request_rtp_src (KmsIRtpSessionManager * manager,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
   GstPad *pad;
 
@@ -946,7 +944,7 @@ kms_base_rtp_endpoint_request_rtp_src (KmsIRtpSessionManager * manager,
     kms_utils_drop_until_keyframe (pad, TRUE);
 
     /* TODO: check if needed for audio */
-    abs_send_time_id = kms_sdp_media_config_get_abs_send_time_id (mconf);
+    abs_send_time_id = sdp_utils_get_abs_send_time_id (media);
     if (abs_send_time_id != -1) {
       HdrExtData *data = hdr_ext_data_new (pad, FALSE, TRUE, abs_send_time_id);
 
@@ -968,10 +966,9 @@ kms_base_rtp_endpoint_request_rtp_src (KmsIRtpSessionManager * manager,
 
 static GstPad *
 kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
   GstPad *pad;
 
@@ -993,10 +990,9 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
 
 static GstPad *
 kms_base_rtp_endpoint_request_rtcp_src (KmsIRtpSessionManager * manager,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   const gchar *media_str = gst_sdp_media_get_media (media);
   GstPad *pad;
 

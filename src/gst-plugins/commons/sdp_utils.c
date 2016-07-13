@@ -20,6 +20,8 @@
 #include <glib.h>
 #include <stdlib.h>
 
+#include "constants.h"
+
 #define GST_CAT_DEFAULT sdp_utils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "sdp_utils"
@@ -991,6 +993,34 @@ sdp_utils_get_pt_for_codec_name (const GstSDPMedia * media,
   }
 
   return pt;
+}
+
+gint
+sdp_utils_get_abs_send_time_id (const GstSDPMedia * media)
+{
+  guint a;
+
+  for (a = 0;; a++) {
+    const gchar *attr;
+    gchar **tokens;
+
+    attr = gst_sdp_media_get_attribute_val_n (media, EXT_MAP, a);
+    if (attr == NULL) {
+      break;
+    }
+
+    tokens = g_strsplit (attr, " ", 0);
+    if (g_strcmp0 (RTP_HDR_EXT_ABS_SEND_TIME_URI, tokens[1]) == 0) {
+      gint ret = atoi (tokens[0]);
+
+      g_strfreev (tokens);
+      return ret;
+    }
+
+    g_strfreev (tokens);
+  }
+
+  return -1;
 }
 
 static void init_debug (void) __attribute__ ((constructor));

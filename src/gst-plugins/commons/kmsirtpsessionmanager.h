@@ -45,20 +45,20 @@ struct _KmsIRtpSessionManagerInterface
   GTypeInterface parent;
 
   /* virtual methods */
-  GstPad * (*request_rtp_sink) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-  GstPad * (*request_rtp_src) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-  GstPad * (*request_rtcp_sink) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-  GstPad * (*request_rtcp_src) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
+  GstPad * (*request_rtp_sink) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+  GstPad * (*request_rtp_src) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+  GstPad * (*request_rtcp_sink) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+  GstPad * (*request_rtcp_src) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
 
   gboolean (*custom_ssrc_management) (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, GstElement * ssrcdemux, guint ssrc, GstPad * pad);
 };
 
 GType kms_i_rtp_session_manager_get_type (void);
 
-GstPad * kms_i_rtp_session_manager_request_rtp_sink (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-GstPad * kms_i_rtp_session_manager_request_rtp_src (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-GstPad * kms_i_rtp_session_manager_request_rtcp_sink (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
-GstPad * kms_i_rtp_session_manager_request_rtcp_src (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, SdpMediaConfig *mconf);
+GstPad * kms_i_rtp_session_manager_request_rtp_sink (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+GstPad * kms_i_rtp_session_manager_request_rtp_src (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+GstPad * kms_i_rtp_session_manager_request_rtcp_sink (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
+GstPad * kms_i_rtp_session_manager_request_rtcp_src (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, const GstSDPMedia * media);
 gboolean kms_i_rtp_session_manager_custom_ssrc_management (KmsIRtpSessionManager *self, KmsBaseRtpSession *sess, GstElement * ssrcdemux, guint ssrc, GstPad * pad);
 
 /* KmsIRtpSessionManager end */

@@ -302,7 +302,8 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
 
   /* RTP */
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   kms_base_rtp_session_link_pads (pad, sink);
   g_object_unref (sink);
 
@@ -311,7 +312,8 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   src = gst_element_get_static_pad (ssrcdemux, rtcp_pad_name);
   g_free (rtcp_pad_name);
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
@@ -382,14 +384,16 @@ kms_base_rtp_session_add_connection_sink (KmsBaseRtpSession * self,
   GstPad *src, *sink;
 
   /* RTP */
-  src = kms_i_rtp_session_manager_request_rtp_src (self->manager, self, mconf);
+  src = kms_i_rtp_session_manager_request_rtp_src (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   sink = kms_i_rtp_connection_request_rtp_sink (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
   /* RTCP */
-  src = kms_i_rtp_session_manager_request_rtcp_src (self->manager, self, mconf);
+  src = kms_i_rtp_session_manager_request_rtcp_src (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   sink = kms_i_rtp_connection_request_rtcp_sink (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -404,7 +408,8 @@ kms_base_rtp_session_add_connection_src (KmsBaseRtpSession * self,
 
   /* RTP */
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   src = kms_i_rtp_connection_request_rtp_src (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -412,7 +417,8 @@ kms_base_rtp_session_add_connection_src (KmsBaseRtpSession * self,
 
   /* RTCP */
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   src = kms_i_rtp_connection_request_rtcp_src (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -434,7 +440,8 @@ kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
   /* RTP */
   src = kms_i_rtp_connection_request_rtp_src (conn);
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
@@ -442,7 +449,8 @@ kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
   /* RTCP */
   src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, mconf);
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
+      kms_sdp_media_config_get_sdp_media (mconf));
   g_object_unref (src);
   g_object_unref (sink);
 

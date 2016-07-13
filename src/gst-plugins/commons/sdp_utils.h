@@ -69,4 +69,6 @@ gboolean sdp_utils_is_pt_in_fmts (const GstSDPMedia * media, gint pt);
 
 gint sdp_utils_get_pt_for_codec_name (const GstSDPMedia *media, const gchar *codec_name);
 
+gint sdp_utils_get_abs_send_time_id (const GstSDPMedia * media);
+
 #endif /* __SDP_H__ */

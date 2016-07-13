@@ -27,43 +27,43 @@ kms_i_rtp_session_manager_default_init (KmsIRtpSessionManagerInterface * iface)
 
 GstPad *
 kms_i_rtp_session_manager_request_rtp_sink (KmsIRtpSessionManager * self,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   g_return_val_if_fail (KMS_IS_I_RTP_SESSION_MANAGER (self), NULL);
 
   return KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->request_rtp_sink (self,
-      sess, mconf);
+      sess, media);
 }
 
 GstPad *
 kms_i_rtp_session_manager_request_rtp_src (KmsIRtpSessionManager * self,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   g_return_val_if_fail (KMS_IS_I_RTP_SESSION_MANAGER (self), NULL);
 
   return KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->request_rtp_src (self,
-      sess, mconf);
+      sess, media);
 }
 
 GstPad *
 kms_i_rtp_session_manager_request_rtcp_sink (KmsIRtpSessionManager * self,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   g_return_val_if_fail (KMS_IS_I_RTP_SESSION_MANAGER (self), NULL);
 
   return
       KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->request_rtcp_sink (self,
-      sess, mconf);
+      sess, media);
 }
 
 GstPad *
 kms_i_rtp_session_manager_request_rtcp_src (KmsIRtpSessionManager * self,
-    KmsBaseRtpSession * sess, SdpMediaConfig * mconf)
+    KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   g_return_val_if_fail (KMS_IS_I_RTP_SESSION_MANAGER (self), NULL);
 
   return KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->request_rtcp_src (self,
-      sess, mconf);
+      sess, media);
 }
 
 gboolean
