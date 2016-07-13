@@ -188,7 +188,6 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   gint id;
   gchar *sdp_str = NULL;
   guint i, len;
-  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -206,15 +205,11 @@ GST_START_TEST (sdp_agent_test_rejected_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   /* This handler is not used so it should have an index */
   fail_if (kms_sdp_agent_get_handler_index (answerer, id) >= 0);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -258,7 +253,6 @@ test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
@@ -268,12 +262,8 @@ test_sdp_pattern_offer (const gchar * sdp_patter, KmsSdpAgent * answerer,
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -386,7 +376,6 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
   gint id;
   gchar *sdp_str = NULL;
   guint i, len;
-  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -404,15 +393,11 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   /* handler must be placed in the third posistion (index 2) */
   fail_if (kms_sdp_agent_get_handler_index (answerer, id) != 2);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -483,7 +468,6 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   gint id1, id2, id3;
   gchar *sdp_str = NULL;
   const GstSDPMedia *media;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -533,16 +517,12 @@ negotiate_rtp_avp (const gchar * direction, const gchar * expected)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 1);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -603,7 +583,6 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   GstSDPMessage *offer, *answer;
   gint id1, id2, id3, id4;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -659,17 +638,13 @@ GST_START_TEST (sdp_agent_test_rtp_avpf_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) != 1);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -690,7 +665,6 @@ GST_START_TEST (sdp_agent_test_rtp_savp_negotiation)
   GstSDPMessage *offer, *answer;
   gint id1, id2, id3, id4;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -746,17 +720,13 @@ GST_START_TEST (sdp_agent_test_rtp_savp_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) != 0);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -777,7 +747,6 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   GstSDPMessage *offer, *answer;
   gint id1, id2, id3, id4;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -833,17 +802,13 @@ GST_START_TEST (sdp_agent_test_rtp_savpf_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) != 1);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -874,7 +839,6 @@ test_bundle_group (gboolean expected_bundle)
   GstSDPMessage *offer, *answer;
   gint gid, hid;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -948,12 +912,8 @@ test_bundle_group (gboolean expected_bundle)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -1118,7 +1078,6 @@ sdp_agent_test_bundle_group_without_answerer_handlers ()
   GstSDPMessage *offer, *answer;
   gint id, gid;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -1159,13 +1118,8 @@ sdp_agent_test_bundle_group_without_answerer_handlers ()
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -1239,7 +1193,6 @@ fb_messages_disable_offer_prop (const gchar * prop)
   GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -1276,12 +1229,8 @@ fb_messages_disable_offer_prop (const gchar * prop)
   fail_if (is_rtcp_fb_in_media (offer, prop));
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -1307,7 +1256,6 @@ fb_messages_disable_answer_prop (const gchar * prop)
   GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -1341,12 +1289,8 @@ fb_messages_disable_answer_prop (const gchar * prop)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -1378,7 +1322,6 @@ test_handler_offer (KmsSdpAgent * offerer, KmsSdpAgent * answerer,
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
@@ -1387,12 +1330,8 @@ test_handler_offer (KmsSdpAgent * offerer, KmsSdpAgent * answerer,
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -2009,7 +1948,6 @@ check_extmap_attrs_negotiation ()
   gchar *sdp_str = NULL;
   GstSDPMessage *offer, *answer;
   const GstSDPMedia *media;
-  SdpMessageContext *ctx;
   const gchar *extmap;
   GError *err = NULL;
   gint id;
@@ -2047,11 +1985,7 @@ check_extmap_attrs_negotiation ()
   fail_if (id < 0);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
-  fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  kms_sdp_message_context_unref (ctx);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
@@ -2405,7 +2339,6 @@ GST_START_TEST (sdp_agent_avp_avpf_negotiation)
   GstSDPMessage *offer, *answer;
   gint id1, id2, id3, id4;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
@@ -2461,17 +2394,13 @@ GST_START_TEST (sdp_agent_avp_avpf_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) != 1);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -2535,7 +2464,6 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   GstSDPMessage *offer, *answer;
   gint id, fec_payload, red_payload;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   ptmanager = kms_sdp_payload_manager_new ();
 
@@ -2622,12 +2550,8 @@ GST_START_TEST (sdp_agent_avp_generic_payload_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -2662,7 +2586,6 @@ GST_START_TEST (sdp_agent_udp_tls_rtp_savpf_negotiation)
   GstSDPMessage *offer, *answer;
   gint id;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
 
   fail_unless (gst_sdp_message_new (&offer) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
@@ -2695,12 +2618,8 @@ GST_START_TEST (sdp_agent_udp_tls_rtp_savpf_negotiation)
   fail_if (id < 0);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -2812,7 +2731,6 @@ GST_START_TEST (sdp_agent_sdes_negotiation)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   KmsSdpSdesExt *ext1, *ext2;
   GError *err = NULL;
@@ -2864,12 +2782,8 @@ GST_START_TEST (sdp_agent_sdes_negotiation)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -2973,7 +2887,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   const GstSDPOrigin *o;
   guint64 v1, v2, v3;
   const GstSDPMedia *media;
-  SdpMessageContext *ctx;
   KmsSdpAgentCallbacks callbacks_offerer, callbacks_answerer;
   OnMediaAnsweredData offerer_cb_data, answerer_cb_data;
 
@@ -3077,17 +2990,13 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id3) != 0);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -3153,12 +3062,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_new_media)
   fail_if (kms_sdp_agent_get_handler_index (offerer, id4) != 1);
   fail_if (kms_sdp_agent_get_handler_index (offerer, id5) != 2);
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -3234,7 +3139,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   const GstSDPOrigin *o;
   guint64 v1, v2, v3, v4, v5;
   const GstSDPMedia *media;
-  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -3339,17 +3243,13 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) >= 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) >= 0);
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 2);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) >= 0);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -3401,7 +3301,7 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (offerer, id5) != 0);
@@ -3412,10 +3312,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 2);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) >= 0);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -3459,17 +3355,13 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
 
   fail_if (kms_sdp_agent_get_handler_index (answerer, id1) != 0);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id2) != 1);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 2);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) >= 0);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -3528,12 +3420,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_media)
   fail_if (kms_sdp_agent_get_handler_index (answerer, id3) != 2);
   fail_if (kms_sdp_agent_get_handler_index (answerer, id4) >= 0);
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -3635,7 +3523,6 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   guint64 v1, v2, v3, v4, v5;
   gboolean check_bundle = TRUE;
   const GstSDPMedia *media;
-  SdpMessageContext *ctx;
 
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
@@ -3749,12 +3636,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -3804,12 +3687,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -3858,12 +3737,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -3918,12 +3793,8 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   kms_sdp_agent_set_local_description (offerer, offer, &err);
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4033,7 +3904,6 @@ GST_START_TEST (sdp_agent_check_state_machine)
   GstSDPMessage *offer, *answer;
   gchar *sdp_str = NULL;
   GError *err = NULL;
-  SdpMessageContext *ctx;
   gint id1, id2, gid1, gid2;
   const GstSDPOrigin *orig;
   guint64 v2, tmp;
@@ -4120,12 +3990,8 @@ GST_START_TEST (sdp_agent_check_state_machine)
 
   expected_answered = KMS_SDP_AGENT_STATE_REMOTE_OFFER;
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer processes the offer:\n%s",
       (sdp_str = gst_sdp_message_as_text (answer)));
@@ -4233,7 +4099,6 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   gint id1, id2, id3, id4, id5, gid1, gid2;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   gchar *sdp_str = NULL, *session;
   GError *err = NULL;
@@ -4323,13 +4188,9 @@ GST_START_TEST (sdp_agent_renegotiation_disordered_media_handlers)
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
 
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
@@ -4387,7 +4248,6 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   gint id1, id2, id3, id4, id5, id6, id7, id8, gid1, gid2;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   gchar *sdp_str = NULL, *session1, *session2;
   GError *err = NULL;
@@ -4499,12 +4359,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   /* We set our local description for further renegotiations */
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4576,12 +4432,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4652,12 +4504,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (offerer, &err);
+  answer = kms_sdp_agent_create_answer (offerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   o = gst_sdp_message_get_origin (answer);
   tmp = g_ascii_strtoull (o->sess_version, NULL, 10);
@@ -4748,12 +4596,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (offerer, &err);
+  answer = kms_sdp_agent_create_answer (offerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Offerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4828,12 +4672,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (offerer, &err);
+  answer = kms_sdp_agent_create_answer (offerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Offerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4929,12 +4769,8 @@ GST_START_TEST (sdp_agent_renegotiation_complex_case)
   fail_if (!kms_sdp_agent_set_local_description (answerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (offerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (offerer, &err);
+  answer = kms_sdp_agent_create_answer (offerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Offererer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
@@ -4981,7 +4817,6 @@ GST_START_TEST (sdp_agent_groups)
   KmsSdpAgent *offerer, *answerer;
   gint gid, id;
   gchar *sdp_str = NULL;
-  SdpMessageContext *ctx;
   GError *err = NULL;
   GstSDPMessage *offer, *answer;
 
@@ -5025,12 +4860,8 @@ GST_START_TEST (sdp_agent_groups)
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
 
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -5160,7 +4991,6 @@ GST_START_TEST (sdp_agent_test_connection_ext)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   KmsConnectionExt *ext1, *ext2;
   GError *err = NULL;
@@ -5212,12 +5042,8 @@ GST_START_TEST (sdp_agent_test_connection_ext)
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -5247,7 +5073,6 @@ GST_START_TEST (sdp_agent_ulpfec_ext)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   KmsSdpUlpFecExt *ext;
   GError *err = NULL;
@@ -5296,12 +5121,8 @@ GST_START_TEST (sdp_agent_ulpfec_ext)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -5338,7 +5159,6 @@ GST_START_TEST (sdp_agent_redundant_ext)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   KmsSdpRedundantExt *ext;
   GError *err = NULL;
@@ -5387,12 +5207,8 @@ GST_START_TEST (sdp_agent_redundant_ext)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -5440,7 +5256,6 @@ GST_START_TEST (sdp_agent_media_direction_ext)
 {
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
-  SdpMessageContext *ctx;
   GstSDPMessage *offer, *answer;
   KmsSdpMediaDirectionExt *ext1, *ext2;
   GError *err = NULL;
@@ -5492,12 +5307,8 @@ GST_START_TEST (sdp_agent_media_direction_ext)
 
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
-  ctx = kms_sdp_agent_create_answer (answerer, &err);
+  answer = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
@@ -5707,7 +5518,6 @@ negotiate_with_chrome (gboolean with_handlers)
   KmsSdpAgent *agent;
   gchar *sdp_str = NULL;
   GstSDPMessage *offer, *answer;
-  SdpMessageContext *ctx;
   GError *err = NULL;
 
   agent = kms_sdp_agent_new ();
@@ -5756,12 +5566,8 @@ negotiate_with_chrome (gboolean with_handlers)
   g_free (sdp_str);
 
   fail_if (!kms_sdp_agent_set_remote_description (agent, offer, &err));
-  ctx = kms_sdp_agent_create_answer (agent, &err);
+  answer = kms_sdp_agent_create_answer (agent, &err);
   fail_if (err != NULL);
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  fail_if (err != NULL);
-  kms_sdp_message_context_unref (ctx);
 
   GST_DEBUG ("Answer:\n%s", (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);

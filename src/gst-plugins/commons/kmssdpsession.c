@@ -76,26 +76,16 @@ end:
 GstSDPMessage *
 kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
 {
-  SdpMessageContext *ctx;
   GstSDPMessage *answer = NULL, *copy;
   GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Process offer");
 
-  ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    goto end;
-  }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-
   if (self->remote_sdp != NULL) {
     gst_sdp_message_free (self->remote_sdp);
   }
 
-  self->remote_sdp = kms_sdp_message_context_pack (ctx, NULL);
-  kms_sdp_message_context_unref (ctx);
+  gst_sdp_message_copy (offer, &self->remote_sdp);
 
   if (gst_sdp_message_copy (offer, &copy) != GST_SDP_OK) {
     GST_ERROR_OBJECT (self, "Error processing offer (Cannot copy SDP offer)");
@@ -108,16 +98,9 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     goto end;
   }
 
-  ctx = kms_sdp_agent_create_answer (self->agent, &err);
+  answer = kms_sdp_agent_create_answer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    goto end;
-  }
-
-  answer = kms_sdp_message_context_pack (ctx, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    kms_sdp_message_context_unref (ctx);
     goto end;
   }
 
@@ -128,18 +111,15 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     goto end;
   }
 
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   if (self->local_sdp != NULL) {
     gst_sdp_message_free (self->local_sdp);
   }
-  self->local_sdp = kms_sdp_message_context_pack (ctx, NULL);
+  gst_sdp_message_copy (answer, &self->local_sdp);
 
   if (self->neg_sdp != NULL) {
     gst_sdp_message_free (self->neg_sdp);
   }
   gst_sdp_message_copy (self->local_sdp, &self->neg_sdp);
-
-  kms_sdp_message_context_unref (ctx);
 
 end:
   g_clear_error (&err);

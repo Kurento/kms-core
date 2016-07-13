@@ -1762,10 +1762,11 @@ error:
   return NULL;
 }
 
-static SdpMessageContext *
+static GstSDPMessage *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 {
   SdpMessageContext *ctx = NULL;
+  GstSDPMessage *answer = NULL;
 
   SDP_AGENT_LOCK (agent);
 
@@ -1785,7 +1786,12 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 
   SDP_AGENT_UNLOCK (agent);
 
-  return ctx;
+  if (ctx != NULL) {
+    answer = kms_sdp_message_context_pack (ctx, error);
+    kms_sdp_message_context_unref (ctx);
+  }
+
+  return answer;
 }
 
 static void
@@ -2316,7 +2322,7 @@ kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError ** error)
 }
 
 /* Deprecated: Use kms_sdp_agent_generate_answer instead */
-SdpMessageContext *
+GstSDPMessage *
 kms_sdp_agent_create_answer (KmsSdpAgent * agent, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), NULL);
