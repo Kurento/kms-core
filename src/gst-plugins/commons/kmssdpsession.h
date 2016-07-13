@@ -63,7 +63,7 @@ struct _KmsSdpSession
   KmsSdpPayloadManager *ptmanager;
   GstSDPMessage *local_sdp;
   GstSDPMessage *remote_sdp;
-  SdpMessageContext *neg_sdp_ctx;
+  GstSDPMessage *neg_sdp;
 };
 
 struct _KmsSdpSessionClass

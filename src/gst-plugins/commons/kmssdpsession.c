@@ -133,7 +133,13 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
     gst_sdp_message_free (self->local_sdp);
   }
   self->local_sdp = kms_sdp_message_context_pack (ctx, NULL);
-  self->neg_sdp_ctx = ctx;
+
+  if (self->neg_sdp != NULL) {
+    gst_sdp_message_free (self->neg_sdp);
+  }
+  gst_sdp_message_copy (self->local_sdp, &self->neg_sdp);
+
+  kms_sdp_message_context_unref (ctx);
 
 end:
   g_clear_error (&err);
@@ -179,7 +185,13 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
     gst_sdp_message_free (self->remote_sdp);
   }
   self->remote_sdp = kms_sdp_message_context_pack (ctx, NULL);
-  self->neg_sdp_ctx = ctx;
+
+  if (self->neg_sdp != NULL) {
+    gst_sdp_message_free (self->neg_sdp);
+  }
+  gst_sdp_message_copy (self->remote_sdp, &self->neg_sdp);
+
+  kms_sdp_message_context_unref (ctx);
 
   return TRUE;
 }
@@ -247,6 +259,10 @@ kms_sdp_session_finalize (GObject * object)
 
   if (self->remote_sdp != NULL) {
     gst_sdp_message_free (self->remote_sdp);
+  }
+
+  if (self->neg_sdp != NULL) {
+    gst_sdp_message_free (self->neg_sdp);
   }
 
   g_clear_object (&self->ptmanager);

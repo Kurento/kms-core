@@ -547,9 +547,9 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp_ctx) {
+  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp) {
     self->priv->first_neg_sdp_ctx =
-        kms_sdp_message_context_ref (sess->neg_sdp_ctx);
+        kms_sdp_message_context_new_from_sdp (sess->neg_sdp, NULL);
   }
   kms_base_sdp_endpoint_start_media (self, sess, FALSE);
 
@@ -582,9 +582,9 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp_ctx) {
+  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp) {
     self->priv->first_neg_sdp_ctx =
-        kms_sdp_message_context_ref (sess->neg_sdp_ctx);
+        kms_sdp_message_context_new_from_sdp (sess->neg_sdp, NULL);
   }
   kms_base_sdp_endpoint_start_media (self, sess, TRUE);
 

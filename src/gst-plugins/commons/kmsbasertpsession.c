@@ -650,9 +650,11 @@ kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
     gboolean offerer)
 {
   KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self);
-  SdpMessageContext *remote_sdp_ctx;
-  GSList *item = kms_sdp_message_context_get_medias (sdp_sess->neg_sdp_ctx);
-  GSList *remote_media_list;
+  SdpMessageContext *remote_sdp_ctx, *neg_sdp_ctx;
+  GSList *item, *remote_media_list;
+
+  neg_sdp_ctx = kms_sdp_message_context_new_from_sdp (sdp_sess->neg_sdp, NULL);
+  item = kms_sdp_message_context_get_medias (neg_sdp_ctx);
 
   remote_sdp_ctx =
       kms_sdp_message_context_new_from_sdp (sdp_sess->remote_sdp, NULL);
@@ -684,6 +686,7 @@ kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
   }
 
   kms_sdp_message_context_unref (remote_sdp_ctx);
+  kms_sdp_message_context_unref (neg_sdp_ctx);
 }
 
 /* Start Transport Send end */
