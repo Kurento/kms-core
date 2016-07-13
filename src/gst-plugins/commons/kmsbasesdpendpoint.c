@@ -95,7 +95,7 @@ struct _KmsBaseSdpEndpointPrivate
   gboolean multisession;
   gint next_session_id;
   GHashTable *sessions;
-  SdpMessageContext *first_neg_sdp_ctx;
+  GstSDPMessage *first_neg_sdp;
 
   gboolean bundle;
   gboolean use_ipv6;
@@ -405,13 +405,13 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
 
 /* Media handler management end */
 
-SdpMessageContext *
-kms_base_sdp_endpoint_get_first_negotiated_sdp_ctx (KmsBaseSdpEndpoint * self)
+const GstSDPMessage *
+kms_base_sdp_endpoint_get_first_negotiated_sdp (KmsBaseSdpEndpoint * self)
 {
-  SdpMessageContext *ret;
+  const GstSDPMessage *ret;
 
   KMS_ELEMENT_LOCK (self);
-  ret = self->priv->first_neg_sdp_ctx;
+  ret = self->priv->first_neg_sdp;
   KMS_ELEMENT_UNLOCK (self);
 
   return ret;
@@ -547,9 +547,8 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp) {
-    self->priv->first_neg_sdp_ctx =
-        kms_sdp_message_context_new_from_sdp (sess->neg_sdp, NULL);
+  if (self->priv->first_neg_sdp == NULL && sess->neg_sdp) {
+    gst_sdp_message_copy (sess->neg_sdp, &self->priv->first_neg_sdp);
   }
   kms_base_sdp_endpoint_start_media (self, sess, FALSE);
 
@@ -582,9 +581,8 @@ kms_base_sdp_endpoint_process_answer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (self->priv->first_neg_sdp_ctx == NULL && sess->neg_sdp) {
-    self->priv->first_neg_sdp_ctx =
-        kms_sdp_message_context_new_from_sdp (sess->neg_sdp, NULL);
+  if (self->priv->first_neg_sdp == NULL && sess->neg_sdp) {
+    gst_sdp_message_copy (sess->neg_sdp, &self->priv->first_neg_sdp);
   }
   kms_base_sdp_endpoint_start_media (self, sess, TRUE);
 
@@ -791,8 +789,8 @@ kms_base_sdp_endpoint_finalize (GObject * object)
 
   g_hash_table_destroy (self->priv->sessions);
 
-  if (self->priv->first_neg_sdp_ctx != NULL) {
-    kms_sdp_message_context_unref (self->priv->first_neg_sdp_ctx);
+  if (self->priv->first_neg_sdp != NULL) {
+    gst_sdp_message_free (self->priv->first_neg_sdp);
   }
 
   if (self->priv->audio_codecs != NULL) {

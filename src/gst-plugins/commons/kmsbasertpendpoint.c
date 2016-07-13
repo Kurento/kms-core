@@ -677,19 +677,19 @@ static gboolean
 kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 {
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
-  SdpMessageContext *neg_sdp_ctx =
-      kms_base_sdp_endpoint_get_first_negotiated_sdp_ctx (base_endpoint);
-  const GSList *item;
+  const GstSDPMessage *sdp =
+      kms_base_sdp_endpoint_get_first_negotiated_sdp (base_endpoint);
+  guint i, len;
 
-  if (neg_sdp_ctx == NULL) {
+  if (sdp == NULL) {
     GST_WARNING_OBJECT (self, "Negotiated session not set");
     return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (neg_sdp_ctx);
-  for (; item != NULL; item = g_slist_next (item)) {
-    SdpMediaConfig *mconf = item->data;
-    GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
+  len = gst_sdp_message_medias_len (sdp);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
     const gchar *media_str = gst_sdp_media_get_media (media);
 
     if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
@@ -1616,19 +1616,19 @@ static GstCaps *
 kms_base_rtp_endpoint_get_caps_for_pt (KmsBaseRtpEndpoint * self, guint pt)
 {
   KmsBaseSdpEndpoint *base_endpoint = KMS_BASE_SDP_ENDPOINT (self);
-  SdpMessageContext *neg_sdp_ctx =
-      kms_base_sdp_endpoint_get_first_negotiated_sdp_ctx (base_endpoint);
-  const GSList *item;
+  const GstSDPMessage *sdp =
+      kms_base_sdp_endpoint_get_first_negotiated_sdp (base_endpoint);
+  guint i, len;
 
-  if (neg_sdp_ctx == NULL) {
+  if (sdp == NULL) {
     GST_WARNING_OBJECT (self, "Negotiated session not set");
     return FALSE;
   }
 
-  item = kms_sdp_message_context_get_medias (neg_sdp_ctx);
-  for (; item != NULL; item = g_slist_next (item)) {
-    SdpMediaConfig *mconf = item->data;
-    GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
+  len = gst_sdp_message_medias_len (sdp);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
     const gchar *media_str = gst_sdp_media_get_media (media);
     const gchar *rtpmap, *fmtp;
     guint j, f_len;
