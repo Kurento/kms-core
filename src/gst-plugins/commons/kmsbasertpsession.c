@@ -278,7 +278,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
 {
   const gchar *rtp_pad_name = GST_OBJECT_NAME (pad);
   gchar *rtcp_pad_name;
-  SdpMediaConfig *mconf;
+  const GstSDPMedia *media;
   GstPad *src, *sink;
 
   GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
@@ -288,10 +288,10 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
 
   if (self->remote_audio_ssrc == ssrc
       || ssrcs_are_mapped (ssrcdemux, self->local_audio_ssrc, ssrc)) {
-    mconf = self->audio_neg_mconf;
+    media = self->audio_neg;
   } else if (self->remote_video_ssrc == ssrc
       || ssrcs_are_mapped (ssrcdemux, self->local_video_ssrc, ssrc)) {
-    mconf = self->video_neg_mconf;
+    media = self->video_neg;
   } else {
     if (!kms_i_rtp_session_manager_custom_ssrc_management (self->manager, self,
             ssrcdemux, ssrc, pad)) {
@@ -302,8 +302,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
 
   /* RTP */
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (pad, sink);
   g_object_unref (sink);
 
@@ -312,8 +311,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   src = gst_element_get_static_pad (ssrcdemux, rtcp_pad_name);
   g_free (rtcp_pad_name);
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
@@ -379,21 +377,19 @@ kms_base_rtp_session_add_bundle_connection (KmsBaseRtpSession * self,
 
 static void
 kms_base_rtp_session_add_connection_sink (KmsBaseRtpSession * self,
-    KmsIRtpConnection * conn, SdpMediaConfig * mconf)
+    KmsIRtpConnection * conn, const GstSDPMedia * media)
 {
   GstPad *src, *sink;
 
   /* RTP */
-  src = kms_i_rtp_session_manager_request_rtp_src (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+  src = kms_i_rtp_session_manager_request_rtp_src (self->manager, self, media);
   sink = kms_i_rtp_connection_request_rtp_sink (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
   /* RTCP */
-  src = kms_i_rtp_session_manager_request_rtcp_src (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+  src = kms_i_rtp_session_manager_request_rtcp_src (self->manager, self, media);
   sink = kms_i_rtp_connection_request_rtcp_sink (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -402,14 +398,13 @@ kms_base_rtp_session_add_connection_sink (KmsBaseRtpSession * self,
 
 static void
 kms_base_rtp_session_add_connection_src (KmsBaseRtpSession * self,
-    KmsIRtpConnection * conn, SdpMediaConfig * mconf)
+    KmsIRtpConnection * conn, const GstSDPMedia * media)
 {
   GstPad *src, *sink;
 
   /* RTP */
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
   src = kms_i_rtp_connection_request_rtp_src (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -417,8 +412,7 @@ kms_base_rtp_session_add_connection_src (KmsBaseRtpSession * self,
 
   /* RTCP */
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   src = kms_i_rtp_connection_request_rtcp_src (conn);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
@@ -427,7 +421,7 @@ kms_base_rtp_session_add_connection_src (KmsBaseRtpSession * self,
 
 static void
 kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
-    KmsIRtpConnection * conn, SdpMediaConfig * mconf, gboolean active)
+    KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
   /* FIXME: Useful for local and remote ssrcs mapping */
   GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
@@ -440,8 +434,7 @@ kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
   /* RTP */
   src = kms_i_rtp_connection_request_rtp_src (conn);
   sink =
-      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
@@ -449,8 +442,7 @@ kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
   /* RTCP */
   src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
   sink =
-      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self,
-      kms_sdp_media_config_get_sdp_media (mconf));
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   g_object_unref (src);
   g_object_unref (sink);
 
@@ -461,20 +453,20 @@ kms_base_rtp_session_add_rtcp_mux_connection (KmsBaseRtpSession * self,
   g_object_unref (sink);
 
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
-  kms_base_rtp_session_add_connection_sink (self, conn, mconf);
+  kms_base_rtp_session_add_connection_sink (self, conn, media);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
 
 static void
 kms_base_rtp_session_add_connection (KmsBaseRtpSession * self,
-    KmsIRtpConnection * conn, SdpMediaConfig * mconf, gboolean active)
+    KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   kms_i_rtp_connection_sink_sync_state_with_parent (conn);
 
-  kms_base_rtp_session_add_connection_sink (self, conn, mconf);
-  kms_base_rtp_session_add_connection_src (self, conn, mconf);
+  kms_base_rtp_session_add_connection_sink (self, conn, media);
+  kms_base_rtp_session_add_connection_src (self, conn, media);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
@@ -493,11 +485,14 @@ kms_base_rtp_session_add_connection_for_session (KmsBaseRtpSession * self,
 
   if (group != NULL) {          /* bundle */
     kms_base_rtp_session_add_bundle_connection (self, conn, mconf, active);
-    kms_base_rtp_session_add_connection_sink (self, conn, mconf);
+    kms_base_rtp_session_add_connection_sink (self, conn,
+        kms_sdp_media_config_get_sdp_media (mconf));
   } else if (kms_sdp_media_config_is_rtcp_mux (mconf)) {
-    kms_base_rtp_session_add_rtcp_mux_connection (self, conn, mconf, active);
+    kms_base_rtp_session_add_rtcp_mux_connection (self, conn,
+        kms_sdp_media_config_get_sdp_media (mconf), active);
   } else {
-    kms_base_rtp_session_add_connection (self, conn, mconf, active);
+    kms_base_rtp_session_add_connection (self, conn,
+        kms_sdp_media_config_get_sdp_media (mconf), active);
   }
 
   return TRUE;
@@ -505,7 +500,7 @@ kms_base_rtp_session_add_connection_for_session (KmsBaseRtpSession * self,
 
 static const gchar *
 kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
-    GstSDPMedia * remote_media, SdpMediaConfig * neg_mconf)
+    const GstSDPMedia * remote_media, const GstSDPMedia * neg_media)
 {
   const gchar *media_str = gst_sdp_media_get_media (remote_media);
   guint ssrc;
@@ -518,13 +513,19 @@ kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
     GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
     self->remote_audio_ssrc = ssrc;
-    self->audio_neg_mconf = neg_mconf;
+    if (self->audio_neg != NULL) {
+      gst_sdp_media_free (self->audio_neg);
+    }
+    gst_sdp_media_copy (neg_media, &self->audio_neg);
 
     return AUDIO_RTP_SESSION_STR;
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
     GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
     self->remote_video_ssrc = ssrc;
-    self->video_neg_mconf = neg_mconf;
+    if (self->video_neg != NULL) {
+      gst_sdp_media_free (self->video_neg);
+    }
+    gst_sdp_media_copy (neg_media, &self->video_neg);
 
     return VIDEO_RTP_SESSION_STR;
   }
@@ -536,13 +537,13 @@ kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
 
 static gboolean
 kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
-    SdpMediaConfig * neg_mconf, SdpMediaConfig * remote_mconf, gboolean offerer)
+    SdpMediaConfig * neg_mconf, const GstSDPMedia * remote_media,
+    gboolean offerer)
 {
   GstSDPMedia *neg_media = kms_sdp_media_config_get_sdp_media (neg_mconf);
   const gchar *neg_proto_str = gst_sdp_media_get_proto (neg_media);
   const gchar *neg_media_str = gst_sdp_media_get_media (neg_media);
 
-  GstSDPMedia *remote_media = kms_sdp_media_config_get_sdp_media (remote_mconf);
   const gchar *remote_proto_str = gst_sdp_media_get_proto (remote_media);
   const gchar *remote_media_str = gst_sdp_media_get_media (remote_media);
   gboolean active;
@@ -569,7 +570,7 @@ kms_base_rtp_session_configure_connection (KmsBaseRtpSession * self,
   }
 
   if (kms_base_rtp_session_process_remote_ssrc (self, remote_media,
-          neg_mconf) == NULL) {
+          neg_media) == NULL) {
     return TRUE;                /* It cannot be managed here but could be managed by the child class */
   }
 
@@ -676,7 +677,7 @@ kms_base_rtp_session_start_transport_send (KmsBaseRtpSession * self,
     }
 
     if (!kms_base_rtp_session_configure_connection (self, neg_mconf,
-            remote_mconf, offerer)) {
+            kms_sdp_media_config_get_sdp_media (remote_mconf), offerer)) {
       GST_WARNING_OBJECT (self, "Cannot configure connection for media %d.",
           mid);
     }
@@ -747,6 +748,14 @@ kms_base_rtp_session_finalize (GObject * object)
   KmsBaseRtpSession *self = KMS_BASE_RTP_SESSION (object);
 
   GST_DEBUG_OBJECT (self, "finalize");
+
+  if (self->audio_neg != NULL) {
+    gst_sdp_media_free (self->audio_neg);
+  }
+
+  if (self->video_neg != NULL) {
+    gst_sdp_media_free (self->video_neg);
+  }
 
   g_hash_table_destroy (self->conns);
 

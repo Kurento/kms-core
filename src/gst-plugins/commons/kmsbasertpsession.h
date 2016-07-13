@@ -53,11 +53,11 @@ struct _KmsBaseRtpSession
   GHashTable *conns;
   KmsConnectionState conn_state;
 
-  SdpMediaConfig *audio_neg_mconf;
+  GstSDPMedia *audio_neg;
   guint32 local_audio_ssrc;
   guint32 remote_audio_ssrc;
 
-  SdpMediaConfig *video_neg_mconf;
+  GstSDPMedia *video_neg;
   guint32 local_video_ssrc;
   guint32 remote_video_ssrc;
 
