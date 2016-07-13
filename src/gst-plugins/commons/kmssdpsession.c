@@ -63,10 +63,8 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
     goto end;
   }
 
-  self->local_sdp_ctx = kms_sdp_message_context_new_from_sdp (offer, &err);
-  if (err != NULL) {
+  if (gst_sdp_message_copy (offer, &self->local_sdp) != GST_SDP_OK) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
-    goto end;
   }
 
 end:
@@ -91,7 +89,13 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-  self->remote_sdp_ctx = ctx;
+
+  if (self->remote_sdp != NULL) {
+    gst_sdp_message_free (self->remote_sdp);
+  }
+
+  self->remote_sdp = kms_sdp_message_context_pack (ctx, NULL);
+  kms_sdp_message_context_unref (ctx);
 
   if (gst_sdp_message_copy (offer, &copy) != GST_SDP_OK) {
     GST_ERROR_OBJECT (self, "Error processing offer (Cannot copy SDP offer)");
@@ -125,7 +129,10 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  self->local_sdp_ctx = ctx;
+  if (self->local_sdp != NULL) {
+    gst_sdp_message_free (self->local_sdp);
+  }
+  self->local_sdp = kms_sdp_message_context_pack (ctx, NULL);
   self->neg_sdp_ctx = ctx;
 
 end:
@@ -143,7 +150,7 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
 
   GST_DEBUG_OBJECT (self, "Process answer");
 
-  if (self->local_sdp_ctx == NULL) {
+  if (self->local_sdp == NULL) {
     // TODO: This should raise an error
     GST_ERROR_OBJECT (self, "Answer received without a local offer generated");
     return FALSE;
@@ -168,7 +175,10 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
   }
 
   kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-  self->remote_sdp_ctx = ctx;
+  if (self->remote_sdp != NULL) {
+    gst_sdp_message_free (self->remote_sdp);
+  }
+  self->remote_sdp = kms_sdp_message_context_pack (ctx, NULL);
   self->neg_sdp_ctx = ctx;
 
   return TRUE;
@@ -178,16 +188,11 @@ GstSDPMessage *
 kms_sdp_session_get_local_sdp (KmsSdpSession * self)
 {
   GstSDPMessage *sdp = NULL;
-  GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Get local SDP");
 
-  if (self->local_sdp_ctx != NULL) {
-    sdp = kms_sdp_message_context_pack (self->local_sdp_ctx, &err);
-    if (err != NULL) {
-      GST_ERROR_OBJECT (self, "Error packing local SDP (%s)", err->message);
-      g_error_free (err);
-    }
+  if (self->local_sdp != NULL) {
+    gst_sdp_message_copy (self->local_sdp, &sdp);
   }
 
   return sdp;
@@ -197,16 +202,11 @@ GstSDPMessage *
 kms_sdp_session_get_remote_sdp (KmsSdpSession * self)
 {
   GstSDPMessage *sdp = NULL;
-  GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Get remote SDP");
 
-  if (self->remote_sdp_ctx != NULL) {
-    sdp = kms_sdp_message_context_pack (self->remote_sdp_ctx, &err);
-    if (err != NULL) {
-      GST_ERROR_OBJECT (self, "Error packing remote SDP (%s)", err->message);
-      g_error_free (err);
-    }
+  if (self->remote_sdp != NULL) {
+    gst_sdp_message_copy (self->remote_sdp, &sdp);
   }
 
   return sdp;
@@ -241,12 +241,12 @@ kms_sdp_session_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  if (self->local_sdp_ctx != NULL) {
-    kms_sdp_message_context_unref (self->local_sdp_ctx);
+  if (self->local_sdp != NULL) {
+    gst_sdp_message_free (self->local_sdp);
   }
 
-  if (self->remote_sdp_ctx != NULL) {
-    kms_sdp_message_context_unref (self->remote_sdp_ctx);
+  if (self->remote_sdp != NULL) {
+    gst_sdp_message_free (self->remote_sdp);
   }
 
   g_clear_object (&self->ptmanager);

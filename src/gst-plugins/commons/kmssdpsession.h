@@ -61,8 +61,8 @@ struct _KmsSdpSession
   /* SDP management */
   KmsSdpAgent *agent;
   KmsSdpPayloadManager *ptmanager;
-  SdpMessageContext *local_sdp_ctx;
-  SdpMessageContext *remote_sdp_ctx;
+  GstSDPMessage *local_sdp;
+  GstSDPMessage *remote_sdp;
   SdpMessageContext *neg_sdp_ctx;
 };
 
