@@ -5526,24 +5526,26 @@ static guint gid;
 
 static void
 chrome_on_offer (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
-    SdpMediaConfig * local_mconf, gpointer user_data)
+    GstSDPMedia * media, gpointer user_data)
 {
-  SdpMediaGroup *group;
+  gint handler_id, group_id;
 
-  group = kms_sdp_media_config_get_group (local_mconf);
+  g_object_get (handler, "id", &handler_id, NULL);
+  group_id = kms_sdp_agent_get_handler_group_id (agent, handler_id);
 
-  fail_if (gid != kms_sdp_media_group_get_id (group));
+  fail_if (gid != group_id);
 }
 
 static void
 chrome_on_asnwer (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
-    SdpMediaConfig * local_mconf, gpointer user_data)
+    GstSDPMedia * media, gpointer user_data)
 {
-  SdpMediaGroup *group;
+  gint handler_id, group_id;
 
-  group = kms_sdp_media_config_get_group (local_mconf);
+  g_object_get (handler, "id", &handler_id, NULL);
+  group_id = kms_sdp_agent_get_handler_group_id (agent, handler_id);
 
-  fail_if (gid != kms_sdp_media_group_get_id (group));
+  fail_if (gid != group_id);
 }
 
 static void

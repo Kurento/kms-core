@@ -1023,6 +1023,13 @@ sdp_utils_get_abs_send_time_id (const GstSDPMedia * media)
   return -1;
 }
 
+gboolean
+sdp_utils_media_is_inactive (const GstSDPMedia * media)
+{
+  return gst_sdp_media_get_attribute_val (media, "inactive") != NULL
+      || gst_sdp_media_get_port (media) == 0;
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

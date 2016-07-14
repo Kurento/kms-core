@@ -115,12 +115,11 @@ struct _KmsBaseSdpEndpointPrivate
 
 static gboolean
 kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
-    KmsSdpMediaHandler * handler, SdpMediaConfig * mconf, gpointer user_data)
+    KmsSdpMediaHandler * handler, GstSDPMedia * media, gpointer user_data)
 {
   KmsSdpSession *sess = KMS_SDP_SESSION (user_data);
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (sess->ep));
-  GstSDPMedia *media = kms_sdp_media_config_get_sdp_media (mconf);
   gint id, index;
 
   g_object_get (handler, "id", &id, "index", &index, NULL);
@@ -128,7 +127,8 @@ kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
   GST_LOG ("Handler id: %d, SDP index: %d, Media: %s", id, index,
       gst_sdp_media_get_media (media));
 
-  return base_sdp_endpoint_class->configure_media (sess->ep, sess, mconf);
+  return base_sdp_endpoint_class->configure_media (sess->ep, sess, handler,
+      media);
 }
 
 static KmsSdpMediaHandler *
@@ -145,24 +145,24 @@ on_handler_required_cb (KmsSdpAgent * agent, const GstSDPMedia * media,
 
 static void
 on_media_answer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
-    SdpMediaConfig * mconf, gpointer user_data)
+    GstSDPMedia * media, gpointer user_data)
 {
   KmsSdpSession *session = KMS_SDP_SESSION (user_data);
 
   GST_LOG_OBJECT (session, "Answer media");
 
-  kms_base_sdp_endpoint_configure_media (agent, handler, mconf, user_data);
+  kms_base_sdp_endpoint_configure_media (agent, handler, media, user_data);
 }
 
 static void
 on_media_offer_cb (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
-    SdpMediaConfig * mconf, gpointer user_data)
+    GstSDPMedia * media, gpointer user_data)
 {
   KmsSdpSession *session = KMS_SDP_SESSION (user_data);
 
   GST_LOG_OBJECT (session, "Offered media");
 
-  kms_base_sdp_endpoint_configure_media (agent, handler, mconf, user_data);
+  kms_base_sdp_endpoint_configure_media (agent, handler, media, user_data);
 }
 
 static const gchar *
@@ -475,7 +475,8 @@ kms_base_sdp_endpoint_start_media (KmsBaseSdpEndpoint * self,
 
 static gboolean
 kms_base_sdp_endpoint_configure_media_impl (KmsBaseSdpEndpoint *
-    self, KmsSdpSession * sess, SdpMediaConfig * mconf)
+    self, KmsSdpSession * sess, KmsSdpMediaHandler * handler,
+    GstSDPMedia * media)
 {
   KmsBaseSdpEndpointClass *base_sdp_endpoint_class =
       KMS_BASE_SDP_ENDPOINT_CLASS (G_OBJECT_GET_CLASS (self));

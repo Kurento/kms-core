@@ -131,7 +131,6 @@ gboolean
 kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
 {
   GstSDPMessage *copy;
-  SdpMessageContext *ctx;
   GError *err = NULL;
 
   GST_DEBUG_OBJECT (self, "Process answer");
@@ -153,25 +152,15 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
     return FALSE;
   }
 
-  ctx = kms_sdp_message_context_new_from_sdp (answer, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (self, "Error processing answer (%s)", err->message);
-    g_error_free (err);
-    return FALSE;
-  }
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
   if (self->remote_sdp != NULL) {
     gst_sdp_message_free (self->remote_sdp);
   }
-  self->remote_sdp = kms_sdp_message_context_pack (ctx, NULL);
+  gst_sdp_message_copy (answer, &self->remote_sdp);
 
   if (self->neg_sdp != NULL) {
     gst_sdp_message_free (self->neg_sdp);
   }
   gst_sdp_message_copy (self->remote_sdp, &self->neg_sdp);
-
-  kms_sdp_message_context_unref (ctx);
 
   return TRUE;
 }

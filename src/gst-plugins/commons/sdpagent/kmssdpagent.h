@@ -120,14 +120,14 @@ KmsSdpMediaHandler * kms_sdp_agent_get_handler_by_index (KmsSdpAgent * agent, gu
 
 typedef struct {
     void (*on_media_offer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
-                                SdpMediaConfig *local_mconf, gpointer user_data);
+                                GstSDPMedia *media, gpointer user_data);
     void (*on_media_answered) (KmsSdpAgent *agent,
                                    KmsSdpMediaHandler *handler,
                                    SdpMediaConfig *neg_mconf,
                                    gboolean local_offerer,
                                    gpointer user_data);
     void (*on_media_answer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,
-                                SdpMediaConfig *local_mconf, gpointer user_data);
+                                GstSDPMedia *media, gpointer user_data);
     KmsSdpMediaHandler * (*on_handler_required) (KmsSdpAgent *agent,
                                                  const GstSDPMedia *media,
                                                  gpointer user_data);

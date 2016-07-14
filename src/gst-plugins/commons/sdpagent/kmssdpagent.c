@@ -827,21 +827,21 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
 
 static void
 kms_sdp_agent_fire_on_offer_callback (KmsSdpAgent * agent,
-    KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
+    KmsSdpMediaHandler * handler, GstSDPMedia * media)
 {
   if (agent->priv->callbacks.callbacks.on_media_offer != NULL) {
     agent->priv->callbacks.callbacks.on_media_offer (agent, handler,
-        local_mconf, agent->priv->callbacks.user_data);
+        media, agent->priv->callbacks.user_data);
   }
 }
 
 static void
 kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
-    KmsSdpMediaHandler * handler, SdpMediaConfig * local_mconf)
+    KmsSdpMediaHandler * handler, GstSDPMedia * media)
 {
   if (agent->priv->callbacks.callbacks.on_media_answer != NULL) {
     agent->priv->callbacks.callbacks.on_media_answer (agent, handler,
-        local_mconf, agent->priv->callbacks.user_data);
+        media, agent->priv->callbacks.user_data);
   }
 }
 
@@ -892,7 +892,7 @@ kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
   }
 
   kms_sdp_agent_fire_on_offer_callback (agent, sdp_handler->sdph->handler,
-      m_conf);
+      media);
 
   return TRUE;
 }
@@ -1585,7 +1585,7 @@ end:
 
   if (mconf != NULL) {
     kms_sdp_agent_fire_on_answer_callback (data->agent,
-        sdp_handler->sdph->handler, mconf);
+        sdp_handler->sdph->handler, answer_media);
   }
 
   /* Update index for next media */

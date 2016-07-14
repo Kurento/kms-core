@@ -77,7 +77,7 @@ struct _KmsBaseSdpEndpointClass
   void (*start_transport_send) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess, gboolean offerer);
   void (*connect_input_elements) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess);
 
-  gboolean (*configure_media) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess, SdpMediaConfig * mconf);
+  gboolean (*configure_media) (KmsBaseSdpEndpoint * self, KmsSdpSession *sess, KmsSdpMediaHandler * handler, GstSDPMedia *media);
 
   /* Virtual handler factory methods */
   void (*create_media_handler) (KmsBaseSdpEndpoint * self, const gchar *media, KmsSdpMediaHandler **handler);
