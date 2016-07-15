@@ -28,6 +28,8 @@
 #include "kmssdprejectmediahandler.h"
 #include "kmssdpmediadirext.h"
 #include "kmssdpmidext.h"
+#include "kms-sdp-agent-enumtypes.h"
+#include "kmssdpagentstate.h"
 
 #define PLUGIN_NAME "sdpagent"
 
@@ -82,15 +84,6 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
  *
  */
 
-typedef enum
-{
-  KMS_SDP_AGENT_STATE_UNNEGOTIATED,
-  KMS_SDP_AGENT_STATE_LOCAL_OFFER,
-  KMS_SDP_AGENT_STATE_REMOTE_OFFER,
-  KMS_SDP_AGENT_STATE_WAIT_NEGO,
-  KMS_SDP_AGENT_STATE_NEGOTIATED
-} KmsSdpAgentState;
-
 static const gchar *kms_sdp_agent_states[] = {
   "unnegotiated",
   "local_offer",
@@ -107,6 +100,7 @@ enum
   PROP_ADDR,
   PROP_LOCAL_DESC,
   PROP_REMOTE_DESC,
+  PROP_STATE,
   N_PROPERTIES
 };
 
@@ -215,7 +209,7 @@ struct _KmsSdpAgentPrivate
 
   GRecMutex mutex;
 
-  KmsSdpAgentState state;
+  KmsSDPAgentState state;
   GstSDPMessage *prev_sdp;
   GSList *offer_handlers;
 
@@ -327,7 +321,7 @@ kms_sdp_agent_remove_disabled_medias (KmsSdpAgent * agent)
 
 static void
 kms_sdp_agent_commit_state_operations (KmsSdpAgent * agent,
-    KmsSdpAgentState new_state)
+    KmsSDPAgentState new_state)
 {
   switch (new_state) {
     case KMS_SDP_AGENT_STATE_UNNEGOTIATED:
@@ -503,6 +497,9 @@ kms_sdp_agent_get_property (GObject * object, guint prop_id,
       break;
     case PROP_ADDR:
       g_value_set_string (value, self->priv->addr);
+      break;
+    case PROP_STATE:
+      g_value_set_enum (value, self->priv->state);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1239,6 +1236,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   gchar *ntp = NULL;
   GstSDPOrigin o;
   GSList *tmp = NULL;
+  gboolean state_changed = FALSE;
 
   SDP_AGENT_LOCK (agent);
 
@@ -1309,6 +1307,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 
   g_slist_free_full (tmp, (GDestroyNotify) kms_ref_struct_unref);
   SDP_AGENT_NEW_STATE (agent, KMS_SDP_AGENT_STATE_LOCAL_OFFER);
+  state_changed = TRUE;
   tmp = NULL;
 
 end:
@@ -1323,6 +1322,10 @@ end:
 
   if (ctx != NULL) {
     kms_sdp_message_context_unref (ctx);
+  }
+
+  if (state_changed) {
+    g_object_notify_by_pspec (G_OBJECT (agent), obj_properties[PROP_STATE]);
   }
 
   return offer;
@@ -1688,7 +1691,7 @@ kms_sdp_agent_cancel_offer_impl (KmsSdpAgent * agent, GError ** error)
         "Agent in state %s", SDP_AGENT_STATE (agent));
     ret = FALSE;
   } else {
-    KmsSdpAgentState new_state;
+    KmsSDPAgentState new_state;
 
     new_state = (agent->priv->prev_sdp != NULL) ?
         KMS_SDP_AGENT_STATE_NEGOTIATED : KMS_SDP_AGENT_STATE_UNNEGOTIATED;
@@ -1699,6 +1702,10 @@ kms_sdp_agent_cancel_offer_impl (KmsSdpAgent * agent, GError ** error)
   }
 
   SDP_AGENT_UNLOCK (agent);
+
+  if (ret) {
+    g_object_notify_by_pspec (G_OBJECT (agent), obj_properties[PROP_STATE]);
+  }
 
   return ret;
 }
@@ -1864,7 +1871,7 @@ static gboolean
 kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
     GstSDPMessage * description, GError ** error)
 {
-  KmsSdpAgentState new_state;
+  KmsSDPAgentState new_state;
   const GstSDPOrigin *orig;
   gboolean ret = FALSE;
 
@@ -1910,6 +1917,10 @@ kms_sdp_agent_set_local_description_impl (KmsSdpAgent * agent,
 
 end:
   SDP_AGENT_UNLOCK (agent);
+
+  if (ret) {
+    g_object_notify_by_pspec (G_OBJECT (agent), obj_properties[PROP_STATE]);
+  }
 
   return ret;
 }
@@ -2068,6 +2079,10 @@ kms_sdp_agent_set_remote_description_impl (KmsSdpAgent * agent,
 
   SDP_AGENT_UNLOCK (agent);
 
+  if (ret) {
+    g_object_notify_by_pspec (G_OBJECT (agent), obj_properties[PROP_STATE]);
+  }
+
   return ret;
 }
 
@@ -2224,6 +2239,11 @@ kms_sdp_agent_class_init (KmsSdpAgentClass * klass)
 
   obj_properties[PROP_REMOTE_DESC] = g_param_spec_boxed ("remote-description",
       "Remote description", "The temote SDP description", GST_TYPE_SDP_MESSAGE,
+      G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+  obj_properties[PROP_STATE] = g_param_spec_enum ("state",
+      "Negotiation state", "The negotiation state", KMS_TYPE_SDP_AGENT_STATE,
+      KMS_SDP_AGENT_STATE_UNNEGOTIATED,
       G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (gobject_class,

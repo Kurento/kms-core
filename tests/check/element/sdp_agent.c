@@ -41,6 +41,8 @@
 #include "kmssdpbundlegroup.h"
 #include "kmssdpagentcommon.h"
 
+#include "kmssdpagentstate.h"
+
 #define OFFERER_ADDR "222.222.222.222"
 #define ANSWERER_ADDR "111.111.111.111"
 
@@ -3991,8 +3993,41 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
 
 GST_END_TEST;
 
+static void
+state_notify_cb (KmsSdpAgent * agent, GParamSpec * param,
+    KmsSDPAgentState * expected)
+{
+  KmsSDPAgentState state;
+  gchar *str_state = NULL;
+
+  g_object_get (agent, "state", &state, NULL);
+
+  switch (state) {
+    case KMS_SDP_AGENT_STATE_UNNEGOTIATED:
+      str_state = "unnegotiated";
+      break;
+    case KMS_SDP_AGENT_STATE_LOCAL_OFFER:
+      str_state = "local-offer";
+      break;
+    case KMS_SDP_AGENT_STATE_REMOTE_OFFER:
+      str_state = "remote-offer";
+      break;
+    case KMS_SDP_AGENT_STATE_WAIT_NEGO:
+      str_state = "wait-nego";
+      break;
+    case KMS_SDP_AGENT_STATE_NEGOTIATED:
+      str_state = "negotiated";
+      break;
+  }
+
+  GST_DEBUG_OBJECT (agent, "State: %s", str_state);
+
+  fail_if (state != *expected);
+}
+
 GST_START_TEST (sdp_agent_check_state_machine)
 {
+  KmsSDPAgentState expected_offerer, expected_answered;
   KmsSdpAgent *offerer, *answerer;
   KmsSdpMediaHandler *handler;
   GstSDPMessage *offer, *answer;
@@ -4006,8 +4041,14 @@ GST_START_TEST (sdp_agent_check_state_machine)
   offerer = kms_sdp_agent_new ();
   fail_if (offerer == NULL);
 
+  g_signal_connect (offerer, "notify::state", G_CALLBACK (state_notify_cb),
+      &expected_offerer);
+
   answerer = kms_sdp_agent_new ();
   fail_if (answerer == NULL);
+
+  g_signal_connect (answerer, "notify::state", G_CALLBACK (state_notify_cb),
+      &expected_answered);
 
   handler = KMS_SDP_MEDIA_HANDLER (kms_sdp_rtp_avp_media_handler_new ());
   fail_if (handler == NULL);
@@ -4032,6 +4073,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   id2 = kms_sdp_agent_add_proto_handler (answerer, "video", handler);
   fail_if (id2 < 0);
 
+  expected_offerer = KMS_SDP_AGENT_STATE_LOCAL_OFFER;
   offer = kms_sdp_agent_create_offer (offerer, &err);
   fail_if (err != NULL);
 
@@ -4054,6 +4096,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   fail_unless (!kms_sdp_agent_group_remove (offerer, gid1, id1));
   fail_unless (!kms_sdp_agent_group_add (offerer, gid1, id1));
 
+  expected_offerer = KMS_SDP_AGENT_STATE_WAIT_NEGO;
   fail_if (!kms_sdp_agent_set_local_description (offerer, offer, &err));
 
   /* Offerer is now in WAIT_NEGO, neither creataion of new offers nor further */
@@ -4075,6 +4118,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
 
   fail_if (!kms_sdp_agent_group_add (answerer, gid2, id2));
 
+  expected_answered = KMS_SDP_AGENT_STATE_REMOTE_OFFER;
   fail_if (!kms_sdp_agent_set_remote_description (answerer, offer, &err));
   ctx = kms_sdp_agent_create_answer (answerer, &err);
   fail_if (err != NULL);
@@ -4101,11 +4145,13 @@ GST_START_TEST (sdp_agent_check_state_machine)
   fail_unless (!kms_sdp_agent_group_remove (answerer, gid2, id2));
   fail_unless (!kms_sdp_agent_group_add (answerer, gid2, id2));
 
+  expected_answered = KMS_SDP_AGENT_STATE_NEGOTIATED;
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
   orig = gst_sdp_message_get_origin (answer);
   v2 = g_ascii_strtoull (orig->sess_version, NULL, 10);
 
+  expected_offerer = KMS_SDP_AGENT_STATE_NEGOTIATED;
   /* Answered is in state NEGOTIATED. Let's check the offerer again */
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
 
@@ -4121,6 +4167,7 @@ GST_START_TEST (sdp_agent_check_state_machine)
   id2 = kms_sdp_agent_add_proto_handler (answerer, "audio", handler);
   fail_if (id2 < 0);
 
+  expected_answered = KMS_SDP_AGENT_STATE_LOCAL_OFFER;
   offer = kms_sdp_agent_create_offer (answerer, &err);
   fail_if (err != NULL);
 
@@ -4136,9 +4183,11 @@ GST_START_TEST (sdp_agent_check_state_machine)
 
   gst_sdp_message_free (offer);
 
+  expected_answered = KMS_SDP_AGENT_STATE_NEGOTIATED;
   /* Cancel offer */
   fail_if (!kms_sdpagent_cancel_offer (answerer, &err));
 
+  expected_answered = KMS_SDP_AGENT_STATE_LOCAL_OFFER;
   offer = kms_sdp_agent_create_offer (answerer, &err);
   fail_if (err != NULL);
 
@@ -4152,12 +4201,14 @@ GST_START_TEST (sdp_agent_check_state_machine)
   fail_unless (v2 + 1 == tmp);
   gst_sdp_message_free (offer);
 
+  expected_answered = KMS_SDP_AGENT_STATE_NEGOTIATED;
   /* Cancel offer */
   fail_if (!kms_sdpagent_cancel_offer (answerer, &err));
 
   /* Remove handler and generate the offer again */
   fail_if (!kms_sdp_agent_remove_proto_handler (answerer, id2));
 
+  expected_answered = KMS_SDP_AGENT_STATE_LOCAL_OFFER;
   offer = kms_sdp_agent_create_offer (answerer, &err);
   fail_if (err != NULL);
 
