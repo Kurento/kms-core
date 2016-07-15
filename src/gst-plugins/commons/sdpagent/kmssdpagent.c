@@ -347,6 +347,14 @@ kms_sdp_agent_get_handler (KmsSdpAgent * agent, guint hid)
     }
   }
 
+  for (l = agent->priv->offer_handlers; l != NULL; l = l->next) {
+    SdpHandler *handler = l->data;
+
+    if (handler->sdph->id == hid) {
+      return handler;
+    }
+  }
+
   return NULL;
 }
 
@@ -479,6 +487,7 @@ static SdpHandler *
 kms_sdp_agent_create_media_handler (KmsSdpAgent * agent, const gchar * media,
     KmsSdpMediaHandler * handler)
 {
+  GError *err = NULL;
   SdpHandler *sdp_handler;
   gint id = -1;
 
@@ -489,24 +498,11 @@ kms_sdp_agent_create_media_handler (KmsSdpAgent * agent, const gchar * media,
       (KmsSdpHandler *)
       kms_ref_struct_ref (KMS_REF_STRUCT_CAST (sdp_handler->sdph)));
 
-  return sdp_handler;
-}
-
-static gint
-kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
-    KmsSdpMediaHandler * handler)
-{
-  GError *err = NULL;
-  SdpHandler *sdp_handler;
-  const gchar *addr_type;
-
-  sdp_handler = kms_sdp_agent_create_media_handler (agent, media, handler);
-
   if (!kms_sdp_media_handler_set_parent (handler, agent, &err)) {
     GST_WARNING_OBJECT (agent, "%s", err->message);
     kms_sdp_agent_remove_media_handler (agent, sdp_handler);
     g_error_free (err);
-    return -1;
+    return NULL;
   }
 
   if (!kms_sdp_media_handler_set_id (handler, sdp_handler->sdph->id, &err)) {
@@ -514,6 +510,22 @@ kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
     kms_sdp_agent_remove_media_handler (agent, sdp_handler);
     kms_sdp_media_handler_remove_parent (handler);
     g_error_free (err);
+    return NULL;
+  }
+
+  return sdp_handler;
+}
+
+static gint
+kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
+    KmsSdpMediaHandler * handler)
+{
+  SdpHandler *sdp_handler;
+  const gchar *addr_type;
+
+  sdp_handler = kms_sdp_agent_create_media_handler (agent, media, handler);
+
+  if (sdp_handler == NULL) {
     return -1;
   }
 
