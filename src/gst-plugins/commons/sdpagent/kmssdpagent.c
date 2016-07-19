@@ -1544,7 +1544,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
           "Not negotiated media offered with port set to 0");
       answer_media =
           kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
-          data->ctx, media, err);
+          kms_sdp_message_context_get_sdp_message (data->ctx), media, err);
     }
 
     /* RFC rfc3264 [8.2]: A stream that is offered with a port */
@@ -1555,7 +1555,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 
   answer_media =
       kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
-      data->ctx, media, err);
+      kms_sdp_message_context_get_sdp_message (data->ctx), media, err);
 
   if (answer_media == NULL) {
     ret = FALSE;

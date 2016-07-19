@@ -37,18 +37,21 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpMediaHandler, kms_sdp_media_handler,
 #define DEFAULT_ADDR_TYPE "IP4"
 
 typedef gboolean (*KmsSdpAcceptAttributeFunc) (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx);
+    const GstSDPAttribute * attr, GstSDPMedia * media,
+    const GstSDPMessage * msg);
 
 static gboolean
 default_accept_attribute (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
+    const GstSDPAttribute * attr, GstSDPMedia * media,
+    const GstSDPMessage * msg)
 {
   return TRUE;
 }
 
 static gboolean
 accept_fmtp_attribute (const GstSDPMedia * offer,
-    const GstSDPAttribute * attr, GstSDPMedia * media, SdpMessageContext * ctx)
+    const GstSDPAttribute * attr, GstSDPMedia * media,
+    const GstSDPMessage * msg)
 {
   guint i, len;
   gchar **fmtp;
@@ -213,7 +216,7 @@ kms_sdp_media_handler_create_offer_impl (KmsSdpMediaHandler * handler,
 
 static GstSDPMedia *
 kms_sdp_media_handler_create_answer_impl (KmsSdpMediaHandler * handler,
-    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
+    const GstSDPMessage * msg, const GstSDPMedia * offer, GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
       "Not implemented");
@@ -288,7 +291,7 @@ is_direction_attr_present (const GstSDPMedia * media)
 static gboolean
 kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * media, SdpMessageContext * ctx)
+    GstSDPMedia * media, const GstSDPMessage * msg)
 {
   guint i, len;
   GSList *l;
@@ -305,7 +308,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
 
   for (i = 0; i < len; i++) {
     if (g_strcmp0 (attr->key, attributes[i].name) == 0) {
-      return attributes[i].accept (offer, attr, media, ctx);
+      return attributes[i].accept (offer, attr, media, msg);
     }
   }
 
@@ -313,7 +316,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
     KmsISdpMediaExtension *ext = KMS_I_SDP_MEDIA_EXTENSION (l->data);
 
     if (kms_i_sdp_media_extension_can_insert_attribute (ext, offer, attr, media,
-            ctx)) {
+            msg)) {
       return TRUE;
     }
   }
@@ -323,7 +326,7 @@ kms_sdp_media_handler_can_insert_attribute_impl (KmsSdpMediaHandler * handler,
 
 static gboolean
 kms_sdp_media_handler_intersect_sdp_medias_impl (KmsSdpMediaHandler * handler,
-    const GstSDPMedia * offer, GstSDPMedia * answer, SdpMessageContext * ctx,
+    const GstSDPMedia * offer, GstSDPMedia * answer, const GstSDPMessage * msg,
     GError ** error)
 {
   g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
@@ -503,12 +506,12 @@ kms_sdp_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
 GstSDPMedia *
 kms_sdp_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
+    const GstSDPMessage * msg, const GstSDPMedia * offer, GError ** error)
 {
   g_return_val_if_fail (KMS_IS_SDP_MEDIA_HANDLER (handler), NULL);
 
   return KMS_SDP_MEDIA_HANDLER_GET_CLASS (handler)->create_answer (handler,
-      ctx, offer, error);
+      msg, offer, error);
 }
 
 gboolean

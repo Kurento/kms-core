@@ -58,7 +58,7 @@ struct _KmsISdpMediaExtensionInterface
 
   gboolean (*add_offer_attributes) (KmsISdpMediaExtension *ext, GstSDPMedia * offer, GError **error);
   gboolean (*add_answer_attributes) (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
-  gboolean (*can_insert_attribute) (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer, SdpMessageContext *ctx);
+  gboolean (*can_insert_attribute) (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer, const GstSDPMessage *msg);
   gboolean (*process_answer_attributes) (KmsISdpMediaExtension *ext, const GstSDPMedia * answer, GError **error);
 };
 
@@ -66,7 +66,7 @@ GType kms_i_sdp_media_extension_get_type (void);
 
 gboolean kms_i_sdp_media_extension_add_offer_attributes (KmsISdpMediaExtension *ext, GstSDPMedia * offer, GError **error);
 gboolean kms_i_sdp_media_extension_add_answer_attributes (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, GstSDPMedia * answer, GError **error);
-gboolean kms_i_sdp_media_extension_can_insert_attribute (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer, SdpMessageContext *ctx);
+gboolean kms_i_sdp_media_extension_can_insert_attribute (KmsISdpMediaExtension *ext, const GstSDPMedia * offer, const GstSDPAttribute * attr, GstSDPMedia * answer, const GstSDPMessage *msg);
 gboolean kms_i_sdp_media_extension_process_answer_attributes (KmsISdpMediaExtension *ext, const GstSDPMedia * answer, GError **error);
 
 G_END_DECLS

@@ -134,7 +134,7 @@ kms_sdp_redundant_ext_add_answer_attributes (KmsISdpMediaExtension * ext,
 static gboolean
 kms_sdp_redundant_ext_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer, SdpMessageContext * ctx)
+    GstSDPMedia * answer, const GstSDPMessage * msg)
 {
   return FALSE;
 }

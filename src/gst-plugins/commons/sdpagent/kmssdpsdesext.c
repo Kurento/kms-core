@@ -593,7 +593,7 @@ end:
 static gboolean
 kms_sdp_sdes_ext_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer, SdpMessageContext * ctx)
+    GstSDPMedia * answer, const GstSDPMessage * msg)
 {
   GST_DEBUG_OBJECT (ext, "an insert %s:%s ?", attr->key, attr->value);
 

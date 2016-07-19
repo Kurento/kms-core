@@ -50,13 +50,13 @@ kms_i_sdp_media_extension_add_answer_attributes (KmsISdpMediaExtension * ext,
 gboolean
 kms_i_sdp_media_extension_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer, SdpMessageContext * ctx)
+    GstSDPMedia * answer, const GstSDPMessage * msg)
 {
   g_return_val_if_fail (KMS_IS_I_SDP_MEDIA_EXTENSION (ext), FALSE);
 
   return
       KMS_I_SDP_MEDIA_EXTENSION_GET_INTERFACE (ext)->can_insert_attribute (ext,
-      offer, attr, answer, ctx);
+      offer, attr, answer, msg);
 }
 
 gboolean

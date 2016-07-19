@@ -67,7 +67,7 @@ kms_sdp_reject_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
 GstSDPMedia *
 kms_sdp_reject_media_handler_create_answer (KmsSdpMediaHandler * handler,
-    SdpMessageContext * ctx, const GstSDPMedia * offer, GError ** error)
+    const GstSDPMessage * msg, const GstSDPMedia * offer, GError ** error)
 {
   GstSDPMedia *m = NULL;
 

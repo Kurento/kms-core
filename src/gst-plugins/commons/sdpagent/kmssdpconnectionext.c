@@ -206,7 +206,7 @@ kms_connection_ext_add_answer_attributes (KmsISdpMediaExtension * ext,
 static gboolean
 kms_connection_ext_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer, SdpMessageContext * ctx)
+    GstSDPMedia * answer, const GstSDPMessage * msg)
 {
   /* No special management of attributes are required. We leave other   */
   /* plugin to decide if attributes are going to be added to the answer */

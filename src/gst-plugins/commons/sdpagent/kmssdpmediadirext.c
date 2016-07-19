@@ -115,7 +115,7 @@ kms_sdp_media_direction_ext_add_answer_attributes (KmsISdpMediaExtension * ext,
 static gboolean
 kms_sdp_media_direction_ext_can_insert_attribute (KmsISdpMediaExtension * ext,
     const GstSDPMedia * offer, const GstSDPAttribute * attr,
-    GstSDPMedia * answer, SdpMessageContext * ctx)
+    GstSDPMedia * answer, const GstSDPMessage * msg)
 {
   GST_DEBUG_OBJECT (ext, "Insertion of %s:%s ?", attr->key, attr->value);
 
