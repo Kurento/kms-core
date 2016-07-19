@@ -847,11 +847,10 @@ kms_sdp_agent_fire_on_answer_callback (KmsSdpAgent * agent,
 
 static gboolean
 kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
-    SdpMessageContext * ctx, guint index, GError ** err)
+    GstSDPMessage * offer, guint index, GError ** err)
 {
-  SdpMediaConfig *m_conf;
-  KmsSdpBaseGroup *group;
   GstSDPMedia *media;
+  gboolean ret = TRUE;
 
   media = kms_sdp_agent_create_proper_media_offer (agent, sdp_handler, err);
 
@@ -862,43 +861,44 @@ kms_sdp_agent_make_media_offer (KmsSdpAgent * agent, SdpHandler * sdp_handler,
   /* update index */
   sdp_handler->sdph->index = index;
 
-  m_conf = kms_sdp_message_context_add_media (ctx, media, err);
-  if (m_conf == NULL) {
+  kms_sdp_agent_fire_on_offer_callback (agent, sdp_handler->sdph->handler,
+      media);
+
+  if (gst_sdp_message_add_media (offer, media) != GST_SDP_OK) {
+    g_set_error_literal (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not add m-line to offer");
+    ret = FALSE;
+  }
+
+  gst_sdp_media_free (media);
+
+  return ret;
+}
+
+static gboolean
+kms_sdp_agent_set_origin (GstSDPMessage * msg,
+    const GstSDPOrigin * origin, GError ** error)
+{
+  if (gst_sdp_message_set_origin (msg, origin->username, origin->sess_id,
+          origin->sess_version, origin->nettype, origin->addrtype,
+          origin->addr) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set attr: origin");
     return FALSE;
   }
 
-  /* Generate a MediaConf with mediagroups so elements still need this */
-  /* deprecated structure */
-  group =
-      kms_sdp_group_manager_get_group (agent->priv->group_manager,
-      sdp_handler->sdph);
-
-  if (group != NULL) {
-    SdpMediaGroup *m_group;
-    guint gid;
-
-    g_object_get (group, "id", &gid, NULL);
-    g_object_unref (group);
-
-    m_group = kms_sdp_message_context_get_group (ctx, gid);
-
-    if (m_group == NULL) {
-      m_group = kms_sdp_message_context_create_group (ctx, gid);
-    }
-
-    if (!kms_sdp_message_context_add_media_to_group (m_group, m_conf, err)) {
-      return FALSE;
-    }
+  if (gst_sdp_message_set_connection (msg, origin->nettype,
+          origin->addrtype, origin->addr, 0, 0) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set attr: connection");
+    return FALSE;
   }
-
-  kms_sdp_agent_fire_on_offer_callback (agent, sdp_handler->sdph->handler,
-      media);
 
   return TRUE;
 }
 
 static gboolean
-increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
+kms_sdp_agent_increment_sess_version (KmsSdpAgent * agent, GstSDPMessage * msg,
     GError ** error)
 {
   guint64 sess_version;
@@ -922,16 +922,15 @@ increment_sess_version (KmsSdpAgent * agent, SdpMessageContext * new_offer,
   new_orig.addrtype = orig->addrtype;
   new_orig.addr = orig->addr;
 
-  ret = kms_sdp_message_context_set_origin (new_offer, &new_orig, error);
+  ret = kms_sdp_agent_set_origin (msg, &new_orig, error);
 
   return ret;
 }
 
 static gboolean
 kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
-    SdpMessageContext * new_offer, GError ** error)
+    GstSDPMessage * new_sdp, GError ** error)
 {
-  GstSDPMessage *new_sdp = NULL;
   gboolean ret = TRUE;
 
   /* rfc3264 8 Modifying the Session:                                         */
@@ -943,20 +942,8 @@ kms_sdp_agent_update_session_version (KmsSdpAgent * agent,
     return TRUE;
   }
 
-  new_sdp = kms_sdp_message_context_pack (new_offer, error);
-  if (new_sdp == NULL) {
-    ret = FALSE;
-    goto end;
-  }
-
   if (!sdp_utils_equal_messages (agent->priv->local_description, new_sdp)) {
-    ret = increment_sess_version (agent, new_offer, error);
-  }
-
-end:
-
-  if (new_sdp != NULL) {
-    gst_sdp_message_free (new_sdp);
+    ret = kms_sdp_agent_increment_sess_version (agent, new_sdp, error);
   }
 
   return ret;
@@ -1068,14 +1055,14 @@ kms_sdp_agent_merge_offer_handlers (KmsSdpAgent * agent)
 }
 
 static gboolean
-kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, SdpMessageContext * ctx,
+kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, GstSDPMessage * offer,
     GError ** error)
 {
   guint index = 0;
   GSList *l;
 
   for (l = agent->priv->offer_handlers; l != NULL; l = g_slist_next (l)) {
-    if (!kms_sdp_agent_make_media_offer (agent, l->data, ctx, index++, error)) {
+    if (!kms_sdp_agent_make_media_offer (agent, l->data, offer, index++, error)) {
       return FALSE;
     }
   }
@@ -1085,13 +1072,10 @@ kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, SdpMessageContext * ctx,
 
 static gboolean
 kms_sdp_agent_exec_pre_processing_extensions (KmsSdpAgent * agent,
-    SdpMessageContext * ctx, GError ** error)
+    GstSDPMessage * offer, GError ** error)
 {
-  GstSDPMessage *offer;
   gboolean pre_proc;
   GSList *l;
-
-  offer = kms_sdp_message_context_get_sdp_message (ctx);
 
   for (l = agent->priv->extensions; l != NULL; l = g_slist_next (l)) {
     KmsISdpSessionExtension *ext = l->data;
@@ -1136,15 +1120,40 @@ kms_sdp_agent_exec_post_processing_extensions (KmsSdpAgent * agent,
   return TRUE;
 }
 
+static gboolean
+kms_sdp_agent_set_default_session_attributes (GstSDPMessage * msg,
+    GError ** error)
+{
+  const gchar *err_attr;
+
+  if (gst_sdp_message_set_version (msg, "0") != GST_SDP_OK) {
+    err_attr = "version";
+    goto error;
+  }
+
+  if (gst_sdp_message_set_session_name (msg,
+          "Kurento Media Server") != GST_SDP_OK) {
+    err_attr = "session";
+    goto error;
+  }
+
+  return TRUE;
+
+error:
+  g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
+      "Can not set attr: %s", err_attr);
+
+  return FALSE;
+}
+
 static GstSDPMessage *
 kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
 {
-  SdpMessageContext *ctx = NULL;
   GstSDPMessage *offer = NULL;
-  gchar *ntp = NULL;
   GstSDPOrigin o;
   GSList *tmp = NULL;
   gboolean state_changed = FALSE;
+  gboolean failed = TRUE;
 
   SDP_AGENT_LOCK (agent);
 
@@ -1155,8 +1164,13 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
     goto end;
   }
 
-  ctx = kms_sdp_message_context_new (error);
-  if (ctx == NULL) {
+  if (gst_sdp_message_new (&offer) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Can not allocate SDP offer");
+    goto end;
+  }
+
+  if (!kms_sdp_agent_set_default_session_attributes (offer, error)) {
     goto end;
   }
 
@@ -1173,17 +1187,12 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
       agent->priv->local.version);
 
-  if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
-    g_free (ntp);
+  if (!kms_sdp_agent_set_origin (offer, &o, error)) {
     goto end;
   }
 
-  g_free (ntp);
-
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_OFFER);
-
   /* Execute pre-processing extensions */
-  if (!kms_sdp_agent_exec_pre_processing_extensions (agent, ctx, error)) {
+  if (!kms_sdp_agent_exec_pre_processing_extensions (agent, offer, error)) {
     goto end;
   }
 
@@ -1192,17 +1201,11 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   kms_sdp_agent_merge_offer_handlers (agent);
 
   /* Process medias */
-  if (!kms_sdp_agent_create_media_offer (agent, ctx, error)) {
+  if (!kms_sdp_agent_create_media_offer (agent, offer, error)) {
     goto end;
   }
 
-  if (!kms_sdp_agent_update_session_version (agent, ctx, error)) {
-    goto end;
-  }
-
-  offer = kms_sdp_message_context_pack (ctx, error);
-
-  if (offer == NULL) {
+  if (!kms_sdp_agent_update_session_version (agent, offer, error)) {
     goto end;
   }
 
@@ -1218,6 +1221,8 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   state_changed = TRUE;
   tmp = NULL;
 
+  failed = FALSE;
+
 end:
 
   if (tmp != NULL) {
@@ -1228,8 +1233,9 @@ end:
 
   SDP_AGENT_UNLOCK (agent);
 
-  if (ctx != NULL) {
-    kms_sdp_message_context_unref (ctx);
+  if (failed && offer != NULL) {
+    gst_sdp_message_free (offer);
+    return NULL;
   }
 
   if (state_changed) {
