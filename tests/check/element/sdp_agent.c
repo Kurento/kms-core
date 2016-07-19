@@ -2868,7 +2868,7 @@ typedef struct _OnMediaAnsweredData
 
 static void
 on_media_answered (KmsSdpAgent * agent, KmsSdpMediaHandler * handler,
-    SdpMediaConfig * mconf, gboolean local_offerer, gpointer gp)
+    const GstSDPMedia * media, gboolean local_offerer, gpointer gp)
 {
   OnMediaAnsweredData *data = gp;
 

@@ -19,10 +19,7 @@
 
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
-
-#include "kmssdpcontext.h"
 #include "kmssdpmediahandler.h"
-#include "kmssdpcontext.h"
 
 G_BEGIN_DECLS
 
@@ -123,7 +120,7 @@ typedef struct {
                                 GstSDPMedia *media, gpointer user_data);
     void (*on_media_answered) (KmsSdpAgent *agent,
                                    KmsSdpMediaHandler *handler,
-                                   SdpMediaConfig *neg_mconf,
+                                   const GstSDPMedia *media,
                                    gboolean local_offerer,
                                    gpointer user_data);
     void (*on_media_answer) (KmsSdpAgent *agent, KmsSdpMediaHandler *handler,

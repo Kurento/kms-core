@@ -1715,81 +1715,41 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 
 static void
 kms_sdp_agent_fire_on_answered_callback (KmsSdpAgent * agent,
-    SdpHandler * sdp_handler, SdpMediaConfig * neg_mconf,
-    gboolean local_offerer)
+    SdpHandler * sdp_handler, const GstSDPMedia * media, gboolean local_offerer)
 {
   if (agent->priv->callbacks.callbacks.on_media_answered != NULL) {
     agent->priv->callbacks.callbacks.on_media_answered (agent,
-        sdp_handler->sdph->handler, neg_mconf, local_offerer,
+        sdp_handler->sdph->handler, media, local_offerer,
         agent->priv->callbacks.user_data);
   }
 }
 
-static gint
-handler_media_config_cmp_func (SdpHandler * h, gconstpointer * mid_pointer)
-{
-  gint mid = GPOINTER_TO_INT (mid_pointer);
-
-  return h->sdph->index - mid;
-}
-
-typedef struct _KmsSdpAgentProcessAnsweredMediaConfigData
-{
-  KmsSdpAgent *agent;
-  gboolean local_offerer;
-} KmsSdpAgentProcessAnsweredMediaConfigData;
-
-static void
-kms_sdp_agent_process_answered_media_config (SdpMediaConfig * mconf,
-    KmsSdpAgentProcessAnsweredMediaConfigData * data)
-{
-  KmsSdpAgent *agent = data->agent;
-  gboolean local_offerer = data->local_offerer;
-  gint mid = kms_sdp_media_config_get_id (mconf);
-  GSList *l;
-
-  l = g_slist_find_custom (agent->priv->offer_handlers, GINT_TO_POINTER (mid),
-      (GCompareFunc) handler_media_config_cmp_func);
-  if (l == NULL) {
-    GST_WARNING_OBJECT (agent, "SDP handler not found for media posistion '%u'",
-        mid);
-    return;
-  }
-
-  kms_sdp_agent_fire_on_answered_callback (agent, l->data, mconf,
-      local_offerer);
-}
-
-static void
-kms_sdp_agent_process_answered_context (KmsSdpAgent * agent,
-    SdpMessageContext * ctx, gboolean local_offerer)
-{
-  KmsSdpAgentProcessAnsweredMediaConfigData data;
-
-  data.agent = agent;
-  data.local_offerer = local_offerer;
-  g_slist_foreach (kms_sdp_message_context_get_medias (ctx),
-      (GFunc) kms_sdp_agent_process_answered_media_config, &data);
-}
-
 static void
 kms_sdp_agent_process_answered_description (KmsSdpAgent * agent,
-    GstSDPMessage * desc, gboolean local_offerer)
+    const GstSDPMessage * desc, gboolean local_offerer)
 {
-  SdpMessageContext *ctx;
-  GError *err = NULL;
+  guint index, len;
 
-  ctx = kms_sdp_message_context_new_from_sdp (desc, &err);
-  if (err != NULL) {
-    GST_ERROR_OBJECT (agent, "Error generating SDP message context (%s)",
-        err->message);
-    g_error_free (err);
-    return;
+  len = gst_sdp_message_medias_len (desc);
+
+  for (index = 0; index < len; index++) {
+    const GstSDPMedia *media;
+    SdpHandler *handler;
+    GSList *item;
+
+    item = g_slist_nth (agent->priv->offer_handlers, index);
+
+    if (item == NULL) {
+      GST_ERROR_OBJECT (agent, "No handler for media at position %u", index);
+      g_assert_not_reached ();
+    }
+
+    handler = item->data;
+    media = gst_sdp_message_get_media (desc, index);
+
+    kms_sdp_agent_fire_on_answered_callback (agent, handler, media,
+        local_offerer);
   }
-
-  kms_sdp_agent_process_answered_context (agent, ctx, local_offerer);
-
-  kms_sdp_message_context_unref (ctx);
 }
 
 static gboolean
