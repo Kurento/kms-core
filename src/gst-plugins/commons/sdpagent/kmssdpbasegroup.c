@@ -129,22 +129,32 @@ typedef struct _SdpGroupStrVal
   gchar *str;
   GstSDPMessage *msg;
   KmsSdpBaseGroup *group;
+  gchar **filter;
 } SdpGroupStrVal;
 
 static void
 append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
 {
   const GstSDPMedia *media;
+  gboolean removed = TRUE;
+  gint i, index, id;
   const gchar *mid;
   gchar *tmp;
 
-  if (handler->index > gst_sdp_message_medias_len (val->msg)) {
-    GST_ERROR_OBJECT (val->group, "Index %u for handler (%u) out of SDP range",
-        handler->index, handler->id);
+  g_object_get (handler->handler, "index", &index, "id", &id, NULL);
+
+  if (index < 0) {
+    /* Agent not negotiated */
     return;
   }
 
-  media = gst_sdp_message_get_media (val->msg, handler->index);
+  if (index > gst_sdp_message_medias_len (val->msg)) {
+    GST_ERROR_OBJECT (val->group, "Index %u for handler (%u) out of SDP range",
+        index, id);
+    return;
+  }
+
+  media = gst_sdp_message_get_media (val->msg, index);
 
   if (media == NULL) {
     GST_ERROR_OBJECT (val->group, "No media got in SDP");
@@ -155,7 +165,7 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
 
   if (mid == NULL) {
     GST_WARNING_OBJECT (val->group,
-        "No mid attribute for media %u. Skipping from group", handler->index);
+        "No mid attribute for media %u. Skipping from group", index);
     return;
   }
 
@@ -163,6 +173,25 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
     GST_DEBUG_OBJECT (val->group, "Skpping %s from group", mid);
     return;
   }
+
+  if (val->filter == NULL) {
+    goto append_media;
+  }
+
+  for (i = 1; val->filter[i] != NULL; i++) {
+    if (g_strcmp0 (mid, val->filter[i]) == 0) {
+      removed = FALSE;
+      break;
+    }
+  }
+
+  if (removed) {
+    GST_WARNING ("Media %s removed from group %s", mid,
+        val->group->priv->semantics);
+    return;
+  }
+
+append_media:
 
   tmp = val->str;
   val->str = g_strdup_printf ("%s %s", tmp, mid);
@@ -187,6 +216,7 @@ kms_sdp_base_group_add_offer_attributes_impl (KmsSdpBaseGroup * self,
   val.msg = offer;
   val.group = self;
   val.str = g_strdup (self->priv->semantics);
+  val.filter = NULL;
 
   /* Add all handlers that are not disabled to this group */
   g_slist_foreach (self->priv->handlers, (GFunc) append_enabled_medias, &val);
@@ -198,11 +228,66 @@ kms_sdp_base_group_add_offer_attributes_impl (KmsSdpBaseGroup * self,
   return TRUE;
 }
 
+static const gchar *
+kms_sdp_base_group_is_offered (KmsSdpBaseGroup * self,
+    const GstSDPMessage * offer)
+{
+  const gchar *group = NULL;
+  gboolean found = FALSE;
+  guint i;
+
+  for (i = 0; !found; i++) {
+    gchar **tokens;
+
+    group = gst_sdp_message_get_attribute_val_n (offer, "group", i);
+
+    if (group == NULL) {
+      return NULL;
+    }
+
+    tokens = g_strsplit (group, " ", 0);
+    found = g_strcmp0 (self->priv->semantics, tokens[0]) == 0;
+    g_strfreev (tokens);
+  }
+
+  return group;
+}
+
 static gboolean
 kms_sdp_base_group_add_answer_attributes_impl (KmsSdpBaseGroup * self,
     const GstSDPMessage * offer, GstSDPMessage * answer, GError ** error)
 {
-  /* Nothing to add at this level */
+  SdpGroupStrVal val;
+  gboolean pre_proc;
+  const gchar *group;
+
+  g_object_get (self, "pre-media-processing", &pre_proc, NULL);
+
+  if (pre_proc) {
+    /* Let chlidren classes manage this case */
+    return TRUE;
+  }
+
+  group = kms_sdp_base_group_is_offered (self, offer);
+
+  if (group == NULL) {
+    /* Do not add group attribute */
+    return TRUE;
+  }
+
+  val.msg = answer;
+  val.group = self;
+  val.str = g_strdup (self->priv->semantics);
+  val.filter = g_strsplit (group, " ", 0);
+
+  /* Add all handlers that are not disabled to this group */
+  g_slist_foreach (self->priv->handlers, (GFunc) append_enabled_medias, &val);
+
+  gst_sdp_message_add_attribute (answer, "group", val.str);
+
+  g_free (val.str);
+  g_strfreev (val.filter);
+
   return TRUE;
 }
 

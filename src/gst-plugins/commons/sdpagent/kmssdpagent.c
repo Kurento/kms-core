@@ -1071,8 +1071,8 @@ kms_sdp_agent_create_media_offer (KmsSdpAgent * agent, GstSDPMessage * offer,
 }
 
 static gboolean
-kms_sdp_agent_exec_pre_processing_extensions (KmsSdpAgent * agent,
-    GstSDPMessage * offer, GError ** error)
+kms_sdp_agent_offer_processing_extensions (KmsSdpAgent * agent,
+    GstSDPMessage * offer, gboolean pre_process, GError ** error)
 {
   gboolean pre_proc;
   GSList *l;
@@ -1082,8 +1082,8 @@ kms_sdp_agent_exec_pre_processing_extensions (KmsSdpAgent * agent,
 
     g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
 
-    if (!pre_proc) {
-      /* this extension should be executed at the end */
+    if (pre_proc != pre_process) {
+      /* this extension should not be executed at the end */
       continue;
     }
 
@@ -1096,8 +1096,9 @@ kms_sdp_agent_exec_pre_processing_extensions (KmsSdpAgent * agent,
 }
 
 static gboolean
-kms_sdp_agent_exec_post_processing_extensions (KmsSdpAgent * agent,
-    GstSDPMessage * offer, GError ** error)
+kms_sdp_agent_exec_answer_session_extensions (KmsSdpAgent * agent,
+    const GstSDPMessage * offer, GstSDPMessage * answer, gboolean pre_process,
+    GError ** error)
 {
   gboolean pre_proc;
   GSList *l;
@@ -1107,12 +1108,13 @@ kms_sdp_agent_exec_post_processing_extensions (KmsSdpAgent * agent,
 
     g_object_get (ext, "pre-media-processing", &pre_proc, NULL);
 
-    if (pre_proc) {
-      /* this extension has been executed already */
+    if (pre_proc != pre_process) {
+      /* this extension should not be executed yet */
       continue;
     }
 
-    if (!kms_i_sdp_session_extension_add_offer_attributes (ext, offer, error)) {
+    if (!kms_i_sdp_session_extension_add_answer_attributes (ext, offer, answer,
+            error)) {
       return FALSE;
     }
   }
@@ -1192,7 +1194,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   }
 
   /* Execute pre-processing extensions */
-  if (!kms_sdp_agent_exec_pre_processing_extensions (agent, offer, error)) {
+  if (!kms_sdp_agent_offer_processing_extensions (agent, offer, TRUE, error)) {
     goto end;
   }
 
@@ -1210,7 +1212,7 @@ kms_sdp_agent_create_offer_impl (KmsSdpAgent * agent, GError ** error)
   }
 
   /* Execute post-processing extensions */
-  if (!kms_sdp_agent_exec_post_processing_extensions (agent, offer, error)) {
+  if (!kms_sdp_agent_offer_processing_extensions (agent, offer, FALSE, error)) {
     gst_sdp_message_free (offer);
     offer = NULL;
     goto end;
@@ -1249,7 +1251,7 @@ struct SdpAnswerData
 {
   guint index;
   KmsSdpAgent *agent;
-  SdpMessageContext *ctx;
+  GstSDPMessage *answer;
   const GstSDPMessage *offer;
   GError **err;
 };
@@ -1518,7 +1520,6 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 {
   KmsSdpAgent *agent = data->agent;
   GstSDPMedia *answer_media = NULL;
-  SdpMediaConfig *mconf = NULL;
   SdpHandler *sdp_handler;
   GError **err = data->err;
   gboolean ret = TRUE;
@@ -1544,32 +1545,27 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
           "Not negotiated media offered with port set to 0");
       answer_media =
           kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
-          kms_sdp_message_context_get_sdp_message (data->ctx), media, err);
+          data->answer, media, err);
     }
 
     /* RFC rfc3264 [8.2]: A stream that is offered with a port */
     /* of zero MUST be marked with port zero in the answer     */
     reject_sdp_media (&answer_media);
-    goto answer;
+    goto set_unsupported;
   }
 
   answer_media =
       kms_sdp_media_handler_create_answer (sdp_handler->sdph->handler,
-      kms_sdp_message_context_get_sdp_message (data->ctx), media, err);
+      data->answer, media, err);
 
   if (answer_media == NULL) {
     ret = FALSE;
     goto end;
   }
 
-answer:
+set_unsupported:
   if (sdp_handler->unsupported && sdp_handler->unsupported_media == NULL) {
     gst_sdp_media_copy (answer_media, &sdp_handler->unsupported_media);
-  }
-
-  mconf = kms_sdp_message_context_add_media (data->ctx, answer_media, err);
-  if (mconf == NULL) {
-    ret = FALSE;
   }
 
 end:
@@ -1589,10 +1585,16 @@ end:
         sdp_handler);
   }
 
-  if (mconf != NULL) {
-    kms_sdp_agent_fire_on_answer_callback (data->agent,
-        sdp_handler->sdph->handler, answer_media);
+  kms_sdp_agent_fire_on_answer_callback (data->agent,
+      sdp_handler->sdph->handler, answer_media);
+
+  if (gst_sdp_message_add_media (data->answer, answer_media) != GST_SDP_OK) {
+    g_set_error_literal (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not add m-line to answer");
+    ret = FALSE;
   }
+
+  gst_sdp_media_free (answer_media);
 
   /* Update index for next media */
   data->index++;
@@ -1631,66 +1633,103 @@ kms_sdp_agent_cancel_offer_impl (KmsSdpAgent * agent, GError ** error)
   return ret;
 }
 
-static SdpMessageContext *
-kms_sdp_agent_generate_answer_compat (KmsSdpAgent * agent,
+static gboolean
+intersect_session_attr (const GstSDPAttribute * attr, gpointer user_data)
+{
+  GstSDPMessage *answer = user_data;
+  guint i, len;
+
+  if (g_strcmp0 (attr->key, "group") == 0) {
+    /* Exclude group attributes so they are managed indepently */
+    return TRUE;
+  }
+
+  /* Check that this attribute is not already in the message */
+
+  len = gst_sdp_message_attributes_len (answer);
+
+  for (i = 0; i < len; i++) {
+    const GstSDPAttribute *a;
+
+    a = gst_sdp_message_get_attribute (answer, i);
+
+    if (g_strcmp0 (attr->key, a->key) == 0 &&
+        g_strcmp0 (attr->value, a->value) == 0) {
+      return FALSE;
+    }
+  }
+
+  return gst_sdp_message_add_attribute (answer, attr->key,
+      attr->value) == GST_SDP_OK;
+}
+
+static GstSDPMessage *
+kms_sdp_agent_generate_answer (KmsSdpAgent * agent,
     const GstSDPMessage * offer, GError ** error)
 {
+  GstSDPMessage *answer = NULL;
   struct SdpAnswerData data;
-  SdpMessageContext *ctx;
-  gboolean bundle;
+  gboolean success = FALSE;
   GstSDPOrigin o;
-  GList *groups;
 
   kms_sdp_agent_origin_init (agent, &o, agent->priv->local.id,
       agent->priv->local.version);
 
-  groups = kms_sdp_group_manager_get_groups (agent->priv->group_manager);
-  bundle = g_list_length (groups) > 0;
-  g_list_free_full (groups, g_object_unref);
-
-  ctx = kms_sdp_message_context_new (error);
-  if (ctx == NULL) {
-    return NULL;
+  if (gst_sdp_message_new (&answer) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
+        "Can not allocate SDP answer");
+    goto end;
   }
 
-  if (!kms_sdp_message_context_set_origin (ctx, &o, error)) {
-    kms_sdp_message_context_unref (ctx);
-    return NULL;
+  if (!kms_sdp_agent_set_default_session_attributes (answer, error)) {
+    goto end;
   }
 
-  kms_sdp_message_context_set_type (ctx, KMS_SDP_ANSWER);
-
-  if (bundle
-      && !kms_sdp_message_context_parse_groups_from_offer (ctx, offer, error)) {
-    goto error;
+  if (!kms_sdp_agent_set_origin (answer, &o, error)) {
+    goto end;
   }
 
-  if (!kms_sdp_message_context_set_common_session_attributes (ctx, offer,
+  if (!sdp_utils_intersect_session_attributes (offer, intersect_session_attr,
+          answer)) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not interset session attributes");
+    goto end;
+  }
+
+  /* Execute pre-processing extensions */
+  if (!kms_sdp_agent_exec_answer_session_extensions (agent, offer, answer, TRUE,
           error)) {
-    goto error;
+    goto end;
   }
 
   data.agent = agent;
-  data.ctx = ctx;
+  data.answer = answer;
   data.err = error;
   data.offer = offer;
   data.index = 0;
 
-  if (sdp_utils_for_each_media (offer, (GstSDPMediaFunc) create_media_answer,
-          &data)) {
-    return ctx;
+  success = sdp_utils_for_each_media (offer,
+      (GstSDPMediaFunc) create_media_answer, &data);
+
+  /* Execute post-processing extensions */
+  if (!kms_sdp_agent_exec_answer_session_extensions (agent, offer, answer,
+          FALSE, error)) {
+    goto end;
   }
 
-error:
-  kms_sdp_message_context_unref (ctx);
+end:
 
-  return NULL;
+  if (!success && answer != NULL) {
+    gst_sdp_message_free (answer);
+    answer = NULL;
+  }
+
+  return answer;
 }
 
 static GstSDPMessage *
 kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
 {
-  SdpMessageContext *ctx = NULL;
   GstSDPMessage *answer = NULL;
 
   SDP_AGENT_LOCK (agent);
@@ -1706,15 +1745,10 @@ kms_sdp_agent_create_answer_impl (KmsSdpAgent * agent, GError ** error)
     generate_sdp_session_description (&agent->priv->local);
   }
 
-  ctx = kms_sdp_agent_generate_answer_compat (agent,
+  answer = kms_sdp_agent_generate_answer (agent,
       agent->priv->remote_description, error);
 
   SDP_AGENT_UNLOCK (agent);
-
-  if (ctx != NULL) {
-    answer = kms_sdp_message_context_pack (ctx, error);
-    kms_sdp_message_context_unref (ctx);
-  }
 
   return answer;
 }

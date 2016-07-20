@@ -356,16 +356,15 @@ static const gchar *sdp_offer_sctp_str = "v=0\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "t=2873397496 2873404696\r\n"
     "m=audio 9 RTP/AVP 0\r\n" "a=rtpmap:0 PCMU/8000\r\n" "a=sendonly\r\n"
-    "m=video 9 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n" "a=sendonly\r\n"
-    "m=application 9 DTLS/SCTP 5000 5001 5002\r\n"
-    "a=setup:actpass\r\n"
-    "a=sendonly\r\n"
-    "a=sctpmap:5000 webrtc-datachannel 1024\r\n"
-    "a=sctpmap:5001 bfcp 2\r\n"
-    "a=sctpmap:5002 t38 1\r\n"
+    "a=mid:audio0\r\n" "m=video 9 RTP/AVP 96\r\n" "a=rtpmap:96 VP8/90000\r\n"
+    "a=sendonly\r\n" "a=mid:video0\r\n"
+    "m=application 9 DTLS/SCTP 5000 5001 5002\r\n" "a=setup:actpass\r\n"
+    "a=sendonly\r\n" "a=sctpmap:5000 webrtc-datachannel 1024\r\n"
+    "a=sctpmap:5001 bfcp 2\r\n" "a=sctpmap:5002 t38 1\r\n"
     "a=webrtc-datachannel:5000 stream=1;label=\"channel 1\";subprotocol=\"chat\"\r\n"
     "a=webrtc-datachannel:5000 stream=2;label=\"channel 2\";subprotocol=\"file transfer\";max_retr=3\r\n"
-    "a=bfcp:5000 stream=2;label=\"channel 2\";subprotocol=\"file transfer\";max_retr=3\r\n";
+    "a=bfcp:5000 stream=2;label=\"channel 2\";subprotocol=\"file transfer\";max_retr=3\r\n"
+    "a=mid:application0\r\n";
 
 GST_START_TEST (sdp_agent_test_sctp_negotiation)
 {
@@ -3680,6 +3679,14 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
+  fail_if (!check_if_in_bundle_group (answer, "video0"));
+  fail_if (!check_if_in_bundle_group (answer, "audio0"));
+  fail_if (!check_if_in_bundle_group (answer, "application0"));
+
+  fail_if (check_if_media_is_removed (answer, 0));
+  fail_if (check_if_media_is_removed (answer, 1));
+  fail_if (check_if_media_is_removed (answer, 2));
+
   GST_DEBUG ("Remove offerer's audio stream");
   fail_if (!kms_sdp_agent_remove_proto_handler (offerer, rid));
 
@@ -3731,6 +3738,14 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
 
+  fail_if (!check_if_in_bundle_group (answer, "video0"));
+  fail_if (check_if_in_bundle_group (answer, "audio0"));
+  fail_if (!check_if_in_bundle_group (answer, "application0"));
+
+  fail_if (check_if_media_is_removed (answer, 0));
+  fail_if (!check_if_media_is_removed (answer, 1));
+  fail_if (check_if_media_is_removed (answer, 2));
+
   GST_DEBUG ("Removing application handler from offerer's group");
   fail_if (!kms_sdp_agent_group_remove (offerer, gid, id));
 
@@ -3779,6 +3794,14 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));
+
+  fail_if (!check_if_in_bundle_group (answer, "video0"));
+  fail_if (check_if_in_bundle_group (answer, "audio0"));
+  fail_if (check_if_in_bundle_group (answer, "application0"));
+
+  fail_if (check_if_media_is_removed (answer, 0));
+  fail_if (!check_if_media_is_removed (answer, 1));
+  fail_if (check_if_media_is_removed (answer, 2));
 
   /* We add a new media, this should re-use the slot used by audio0 */
   GST_DEBUG ("Adding a new audio media");
@@ -3833,6 +3856,14 @@ GST_START_TEST (sdp_agent_renegotiation_offer_remove_bundle_media)
   GST_DEBUG ("Answerer's answer:\n%s", (sdp_str =
           gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
+
+  fail_if (!check_if_in_bundle_group (answer, "video0"));
+  fail_if (check_if_in_bundle_group (answer, "audio0"));
+  fail_if (check_if_in_bundle_group (answer, "application0"));
+
+  fail_if (check_if_media_is_removed (answer, 0));
+  fail_if (check_if_media_is_removed (answer, 1));
+  fail_if (check_if_media_is_removed (answer, 2));
 
   fail_if (!kms_sdp_agent_set_remote_description (offerer, answer, &err));
   fail_if (!kms_sdp_agent_set_local_description (answerer, answer, &err));

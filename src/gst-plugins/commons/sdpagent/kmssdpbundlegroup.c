@@ -74,12 +74,8 @@ static gboolean
 kms_sdp_bundle_group_add_offer_attributes_impl (KmsSdpBaseGroup * self,
     GstSDPMessage * offer, GError ** error)
 {
-  if (gst_sdp_message_get_attribute_val (offer, "group") != NULL) {
-    /* FIXME: Old API still inserts group attributes, do not insert here */
-    /* until we remove it once and for all */
-    /* TODO: Check if group is bundle and if there are the same handlers in it */
-    return TRUE;
-  }
+  /* TODO: Check if there is any other bundle group and if there */
+  /* are the same handlers in it */
 
   return KMS_SDP_BASE_GROUP_CLASS (parent_class)->add_offer_attributes (self,
       offer, error);
