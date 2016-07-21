@@ -91,7 +91,7 @@ struct _KmsSdpAgentClass
   GObjectClass parent_class;
 
   /* methods */
-  gint (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
+  gint (*add_proto_handler) (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler, GError **error);
   gint (*get_handler_index) (KmsSdpAgent * agent, gint hid);
   GstSDPMessage *(*create_offer) (KmsSdpAgent * agent, GError **error);
   SdpMessageContext *(*create_answer) (KmsSdpAgent * agent, GError **error);
@@ -108,17 +108,17 @@ struct _KmsSdpAgentClass
 GType kms_sdp_agent_get_type ();
 
 KmsSdpAgent * kms_sdp_agent_new ();
-gint kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler);
-gboolean kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid);
+gint kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar *media, KmsSdpMediaHandler *handler, GError **error);
+gboolean kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid, GError **error);
 gint kms_sdp_agent_get_handler_index (KmsSdpAgent * agent, gint hid);
 SdpMessageContext * kms_sdp_agent_create_answer (KmsSdpAgent * agent, GError **error);
 gboolean kms_sdpagent_cancel_offer (KmsSdpAgent * agent, GError **error);
 GstSDPMessage * kms_sdp_agent_create_offer (KmsSdpAgent * agent, GError **error);
 gboolean kms_sdp_agent_set_local_description (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
 gboolean kms_sdp_agent_set_remote_description (KmsSdpAgent * agent, GstSDPMessage * description, GError **error);
-gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, const char *optname1, ...);
-gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid);
-gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid);
+gint kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type, GError **error, const char *optname1, ...);
+gboolean kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid, GError **error);
+gboolean kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid, GError **error);
 
 /* Deprecated begin */
 gint kms_sdp_agent_create_bundle_group (KmsSdpAgent * agent);
