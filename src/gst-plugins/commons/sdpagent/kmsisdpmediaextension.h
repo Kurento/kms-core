@@ -20,8 +20,6 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 
-#include "kmssdpcontext.h"
-
 G_BEGIN_DECLS
 
 #define KMS_TYPE_I_SDP_MEDIA_EXTENSION \

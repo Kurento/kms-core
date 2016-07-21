@@ -19,7 +19,6 @@
 #endif
 
 #include "kmsrefstruct.h"
-#include "kmssdpcontext.h"
 #include "kmssdpagent.h"
 #include "sdp_utils.h"
 #include "kmssdpagentcommon.h"
@@ -83,6 +82,12 @@ GST_DEBUG_CATEGORY_STATIC (kms_sdp_agent_debug_category);
  *     set_remote_description()  +--------------+
  *
  */
+
+typedef enum
+{
+  IPV4,
+  IPV6
+} SdpIPv;
 
 static const gchar *kms_sdp_agent_states[] = {
   "unnegotiated",
@@ -185,6 +190,19 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpAgent, kms_sdp_agent,
     G_TYPE_OBJECT,
     GST_DEBUG_CATEGORY_INIT (kms_sdp_agent_debug_category, PLUGIN_NAME,
         0, "debug category for sdp agent"));
+
+const gchar *
+ipv2str (SdpIPv ipv)
+{
+  switch (ipv) {
+    case IPV4:
+      return ORIGIN_ATTR_ADDR_TYPE_IP4;
+    case IPV6:
+      return ORIGIN_ATTR_ADDR_TYPE_IP6;
+    default:
+      return NULL;
+  }
+}
 
 static guint64
 get_ntp_time ()
@@ -479,7 +497,7 @@ kms_sdp_agent_origin_init (KmsSdpAgent * agent, GstSDPOrigin * o,
   o->sess_id = sess_id;
   o->sess_version = sess_version;
   o->nettype = "IN";
-  o->addrtype = (gchar *) kms_sdp_message_context_ipv2str (ipv);
+  o->addrtype = (gchar *) ipv2str (ipv);
   o->addr = agent->priv->addr;
 }
 

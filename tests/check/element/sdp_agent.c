@@ -2813,34 +2813,29 @@ static gchar *sdp_first_media_inactive = "v=0\r\n"
     "a=mid:audio0\r\n"
     "m=video 1 RTP/SAVPF 97\r\n" "a=rtpmap:97 VP8/90000\r\n" "a=mid:video0\r\n";
 
-GST_START_TEST (sdp_context_from_first_media_inactive)
+GST_START_TEST (sdp_media_from_first_media_inactive)
 {
   GstSDPMessage *sdp;
-  SdpMessageContext *ctx;
-  const GSList *item;
-  guint i;
-  GError *err = NULL;
+  guint i, len;
 
   fail_unless (gst_sdp_message_new (&sdp) == GST_SDP_OK);
   fail_unless (gst_sdp_message_parse_buffer ((const guint8 *)
           sdp_first_media_inactive, -1, sdp) == GST_SDP_OK);
-  ctx = kms_sdp_message_context_new_from_sdp (sdp, &err);
-  gst_sdp_message_free (sdp);
-  fail_if (err != NULL);
 
-  i = 0;
-  item = kms_sdp_message_context_get_medias (ctx);
-  for (; item != NULL; item = g_slist_next (item)) {
-    SdpMediaConfig *mconf = item->data;
+  len = gst_sdp_message_medias_len (sdp);
+  for (i = 0; i < len; i++) {
+    const GstSDPMedia *media = gst_sdp_message_get_media (sdp, i);
 
-    if (kms_sdp_media_config_is_inactive (mconf)) {
+    fail_if (media == NULL);
+
+    if (sdp_utils_media_is_inactive (media)) {
       fail_if (i != 0);
     }
 
     i++;
   }
 
-  kms_sdp_message_context_unref (ctx);
+  gst_sdp_message_free (sdp);
 }
 
 GST_END_TEST;
@@ -5708,7 +5703,7 @@ sdp_agent_suite (void)
   tcase_add_test (tc_chain, sdp_agent_redundant_ext);
   tcase_add_test (tc_chain, sdp_agent_media_direction_ext);
 
-  tcase_add_test (tc_chain, sdp_context_from_first_media_inactive);
+  tcase_add_test (tc_chain, sdp_media_from_first_media_inactive);
 
   tcase_add_test (tc_chain, sdp_agent_renegotiation_offer_new_media);
   tcase_add_test (tc_chain, sdp_agent_renegotiation_offer_remove_media);

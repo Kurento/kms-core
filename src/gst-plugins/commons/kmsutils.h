@@ -20,7 +20,6 @@
 #include "gst/gst.h"
 #include "kmsmediatype.h"
 #include "kmselementpadtype.h"
-#include "sdpagent/kmssdpcontext.h"
 
 G_BEGIN_DECLS
 
@@ -78,9 +77,6 @@ GstClockTime kms_utils_remb_event_manager_get_clear_interval (RembEventManager *
 
 /* time */
 GstClockTime kms_utils_get_time_nsecs ();
-
-/* RTP connection */
-gchar * kms_utils_create_connection_name_from_media_config (SdpMediaConfig * mconf);
 
 gboolean kms_utils_contains_proto (const gchar *search_term, const gchar *proto);
 const GstStructure * kms_utils_get_structure_by_name (const GstStructure *str, const gchar *name);

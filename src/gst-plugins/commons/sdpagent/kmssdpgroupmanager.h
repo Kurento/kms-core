@@ -21,7 +21,6 @@
 #include <gst/gst.h>
 #include <gst/sdp/gstsdpmessage.h>
 
-#include "kmssdpcontext.h"
 #include "kmsisdpmediaextension.h"
 #include "kmssdpbasegroup.h"
 

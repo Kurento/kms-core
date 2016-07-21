@@ -6,7 +6,6 @@ include_directories(
 set(KMS_SDP_AGENT_SOURCES
   kmssdpagentcommon.c
   kmssdpagent.c
-  kmssdpcontext.c
   kmssdpmediahandler.c
   kmssdprtpmediahandler.c
   kmssdprtpavpfmediahandler.c
@@ -37,7 +36,6 @@ set(KMS_SDP_AGENT_ENUM_HEADERS
 set(KMS_SDP_AGENT_HEADERS
   kmssdpagentcommon.h
   kmssdpagent.h
-  kmssdpcontext.h
   kmssdpmediahandler.h
   kmssdprtpmediahandler.h
   kmssdprtpavpfmediahandler.h
@@ -74,7 +72,7 @@ add_glib_marshal(KMS_SDP_AGENT_SOURCES KMS_SDP_AGENT_HEADERS kms-sdp-agent-marsh
 
 add_library(kmssdpagent SHARED ${KMS_SDP_AGENT_SOURCES} ${KMS_SDP_AGENT_HEADERS})
 
-add_dependencies(kmssdpagent kmsutils sdputils kmsrefstruct)
+add_dependencies(kmssdpagent sdputils kmsrefstruct)
 
 set_target_properties(kmssdpagent PROPERTIES PUBLIC_HEADER "${KMS_SDP_AGENT_HEADERS}")
 
