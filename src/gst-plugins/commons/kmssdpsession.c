@@ -54,23 +54,30 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
   offer = kms_sdp_agent_create_offer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
-    goto end;
+    goto error;
   }
 
   kms_sdp_agent_set_local_description (self->agent, offer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
-    goto end;
+    goto error;
   }
 
   if (gst_sdp_message_copy (offer, &self->local_sdp) != GST_SDP_OK) {
     GST_ERROR_OBJECT (self, "Error generating offer (%s)", err->message);
+    goto error;
   }
 
-end:
+  return offer;
+
+error:
   g_clear_error (&err);
 
-  return offer;
+  if (offer != NULL) {
+    gst_sdp_message_free (offer);
+  }
+
+  return NULL;
 }
 
 GstSDPMessage *
@@ -89,26 +96,26 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
 
   if (gst_sdp_message_copy (offer, &copy) != GST_SDP_OK) {
     GST_ERROR_OBJECT (self, "Error processing offer (Cannot copy SDP offer)");
-    goto end;
+    goto error;
   }
 
   kms_sdp_agent_set_remote_description (self->agent, copy, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    goto end;
+    goto error;
   }
 
   answer = kms_sdp_agent_create_answer (self->agent, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    goto end;
+    goto error;
   }
 
   /* inmediate-TODO: review: a copy of answer? */
   kms_sdp_agent_set_local_description (self->agent, answer, &err);
   if (err != NULL) {
     GST_ERROR_OBJECT (self, "Error processing offer (%s)", err->message);
-    goto end;
+    goto error;
   }
 
   if (self->local_sdp != NULL) {
@@ -121,10 +128,16 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   }
   gst_sdp_message_copy (self->local_sdp, &self->neg_sdp);
 
-end:
+  return answer;
+
+error:
   g_clear_error (&err);
 
-  return answer;
+  if (answer != NULL) {
+    gst_sdp_message_free (answer);
+  }
+
+  return NULL;
 }
 
 gboolean
