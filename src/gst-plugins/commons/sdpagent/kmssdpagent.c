@@ -576,21 +576,26 @@ kms_sdp_agent_create_media_handler (KmsSdpAgent * agent, const gchar * media,
 
 static gint
 kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
-    KmsSdpMediaHandler * handler, GError ** err)
+    KmsSdpMediaHandler * handler)
 {
+  GError *err = NULL;
   SdpHandler *sdp_handler;
   const gchar *addr_type;
 
   sdp_handler = kms_sdp_agent_create_media_handler (agent, media, handler);
 
-  if (!kms_sdp_media_handler_set_parent (handler, agent, err)) {
+  if (!kms_sdp_media_handler_set_parent (handler, agent, &err)) {
+    GST_WARNING_OBJECT (agent, "%s", err->message);
     kms_sdp_agent_remove_media_handler (agent, sdp_handler);
+    g_error_free (err);
     return -1;
   }
 
-  if (!kms_sdp_media_handler_set_id (handler, sdp_handler->sdph->id, err)) {
+  if (!kms_sdp_media_handler_set_id (handler, sdp_handler->sdph->id, &err)) {
+    GST_WARNING_OBJECT (agent, "%s", err->message);
     kms_sdp_agent_remove_media_handler (agent, sdp_handler);
     kms_sdp_media_handler_remove_parent (handler);
+    g_error_free (err);
     return -1;
   }
 
@@ -610,7 +615,7 @@ kms_sdp_agent_append_media_handler (KmsSdpAgent * agent, const gchar * media,
 
 static gint
 kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
-    KmsSdpMediaHandler * handler, GError ** error)
+    KmsSdpMediaHandler * handler)
 {
   gchar *proto;
   gint id = -1;
@@ -629,13 +634,13 @@ kms_sdp_agent_add_proto_handler_impl (KmsSdpAgent * agent, const gchar * media,
   if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
     SDP_AGENT_UNLOCK (agent);
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Can not manipulate SDP in state '%s'",
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place (state: %s)",
         kms_sdp_agent_states[agent->priv->state]);
     return -1;
   }
 
-  id = kms_sdp_agent_append_media_handler (agent, media, handler, error);
+  id = kms_sdp_agent_append_media_handler (agent, media, handler);
 
   SDP_AGENT_UNLOCK (agent);
 
@@ -700,8 +705,7 @@ end:
 }
 
 gboolean
-kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid,
-    GError ** error)
+kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid)
 {
   SdpHandler *sdp_handler;
   gboolean ret = TRUE;
@@ -711,17 +715,14 @@ kms_sdp_agent_remove_proto_handler (KmsSdpAgent * agent, gint hid,
   if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
     SDP_AGENT_UNLOCK (agent);
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Can not manipulate SDP in state '%s'",
-        kms_sdp_agent_states[agent->priv->state]);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
     return FALSE;
   }
 
   sdp_handler = kms_sdp_agent_get_handler (agent, hid);
 
   if (sdp_handler == NULL) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "Can not remove media handler. Handler (%d) not found", hid);
     ret = FALSE;
     goto end;
   }
@@ -1343,7 +1344,6 @@ static SdpHandler *
 kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
 {
   KmsSdpMediaHandler *handler;
-  GError *err = NULL;
   gchar *proto;
   gint hid;
 
@@ -1377,12 +1377,10 @@ kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
   }
 
   hid = kms_sdp_agent_append_media_handler (agent,
-      gst_sdp_media_get_media (media), handler, &err);
+      gst_sdp_media_get_media (media), handler);
 
   if (hid < 0) {
-    GST_ERROR_OBJECT (agent, "Error: %s", err->message);
     g_object_unref (handler);
-    g_error_free (err);
     return NULL;
   } else {
     return kms_sdp_agent_get_handler (agent, hid);
@@ -2301,12 +2299,12 @@ kms_sdp_agent_new ()
 /* TODO: rename to _add_media_handler */
 gint
 kms_sdp_agent_add_proto_handler (KmsSdpAgent * agent, const gchar * media,
-    KmsSdpMediaHandler * handler, GError ** error)
+    KmsSdpMediaHandler * handler)
 {
   g_return_val_if_fail (KMS_IS_SDP_AGENT (agent), -1);
 
   return KMS_SDP_AGENT_GET_CLASS (agent)->add_proto_handler (agent, media,
-      handler, error);
+      handler);
 }
 
 GstSDPMessage *
@@ -2431,7 +2429,7 @@ kms_sdp_agent_set_callbacks (KmsSdpAgent * agent,
 
 gint
 kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
-    GError ** error, const char *optname1, ...)
+    const char *optname1, ...)
 {
   gboolean failed;
   gpointer obj;
@@ -2443,8 +2441,7 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
   va_end (ap);
 
   if (!KMS_IS_SDP_BASE_GROUP (obj)) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_INVALID_PARAMETER, "Trying to create an invalid group");
+    GST_WARNING_OBJECT (agent, "Trying to create an invalid group");
     g_object_unref (obj);
     return -1;
   }
@@ -2455,9 +2452,8 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
     SDP_AGENT_UNLOCK (agent);
     g_object_unref (obj);
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Can not manipulate SDP in state '%s'",
-        kms_sdp_agent_states[agent->priv->state]);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
     return -1;
   }
 
@@ -2477,8 +2473,7 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
   SDP_AGENT_UNLOCK (agent);
 
   if (failed) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_UNEXPECTED_ERROR, "Can not create group");
+    GST_WARNING_OBJECT (agent, "Can not create group");
     g_object_unref (obj);
     return -1;
   }
@@ -2487,8 +2482,7 @@ kms_sdp_agent_create_group (KmsSdpAgent * agent, GType group_type,
 }
 
 gboolean
-kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid,
-    GError ** error)
+kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid)
 {
   gboolean ret = FALSE;
 
@@ -2496,19 +2490,13 @@ kms_sdp_agent_group_add (KmsSdpAgent * agent, guint gid, guint hid,
 
   if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Can not manipulate SDP in state '%s'",
-        kms_sdp_agent_states[agent->priv->state]);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
     goto end;
   }
 
   ret = kms_sdp_group_manager_add_handler_to_group (agent->priv->group_manager,
       gid, hid);
-
-  if (!ret) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not add handler");
-  }
 
 end:
   SDP_AGENT_UNLOCK (agent);
@@ -2517,8 +2505,7 @@ end:
 }
 
 gboolean
-kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid,
-    GError ** error)
+kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid)
 {
   gboolean ret = FALSE;
 
@@ -2526,20 +2513,14 @@ kms_sdp_agent_group_remove (KmsSdpAgent * agent, guint gid, guint hid,
 
   if (agent->priv->state != KMS_SDP_AGENT_STATE_UNNEGOTIATED &&
       agent->priv->state != KMS_SDP_AGENT_STATE_NEGOTIATED) {
-    g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_STATE,
-        "Can not manipulate SDP in state '%s'",
-        kms_sdp_agent_states[agent->priv->state]);
+    GST_WARNING_OBJECT (agent,
+        "Can not manipulate media while negotiation is taking place");
     goto end;
   }
 
   ret =
       kms_sdp_group_manager_remove_handler_from_group (agent->
       priv->group_manager, gid, hid);
-
-  if (!ret) {
-    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_INVALID_PARAMETER, "Handler not found");
-  }
 
 end:
   SDP_AGENT_UNLOCK (agent);

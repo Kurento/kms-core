@@ -328,7 +328,6 @@ kms_base_sdp_endpoint_add_handler (KmsBaseSdpEndpoint * self,
     guint max_recv_bw)
 {
   KmsSdpMediaHandler *handler = NULL;
-  GError *err = NULL;
   gint hid;
 
   kms_base_sdp_endpoint_create_media_handler (self, sess, media, &handler);
@@ -339,22 +338,20 @@ kms_base_sdp_endpoint_add_handler (KmsBaseSdpEndpoint * self,
     return FALSE;
   }
 
-  hid = kms_sdp_agent_add_proto_handler (sess->agent, media, handler, &err);
+  hid = kms_sdp_agent_add_proto_handler (sess->agent, media, handler);
   if (hid < 0) {
     GST_ERROR_OBJECT (self,
-        "Error adding handler in session '%" G_GINT32_FORMAT "': %s",
-        sess->id, err->message);
+        "Cannot add media handler for session '%" G_GINT32_FORMAT "'",
+        sess->id);
     g_object_unref (handler);
-    g_error_free (err);
     return FALSE;
   }
 
   if (bundle_group_id != -1) {
-    if (!kms_sdp_agent_group_add (sess->agent, bundle_group_id, hid, &err)) {
+    if (!kms_sdp_agent_group_add (sess->agent, bundle_group_id, hid)) {
       GST_ERROR_OBJECT (self,
-          "Error adding handler to bundle group for session '%" G_GINT32_FORMAT
-          "': %s", sess->id, err->message);
-      g_error_free (err);
+          "Cannot add handler to bundle group for session '%" G_GINT32_FORMAT
+          "'", sess->id);
       return FALSE;
     }
   }
@@ -370,17 +367,15 @@ static gboolean
 kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
     KmsSdpSession * sess)
 {
-  GError *err = NULL;
   gint gid;
   int i;
 
   gid = -1;
   if (self->priv->bundle) {
     gid = kms_sdp_agent_create_group (sess->agent, KMS_TYPE_SDP_BUNDLE_GROUP,
-        &err, NULL);
+        NULL);
     if (gid < 0) {
-      GST_ERROR_OBJECT (self, "Error: %s.", err->message);
-      g_error_free (err);
+      GST_ERROR_OBJECT (self, "Cannot create bundle group.");
       return FALSE;
     }
   }
