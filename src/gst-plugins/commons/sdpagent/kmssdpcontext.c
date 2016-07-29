@@ -648,7 +648,6 @@ copy_session_attributes (SdpMessageContext * ctx, const GstSDPMessage * msg,
     GError ** error)
 {
   const GstSDPOrigin *o1;
-  const GstSDPConnection *conn;
   const gchar *s;
 
   o1 = gst_sdp_message_get_origin (msg);
@@ -668,10 +667,6 @@ copy_session_attributes (SdpMessageContext * ctx, const GstSDPMessage * msg,
         SDP_AGENT_INVALID_PARAMETER, "Can not set session name");
     return FALSE;
   }
-
-  conn = gst_sdp_message_get_connection (msg);
-  gst_sdp_message_set_connection (ctx->msg, conn->nettype, conn->addrtype,
-      conn->address, conn->ttl, conn->addr_number);
 
   if (!sdp_utils_intersect_session_attributes (msg, intersect_session_attr,
           ctx)) {
@@ -766,6 +761,13 @@ kms_sdp_message_context_set_origin (SdpMessageContext * ctx,
           origin->addr) != GST_SDP_OK) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
         SDP_AGENT_INVALID_PARAMETER, "Can not set attr: origin");
+    return FALSE;
+  }
+
+  if (gst_sdp_message_set_connection (ctx->msg, origin->nettype,
+          origin->addrtype, origin->addr, 0, 0) != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
+        SDP_AGENT_INVALID_PARAMETER, "Can not set attr: connection");
     return FALSE;
   }
 
