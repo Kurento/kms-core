@@ -1815,7 +1815,7 @@ init_timestamp_stats_file (KmsBaseRtpEndpoint * self)
     GST_ERROR_OBJECT (self, "Stats file cannot be created");
   } else {
     g_fprintf (self->priv->stats_file,
-        "SSRC,CLOCK_RATE,PTS,DTS,RTP,NTP_SR,RTP_SR\n");
+        "SSRC,CLOCK_RATE,PTS_ORIG,PTS,DTS,RTP,NTP_SR,RTP_SR\n");
   }
 
 init_error:
@@ -1950,6 +1950,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
       SsrcSyncData *sync_data;
       guint32 clock_rate;
       guint64 last_sr_ntp_ns_time, last_sr_ext_ts;
+      GstClockTime pts_orig;
 
       if (g_once_init_enter (&self->priv->init_stats)) {
         init_timestamp_stats_file (self);
@@ -1970,6 +1971,7 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 
       gst_rtp_buffer_ext_timestamp (&sync_data->ext_ts, rtp_time);
 
+      pts_orig = GST_BUFFER_PTS (buff);
       if (self->priv->base_sync_time != 0 && sync_data->last_sr_ext_ts != 0) {
         // Perform bufffer synchronization
         buff = gst_buffer_make_writable (buff);
@@ -1989,9 +1991,9 @@ timestamps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
         g_fprintf (self->priv->stats_file,
             "%" G_GUINT32_FORMAT ",%" G_GUINT32_FORMAT ",%" G_GUINT64_FORMAT
             ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT
-            ",%" G_GUINT64_FORMAT "\n", ssrc, clock_rate, GST_BUFFER_PTS (buff),
-            GST_BUFFER_DTS (buff), sync_data->ext_ts, last_sr_ntp_ns_time,
-            last_sr_ext_ts);
+            ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT "\n", ssrc, clock_rate,
+            pts_orig, GST_BUFFER_PTS (buff), GST_BUFFER_DTS (buff),
+            sync_data->ext_ts, last_sr_ntp_ns_time, last_sr_ext_ts);
       }
 
       gst_rtp_buffer_unmap (&rtp);
