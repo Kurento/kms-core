@@ -391,7 +391,7 @@ change_input_cb (gpointer pipeline)
       pipeline, NULL);
   // HACK: Sending a dummy event to ensure the block probe is called
   gst_pad_send_event (sink,
-      gst_event_new_custom (GST_EVENT_TYPE_DOWNSTREAM,
+      gst_event_new_custom (GST_EVENT_CUSTOM_DOWNSTREAM,
           gst_structure_new_from_string ("dummy")));
 
   g_object_unref (agnosticbin2);
