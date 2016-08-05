@@ -105,7 +105,7 @@ kms_rtp_synchronizer_new (KmsRtpSyncContext * context)
   } else {
     GST_WARNING_OBJECT (self,
         "No context provided, creating new one. This syncrhonizer cannot be synced with others.");
-    self->priv->context = kms_rtp_sync_context_new ();
+    self->priv->context = kms_rtp_sync_context_new (NULL);
   }
 
   return self;

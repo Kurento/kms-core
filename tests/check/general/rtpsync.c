@@ -66,7 +66,7 @@ GST_START_TEST (test_sync_context)
   KmsRtpSyncContext *ctx;
   GstClockTime ntp_ns_time_out, running_time_out;
 
-  ctx = kms_rtp_sync_context_new ();
+  ctx = kms_rtp_sync_context_new (NULL);
 
   kms_rtp_sync_context_get_time_matching (ctx, 0, 0, &ntp_ns_time_out,
       &running_time_out);
@@ -252,7 +252,7 @@ GST_START_TEST (test_sync_two_streams)
   GstBuffer *buf;
   guint64 ntptime;
 
-  ctx = kms_rtp_sync_context_new ();
+  ctx = kms_rtp_sync_context_new (NULL);
   sync_audio = kms_rtp_synchronizer_new (ctx);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_audio, 0, 8000,
           NULL));

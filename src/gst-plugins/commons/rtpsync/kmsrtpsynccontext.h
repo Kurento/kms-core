@@ -79,12 +79,22 @@ struct _KmsRtpSyncContextClass
 
 GType kms_rtp_sync_context_get_type ();
 
-KmsRtpSyncContext * kms_rtp_sync_context_new ();
+KmsRtpSyncContext * kms_rtp_sync_context_new (const gchar * stats_file_suffix_name);
 void kms_rtp_sync_context_get_time_matching (KmsRtpSyncContext * self,
                                              GstClockTime ntp_ns_time_in,
                                              GstClockTime sync_time_in,
                                              GstClockTime * ntp_ns_time_out,
                                              GstClockTime * sync_time_out);
+
+gboolean kms_rtp_sync_context_write_stats (KmsRtpSyncContext * self,
+                                           guint32 ssrc,
+                                           guint32 clock_rate,
+                                           guint64 pts_orig,
+                                           guint64 pts,
+                                           guint64 dts,
+                                           guint64 ext_ts,
+                                           guint64 last_sr_ntp_ns_time,
+                                           guint64 last_sr_ext_ts);
 
 G_END_DECLS
 
