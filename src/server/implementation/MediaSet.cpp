@@ -166,8 +166,7 @@ MediaSet::~MediaSet ()
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if (!objectsMap.empty() ) {
-    std::cerr << "Warning: Still " + std::to_string (objectsMap.size() ) +
-              " object/s alive" << std::endl;
+    GST_DEBUG ("Still %lu object/s alive", objectsMap.size() );
   }
 
   terminated = true;
