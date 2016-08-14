@@ -88,6 +88,29 @@ kms_recording_profile_create_mp4_profile (gboolean has_audio,
 }
 
 static GstEncodingContainerProfile *
+kms_recording_profile_create_jpeg_profile (gboolean has_audio,
+    gboolean has_video)
+{
+  GstEncodingContainerProfile *cprof;
+  GstCaps *pc;
+
+  pc = gst_caps_from_string ("image/jpeg");
+  cprof = gst_encoding_container_profile_new ("jpeg", NULL, pc, NULL);
+  gst_caps_unref (pc);
+
+  if (has_video) {
+    GstCaps *vc = gst_caps_from_string ("image/jpeg");
+
+    gst_encoding_container_profile_add_profile (cprof, (GstEncodingProfile *)
+        gst_encoding_video_profile_new (vc, NULL, NULL, 0));
+
+    gst_caps_unref (vc);
+  }
+
+  return cprof;
+}
+
+static GstEncodingContainerProfile *
 kms_recording_profile_create_ksr_profile (gboolean has_audio,
     gboolean has_video)
 {
@@ -155,6 +178,8 @@ kms_recording_profile_create_profile (KmsRecordingProfile profile,
       return kms_recording_profile_create_mp4_profile (has_audio, FALSE);
     case KMS_RECORDING_PROFILE_KSR:
       return kms_recording_profile_create_ksr_profile (has_audio, has_video);
+    case KMS_RECORDING_PROFILE_JPEG:
+      return kms_recording_profile_create_jpeg_profile (has_audio, has_video);
     default:
       GST_WARNING ("Invalid recording profile");
       return NULL;
@@ -182,6 +207,8 @@ kms_recording_profile_supports_type (KmsRecordingProfile profile,
       return type == KMS_ELEMENT_PAD_TYPE_AUDIO;
     case KMS_RECORDING_PROFILE_KSR:
       return TRUE;
+    case KMS_RECORDING_PROFILE_JPEG:
+      return type == KMS_ELEMENT_PAD_TYPE_VIDEO;
     default:
       return FALSE;
   }
