@@ -121,6 +121,34 @@ UriEndpointImpl::getUri ()
   return uri;
 }
 
+std::shared_ptr<UriEndpointState>
+UriEndpointImpl::getState ()
+{
+  KmsUriEndPointState state;
+  UriEndpointState::type type;
+
+  g_object_get (G_OBJECT (getGstreamerElement() ), "state",
+                &state, NULL);
+
+  switch (state) {
+  case KMS_URI_END_POINT_STATE_STOP:
+    type = UriEndpointState::type::STOP;
+    break;
+
+  case KMS_URI_END_POINT_STATE_START:
+    type = UriEndpointState::type::START;
+    break;
+
+  case KMS_URI_END_POINT_STATE_PAUSE:
+    type = UriEndpointState::type::PAUSE;
+    break;
+  }
+
+  std::shared_ptr<UriEndpointState> uriState (new UriEndpointState (type) );
+
+  return uriState;
+}
+
 UriEndpointImpl::StaticConstructor UriEndpointImpl::staticConstructor;
 
 UriEndpointImpl::StaticConstructor::StaticConstructor()

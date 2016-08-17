@@ -304,6 +304,12 @@
           "doc": "The uri for this endpoint.",
           "type": "String",
           "final": true
+        },
+        {
+          "name": "state",
+          "doc" : "State of the endpoint",
+          "type": "UriEndpointState",
+          "readOnly": true
         }
       ],
       "methods": [
@@ -859,6 +865,16 @@
     }
   ],
   "complexTypes": [
+    {
+      "typeFormat": "ENUM",
+      "values": [
+        "STOP",
+        "START",
+        "PAUSE"
+      ],
+      "name": "UriEndpointState",
+      "doc": "State of the endpoint"
+    },
     {
       "typeFormat": "REGISTER",
       "name": "ServerInfo",

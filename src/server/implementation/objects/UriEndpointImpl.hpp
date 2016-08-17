@@ -19,6 +19,7 @@
 
 #include "EndpointImpl.hpp"
 #include "UriEndpoint.hpp"
+#include <UriEndpointState.hpp>
 #include <EventHandler.hpp>
 
 namespace kurento
@@ -44,6 +45,7 @@ public:
   void stop () override;
 
   virtual std::string getUri () override;
+  virtual std::shared_ptr<UriEndpointState> getState () override;
 
   /* Next methods are automatically implemented by code generator */
   using EndpointImpl::connect;
