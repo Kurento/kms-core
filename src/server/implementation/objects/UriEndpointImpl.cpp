@@ -20,6 +20,7 @@
 #include <KurentoException.hpp>
 #include <gst/gst.h>
 #include <boost/regex.hpp>
+#include "kmsuriendpointstate.h"
 
 #define GST_CAT_DEFAULT kurento_uri_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -30,12 +31,6 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 namespace kurento
 {
-
-typedef enum {
-  KMS_URI_END_POINT_STATE_STOP,
-  KMS_URI_END_POINT_STATE_START,
-  KMS_URI_END_POINT_STATE_PAUSE
-} KmsUriEndPointState;
 
 void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 {
@@ -99,20 +94,20 @@ UriEndpointImpl::UriEndpointImpl (const boost::property_tree::ptree &config,
 void UriEndpointImpl::pause ()
 {
   g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_END_POINT_STATE_PAUSE, NULL);
+                KMS_URI_ENDPOINT_STATE_PAUSE, NULL);
 }
 
 void UriEndpointImpl::stop ()
 {
   g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_END_POINT_STATE_STOP, NULL);
+                KMS_URI_ENDPOINT_STATE_STOP, NULL);
 }
 
 void
 UriEndpointImpl::start ()
 {
   g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_END_POINT_STATE_START, NULL);
+                KMS_URI_ENDPOINT_STATE_START, NULL);
 }
 
 std::string
@@ -124,22 +119,22 @@ UriEndpointImpl::getUri ()
 std::shared_ptr<UriEndpointState>
 UriEndpointImpl::getState ()
 {
-  KmsUriEndPointState state;
+  KmsUriEndpointState state;
   UriEndpointState::type type;
 
   g_object_get (G_OBJECT (getGstreamerElement() ), "state",
                 &state, NULL);
 
   switch (state) {
-  case KMS_URI_END_POINT_STATE_STOP:
+  case KMS_URI_ENDPOINT_STATE_STOP:
     type = UriEndpointState::type::STOP;
     break;
 
-  case KMS_URI_END_POINT_STATE_START:
+  case KMS_URI_ENDPOINT_STATE_START:
     type = UriEndpointState::type::START;
     break;
 
-  case KMS_URI_END_POINT_STATE_PAUSE:
+  case KMS_URI_ENDPOINT_STATE_PAUSE:
     type = UriEndpointState::type::PAUSE;
     break;
   }
