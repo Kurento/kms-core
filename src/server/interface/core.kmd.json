@@ -323,6 +323,9 @@
           "doc": "Stops the feed",
           "params": []
         }
+      ],
+      "events": [
+        "UriEndpointStateChanged"
       ]
     },
     {
@@ -2089,6 +2092,18 @@
           "name": "sinkMediaDescription",
           "doc": "Description of the sink media",
           "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "UriEndpointStateChanged",
+      "extends": "Media",
+      "doc": "Indicates the new state of the endpoint",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "the new state",
+          "type": "UriEndpointState"
         }
       ]
     }

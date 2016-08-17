@@ -21,6 +21,7 @@
 #include <gst/gst.h>
 #include <boost/regex.hpp>
 #include "kmsuriendpointstate.h"
+#include <SignalHandler.hpp>
 
 #define GST_CAT_DEFAULT kurento_uri_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -79,16 +80,67 @@ void UriEndpointImpl::checkUri ()
   removeDuplicateSlashes (this->absolute_uri);
 }
 
+void
+UriEndpointImpl::postConstructor ()
+{
+  EndpointImpl::postConstructor ();
+
+  stateChangedHandlerId = register_signal_handler (G_OBJECT (element),
+                          "state-changed",
+                          std::function <void (GstElement *, guint) > (std::bind (
+                                &UriEndpointImpl::stateChanged, this,
+                                std::placeholders::_2) ),
+                          std::dynamic_pointer_cast<UriEndpointImpl> (shared_from_this() ) );
+}
+
+static std::shared_ptr<UriEndpointState>
+wrap_c_state (KmsUriEndpointState state)
+{
+  UriEndpointState::type type;
+
+  switch (state) {
+  case KMS_URI_ENDPOINT_STATE_STOP:
+    type = UriEndpointState::type::STOP;
+    break;
+
+  case KMS_URI_ENDPOINT_STATE_START:
+    type = UriEndpointState::type::START;
+    break;
+
+  case KMS_URI_ENDPOINT_STATE_PAUSE:
+    type = UriEndpointState::type::PAUSE;
+    break;
+  }
+
+  std::shared_ptr<UriEndpointState> uriState (new UriEndpointState (type) );
+
+  return uriState;
+}
+
 UriEndpointImpl::UriEndpointImpl (const boost::property_tree::ptree &config,
                                   std::shared_ptr< MediaObjectImpl > parent,
                                   const std::string &factoryName, const std::string &uri) :
   EndpointImpl (config, parent, factoryName)
 {
+  KmsUriEndpointState uriState;
+
   this->uri = uri;
   checkUri();
   g_object_set (G_OBJECT (getGstreamerElement() ), "uri",
                 this->absolute_uri.c_str(),
                 NULL);
+
+  g_object_get (G_OBJECT (getGstreamerElement() ), "state",
+                &uriState, NULL);
+
+  state = wrap_c_state (uriState);
+}
+
+UriEndpointImpl::~UriEndpointImpl ()
+{
+  if (stateChangedHandlerId > 0) {
+    unregister_signal_handler (element, stateChangedHandlerId);
+  }
 }
 
 void UriEndpointImpl::pause ()
@@ -119,29 +171,17 @@ UriEndpointImpl::getUri ()
 std::shared_ptr<UriEndpointState>
 UriEndpointImpl::getState ()
 {
-  KmsUriEndpointState state;
-  UriEndpointState::type type;
+  return state;
+}
 
-  g_object_get (G_OBJECT (getGstreamerElement() ), "state",
-                &state, NULL);
+void
+UriEndpointImpl::stateChanged (guint new_state)
+{
+  state = wrap_c_state ( (KmsUriEndpointState) new_state);
 
-  switch (state) {
-  case KMS_URI_ENDPOINT_STATE_STOP:
-    type = UriEndpointState::type::STOP;
-    break;
-
-  case KMS_URI_ENDPOINT_STATE_START:
-    type = UriEndpointState::type::START;
-    break;
-
-  case KMS_URI_ENDPOINT_STATE_PAUSE:
-    type = UriEndpointState::type::PAUSE;
-    break;
-  }
-
-  std::shared_ptr<UriEndpointState> uriState (new UriEndpointState (type) );
-
-  return uriState;
+  UriEndpointStateChanged event (shared_from_this(),
+                                 UriEndpointStateChanged::getName(), state);
+  signalUriEndpointStateChanged (event);
 }
 
 UriEndpointImpl::StaticConstructor UriEndpointImpl::staticConstructor;

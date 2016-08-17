@@ -20,6 +20,7 @@
 #include "EndpointImpl.hpp"
 #include "UriEndpoint.hpp"
 #include <UriEndpointState.hpp>
+#include <UriEndpointStateChanged.hpp>
 #include <EventHandler.hpp>
 
 namespace kurento
@@ -39,13 +40,15 @@ public:
                    std::shared_ptr< MediaObjectImpl > parent,
                    const std::string &factoryName, const std::string &uri);
 
-  virtual ~UriEndpointImpl () {};
+  virtual ~UriEndpointImpl ();
 
   void pause () override;
   void stop () override;
 
   virtual std::string getUri () override;
   virtual std::shared_ptr<UriEndpointState> getState () override;
+
+  sigc::signal<void, UriEndpointStateChanged> signalUriEndpointStateChanged;
 
   /* Next methods are automatically implemented by code generator */
   using EndpointImpl::connect;
@@ -61,14 +64,18 @@ public:
 protected:
 
   void start ();
+  virtual void postConstructor () override;
 
 private:
 
   std::string uri;
   std::string absolute_uri;
+  gulong stateChangedHandlerId;
+  std::shared_ptr<UriEndpointState> state;
 
   void checkUri ();
   void removeDuplicateSlashes (std::string &uri);
+  void stateChanged (guint new_state);
 
   class StaticConstructor
   {
