@@ -2721,15 +2721,18 @@ merge_remb_stats (gpointer key, guint * value, KmsRembStats * rs)
 
 static void
 kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
-    GstStructure * stats)
+    GstStructure * stats, gchar * selector)
 {
-  KmsSdpSession *sdp_sess = KMS_SDP_SESSION (self->priv->sess);
   KmsRembStats rs;
+
+  if (g_strcmp0 (selector, VIDEO_STREAM_NAME) != 0) {
+    return;
+  }
 
   if (self->priv->rl != NULL) {
     KMS_REMB_BASE_LOCK (self->priv->rl);
     rs.stats = stats;
-    rs.session = sdp_sess->id;
+    rs.session = VIDEO_RTP_SESSION;
     g_hash_table_foreach (KMS_REMB_BASE (self->priv->rl)->remb_stats,
         (GHFunc) merge_remb_stats, &rs);
     KMS_REMB_BASE_UNLOCK (self->priv->rl);
@@ -2738,7 +2741,7 @@ kms_base_rtp_endpoint_append_remb_stats (KmsBaseRtpEndpoint * self,
   if (self->priv->rm != NULL) {
     KMS_REMB_BASE_LOCK (self->priv->rm);
     rs.stats = stats;
-    rs.session = sdp_sess->id;
+    rs.session = VIDEO_RTP_SESSION;
     g_hash_table_foreach (KMS_REMB_BASE (self->priv->rm)->remb_stats,
         (GHFunc) merge_remb_stats, &rs);
     KMS_REMB_BASE_UNLOCK (self->priv->rm);
@@ -2829,7 +2832,8 @@ kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 
   rtp_stats = gst_structure_new_empty (KMS_RTP_STRUCT_NAME);
   kms_base_rtp_endpoint_add_rtp_stats (self, rtp_stats, selector);
-  kms_base_rtp_endpoint_append_remb_stats (self, rtp_stats);
+  kms_base_rtp_endpoint_append_remb_stats (self, rtp_stats, selector);
+
   gst_structure_set (stats, KMS_RTC_STATISTICS_FIELD, GST_TYPE_STRUCTURE,
       rtp_stats, NULL);
   gst_structure_free (rtp_stats);
