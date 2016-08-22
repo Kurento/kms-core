@@ -53,6 +53,11 @@ struct _KmsRtpSynchronizerPrivate
   guint64 ext_ts;
   guint64 last_sr_ext_ts;
   guint64 last_sr_ntp_ns_time;
+
+  /* Interpolate PTSs */
+  gboolean base_interpolate_initiated;
+  GstClockTime base_interpolate_ext_ts;
+  GstClockTime base_interpolate_time;
 };
 
 static void
@@ -239,12 +244,33 @@ unmap:
   return TRUE;
 }
 
+static void
+kms_rtp_synchronizer_rtp_diff (KmsRtpSynchronizer * self,
+    GstRTPBuffer * rtp_buffer, gint32 clock_rate, guint64 base_ext_ts)
+{
+  GstBuffer *buffer = rtp_buffer->buffer;
+  guint64 diff_rtptime, diff_rtp_ns_time;
+
+  if (self->priv->ext_ts > base_ext_ts) {
+    diff_rtptime = self->priv->ext_ts - base_ext_ts;
+    diff_rtp_ns_time =
+        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
+    GST_BUFFER_PTS (buffer) += diff_rtp_ns_time;
+  } else if (self->priv->ext_ts < base_ext_ts) {
+    diff_rtptime = base_ext_ts - self->priv->ext_ts;
+    diff_rtp_ns_time =
+        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
+    GST_BUFFER_PTS (buffer) -= diff_rtp_ns_time;
+  }
+  /* if equals do nothing */
+}
+
 gboolean
 kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     GstRTPBuffer * rtp_buffer, GError ** error)
 {
   GstBuffer *buffer = rtp_buffer->buffer;
-  guint64 diff_ntp_ns_time, diff_rtptime, diff_rtp_ns_time;
+  guint64 diff_ntp_ns_time;
   guint8 pt;
   guint32 ssrc, ts;
   gint32 clock_rate;
@@ -288,42 +314,41 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     return FALSE;
   }
 
-  if (!self->priv->base_initiated) {
-    GST_DEBUG_OBJECT (self, "No sync data, not changing PTS");
-    KMS_RTP_SYNCHRONIZER_UNLOCK (self);
-
-    return TRUE;
-  }
-
-  buffer = gst_buffer_make_writable (buffer);
-  GST_BUFFER_PTS (buffer) = self->priv->base_sync_time;
-
-  if (self->priv->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
-    diff_ntp_ns_time =
-        self->priv->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
-    GST_BUFFER_PTS (buffer) += diff_ntp_ns_time;
-  } else if (self->priv->last_sr_ntp_ns_time < self->priv->base_ntp_ns_time) {
-    diff_ntp_ns_time =
-        self->priv->base_ntp_ns_time - self->priv->last_sr_ntp_ns_time;
-    GST_BUFFER_PTS (buffer) -= diff_ntp_ns_time;
-  }
-  /* if equals do nothing */
-
   ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
   gst_rtp_buffer_ext_timestamp (&self->priv->ext_ts, ts);
 
-  if (self->priv->ext_ts > self->priv->last_sr_ext_ts) {
-    diff_rtptime = self->priv->ext_ts - self->priv->last_sr_ext_ts;
-    diff_rtp_ns_time =
-        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
-    GST_BUFFER_PTS (buffer) += diff_rtp_ns_time;
-  } else if (self->priv->ext_ts < self->priv->last_sr_ext_ts) {
-    diff_rtptime = self->priv->last_sr_ext_ts - self->priv->ext_ts;
-    diff_rtp_ns_time =
-        gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
-    GST_BUFFER_PTS (buffer) -= diff_rtp_ns_time;
+  if (!self->priv->base_initiated) {
+    GST_DEBUG_OBJECT (self,
+        "Do not sync data for SSRC %u and PT %u, interpolating PTS", ssrc, pt);
+
+    if (!self->priv->base_interpolate_initiated) {
+      self->priv->base_interpolate_ext_ts = self->priv->ext_ts;
+      self->priv->base_interpolate_time = GST_BUFFER_PTS (buffer);
+      self->priv->base_interpolate_initiated = TRUE;
+    } else {
+      buffer = gst_buffer_make_writable (buffer);
+      GST_BUFFER_PTS (buffer) = self->priv->base_interpolate_time;
+      kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, clock_rate,
+          self->priv->base_interpolate_ext_ts);
+    }
+  } else {
+    buffer = gst_buffer_make_writable (buffer);
+    GST_BUFFER_PTS (buffer) = self->priv->base_sync_time;
+
+    if (self->priv->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
+      diff_ntp_ns_time =
+          self->priv->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
+      GST_BUFFER_PTS (buffer) += diff_ntp_ns_time;
+    } else if (self->priv->last_sr_ntp_ns_time < self->priv->base_ntp_ns_time) {
+      diff_ntp_ns_time =
+          self->priv->base_ntp_ns_time - self->priv->last_sr_ntp_ns_time;
+      GST_BUFFER_PTS (buffer) -= diff_ntp_ns_time;
+    }
+    /* if equals do nothing */
+
+    kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, clock_rate,
+        self->priv->last_sr_ext_ts);
   }
-  /* if equals do nothing */
 
   KMS_RTP_SYNCHRONIZER_UNLOCK (self);
 
