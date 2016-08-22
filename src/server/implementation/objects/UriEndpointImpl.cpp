@@ -110,6 +110,10 @@ wrap_c_state (KmsUriEndpointState state)
   case KMS_URI_ENDPOINT_STATE_PAUSE:
     type = UriEndpointState::type::PAUSE;
     break;
+
+  default:
+    GST_ERROR ("Invalid state value %d", state);
+    type = UriEndpointState::type::STOP;
   }
 
   std::shared_ptr<UriEndpointState> uriState (new UriEndpointState (type) );
