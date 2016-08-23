@@ -245,8 +245,9 @@ unmap:
 }
 
 static void
-kms_rtp_synchronizer_rtp_diff (KmsRtpSynchronizer * self,
-    GstRTPBuffer * rtp_buffer, gint32 clock_rate, guint64 base_ext_ts)
+kms_rtp_synchronizer_rtp_diff_full (KmsRtpSynchronizer * self,
+    GstRTPBuffer * rtp_buffer, gint32 clock_rate, guint64 base_ext_ts,
+    gboolean wrapped_down, gboolean wrapped_up)
 {
   GstBuffer *buffer = rtp_buffer->buffer;
   guint64 diff_rtptime, diff_rtp_ns_time;
@@ -255,14 +256,57 @@ kms_rtp_synchronizer_rtp_diff (KmsRtpSynchronizer * self,
     diff_rtptime = self->priv->ext_ts - base_ext_ts;
     diff_rtp_ns_time =
         gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
-    GST_BUFFER_PTS (buffer) += diff_rtp_ns_time;
+
+    if (wrapped_up) {
+      GST_WARNING_OBJECT (self, "PTS wrapped up, setting MAXUINT64");
+      GST_BUFFER_PTS (buffer) = G_MAXUINT64;
+    } else if (wrapped_down
+        && (diff_rtp_ns_time < (G_MAXUINT64 - GST_BUFFER_PTS (buffer)))) {
+      GST_WARNING_OBJECT (self, "PTS wrapped down, setting to 0");
+      GST_BUFFER_PTS (buffer) = 0;
+    } else if (!wrapped_down
+        && (diff_rtp_ns_time > (G_MAXUINT64 - GST_BUFFER_PTS (buffer)))) {
+      GST_WARNING_OBJECT (self,
+          "Diff RTP ns time greater than (MAXUINT64 - base PTS), setting MAXUINT64");
+      GST_BUFFER_PTS (buffer) = G_MAXUINT64;
+    } else {
+      GST_BUFFER_PTS (buffer) += diff_rtp_ns_time;
+    }
   } else if (self->priv->ext_ts < base_ext_ts) {
     diff_rtptime = base_ext_ts - self->priv->ext_ts;
     diff_rtp_ns_time =
         gst_util_uint64_scale_int (diff_rtptime, GST_SECOND, clock_rate);
-    GST_BUFFER_PTS (buffer) -= diff_rtp_ns_time;
+
+    if (wrapped_down) {
+      GST_WARNING_OBJECT (self, "PTS wrapped down, setting to 0");
+      GST_BUFFER_PTS (buffer) = 0;
+    } else if (wrapped_up && (diff_rtp_ns_time < GST_BUFFER_PTS (buffer))) {
+      GST_WARNING_OBJECT (self, "PTS wrapped up, setting to MAXUINT64");
+      GST_BUFFER_PTS (buffer) = G_MAXUINT64;
+    } else if (!wrapped_up && (diff_rtp_ns_time > GST_BUFFER_PTS (buffer))) {
+      GST_WARNING_OBJECT (self,
+          "Diff RTP ns time greater than base PTS, setting to 0");
+      GST_BUFFER_PTS (buffer) = 0;
+    } else {
+      GST_BUFFER_PTS (buffer) -= diff_rtp_ns_time;
+    }
+  } else {                      /* if equals */
+    if (wrapped_down) {
+      GST_WARNING_OBJECT (self, "PTS wrapped down, setting to 0");
+      GST_BUFFER_PTS (buffer) = 0;
+    } else if (wrapped_up) {
+      GST_WARNING_OBJECT (self, "PTS wrapped up, setting MAXUINT64");
+      GST_BUFFER_PTS (buffer) = G_MAXUINT64;
+    }
   }
-  /* if equals do nothing */
+}
+
+static void
+kms_rtp_synchronizer_rtp_diff (KmsRtpSynchronizer * self,
+    GstRTPBuffer * rtp_buffer, gint32 clock_rate, guint64 base_ext_ts)
+{
+  kms_rtp_synchronizer_rtp_diff_full (self, rtp_buffer, clock_rate, base_ext_ts,
+      FALSE, FALSE);
 }
 
 gboolean
@@ -332,22 +376,28 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
           self->priv->base_interpolate_ext_ts);
     }
   } else {
+    gboolean wrapped_down, wrapped_up;
+
+    wrapped_down = wrapped_up = FALSE;
+
     buffer = gst_buffer_make_writable (buffer);
     GST_BUFFER_PTS (buffer) = self->priv->base_sync_time;
 
     if (self->priv->last_sr_ntp_ns_time > self->priv->base_ntp_ns_time) {
       diff_ntp_ns_time =
           self->priv->last_sr_ntp_ns_time - self->priv->base_ntp_ns_time;
+      wrapped_up = diff_ntp_ns_time > (G_MAXUINT64 - GST_BUFFER_PTS (buffer));
       GST_BUFFER_PTS (buffer) += diff_ntp_ns_time;
     } else if (self->priv->last_sr_ntp_ns_time < self->priv->base_ntp_ns_time) {
       diff_ntp_ns_time =
           self->priv->base_ntp_ns_time - self->priv->last_sr_ntp_ns_time;
+      wrapped_down = GST_BUFFER_PTS (buffer) < diff_ntp_ns_time;
       GST_BUFFER_PTS (buffer) -= diff_ntp_ns_time;
     }
     /* if equals do nothing */
 
-    kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, clock_rate,
-        self->priv->last_sr_ext_ts);
+    kms_rtp_synchronizer_rtp_diff_full (self, rtp_buffer, clock_rate,
+        self->priv->last_sr_ext_ts, wrapped_down, wrapped_up);
   }
 
   KMS_RTP_SYNCHRONIZER_UNLOCK (self);
