@@ -314,6 +314,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     GstRTPBuffer * rtp_buffer, GError ** error)
 {
   GstBuffer *buffer = rtp_buffer->buffer;
+  guint64 pts_orig, ext_ts, last_sr_ext_ts, last_sr_ntp_ns_time;
   guint64 diff_ntp_ns_time;
   guint8 pt;
   guint32 ssrc, ts;
@@ -358,6 +359,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     return FALSE;
   }
 
+  pts_orig = GST_BUFFER_PTS (buffer);
   ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
   gst_rtp_buffer_ext_timestamp (&self->priv->ext_ts, ts);
 
@@ -400,7 +402,15 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
         self->priv->last_sr_ext_ts, wrapped_down, wrapped_up);
   }
 
+  ext_ts = self->priv->ext_ts;
+  last_sr_ext_ts = self->priv->last_sr_ext_ts;
+  last_sr_ntp_ns_time = self->priv->last_sr_ntp_ns_time;
+
   KMS_RTP_SYNCHRONIZER_UNLOCK (self);
+
+  kms_rtp_sync_context_write_stats (self->priv->context, ssrc, clock_rate,
+      pts_orig, GST_BUFFER_PTS (buffer), GST_BUFFER_DTS (buffer), ext_ts,
+      last_sr_ntp_ns_time, last_sr_ext_ts);
 
   return TRUE;
 }
