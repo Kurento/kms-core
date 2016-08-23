@@ -30,3 +30,15 @@ target_link_libraries(test_rembmanager
                       ${gstreamer-1.5_LIBRARIES}
                       ${gstreamer-check-1.5_LIBRARIES}
                       kmsgstcommons)
+
+add_test_program (test_rtpsync rtpsync.c)
+add_dependencies(test_rtpsync ${LIBRARY_NAME}plugins kmsrtpsync)
+target_include_directories(test_rtpsync PRIVATE
+                           ${gstreamer-1.5_INCLUDE_DIRS}
+                           ${gstreamer-check-1.5_INCLUDE_DIRS}
+                           "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/rtpsync")
+target_link_libraries(test_rtpsync
+                      ${gstreamer-1.5_LIBRARIES}
+                      ${gstreamer-rtp-1.5_LIBRARIES}
+                      ${gstreamer-check-1.5_LIBRARIES}
+                      kmsrtpsync)

@@ -159,6 +159,7 @@ target_link_libraries(kmsgstcommons
   sdputils
   kmsrefstruct
   kmssdpagent
+  kmsrtpsync
   ${gstreamer-1.5_LIBRARIES}
   ${gstreamer-base-1.5_LIBRARIES}
   ${gstreamer-sdp-1.5_LIBRARIES}
@@ -210,3 +211,5 @@ install(FILES
 )
 
 add_subdirectory(sdpagent)
+
+add_subdirectory(rtpsync)
