@@ -243,6 +243,7 @@ struct _KmsBaseRtpEndpointPrivate
   /* Synchronization */
   KmsRtpSynchronizer *sync_audio;
   KmsRtpSynchronizer *sync_video;
+  gboolean perform_video_sync;
 };
 
 /* Signals and args */
@@ -1679,6 +1680,7 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
     if (sync != NULL) {
       GstStructure *st;
       gint32 clock_rate;
+      const gchar *encoding_name;
 
       st = gst_caps_get_structure (caps, 0);
       if (gst_structure_get_int (st, "clock-rate", &clock_rate)) {
@@ -1686,6 +1688,24 @@ kms_base_rtp_endpoint_request_pt_map (GstElement * rtpbin, guint session,
       } else {
         GST_ERROR_OBJECT (self,
             "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
+      }
+
+      /* HACK: avoid wrong PTS assignment due to a Firefox bug:
+       *       https://bugzilla.mozilla.org/show_bug.cgi?id=1255371
+       */
+      encoding_name = gst_structure_get_string (st, "encoding-name");
+      if (g_strcmp0 ("H264", encoding_name) == 0) {
+        KmsSdpSession *sess = KMS_SDP_SESSION (self->priv->sess);
+        GstSDPMessage *remote_sdp = kms_sdp_session_get_remote_sdp (sess);
+        const GstSDPOrigin *origin = gst_sdp_message_get_origin (remote_sdp);
+
+        if (g_str_has_prefix (origin->username, "mozilla")) {
+          GST_WARNING_OBJECT (self,
+              "Remote peer seems to be Firefox using H264: do not sync video");
+          self->priv->perform_video_sync = FALSE;
+        }
+
+        gst_sdp_message_free (remote_sdp);
       }
     }
 
@@ -1897,9 +1917,12 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
       NULL);
   g_object_unref (src_pad);
 
-  g_signal_connect (jitterbuffer, "pad-added", G_CALLBACK (pad_added_jb),
-      GINT_TO_POINTER (session ==
-          VIDEO_RTP_SESSION ? self->priv->sync_video : self->priv->sync_audio));
+  if ((session == AUDIO_RTP_SESSION) || self->priv->perform_video_sync) {
+    g_signal_connect (jitterbuffer, "pad-added", G_CALLBACK (pad_added_jb),
+        GINT_TO_POINTER (session ==
+            VIDEO_RTP_SESSION ? self->priv->sync_video : self->
+            priv->sync_audio));
+  }
 
   KMS_ELEMENT_LOCK (self);
 
@@ -2682,6 +2705,8 @@ kms_base_rtp_endpoint_constructed (GObject * gobject)
   self->priv->sync_audio = kms_rtp_synchronizer_new (sync_ctx);
   self->priv->sync_video = kms_rtp_synchronizer_new (sync_ctx);
   g_object_unref (sync_ctx);
+
+  self->priv->perform_video_sync = TRUE;
 }
 
 static void
