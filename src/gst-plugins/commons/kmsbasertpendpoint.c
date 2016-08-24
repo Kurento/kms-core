@@ -2702,8 +2702,8 @@ kms_base_rtp_endpoint_constructed (GObject * gobject)
   KmsRtpSyncContext *sync_ctx;
 
   sync_ctx = kms_rtp_sync_context_new (GST_OBJECT_NAME (self));
-  self->priv->sync_audio = kms_rtp_synchronizer_new (sync_ctx);
-  self->priv->sync_video = kms_rtp_synchronizer_new (sync_ctx);
+  self->priv->sync_audio = kms_rtp_synchronizer_new (sync_ctx, TRUE);
+  self->priv->sync_video = kms_rtp_synchronizer_new (sync_ctx, TRUE);
   g_object_unref (sync_ctx);
 
   self->priv->perform_video_sync = TRUE;

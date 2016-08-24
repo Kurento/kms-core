@@ -88,7 +88,7 @@ GST_START_TEST (test_sync_add_clock_rate_for_pt)
   KmsRtpSynchronizer *sync;
   GstBuffer *buf;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
 
   buf = generate_rtcp_sr_buffer_full (0x1, G_GUINT64_CONSTANT (0), 0);
   fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, 0, NULL));
@@ -126,7 +126,7 @@ GST_START_TEST (test_sync_one_stream)
   KmsRtpSynchronizer *sync;
   GstBuffer *buf;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
@@ -197,7 +197,7 @@ GST_START_TEST (test_sync_one_stream_rtptime_after_sr_rtptime)
   GstBuffer *buf;
   guint64 ntptime;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
@@ -249,10 +249,10 @@ GST_START_TEST (test_sync_two_streams)
   guint64 ntptime;
 
   ctx = kms_rtp_sync_context_new (NULL);
-  sync_audio = kms_rtp_synchronizer_new (ctx);
+  sync_audio = kms_rtp_synchronizer_new (ctx, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_audio, 0, 8000,
           NULL));
-  sync_video = kms_rtp_synchronizer_new (ctx);
+  sync_video = kms_rtp_synchronizer_new (ctx, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_video, 96,
           90000, NULL));
   g_object_unref (ctx);
@@ -317,7 +317,7 @@ GST_START_TEST (test_sync_avoid_negative_pts)
   GstBuffer *buf;
   guint64 ntptime;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
@@ -382,12 +382,107 @@ GST_START_TEST (test_sync_avoid_negative_pts)
 
 GST_END_TEST;
 
+GST_START_TEST (test_sync_feeded_sorted_but_unsorted)
+{
+  KmsRtpSynchronizer *sync;
+  GstBuffer *buf;
+  GError *err = NULL;
+
+  sync = kms_rtp_synchronizer_new (NULL, TRUE);
+  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+          NULL));
+
+  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 90000);      /* Video frame 1 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == 100);
+  gst_buffer_unref (buf);
+
+  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_if (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, &err));
+  fail_unless (err != NULL);
+  g_error_free (err);
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == 0);
+  gst_buffer_unref (buf);
+
+  g_object_unref (sync);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_sync_feeded_sorted_rtcp_beetween_same_ts)
+{
+  KmsRtpSynchronizer *sync_sorted, *sync_not_sorted;
+  GstBuffer *buf;
+  guint64 ntptime;
+
+  sync_sorted = kms_rtp_synchronizer_new (NULL, TRUE);
+  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_sorted, 96,
+          90000, NULL));
+
+  sync_not_sorted = kms_rtp_synchronizer_new (NULL, FALSE);
+  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_not_sorted, 96,
+          90000, NULL));
+
+  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_sorted, buf,
+          NULL));
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == 0);
+  gst_buffer_unref (buf);
+
+  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_not_sorted, buf,
+          NULL));
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == 0);
+  gst_buffer_unref (buf);
+
+  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
+  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 0);
+  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_sorted, buf,
+          GST_SECOND, NULL));
+  gst_buffer_unref (buf);
+
+  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
+  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 0);
+  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_not_sorted, buf,
+          GST_SECOND, NULL));
+  gst_buffer_unref (buf);
+
+  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 0);    /* Video frame 0 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_sorted, buf,
+          NULL));
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == 0);
+  gst_buffer_unref (buf);
+
+  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 0);    /* Video frame 0 */
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_not_sorted, buf,
+          NULL));
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
+  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
+  gst_buffer_unref (buf);
+
+  g_object_unref (sync_sorted);
+  g_object_unref (sync_not_sorted);
+}
+
+GST_END_TEST;
+
 GST_START_TEST (test_interpolate)
 {
   KmsRtpSynchronizer *sync;
   GstBuffer *buf;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
@@ -438,7 +533,7 @@ GST_START_TEST (test_interpolate_avoid_negative_pts)
   KmsRtpSynchronizer *sync;
   GstBuffer *buf;
 
-  sync = kms_rtp_synchronizer_new (NULL);
+  sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
@@ -499,6 +594,9 @@ rtpsync_suite (void)
   tcase_add_test (tc_chain, test_sync_one_stream_rtptime_after_sr_rtptime);
   tcase_add_test (tc_chain, test_sync_two_streams);
   tcase_add_test (tc_chain, test_sync_avoid_negative_pts);
+
+  tcase_add_test (tc_chain, test_sync_feeded_sorted_but_unsorted);
+  tcase_add_test (tc_chain, test_sync_feeded_sorted_rtcp_beetween_same_ts);
 
   tcase_add_test (tc_chain, test_interpolate);
   tcase_add_test (tc_chain, test_interpolate_avoid_negative_pts);

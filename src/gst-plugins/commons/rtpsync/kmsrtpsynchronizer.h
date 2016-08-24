@@ -91,7 +91,8 @@ struct _KmsRtpSynchronizerClass
 
 GType kms_rtp_synchronizer_get_type ();
 
-KmsRtpSynchronizer * kms_rtp_synchronizer_new (KmsRtpSyncContext * context);
+KmsRtpSynchronizer * kms_rtp_synchronizer_new (KmsRtpSyncContext * context,
+                                               gboolean feeded_ordered);
 
 gboolean kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
                                                      gint32 pt,

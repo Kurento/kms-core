@@ -42,6 +42,7 @@ struct _KmsRtpSynchronizerPrivate
   GRecMutex mutex;
 
   KmsRtpSyncContext *context;
+  gboolean feeded_sorted;
 
   guint32 ssrc;
   GHashTable *clock_rates;      /* <pt, clock_rate> */
@@ -58,6 +59,10 @@ struct _KmsRtpSynchronizerPrivate
   gboolean base_interpolate_initiated;
   GstClockTime base_interpolate_ext_ts;
   GstClockTime base_interpolate_time;
+
+  /* Feeded sorted case */
+  guint64 fs_last_ext_ts;
+  GstClockTime fs_last_pts;
 };
 
 static void
@@ -96,10 +101,11 @@ kms_rtp_synchronizer_init (KmsRtpSynchronizer * self)
   self->priv->clock_rates = g_hash_table_new (NULL, NULL);
 
   self->priv->ext_ts = -1;
+  self->priv->fs_last_ext_ts = -1;
 }
 
 KmsRtpSynchronizer *
-kms_rtp_synchronizer_new (KmsRtpSyncContext * context)
+kms_rtp_synchronizer_new (KmsRtpSyncContext * context, gboolean feeded_sorted)
 {
   KmsRtpSynchronizer *self;
 
@@ -112,6 +118,8 @@ kms_rtp_synchronizer_new (KmsRtpSyncContext * context)
         "No context provided, creating new one. This syncrhonizer cannot be synced with others.");
     self->priv->context = kms_rtp_sync_context_new (NULL);
   }
+
+  self->priv->feeded_sorted = feeded_sorted;
 
   return self;
 }
@@ -319,6 +327,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
   guint8 pt;
   guint32 ssrc, ts;
   gint32 clock_rate;
+  gboolean ret = TRUE;
 
   ssrc = gst_rtp_buffer_get_ssrc (rtp_buffer);
 
@@ -363,6 +372,31 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
   ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
   gst_rtp_buffer_ext_timestamp (&self->priv->ext_ts, ts);
 
+  if (self->priv->feeded_sorted) {
+    if (self->priv->fs_last_ext_ts != -1
+        && self->priv->ext_ts < self->priv->fs_last_ext_ts) {
+      guint16 seq = gst_rtp_buffer_get_seq (rtp_buffer);
+      gchar *msg =
+          g_strdup_printf
+          ("Received an unsorted RTP buffer when expecting sorted (ssrc: %"
+          G_GUINT32_FORMAT ", seq: %" G_GUINT16_FORMAT ", ts: %"
+          G_GUINT32_FORMAT ", ext_ts: %" G_GUINT64_FORMAT
+          "). Moving to unsorted mode",
+          ssrc, seq, ts, self->priv->ext_ts);
+
+      GST_ERROR_OBJECT (self, "%s", msg);
+      g_set_error_literal (error, KMS_RTP_SYNC_ERROR, KMS_RTP_SYNC_INVALID_DATA,
+          msg);
+      g_free (msg);
+
+      self->priv->feeded_sorted = FALSE;
+      ret = FALSE;
+    } else if (self->priv->ext_ts == self->priv->fs_last_ext_ts) {
+      GST_BUFFER_PTS (buffer) = self->priv->fs_last_pts;
+      goto end;
+    }
+  }
+
   if (!self->priv->base_initiated) {
     GST_DEBUG_OBJECT (self,
         "Do not sync data for SSRC %u and PT %u, interpolating PTS", ssrc, pt);
@@ -402,6 +436,24 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
         self->priv->last_sr_ext_ts, wrapped_down, wrapped_up);
   }
 
+  if (self->priv->feeded_sorted) {
+    if (GST_BUFFER_PTS (buffer) < self->priv->fs_last_pts) {
+      guint16 seq = gst_rtp_buffer_get_seq (rtp_buffer);
+
+      GST_WARNING_OBJECT (self,
+          "Non monotonic PTS assignment in sorted mode (ssrc: %"
+          G_GUINT32_FORMAT ", seq: %" G_GUINT16_FORMAT ", ts: %"
+          G_GUINT32_FORMAT ", ext_ts: %" G_GUINT64_FORMAT
+          "). Forcing monotonic", ssrc, seq, ts, self->priv->ext_ts);
+
+      GST_BUFFER_PTS (buffer) = self->priv->fs_last_pts;
+    }
+
+    self->priv->fs_last_ext_ts = self->priv->ext_ts;
+    self->priv->fs_last_pts = GST_BUFFER_PTS (buffer);
+  }
+
+end:
   ext_ts = self->priv->ext_ts;
   last_sr_ext_ts = self->priv->last_sr_ext_ts;
   last_sr_ntp_ns_time = self->priv->last_sr_ntp_ns_time;
@@ -412,7 +464,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
       pts_orig, GST_BUFFER_PTS (buffer), GST_BUFFER_DTS (buffer), ext_ts,
       last_sr_ntp_ns_time, last_sr_ext_ts);
 
-  return TRUE;
+  return ret;
 }
 
 gboolean
