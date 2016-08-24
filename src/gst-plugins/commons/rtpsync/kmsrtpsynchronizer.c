@@ -45,7 +45,8 @@ struct _KmsRtpSynchronizerPrivate
   gboolean feeded_sorted;
 
   guint32 ssrc;
-  GHashTable *clock_rates;      /* <pt, clock_rate> */
+  gint32 pt;
+  gint32 clock_rate;
 
   gboolean base_initiated;
   GstClockTime base_ntp_ns_time;
@@ -72,7 +73,6 @@ kms_rtp_synchronizer_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  g_hash_table_destroy (self->priv->clock_rates);
   g_object_unref (self->priv->context);
   g_rec_mutex_clear (&self->priv->mutex);
 
@@ -98,7 +98,6 @@ kms_rtp_synchronizer_init (KmsRtpSynchronizer * self)
 {
   self->priv = KMS_RTP_SYNCHRONIZER_GET_PRIVATE (self);
   g_rec_mutex_init (&self->priv->mutex);
-  self->priv->clock_rates = g_hash_table_new (NULL, NULL);
 
   self->priv->ext_ts = -1;
   self->priv->fs_last_ext_ts = -1;
@@ -128,7 +127,6 @@ gboolean
 kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
     gint32 pt, gint32 clock_rate, GError ** error)
 {
-  gpointer ptr;
   gboolean ret = FALSE;
 
   if (clock_rate <= 0) {
@@ -144,7 +142,7 @@ kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
   KMS_RTP_SYNCHRONIZER_LOCK (self);
 
   /* TODO: allow more than one PT */
-  if (g_hash_table_size (self->priv->clock_rates) > 0) {
+  if (self->priv->clock_rate != 0) {
     const gchar *msg = "Only one PT allowed.";
 
     GST_ERROR_OBJECT (self, "%s", msg);
@@ -154,22 +152,8 @@ kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
     goto end;
   }
 
-  ptr = g_hash_table_lookup (self->priv->clock_rates, GUINT_TO_POINTER (pt));
-  if (ptr != NULL) {
-    gchar *msg =
-        g_strdup_printf ("There is already a clock-rate (%u) for PT (%u).",
-        GPOINTER_TO_UINT (ptr), pt);
-
-    GST_ERROR_OBJECT (self, "%s", msg);
-    g_set_error_literal (error, KMS_RTP_SYNC_ERROR, KMS_RTP_SYNC_INVALID_DATA,
-        msg);
-    g_free (msg);
-
-    goto end;
-  }
-
-  g_hash_table_insert (self->priv->clock_rates,
-      GUINT_TO_POINTER (pt), GINT_TO_POINTER (clock_rate));
+  self->priv->pt = pt;
+  self->priv->clock_rate = clock_rate;
 
   ret = TRUE;
 
@@ -350,13 +334,10 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
   }
 
   pt = gst_rtp_buffer_get_payload_type (rtp_buffer);
-  clock_rate =
-      GPOINTER_TO_INT (g_hash_table_lookup (self->priv->clock_rates,
-          GUINT_TO_POINTER (pt)));
-  if (clock_rate <= 0) {
+  if (pt != self->priv->pt || self->priv->clock_rate <= 0) {
     gchar *msg =
-        g_strdup_printf ("Invalid clock-rate for PT %u, not changing PTS",
-        pt);
+        g_strdup_printf ("Invalid clock-rate %d for PT %u, not changing PTS",
+        self->priv->clock_rate, pt);
 
     GST_ERROR_OBJECT (self, "%s", msg);
     g_set_error_literal (error, KMS_RTP_SYNC_ERROR, KMS_RTP_SYNC_INVALID_DATA,
@@ -408,7 +389,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     } else {
       buffer = gst_buffer_make_writable (buffer);
       GST_BUFFER_PTS (buffer) = self->priv->base_interpolate_time;
-      kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, clock_rate,
+      kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, self->priv->clock_rate,
           self->priv->base_interpolate_ext_ts);
     }
   } else {
@@ -432,8 +413,9 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     }
     /* if equals do nothing */
 
-    kms_rtp_synchronizer_rtp_diff_full (self, rtp_buffer, clock_rate,
-        self->priv->last_sr_ext_ts, wrapped_down, wrapped_up);
+    kms_rtp_synchronizer_rtp_diff_full (self, rtp_buffer,
+        self->priv->clock_rate, self->priv->last_sr_ext_ts, wrapped_down,
+        wrapped_up);
   }
 
   if (self->priv->feeded_sorted) {
@@ -454,6 +436,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
   }
 
 end:
+  clock_rate = self->priv->clock_rate;
   ext_ts = self->priv->ext_ts;
   last_sr_ext_ts = self->priv->last_sr_ext_ts;
   last_sr_ntp_ns_time = self->priv->last_sr_ntp_ns_time;
