@@ -61,6 +61,27 @@ generate_rtcp_sr_buffer_full (guint32 ssrc, guint64 ntptime, guint32 rtptime)
   return buf;
 }
 
+#define process_rtp(sync, gst_ts, ssrc, pt, seq_num, rtp_ts, expected_out_pts, fail_func) \
+do {                                                                                      \
+  GstBuffer *__buf;                                                                       \
+                                                                                          \
+  __buf = generate_rtp_buffer_full (gst_ts, ssrc, pt, seq_num, rtp_ts);                   \
+  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (__buf));                                      \
+  fail_func (kms_rtp_synchronizer_process_rtp_buffer (sync, __buf, NULL));                \
+  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (__buf));                                     \
+  fail_unless (GST_BUFFER_PTS (__buf) == expected_out_pts);                               \
+  gst_buffer_unref (__buf);                                                               \
+} while (0)
+
+#define process_rtcp(sync, ssrc, ntptime, rtptime, current_time)                            \
+do {                                                                                        \
+  GstBuffer *__buf;                                                                         \
+                                                                                            \
+  __buf = generate_rtcp_sr_buffer_full (0x1, ntptime, rtptime);                             \
+  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, __buf, current_time, NULL)); \
+  gst_buffer_unref (__buf);                                                                 \
+} while (0)
+
 GST_START_TEST (test_sync_context)
 {
   KmsRtpSyncContext *ctx;
@@ -86,32 +107,19 @@ GST_END_TEST;
 GST_START_TEST (test_sync_add_clock_rate_for_pt)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
 
-  buf = generate_rtcp_sr_buffer_full (0x1, G_GUINT64_CONSTANT (0), 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, 0, NULL));
-  gst_buffer_unref (buf);
+  process_rtcp (sync, 0x1, G_GUINT64_CONSTANT (0), 0, 0);
 
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 0, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_if (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 100);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 100, 0x1, 96, 0, 0, 100, fail_if); /* Video frame 0 */
 
   fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, -1, NULL));
   fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 0, NULL));
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (200, 0x1, 96, 0, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 200, 0x1, 96, 0, 0, 0, fail_unless);       /* Video frame 0 */
 
   fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000, NULL));
   fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 8000, NULL));
@@ -124,67 +132,27 @@ GST_END_TEST;
 GST_START_TEST (test_sync_one_stream)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
+  process_rtp (sync, 100, 0x1, 96, 1, 0, 0, fail_unless);       /* Video frame 0 */
 
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtcp (sync, 0x1, G_GUINT64_CONSTANT (0), 0, 0);
 
-  buf = generate_rtcp_sr_buffer_full (0x1, G_GUINT64_CONSTANT (0), 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, 0, NULL));
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (200, 0x1, 96, 2, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (200, 0x1, 96, 3, 90000);      /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 200, 0x1, 96, 2, 0, 0, fail_unless);       /* Video frame 0 */
+  process_rtp (sync, 200, 0x1, 96, 3, 90000, GST_SECOND, fail_unless);  /* Video frame 1 */
 
   /* A huge gap in the gst ts */
-  buf = generate_rtp_buffer_full (50000, 0x1, 96, 4, 90000);    /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50000, 0x1, 96, 4, 90000, GST_SECOND, fail_unless);        /* Video frame 1 */
 
   /* Packet 5 missed */
-  buf = generate_rtp_buffer_full (50100, 0x1, 96, 6, 180000);   /* Video frame 2 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 2 * GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50100, 0x1, 96, 6, 180000, 2 * GST_SECOND, fail_unless);   /* Video frame 2 */
 
   /* Packet 5 arrives */
-  buf = generate_rtp_buffer_full (50100, 0x1, 96, 5, 90000);    /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50100, 0x1, 96, 5, 90000, GST_SECOND, fail_unless);        /* Video frame 1 */
 
   g_object_unref (sync);
 }
@@ -194,47 +162,21 @@ GST_END_TEST;
 GST_START_TEST (test_sync_one_stream_rtptime_after_sr_rtptime)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
-  guint64 ntptime;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
+  process_rtp (sync, 100, 0x1, 96, 1, 0, 0, fail_unless);       /* Video frame 0 */
 
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
-  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 90000);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, GST_SECOND,
-          NULL));
-  gst_buffer_unref (buf);
+  process_rtcp (sync, 0x1, gst_util_uint64_scale (GST_SECOND, (1LL << 32),
+          GST_SECOND), 90000, GST_SECOND);
 
   /* An RTP packet with rtptime<last_sr_rtptime arrives after last SR */
-  buf = generate_rtp_buffer_full (200, 0x1, 96, 2, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 200, 0x1, 96, 2, 0, 0, fail_unless);       /* Video frame 0 */
 
-  buf = generate_rtp_buffer_full (200, 0x1, 96, 3, 90000);      /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 200, 0x1, 96, 3, 90000, GST_SECOND, fail_unless);  /* Video frame 1 */
 
   g_object_unref (sync);
 }
@@ -245,8 +187,6 @@ GST_START_TEST (test_sync_two_streams)
 {
   KmsRtpSyncContext *ctx;
   KmsRtpSynchronizer *sync_audio, *sync_video;
-  GstBuffer *buf;
-  guint64 ntptime;
 
   ctx = kms_rtp_sync_context_new (NULL);
   sync_audio = kms_rtp_synchronizer_new (ctx, FALSE);
@@ -258,52 +198,16 @@ GST_START_TEST (test_sync_two_streams)
   g_object_unref (ctx);
 
   /* Audio RTCP SR */
-  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
-  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 8000);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_audio, buf,
-          GST_SECOND, NULL));
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 0, 0, 0);     /* Audio frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_audio, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 0, 1, 8000);  /* Audio frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_audio, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtcp (sync_audio, 0x1, gst_util_uint64_scale (GST_SECOND, (1LL << 32),
+          GST_SECOND), 8000, GST_SECOND);
+  process_rtp (sync_audio, 0, 0x1, 0, 0, 0, 0, fail_unless);    /* Audio frame 0 */
+  process_rtp (sync_audio, 0, 0x1, 0, 1, 8000, GST_SECOND, fail_unless);        /* Audio frame 1 */
 
   /* Video RTCP SR */
-  buf = generate_rtcp_sr_buffer_full (0x2, G_GUINT64_CONSTANT (0), 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_video, buf,
-          GST_SECOND, NULL));
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_video, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 90000);        /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_video, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 180000);       /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_video, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 2 * GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtcp (sync_video, 0x2, G_GUINT64_CONSTANT (0), 0, GST_SECOND);
+  process_rtp (sync_video, 0, 0x1, 96, 0, 0, 0, fail_unless);   /* Video frame 0 */
+  process_rtp (sync_video, 0, 0x1, 96, 1, 90000, GST_SECOND, fail_unless);      /* Video frame 1 */
+  process_rtp (sync_video, 0, 0x1, 96, 2, 180000, 2 * GST_SECOND, fail_unless); /* Video frame 2 */
 
   g_object_unref (sync_audio);
   g_object_unref (sync_video);
@@ -314,68 +218,31 @@ GST_END_TEST;
 GST_START_TEST (test_sync_avoid_negative_pts)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
-  guint64 ntptime;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  ntptime = gst_util_uint64_scale (2 * GST_SECOND, (1LL << 32), GST_SECOND);
-  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 90000);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, GST_SECOND,
-          NULL));
-  gst_buffer_unref (buf);
-
-  buf = generate_rtcp_sr_buffer_full (0x1, G_GUINT64_CONSTANT (0), 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, GST_SECOND,
-          NULL));
-  gst_buffer_unref (buf);
+  process_rtcp (sync, 0x1, gst_util_uint64_scale (2 * GST_SECOND, (1LL << 32),
+          GST_SECOND), 90000, GST_SECOND);
+  process_rtcp (sync, 0x1, G_GUINT64_CONSTANT (0), 0, GST_SECOND);
 
   /* Force wrapped down with the same timestamp in RTP and RTCP packets */
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
 
-  buf = generate_rtcp_sr_buffer_full (0x1, G_GUINT64_CONSTANT (0), 90000);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync, buf, GST_SECOND,
-          NULL));
-  gst_buffer_unref (buf);
+  process_rtcp (sync, 0x1, G_GUINT64_CONSTANT (0), 90000, GST_SECOND);
 
   /* Force wrapped down with RTP timestamp < RTCP timestamp */
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
 
   /* Force wrapped down with RTP timestamp > RTCP timestamp, PTS resulting > 0 */
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 270000);       /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 270000, GST_SECOND, fail_unless);   /* Video frame 3 */
 
   /* Force wrapped down with RTP timestamp > RTCP timestamp, PTS resulting == 0 */
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 180000);       /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 180000, 0, fail_unless);    /* Video frame 2 */
 
   /* Force wrapped down with RTP timestamp > RTCP timestamp, PTS resulting < 0 */
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 90000);        /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 90000, 0, fail_unless);     /* Video frame 1 */
 
   g_object_unref (sync);
 }
@@ -385,28 +252,13 @@ GST_END_TEST;
 GST_START_TEST (test_sync_feeded_sorted_but_unsorted)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
-  GError *err = NULL;
 
   sync = kms_rtp_synchronizer_new (NULL, TRUE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 90000);      /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 100);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_if (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, &err));
-  fail_unless (err != NULL);
-  g_error_free (err);
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 100, 0x1, 96, 1, 90000, 100, fail_unless); /* Video frame 1 */
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_if);     /* Video frame 0 */
 
   g_object_unref (sync);
 }
@@ -416,8 +268,6 @@ GST_END_TEST;
 GST_START_TEST (test_sync_feeded_sorted_rtcp_beetween_same_ts)
 {
   KmsRtpSynchronizer *sync_sorted, *sync_not_sorted;
-  GstBuffer *buf;
-  guint64 ntptime;
 
   sync_sorted = kms_rtp_synchronizer_new (NULL, TRUE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_sorted, 96,
@@ -427,49 +277,16 @@ GST_START_TEST (test_sync_feeded_sorted_rtcp_beetween_same_ts)
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_not_sorted, 96,
           90000, NULL));
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_sorted, buf,
-          NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync_sorted, 0, 0x1, 96, 0, 0, 0, fail_unless);  /* Video frame 0 */
+  process_rtp (sync_not_sorted, 0, 0x1, 96, 0, 0, 0, fail_unless);      /* Video frame 0 */
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_not_sorted, buf,
-          NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtcp (sync_sorted, 0x1, gst_util_uint64_scale (GST_SECOND,
+          (1LL << 32), GST_SECOND), 0, GST_SECOND);
+  process_rtcp (sync_not_sorted, 0x1, gst_util_uint64_scale (GST_SECOND,
+          (1LL << 32), GST_SECOND), 0, GST_SECOND);
 
-  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
-  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_sorted, buf,
-          GST_SECOND, NULL));
-  gst_buffer_unref (buf);
-
-  ntptime = gst_util_uint64_scale (GST_SECOND, (1LL << 32), GST_SECOND);
-  buf = generate_rtcp_sr_buffer_full (0x1, ntptime, 0);
-  fail_unless (kms_rtp_synchronizer_process_rtcp_buffer (sync_not_sorted, buf,
-          GST_SECOND, NULL));
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_sorted, buf,
-          NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 1, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync_not_sorted, buf,
-          NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync_sorted, 0, 0x1, 96, 1, 0, 0, fail_unless);  /* Video frame 0 */
+  process_rtp (sync_not_sorted, 0, 0x1, 96, 1, 0, GST_SECOND, fail_unless);     /* Video frame 0 */
 
   g_object_unref (sync_sorted);
   g_object_unref (sync_not_sorted);
@@ -480,48 +297,21 @@ GST_END_TEST;
 GST_START_TEST (test_interpolate)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 0);    /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
-
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
+  process_rtp (sync, 0, 0x1, 96, 1, 0, 0, fail_unless); /* Video frame 0 */
 
   /* Packet 2 missed */
-  buf = generate_rtp_buffer_full (50000, 0x1, 96, 3, 180000);   /* Video frame 2 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 2 * GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 3, 180000, 2 * GST_SECOND, fail_unless);       /* Video frame 2 */
 
   /* Packet 2 arrives */
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 2, 90000);      /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 2, 90000, GST_SECOND, fail_unless);    /* Video frame 1 */
 
-  buf = generate_rtp_buffer_full (50100, 0x1, 96, 4, 180000);   /* Video frame 2 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 2 * GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50100, 0x1, 96, 4, 180000, 2 * GST_SECOND, fail_unless);   /* Video frame 2 */
 
   g_object_unref (sync);
 }
@@ -531,49 +321,23 @@ GST_END_TEST;
 GST_START_TEST (test_interpolate_avoid_negative_pts)
 {
   KmsRtpSynchronizer *sync;
-  GstBuffer *buf;
 
   sync = kms_rtp_synchronizer_new (NULL, FALSE);
   fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
           NULL));
 
-  buf = generate_rtp_buffer_full (0, 0x1, 96, 0, 90000);        /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 0, 0x1, 96, 1, 90000, 0, fail_unless);     /* Video frame 1 */
 
   /* Force PTS resulting < 0 */
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 1, 0);  /* Video frame 0 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 100, 0x1, 96, 0, 0, 0, fail_unless);       /* Video frame 0 */
 
   /* Packet 2 missed */
-  buf = generate_rtp_buffer_full (50000, 0x1, 96, 3, 180000);   /* Video frame 2 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50000, 0x1, 96, 3, 180000, GST_SECOND, fail_unless);       /* Video frame 2 */
 
   /* Packet 2 arrives */
-  buf = generate_rtp_buffer_full (100, 0x1, 96, 2, 90000);      /* Video frame 1 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == 0);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50100, 0x1, 96, 2, 90000, 0, fail_unless); /* Video frame 1 */
 
-  buf = generate_rtp_buffer_full (50100, 0x1, 96, 4, 180000);   /* Video frame 2 */
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (kms_rtp_synchronizer_process_rtp_buffer (sync, buf, NULL));
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (buf));
-  fail_unless (GST_BUFFER_PTS (buf) == GST_SECOND);
-  gst_buffer_unref (buf);
+  process_rtp (sync, 50200, 0x1, 96, 4, 180000, GST_SECOND, fail_unless);       /* Video frame 2 */
 
   g_object_unref (sync);
 }
