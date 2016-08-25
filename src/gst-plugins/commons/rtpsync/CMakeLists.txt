@@ -22,7 +22,7 @@ target_link_libraries(kmsrtpsync
   ${gstreamer-rtp-1.5_LIBRARIES}
 )
 
-set(RTP_SYNC_INCLUDE_PREFIX "${INCLUDE_PREFIX}/kmsrtpsync")
+set(RTP_SYNC_INCLUDE_PREFIX "${INCLUDE_PREFIX}/rtpsync")
 
 install(
   TARGETS kmsrtpsync
