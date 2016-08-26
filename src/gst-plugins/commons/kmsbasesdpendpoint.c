@@ -109,6 +109,10 @@ struct _KmsBaseSdpEndpointPrivate
   guint num_video_medias;
   GArray *audio_codecs;
   GArray *video_codecs;
+
+  guint audio_handlers;
+  guint video_handlers;
+  guint data_handlers;
 };
 
 /* KmsSdpSession begin */
@@ -131,16 +135,73 @@ kms_base_sdp_endpoint_configure_media (KmsSdpAgent * agent,
       media);
 }
 
+static void
+kms_base_sdp_endpoint_create_media_handler (KmsBaseSdpEndpoint * self,
+    KmsSdpSession * sess, const gchar * media, KmsSdpMediaHandler ** handler);
+
 static KmsSdpMediaHandler *
 on_handler_required_cb (KmsSdpAgent * agent, const GstSDPMedia * media,
     gpointer user_data)
 {
   KmsSdpSession *session = KMS_SDP_SESSION (user_data);
+  KmsBaseSdpEndpoint *self = KMS_BASE_SDP_ENDPOINT (session->ep);
+  KmsSdpMediaHandler *handler = NULL;
+  const gchar *media_str;
+  guint *media_counter = NULL;
 
-  GST_LOG_OBJECT (session, "Ignored handler request for media '%s'",
-      gst_sdp_media_as_text (media));
+  media_str = gst_sdp_media_get_media (media);
 
-  return NULL;
+  if (g_strcmp0 (media_str, "audio") == 0) {
+    if (self->priv->num_audio_medias == 0) {
+      GST_DEBUG_OBJECT (self, "No support specified for media '%s'", media_str);
+      return NULL;
+    }
+
+    if (self->priv->audio_handlers >= self->priv->num_audio_medias) {
+      GST_DEBUG_OBJECT (self, "No more '%s' medias supported", media_str);
+      return NULL;
+    }
+
+    media_counter = &self->priv->audio_handlers;
+  } else if (g_strcmp0 (media_str, "video") == 0) {
+    if (self->priv->num_video_medias == 0) {
+      GST_DEBUG_OBJECT (self, "No support specified for media '%s'", media_str);
+      return NULL;
+    }
+
+    if (self->priv->video_handlers >= self->priv->num_video_medias) {
+      GST_DEBUG_OBJECT (self, "No more '%s' medias supported", media_str);
+      return NULL;
+    }
+
+    media_counter = &self->priv->video_handlers;
+  } else if (g_strcmp0 (media_str, "application") == 0) {
+    if (!self->priv->use_data_channels) {
+      GST_DEBUG_OBJECT (self, "No support specified for media '%s'", media_str);
+      return NULL;
+    }
+
+    if (self->priv->data_handlers > 0) {
+      GST_DEBUG_OBJECT (self, "No more '%s' medias supported", media_str);
+      return NULL;
+    }
+
+    media_counter = &self->priv->data_handlers;
+  } else {
+    GST_ERROR_OBJECT (self, "Media %s not supported", media_str);
+    return NULL;
+  }
+
+  GST_LOG_OBJECT (self, "Requested media: %s", media_str);
+
+  kms_base_sdp_endpoint_create_media_handler (self, session, media_str,
+      &handler);
+
+  if (handler != NULL) {
+    *media_counter = *media_counter + 1;
+  }
+
+  return handler;
 }
 
 static void
@@ -390,6 +451,7 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
             self->priv->max_audio_recv_bw)) {
       return FALSE;
     }
+    self->priv->audio_handlers++;
   }
 
   for (i = 0; i < self->priv->num_video_medias; i++) {
@@ -397,12 +459,14 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
             self->priv->max_video_recv_bw)) {
       return FALSE;
     }
+    self->priv->video_handlers++;
   }
 
   if (self->priv->use_data_channels) {
     if (!kms_base_sdp_endpoint_add_handler (self, sess, "application", gid, 0)) {
       return FALSE;
     }
+    self->priv->data_handlers++;
   }
 
   return TRUE;
@@ -543,8 +607,20 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
     goto end;
   }
 
-  if (!kms_base_sdp_endpoint_init_sdp_handlers (self, sess)) {
-    goto end;
+  if (self->priv->bundle) {
+    GError *err = NULL;
+    gint gid;
+
+    /* Create an empty bundle group so that the agent can add */
+    /* handlers in it in case remote peer initiates negotiation */
+
+    gid = kms_sdp_agent_create_group (sess->agent, KMS_TYPE_SDP_BUNDLE_GROUP,
+        &err, NULL);
+
+    if (gid < 0) {
+      GST_ERROR_OBJECT (self, "Can not create bundle group: %s.", err->message);
+      g_error_free (err);
+    }
   }
 
   answer = kms_sdp_session_process_offer (sess, offer);
