@@ -65,6 +65,8 @@ void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 
 void UriEndpointImpl::checkUri ()
 {
+  boost::regex re ("%2F");
+  this->uri = (boost::regex_replace (uri, re, "/") );
   this->absolute_uri = this->uri;
 
   //Check if uri is an absolute or relative path.

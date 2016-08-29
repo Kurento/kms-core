@@ -159,3 +159,26 @@ BOOST_AUTO_TEST_CASE (check_media_element_uri)
 
   uriEndpoint.reset ();
 }
+
+BOOST_AUTO_TEST_CASE (check_uri_with_escaped_slashes)
+{
+  std::string uri;
+  std::string first_uri =
+    "https://test.com/026cba3020160826100051.mp4?params=host&user=AKIAIHFQODXEKWDTKIRQ%2F20160826%2Ftest%2Fs3%2Floc4_request&pass=db575aaf678085c2595df3bc3bc614";
+
+  mediaPipelineId =
+    moduleManager.getFactory ("MediaPipeline")->createObject (
+      config, "",
+      Json::Value() )->getId();
+
+  config.add ("modules.kurento.UriEndpoint.configPath", "../../../tests" );
+  config.add ("modules.kurento.UriEndpoint.defaultPath", "file:///var/kurento/");
+
+  std::shared_ptr <UriEndpointImpl> uriEndpoint = generateUriEndpoint (
+        mediaPipelineId, first_uri);
+
+  releaseMediaObject (uriEndpoint->getId() );
+  releaseMediaObject (mediaPipelineId);
+
+  uriEndpoint.reset ();
+}
