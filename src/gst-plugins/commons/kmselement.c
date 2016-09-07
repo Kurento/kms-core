@@ -127,6 +127,7 @@ typedef struct _KmsMediaFlowData
   KmsMediaFlowType media_flow_type;
 
   /* Media Flow signal */
+  GstClock *clock;
   GstClockID clock_id;
   GOnce init;
 } KmsMediaFlowData;
@@ -228,6 +229,7 @@ media_flow_data_destroy (KmsMediaFlowData * data)
 
   gst_clock_id_unschedule (data->clock_id);
   gst_clock_id_unref (data->clock_id);
+  g_object_unref (data->clock);
 
   g_slice_free (KmsMediaFlowData, data);
 }
@@ -237,7 +239,6 @@ media_flow_data_new (KmsElement * self, const gchar * description,
     KmsElementPadType type, KmsMediaFlowType media_flow_type)
 {
   KmsMediaFlowData *data;
-  GstClock *clk;
   GstClockTime init_time;
 
   data = g_slice_new0 (KmsMediaFlowData);
@@ -252,18 +253,17 @@ media_flow_data_new (KmsElement * self, const gchar * description,
   data->type = type;
   data->media_flow_type = media_flow_type;
 
-  clk = gst_system_clock_obtain ();
-  if (!clk) {
+  data->clock = gst_system_clock_obtain ();
+  if (!data->clock) {
     GST_ERROR ("Imposible get the clock");
     return data;
   }
 
   data->init.status = G_ONCE_STATUS_NOTCALLED;
 
-  init_time = gst_clock_get_time (clk);
-  data->clock_id = gst_clock_new_periodic_id (clk, init_time,
+  init_time = gst_clock_get_time (data->clock);
+  data->clock_id = gst_clock_new_periodic_id (data->clock, init_time,
       MEDIA_FLOW_INTERNAL_TIME_SEC * GST_SECOND);
-  g_object_unref (clk);
 
   return data;
 }
