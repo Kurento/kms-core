@@ -152,8 +152,6 @@ struct _KmsElementPrivate
 
   GstStructure *codec_config;
 
-  GThreadPool *media_flow_pool;
-
   /* Statistics */
   KmsElementStats stats;
 };
@@ -553,47 +551,12 @@ cb_buffer_received (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   return GST_PAD_PROBE_OK;
 }
 
-static void
-check_if_flow_media_async (gpointer data, gpointer not_used)
-{
-  KmsMediaFlowData *fd_data = (KmsMediaFlowData *) data;
-  gpointer weak_ptr = g_weak_ref_get (&fd_data->element);
-  KmsElement *element;
-
-  if (weak_ptr == NULL) {
-    goto end;
-  }
-
-  element = KMS_ELEMENT (weak_ptr);
-  if (g_atomic_int_get (&fd_data->media_flowing) == 1) {
-    if (g_atomic_int_get (&fd_data->buffers) == 0) {
-      g_atomic_int_set (&fd_data->media_flowing, 0);
-      if (fd_data->media_flow_type == KMS_MEDIA_FLOW_IN) {
-        g_signal_emit (G_OBJECT (element),
-            element_signals[SIGNAL_FLOW_IN_MEDIA], 0, FALSE,
-            fd_data->pad_description, fd_data->type);
-      } else if (fd_data->media_flow_type == KMS_MEDIA_FLOW_OUT) {
-        g_signal_emit (G_OBJECT (element),
-            element_signals[SIGNAL_FLOW_OUT_MEDIA], 0, FALSE,
-            fd_data->pad_description, fd_data->type);
-      }
-    } else {
-      g_atomic_int_set (&fd_data->buffers, 0);
-    }
-  }
-
-  g_object_unref (element);
-
-end:
-  media_flow_data_unref (fd_data);
-}
-
 gboolean
 check_if_flow_media (GstClock * clock,
     GstClockTime time, GstClockID id, gpointer user_data)
 {
-  KmsMediaFlowData *fd_data = (KmsMediaFlowData *) user_data;
-  gpointer weak_ptr = g_weak_ref_get (&fd_data->element);
+  KmsMediaFlowData *data = (KmsMediaFlowData *) user_data;
+  gpointer weak_ptr = g_weak_ref_get (&data->element);
   KmsElement *element;
 
   if (weak_ptr == NULL) {
@@ -601,8 +564,23 @@ check_if_flow_media (GstClock * clock,
   }
 
   element = KMS_ELEMENT (weak_ptr);
-  g_thread_pool_push (element->priv->media_flow_pool,
-      media_flow_data_ref (fd_data), NULL);
+  if (g_atomic_int_get (&data->media_flowing) == 1) {
+    if (g_atomic_int_get (&data->buffers) == 0) {
+      g_atomic_int_set (&data->media_flowing, 0);
+      if (data->media_flow_type == KMS_MEDIA_FLOW_IN) {
+        g_signal_emit (G_OBJECT (element),
+            element_signals[SIGNAL_FLOW_IN_MEDIA], 0, FALSE,
+            data->pad_description, data->type);
+      } else if (data->media_flow_type == KMS_MEDIA_FLOW_OUT) {
+        g_signal_emit (G_OBJECT (element),
+            element_signals[SIGNAL_FLOW_OUT_MEDIA], 0, FALSE,
+            data->pad_description, data->type);
+      }
+    } else {
+      g_atomic_int_set (&data->buffers, 0);
+    }
+  }
+
   g_object_unref (element);
 
   return FALSE;
@@ -1331,8 +1309,6 @@ kms_element_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (object, "finalize");
 
-  g_thread_pool_free (element->priv->media_flow_pool, FALSE, TRUE);
-
   kms_element_destroy_stats (element);
 
   /* free resources allocated by this object */
@@ -1916,9 +1892,6 @@ kms_element_init (KmsElement * element)
       (GDestroyNotify) destroy_output_element_data);
   element->priv->stats.avg_iss = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) kms_ref_struct_unref);
-
-  element->priv->media_flow_pool =
-      g_thread_pool_new (check_if_flow_media_async, NULL, -1, FALSE, NULL);
 }
 
 KmsElementPadType
