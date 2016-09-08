@@ -590,14 +590,9 @@ MediaElementImpl::~MediaElementImpl ()
 
   GST_LOG ("Deleting media element %s", getName().c_str () );
 
-  disconnectAll();
-
-  pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
-
-  gst_element_set_locked_state (element, TRUE);
-  gst_element_set_state (element, GST_STATE_NULL);
-  gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
-  g_signal_handler_disconnect (element, padAddedHandlerId);
+  if (padAddedHandlerId) {
+    g_signal_handler_disconnect (element, padAddedHandlerId);
+  }
 
   if (mediaFlowOutHandler > 0) {
     unregister_signal_handler (element, mediaFlowOutHandler);
@@ -606,6 +601,14 @@ MediaElementImpl::~MediaElementImpl ()
   if (mediaFlowInHandler > 0) {
     unregister_signal_handler (element, mediaFlowInHandler);
   }
+
+  disconnectAll();
+
+  pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
+
+  gst_element_set_locked_state (element, TRUE);
+  gst_element_set_state (element, GST_STATE_NULL);
+  gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
 
   g_object_unref (element);
 
