@@ -18,6 +18,7 @@
 #define __KMS_ELEMENT_H__
 
 #include <gst/gst.h>
+#include "kmsloop.h"
 #include "kmselementpadtype.h"
 #include "kmsmediatype.h"
 
@@ -74,6 +75,8 @@ struct _KmsElement
 struct _KmsElementClass
 {
   GstBinClass parent_class;
+
+  KmsLoop * loop;
 
   /* actions */
   gchar * (*request_new_pad) (KmsElement *self, KmsElementPadType type, const gchar *desc, GstPadDirection dir);
