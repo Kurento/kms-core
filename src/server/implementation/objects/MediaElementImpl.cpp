@@ -465,8 +465,7 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
   } else {
     data = std::make_shared <MediaFlowData> (padTypeToMediaType (type),
            std::string (padName), state);
-    mediaFlowDataOut.insert (std::pair
-                             <std::string, std::shared_ptr <MediaFlowData>> (key, data) );
+    mediaFlowDataOut[key] = data;
   }
 
   try {
@@ -511,8 +510,7 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
   } else {
     data = std::make_shared <MediaFlowData> (padTypeToMediaType (type),
            std::string (padName), state);
-    mediaFlowDataIn.insert (std::pair
-                            <std::string, std::shared_ptr <MediaFlowData>> (key, data) );
+    mediaFlowDataIn[key] = data;
   }
 
   try {
