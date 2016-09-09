@@ -1,3 +1,29 @@
+6.6.0
+=====
+
+  * Bugs fixes:
+
+     * Improve rtp synchronization algorithm, this makes recorder behave
+       better when recording from RtpEndpoint or WebRTCEndpoint
+     * Fix memory problems during Media Elements disconnections. This problem
+       was also present when
+     * Improve Media Elements connection, some cases were not working
+       correctly, specially when creating multi stream elements
+     * Fix memory problems in flowOut/flowIn events detection
+     * Allow c++ to listen to signals with at return value
+     * Memory leaks
+     * Fix some rare media deadlocks on on AgnosticBin
+     * UriEndpoint: Add support
+  * Update SDP Agent
+
+     * Make code cleaner
+     * Add support for error notification using GError, this allows
+       raising betters exceptions to client
+  * Documentation improvements
+  * ServerManager: Add method to get memory used by the server
+  * UriEndpoint: Add property to get state
+  * UriEndpoint: Add event to notify state changes
+
 6.5.0
 =====
 
