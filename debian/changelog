@@ -1,3 +1,227 @@
+kms-core-6.0 (6.6.0) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Fix memory leak
+  * kmssdpagent: Change management of negotiations
+
+  [ Miguel París Díaz ]
+  * sdpagent: improve MediaConfig param names
+
+  [ Javier Lopez ]
+  * [kmd] Improvements in MediaObject reference documentation
+
+  [ David Fernandez ]
+  * basertpendpoint: Add debug info to timestamp algorithm
+
+  [ Santiago Carot-Nemesio ]
+  * MediaSet: Do not show an error if any object does not have children
+
+  [ Miguel París Díaz ]
+  * remb: move section mark to correct place
+  * Use g_object_set|get_qdata
+  * passthrough: do not connect audio, it is not expected
+
+  [ Jose Antonio Santos Cadenas ]
+  * SignalHandler: Return correct type when callback does not return void
+  * basertpendpoint.c: Do not use SR packages data if packet count is 0
+  * basertpendpoint: Do not produce negative pts values
+  * basertpendpoint: Improve detection of invalid pts values
+  * basertpendpoint: Improve rtp stats file name
+
+  [ David Fernandez ]
+  * kmsaudiomixer: Fix variable names in if comparison
+  * kmsaudiomixer: Set latency property to audiomixer
+  * kmsaudiomixer: Change min latency in answer to latency query
+  * kmsaudiomixer: Answer latency queries in old audiomixer pads
+  * agnosticbin: Increase leaky time in agnosticbin
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet: Add objects to its parent's sesssion
+  * MediaSet: Call postConstructor correctly
+
+  [ Santiago Carot-Nemesio ]
+  * gstsdpdirection: Turn sdpdirection into an enumerated gobject property
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Add function to set add sink pads using MediaType
+
+  [ Miguel París Díaz ]
+  * utils: support BufferList in drop_until_keyframe utility
+  * utils: fix memory leaks in tests
+  * utils: fix event leak in event_function utility
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaElement: Add support for connecting other descriptions than default
+  * MediaElementImpl: Fix connection for default description
+  * kmsutils: Add utility to convert between KmsMediaType and KmsElementPadType
+
+  [ Santiago Carot-Nemesio ]
+  * sdpagent: Fix bad payload provided in offers that are already generated
+  * sdpagent: Minimize usage of SdpMessageContext which is expected to be deprecated in due time
+  * sdpagent: Take into account previous offer to generate a new offer
+  * sdpagent: Clean up code
+  * sdpagent: Do not use protocol for media handler type
+  * sdpagent: Do not use callbacks to iterate lists when errors should be notified
+
+  [ David Fernandez ]
+  * agnosticbin: Remove features from caps before check the intersection
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Improve performance of release_requested_pad
+
+  [ David Fernandez ]
+  * agnosticbin: Dont allow RTP caps as input
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaElement: Fix disconnect method
+
+  [ Santiago Carot-Nemesio ]
+  * Fix SDP agent to generate already offered groups
+
+  [ Miguel París Díaz ]
+  * agnosticbin: set state to NULL after removing the element
+  * agnosticbin: link treebins properly to avoid possible deadlock when setting state to NULL
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdp_agent: Fix compilation issue on xenial
+
+  [ Miguel París Díaz ]
+  * sdpagent: do not log an error a non-error case
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaElement: let sink element prepare connection
+  * MediaElementImpl: Fix the way that sinkPad name is created
+
+  [ Miguel París Díaz ]
+  * utils: add is_remb_event_upstream function
+
+  [ Jose Antonio Santos Cadenas ]
+  * ServerManagerImpl: Add method getUsedMemory
+
+  [ Miguel París Díaz ]
+  * CMakeLists: take into account previous value of GST_PLUGIN_PATH
+
+  [ Jose Antonio Santos Cadenas ]
+  * sdprtpavpfmediahandler: Add new constructor with udp_tls transport
+  * sdppayloadmanager: Add the possibility of re-using pt's for the same codec
+
+  [ Miguel París Díaz ]
+  * treebin: handle input_caps into a critical section
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaElementImpl: Initialize attributes correctly
+
+  [ Miguel París Díaz ]
+  * MediaElementImpl: remove element before setting to NULL
+  * MediaPipelineImpl: remove signal from bus after setting pipeline to NULL state
+  * MediaElementImpl: disconnect: remove connection from sinks map if also sink element matches
+
+  [ José Antonio Santos Cadenas ]
+  * Revert "MediaElementImpl: remove element before setting to NULL"
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpagent: Notify change of states
+  * kmssdpagent: Notify errors
+  * kmssdpcontext: Include connection when copying session attributes
+  * Revert "kmssdpagent: Notify errors"
+
+  [ José Antonio Santos Cadenas ]
+  * Revert "kmssdpcontext: Include connection when copying session attributes"
+
+  [ Miguel París Díaz ]
+  * basertpendpoint: write original pts in stats file
+
+  [ Jose Antonio Santos Cadenas ]
+  * Fix compilation warnings when using clang
+
+  [ Miguel París Díaz ]
+  * CMakeLists (sdpagent): remove extra line at the end of the file
+  * CMakeLists: remove uneded var
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaSet: Use default logging instead of loging to stderr
+
+  [ José Antonio Santos Cadenas ]
+  * Revert "Revert "kmssdpcontext: Include connection when copying session attributes""
+
+  [ Santiago Carot-Nemesio ]
+  * kmssdpsession: Do not use media config
+  * kmsirtpsessionmanager: Remove mediaconfig from API
+  * kmsbasertpsession: Do not use mediaconfig
+  * kmssdpsession: Remove media context
+  * kmsbasesdpendpoint: Remove media context from API
+  * kmssdpagent: Do not provide a SdpMessageContext when generating answers
+  * kmssdpagent: Remove deprecated function from API
+  * kmssdpagent: Remove deprecated management of groups
+  * kmssdpagent: Get the group of the handler
+  * kmssdpagent: Remove deprecated callback
+  * kmssdpagent: Allow to get mediahandler by index
+  * kmssdpagent: Set id and index for all medias handlers
+  * kmssdpagent: Check handler compatibility before using it
+  * kmssdpagent: Remove SdpMediaConfig from offer and answer callbacks
+  * kmssdpagent: Remove mediacontext data structures from public API
+  * kmssdpagent: Do not use message context when generating offers
+  * SDPAgent: Remove Mediacontext from handler and extension APIs
+  * kmssdpagent: Do not use message context when generating answers
+  * kmssdpcontext: Purge
+
+  [ Miguel París Díaz ]
+  * sdpsession (generate_offer, process_offer): return proper value when error
+
+  [ Santiago Carot-Nemesio ]
+  * kmsrecordingprofile: Add new JPEG profile for video only
+  * UriEndpointImpl: Add readonly property to get state of the endpoint
+  * UriEndpointImpl: Do not redefine types
+  * UriEndpointImpl: Add signal to notify changes of state
+
+  [ Jose Antonio Santos Cadenas ]
+  * Fix compilation using 02 flag
+
+  [ David Fernandez ]
+  * kmsbasertpendpoint: Calculate REMB stats for correct session
+
+  [ Miguel París Díaz ]
+  * rtpsync: library for synchronizing RTP packets
+  * rtpsynccontext: add stats file functionality
+  * rtpsynchronizer: interpolate RTP ts if there is not RTCP sync info
+  * rtpsynchronizer: check wrap down, wrap up and out of range for PTSs
+  * rtpsynchronizer: write stats
+  * basertpendpoint: use sync library
+  * basertpendpoint: hack to avoid wrong PTS assignament due to a Firefox bug
+  * rtpsynchronizer: support for feeded sorted mode
+  * rtpsynchronizer: do not use hash table for clock_rates
+  * rtpsync: use macros to simplify tests
+
+  [ Jose Antonio Santos Cadenas ]
+  * Install correctly rtpsync library headers
+
+  [ Santiago Carot-Nemesio ]
+  * sdpagent: Notify errors
+  * kmsbasesdpendpoint: Allow negotiate medias even if they are bundled or not
+
+  [ David Fernandez ]
+  * UriEndpointImpl: Change escaped slashes '%2F' by '/'
+
+  [ Miguel París Díaz ]
+  * kmselement: fix MediaFlowData ref management
+  * kmselement: keep clock ref in order to keep ClockId valid
+  * kmselement: use thread pool to signal media flow events
+  * Revert "kmselement: use thread pool to signal media flow events"
+  * kmselement: use KmsLoop for attaching timers to check media flow
+
+  [ Jose Antonio Santos Cadenas ]
+  * MediaElement: Remove signal handlers before disconecting element
+  * MediaElement: Insert data in map using custom [] operator
+  * ChangeLog.md: Prepare release notes for 6.6.0
+  * Prepare release 6.6.0
+
+  [ Jose Antonio Santos ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 09 Sep 2016 16:35:01 +0200
+
 kms-core-6.0 (6.5.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

@@ -17,7 +17,7 @@ Build-Depends: debhelper (>= 8.0.0),
  gstreamer1.5-plugins-bad (>= 1.7.1~0),
  gstreamer1.5-plugins-good (>= 1.7.1~0),
  gstreamer1.5-plugins-ugly (>= 1.7.1~0),
- kurento-module-creator-4.0 (>= 4.0.5),
+ kurento-module-creator-4.0 (>= 4.0.6),
  libvpx-dev,
  libboost-system-dev,
  libboost-filesystem-dev,
@@ -61,7 +61,7 @@ Depends: kms-core-6.0 (= ${binary:Version}),
  libboost-system-dev,
  libboost-filesystem-dev,
  libboost-test-dev,
- kurento-module-creator-4.0
+ kurento-module-creator-4.0 (>= 4.0.6)
 Breaks:
  kms-core-dev
 Replaces:
