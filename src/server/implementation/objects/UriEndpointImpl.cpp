@@ -31,7 +31,7 @@ using std::regex_replace;
 using boost::regex;
 using boost::regex_replace;
 #endif
-#include "kmsuriendpointstate.h"
+#include "kmsuriendpoint.h"
 #include <SignalHandler.hpp>
 
 #define GST_CAT_DEFAULT kurento_uri_endpoint_impl
@@ -162,21 +162,36 @@ UriEndpointImpl::~UriEndpointImpl ()
 
 void UriEndpointImpl::pause ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_PAUSE, NULL);
+  GError *error = NULL;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_PAUSE, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 void UriEndpointImpl::stop ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_STOP, NULL);
+  GError *error = NULL;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_STOP, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 void
 UriEndpointImpl::start ()
 {
-  g_object_set (G_OBJECT (getGstreamerElement() ), "state",
-                KMS_URI_ENDPOINT_STATE_START, NULL);
+  GError *error = NULL;
+
+  if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
+                                   KMS_URI_ENDPOINT_STATE_START, &error) ) {
+    GST_ERROR_OBJECT (getGstreamerElement(), "Error: %s", error->message);
+    g_error_free (error);
+  }
 }
 
 std::string

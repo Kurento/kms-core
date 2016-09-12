@@ -26,5 +26,7 @@ typedef enum
   KMS_URI_ENDPOINT_STATE_PAUSE
 } KmsUriEndpointState;
 
+const gchar * kms_uriendpoint_state_to_string (KmsUriEndpointState state);
+
 G_END_DECLS
 #endif /* __KMS_URI_ENDPOINT_STATE__ */
