@@ -1335,6 +1335,130 @@ set_func:
       kms_query_data_destroy);
 }
 
+typedef struct _AdjustPtsData
+{
+  GstElement *element;
+  GstClockTime last_dts;
+  GstClockTime last_pts;
+  GstClockTime last_pts_inc;
+} AdjustPtsData;
+
+static void
+adjust_pts_data_destroy (AdjustPtsData * data)
+{
+  g_slice_free (AdjustPtsData, data);
+}
+
+static AdjustPtsData *
+adjust_pts_data_new (GstElement * element)
+{
+  AdjustPtsData *data;
+
+  data = g_slice_new0 (AdjustPtsData);
+  data->element = element;
+  data->last_dts = GST_CLOCK_TIME_NONE;
+  data->last_pts = GST_CLOCK_TIME_NONE;
+  data->last_pts_inc = GST_CLOCK_TIME_NONE;
+
+  return data;
+}
+
+static void
+kms_rtp_receiver_adjust_pts (AdjustPtsData * data, GstBuffer ** buffer)
+{
+  GstClockTime pts_orig;
+
+  if (!GST_CLOCK_TIME_IS_VALID (data->last_pts)) {
+    goto end;
+  }
+
+  if (GST_BUFFER_PTS (*buffer) > data->last_pts) {
+    GstClockTime pts_diff = GST_BUFFER_PTS (*buffer) - data->last_pts;
+    GstClockTime dts_diff = GST_BUFFER_DTS (*buffer) - data->last_dts;
+
+    if (pts_diff > 200 * GST_MSECOND) {
+      GST_LOG_OBJECT (data->element,
+          "pts_diff: %" GST_TIME_FORMAT ", dts_diff: %" GST_TIME_FORMAT
+          ", discont: %d", GST_TIME_ARGS (pts_diff), GST_TIME_ARGS (dts_diff),
+          GST_BUFFER_IS_DISCONT (*buffer));
+      if (pts_diff > dts_diff && GST_CLOCK_TIME_IS_VALID (data->last_pts_inc)) {
+        GstClockTime pts_orig;
+
+        *buffer = gst_buffer_make_writable (*buffer);
+        pts_orig = GST_BUFFER_PTS (*buffer);
+        GST_BUFFER_PTS (*buffer) = data->last_pts + data->last_pts_inc;
+        GST_LOG_OBJECT (data->element,
+            "Huge increment PTS (last PTS: %"
+            GST_TIME_FORMAT ", PTS: %" GST_TIME_FORMAT ", new PTS: %"
+            GST_TIME_FORMAT ")", GST_TIME_ARGS (data->last_pts),
+            GST_TIME_ARGS (pts_orig), GST_TIME_ARGS (GST_BUFFER_PTS (*buffer)));
+      }
+    }
+
+    goto end;
+  }
+
+  *buffer = gst_buffer_make_writable (*buffer);
+  pts_orig = GST_BUFFER_PTS (*buffer);
+  GST_BUFFER_PTS (*buffer) = data->last_pts + GST_MSECOND;
+
+  GST_WARNING_OBJECT (data->element,
+      "Non incremental PTS (last PTS: %"
+      GST_TIME_FORMAT ", PTS: %" GST_TIME_FORMAT ", new PTS: %" GST_TIME_FORMAT
+      ")", GST_TIME_ARGS (data->last_pts), GST_TIME_ARGS (pts_orig),
+      GST_TIME_ARGS (GST_BUFFER_PTS (*buffer)));
+
+end:
+  if (GST_CLOCK_TIME_IS_VALID (data->last_pts)) {
+    data->last_pts_inc = GST_BUFFER_PTS (*buffer) - data->last_pts;
+  }
+  data->last_pts = GST_BUFFER_PTS (*buffer);
+  data->last_dts = GST_BUFFER_DTS (*buffer);
+}
+
+static gboolean
+adjust_pts_it (GstBuffer ** buffer, guint idx, AdjustPtsData * data)
+{
+  kms_rtp_receiver_adjust_pts (data, buffer);
+
+  return TRUE;
+}
+
+static GstPadProbeReturn
+adjust_pts_probe (GstPad * pad, GstPadProbeInfo * info, AdjustPtsData * data)
+{
+  if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+
+    list = gst_buffer_list_make_writable (list);
+    gst_buffer_list_foreach (list, (GstBufferListFunc) adjust_pts_it, data);
+    GST_PAD_PROBE_INFO_DATA (info) = list;
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+
+    kms_rtp_receiver_adjust_pts (data, &buffer);
+    GST_PAD_PROBE_INFO_DATA (info) = buffer;
+  }
+
+  return GST_PAD_PROBE_OK;
+}
+
+void
+kms_utils_adjust_output_pts (GstElement * depayloader)
+{
+  GstPad *pad;
+
+  GST_INFO_OBJECT (depayloader, "Adding adjust PTS algorithm");
+
+  pad = gst_element_get_static_pad (depayloader, "src");
+  gst_pad_add_probe (pad,
+      GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      (GstPadProbeCallback) adjust_pts_probe,
+      adjust_pts_data_new (depayloader),
+      (GDestroyNotify) adjust_pts_data_destroy);
+  g_object_unref (pad);
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

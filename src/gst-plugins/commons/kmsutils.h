@@ -97,6 +97,8 @@ void kms_utils_set_pad_event_function_full (GstPad *pad, GstPadEventFunction eve
 /* previous callbacks enabled if chain callbacks is TRUE                 */
 void kms_utils_set_pad_query_function_full (GstPad *pad, GstPadQueryFunction query, gpointer user_data, GDestroyNotify notify, gboolean chain_callbacks);
 
+void kms_utils_adjust_output_pts (GstElement * depayloader);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
