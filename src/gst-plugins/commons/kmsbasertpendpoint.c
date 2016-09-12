@@ -1203,6 +1203,7 @@ gst_base_rtp_get_depayloader_for_caps (GstCaps * caps)
     depayloader = gst_element_factory_create (factory, NULL);
 
     if (depayloader != NULL) {
+      kms_utils_adjust_output_pts (depayloader);
       break;
     }
   }
