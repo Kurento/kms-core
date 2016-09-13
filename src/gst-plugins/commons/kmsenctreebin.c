@@ -51,7 +51,6 @@ typedef enum
 
 struct _KmsEncTreeBinPrivate
 {
-  GstPad *enc_sink;
   GstElement *enc;
   EncoderType enc_type;
   RembEventManager *remb_manager;
@@ -452,6 +451,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *output_tee, *capsfilter = NULL;
+  GstPad *enc_src;
 
   self->priv->current_bitrate = target_bitrate;
 
@@ -466,13 +466,13 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 
   GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, self->priv->enc);
 
-  self->priv->enc_sink = gst_element_get_static_pad (self->priv->enc, "sink");
-  self->priv->remb_manager =
-      kms_utils_remb_event_manager_create (self->priv->enc_sink);
+  enc_src = gst_element_get_static_pad (self->priv->enc, "src");
+  self->priv->remb_manager = kms_utils_remb_event_manager_create (enc_src);
   kms_utils_remb_event_manager_set_callback (self->priv->remb_manager,
       bitrate_callback, self, NULL);
-  gst_pad_add_probe (self->priv->enc_sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+  gst_pad_add_probe (enc_src, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
       tag_event_probe, self, NULL);
+  g_object_unref (enc_src);
 
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
@@ -552,7 +552,6 @@ kms_enc_tree_bin_init (KmsEncTreeBin * self)
 {
   self->priv = KMS_ENC_TREE_BIN_GET_PRIVATE (self);
 
-  self->priv->enc_sink = NULL;
   self->priv->remb_manager = NULL;
 
   self->priv->remb_bitrate = -1;
@@ -568,9 +567,6 @@ kms_enc_tree_bin_dispose (GObject * object)
   KmsEncTreeBin *self = KMS_ENC_TREE_BIN (object);
 
   GST_DEBUG_OBJECT (object, "dispose");
-  if (self->priv->enc_sink) {
-    g_clear_object (&self->priv->enc_sink);
-  }
 
   if (self->priv->remb_manager) {
     kms_utils_remb_event_manager_destroy (self->priv->remb_manager);
