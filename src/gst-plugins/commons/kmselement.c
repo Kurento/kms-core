@@ -828,19 +828,19 @@ accept_eos_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   if (type == GST_EVENT_EOS || type == GST_EVENT_FLUSH_START
       || type == GST_EVENT_FLUSH_STOP) {
     KmsElement *self;
-    gboolean accept;
+    GstPadProbeReturn ret;
 
     self = KMS_ELEMENT (data);
-    KMS_ELEMENT_LOCK (self);
-    accept = self->priv->accept_eos;
-    KMS_ELEMENT_UNLOCK (self);
 
-    if (!accept) {
+    if (!g_atomic_int_get (&self->priv->accept_eos)) {
       GST_DEBUG_OBJECT (pad, "Event %s dropped",
           gst_event_type_get_name (type));
+      ret = GST_PAD_PROBE_DROP;
+    } else {
+      ret = GST_PAD_PROBE_OK;
     }
 
-    return (accept) ? GST_PAD_PROBE_OK : GST_PAD_PROBE_DROP;
+    return ret;
   }
 
   return GST_PAD_PROBE_OK;
@@ -1223,9 +1223,7 @@ kms_element_set_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_ACCEPT_EOS:
-      KMS_ELEMENT_LOCK (self);
-      self->priv->accept_eos = g_value_get_boolean (value);
-      KMS_ELEMENT_UNLOCK (self);
+      g_atomic_int_set (&self->priv->accept_eos, g_value_get_boolean (value));
       break;
     case PROP_AUDIO_CAPS:
       kms_element_endpoint_set_caps (self, gst_value_get_caps (value),
@@ -1305,9 +1303,7 @@ kms_element_get_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_ACCEPT_EOS:
-      KMS_ELEMENT_LOCK (self);
-      g_value_set_boolean (value, self->priv->accept_eos);
-      KMS_ELEMENT_UNLOCK (self);
+      g_value_set_boolean (value, g_atomic_int_get (&self->priv->accept_eos));
       break;
     case PROP_AUDIO_CAPS:
       g_value_take_boxed (value, kms_element_endpoint_get_caps (self,
