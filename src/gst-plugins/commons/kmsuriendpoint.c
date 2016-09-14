@@ -155,6 +155,12 @@ kms_uri_endpoint_set_state (KmsUriEndpoint * self, KmsUriEndpointState next,
   return ret;
 }
 
+KmsUriEndpointState
+kms_uri_endpoint_get_state (KmsUriEndpoint * self)
+{
+  return self->priv->state;
+}
+
 static void
 kms_uri_endpoint_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)

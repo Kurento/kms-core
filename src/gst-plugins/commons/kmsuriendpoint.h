@@ -98,5 +98,8 @@ gboolean kms_uri_endpoint_plugin_init (GstPlugin * plugin);
 
 gboolean kms_uri_endpoint_set_state (KmsUriEndpoint *self, KmsUriEndpointState next, GError **err);
 
+/* no thread safe */
+KmsUriEndpointState kms_uri_endpoint_get_state (KmsUriEndpoint *self);
+
 G_END_DECLS
 #endif
