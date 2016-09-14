@@ -77,17 +77,23 @@ G_DEFINE_TYPE_WITH_CODE (KmsFilterElement, kms_filter_element,
 
 static void
 kms_filter_element_connect_filter (KmsFilterElement * self,
-    KmsElementPadType type, GstElement * filter, GstPad * target,
-    GstElement * agnosticbin)
+    KmsElementPadType type, GstElement * filter, GstElement * agnosticbin)
 {
-  gst_bin_add (GST_BIN (self), filter);
+  GstElement *queue = gst_element_factory_make ("queue", NULL);
+  GstPad *target = gst_element_get_static_pad (queue, "sink");
+
+  g_object_set (queue, "leaky", 2, "max-size-buffers", 1, NULL);
+
+  gst_bin_add_many (GST_BIN (self), queue, filter, NULL);
 
   self->priv->filter = filter;
 
-  gst_element_link (filter, agnosticbin);
+  gst_element_link_many (queue, filter, agnosticbin, NULL);
   gst_element_sync_state_with_parent (filter);
+  gst_element_sync_state_with_parent (queue);
 
   kms_element_connect_sink_target (KMS_ELEMENT (self), target, type);
+  g_object_unref (target);
 }
 
 static void
@@ -173,12 +179,12 @@ kms_filter_element_set_filter (KmsFilterElement * self, GstElement * filter)
 
   if (self->priv->filter_type == KMS_FILTER_TYPE_VIDEO) {
     kms_filter_element_connect_filter (self, KMS_ELEMENT_PAD_TYPE_VIDEO, filter,
-        sink, kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
+        kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
     kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_AUDIO,
         kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
   } else if (self->priv->filter_type == KMS_FILTER_TYPE_AUDIO) {
     kms_filter_element_connect_filter (self, KMS_ELEMENT_PAD_TYPE_AUDIO, filter,
-        sink, kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
+        kms_element_get_audio_agnosticbin (KMS_ELEMENT (self)));
     kms_filter_element_connect_passthrough (self, KMS_ELEMENT_PAD_TYPE_VIDEO,
         kms_element_get_video_agnosticbin (KMS_ELEMENT (self)));
   } else {
