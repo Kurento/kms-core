@@ -451,6 +451,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
 {
   KmsTreeBin *tree_bin = KMS_TREE_BIN (self);
   GstElement *rate, *convert, *mediator, *output_tee, *capsfilter = NULL;
+  GstElement *queue;
   GstPad *enc_src;
 
   self->priv->current_bitrate = target_bitrate;
@@ -477,12 +478,15 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
   mediator = kms_utils_create_mediator_element (caps);
+  queue = gst_element_factory_make ("queue", NULL);
 
   if (rate) {
     gst_bin_add (GST_BIN (self), rate);
   }
-  gst_bin_add_many (GST_BIN (self), convert, mediator, self->priv->enc, NULL);
+  gst_bin_add_many (GST_BIN (self), convert, mediator, queue, self->priv->enc,
+      NULL);
   gst_element_sync_state_with_parent (self->priv->enc);
+  gst_element_sync_state_with_parent (queue);
   gst_element_sync_state_with_parent (mediator);
   gst_element_sync_state_with_parent (convert);
   if (rate) {
@@ -518,11 +522,11 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     gst_element_link (rate, convert);
   }
   if (self->priv->enc_type == X264) {
-    gst_element_link_many (convert, mediator, capsfilter, self->priv->enc,
-        output_tee, NULL);
+    gst_element_link_many (convert, mediator, capsfilter, queue,
+        self->priv->enc, output_tee, NULL);
   } else {
-    gst_element_link_many (convert, mediator, self->priv->enc, output_tee,
-        NULL);
+    gst_element_link_many (convert, mediator, queue, self->priv->enc,
+        output_tee, NULL);
   }
 
   return TRUE;
