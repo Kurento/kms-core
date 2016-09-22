@@ -11,11 +11,10 @@ include (KurentoGitHelpers)
 if (DEFINED CMAKE_MODULE_PATH)
   list(REVERSE CMAKE_MODULE_PATH)
 endif ()
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
-list(REVERSE CMAKE_MODULE_PATH)
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
 include (CodeGenerator)
 
-get_values_from_model(PREFIX VALUE MODELS ${CMAKE_SOURCE_DIR}/src/server/interface KEYS version)
+get_values_from_model(PREFIX VALUE MODELS ${CMAKE_CURRENT_SOURCE_DIR}/src/server/interface KEYS version)
 
 get_git_version (PROJECT_VERSION ${VALUE_VERSION})
 install_git_hook (pre-commit ${CMAKE_CURRENT_SOURCE_DIR}/hooks/pre-commit.hook)
@@ -78,16 +77,16 @@ add_subdirectory(tests)
 message(STATUS "Compiling : ${PROJECT_NAME}-${PROJECT_VERSION}")
 
 install(
-  FILES "${CMAKE_SOURCE_DIR}/CMake/CodeGenerator.cmake"
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/CodeGenerator.cmake"
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
 )
 
 install(
-  FILES "${CMAKE_SOURCE_DIR}/CMake/FindMaven.cmake"
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/FindMaven.cmake"
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
 )
 
 install(
-  FILES "${CMAKE_SOURCE_DIR}/CMake/FindNpm.cmake"
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/FindNpm.cmake"
   DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
 )

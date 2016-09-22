@@ -41,7 +41,7 @@ generate_code (
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}
   INTERFACE_LIB_EXTRA_HEADERS ${KMS_CORE_INTERFACE_HEADERS}
   INTERFACE_LIB_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${KmsJsonRpc_INCLUDE_DIRS}
@@ -56,8 +56,9 @@ generate_code (
   SERVER_IMPL_LIB_EXTRA_HEADERS
       ${KMS_CORE_IMPL_HEADERS}
   SERVER_IMPL_LIB_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins/commons
+      ${CMAKE_CURRENT_BINARY_DIR}/../..
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins/commons
       ${CMAKE_CURRENT_SOURCE_DIR}/implementation
       ${Boost_INCLUDE_DIRS}
       ${Boost_FILESYSTEM_INCLUDE_DIRS}
@@ -73,7 +74,7 @@ generate_code (
       kmsutils
       kmsgstcommons
   MODULE_EXTRA_INCLUDE_DIRS
-      ${CMAKE_SOURCE_DIR}/src/gst-plugins
+      ${CMAKE_CURRENT_SOURCE_DIR}/../gst-plugins
       ${CMAKE_CURRENT_SOURCE_DIR}/interface
       ${gstreamer-1.5_INCLUDE_DIRS}
       ${gstreamer-sdp-1.5_INCLUDE_DIRS}
