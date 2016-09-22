@@ -17,21 +17,21 @@
 #include <config.h>
 #include <gst/gst.h>
 
-#include <kmsagnosticbin.h>
-#include <kmsagnosticbin3.h>
-#include <kmshubport.h>
-#include <kmsfilterelement.h>
-#include <kmsaudiomixer.h>
-#include <kmsaudiomixerbin.h>
-#include <kmsbitratefilter.h>
-#include <kmsbufferinjector.h>
-#include <kmspassthrough.h>
-#include <kmsdummysrc.h>
-#include <kmsdummysink.h>
-#include <kmsdummyduplex.h>
-#include <kmsdummyrtp.h>
-#include <kmsdummysdp.h>
-#include <kmsdummyuri.h>
+#include "kmsagnosticbin.h"
+#include "kmsagnosticbin3.h"
+#include "kmshubport.h"
+#include "kmsfilterelement.h"
+#include "kmsaudiomixer.h"
+#include "kmsaudiomixerbin.h"
+#include "kmsbitratefilter.h"
+#include "kmsbufferinjector.h"
+#include "kmspassthrough.h"
+#include "kmsdummysrc.h"
+#include "kmsdummysink.h"
+#include "kmsdummyduplex.h"
+#include "kmsdummyrtp.h"
+#include "kmsdummysdp.h"
+#include "kmsdummyuri.h"
 
 static gboolean
 kurento_init (GstPlugin * kurento)

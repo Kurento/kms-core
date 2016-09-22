@@ -2,11 +2,6 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
 include(GLibHelpers)
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 add_subdirectory(commons)
 
 set(KMS_CORE_SOURCES
@@ -31,15 +26,15 @@ add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
 
 add_dependencies(${LIBRARY_NAME}plugins kmsgstcommons)
 
-include_directories(
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-base-1.5_INCLUDE_DIRS}
-  ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-  ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  "${CMAKE_CURRENT_BINARY_DIR}/commons/"
-  "${CMAKE_CURRENT_SOURCE_DIR}/commons/"
+set_property (TARGET ${LIBRARY_NAME}plugins
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}/../../
+    ${CMAKE_CURRENT_BINARY_DIR}/commons/
+    ${CMAKE_CURRENT_SOURCE_DIR}/commons/
 )
 
 target_link_libraries(${LIBRARY_NAME}plugins

@@ -23,6 +23,7 @@ foreach(test ${ALL_TESTS})
   target_include_directories(test_${test} PRIVATE
     ${gstreamer-1.5_INCLUDE_DIRS}
     ${gstreamer-check-1.5_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../
   )
 
   target_link_libraries(test_${test}
@@ -40,6 +41,7 @@ target_include_directories(test_sdp_agent PRIVATE
   ${gstreamer-check-1.5_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/sdpagent
+  ${CMAKE_CURRENT_BINARY_DIR}/../../../
 )
 
 target_link_libraries(test_sdp_agent
@@ -57,6 +59,7 @@ target_include_directories(test_metadata PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/
+  ${CMAKE_CURRENT_BINARY_DIR}/../../../
 )
 
 target_link_libraries(test_metadata

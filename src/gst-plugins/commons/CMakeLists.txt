@@ -1,14 +1,3 @@
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-base-1.5_SOURCE_DIRS}
-  ${gstreamer-sdp-1.5_SOURCE_DIRS}
-  ${gstreamer-pbutils-1.5_SOURCE_DIRS}
-  ${gstreamer-video-1.5_INCLUDE_DIRS}
-  ${uuid_INCLUDE_DIRS}
-)
-
 set(KMS_SDP_UTILS_SOURCES
   sdp_utils.c
 )
@@ -18,6 +7,14 @@ set(KMS_SDP_UTILS_HEADERS
 )
 
 add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
+
+set_property (TARGET sdputils
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+)
 
 target_link_libraries(sdputils
   ${gstreamer-1.5_LIBRARIES}
@@ -42,6 +39,11 @@ install(
 
 add_library(kmsrefstruct kmsrefstruct.c kmsrefstruct.h)
 
+set_property(TARGET kmsrefstruct
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+)
+
 target_link_libraries(kmsrefstruct
   ${gstreamer-1.5_LIBRARIES}
 )
@@ -59,6 +61,16 @@ set(KMS_UTILS
 )
 
 add_library(kmsutils ${KMS_UTILS})
+
+set_property(TARGET kmsutils
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-video-1.5_INCLUDE_DIRS}
+    ${uuid_INCLUDE_DIRS}
+)
 
 set_target_properties(kmsutils PROPERTIES PUBLIC_HEADER kmsutils.h)
 
@@ -151,6 +163,18 @@ add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-enumtypes KM
 add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_core_marshal)
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
+
+set_property (TARGET kmsgstcommons
+  PROPERTY INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/../../..
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-rtp-1.5_INCLUDE_DIRS}
+)
 
 add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
 

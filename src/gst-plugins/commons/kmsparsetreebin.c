@@ -20,7 +20,7 @@
 #endif
 
 #include "kmsparsetreebin.h"
-#include <kmsutils.h>
+#include "kmsutils.h"
 
 #define GST_DEFAULT_NAME "parsetreebin"
 #define GST_CAT_DEFAULT kms_parse_tree_bin_debug

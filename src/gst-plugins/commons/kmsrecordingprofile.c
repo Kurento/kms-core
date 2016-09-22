@@ -15,7 +15,7 @@
  *
  */
 
-#include <kmsrecordingprofile.h>
+#include "kmsrecordingprofile.h"
 
 static GstEncodingContainerProfile *
 kms_recording_profile_create_webm_profile (gboolean has_audio,

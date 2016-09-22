@@ -1,8 +1,3 @@
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 set(KMS_RTP_SYNC_SOURCES
   kmsrtpsynccontext.c
   kmsrtpsynchronizer.c
@@ -20,6 +15,12 @@ set_target_properties(kmsrtpsync PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION
 target_link_libraries(kmsrtpsync
   ${gstreamer-1.5_LIBRARIES}
   ${gstreamer-rtp-1.5_LIBRARIES}
+)
+
+set_property (TARGET kmsrtpsync
+  PROPERTY INCLUDE_DIRECTORIES
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-rtp-1.5_INCLUDE_DIRS}
 )
 
 set(RTP_SYNC_INCLUDE_PREFIX "${INCLUDE_PREFIX}/rtpsync")

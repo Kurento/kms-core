@@ -20,7 +20,7 @@
 #endif
 
 #include "kmsbitratefilter.h"
-#include <commons/kmsutils.h>
+#include "commons/kmsutils.h"
 
 #define PLUGIN_NAME "bitratefilter"
 

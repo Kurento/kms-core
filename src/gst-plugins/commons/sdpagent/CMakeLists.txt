@@ -1,8 +1,3 @@
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 set(KMS_SDP_AGENT_SOURCES
   kmssdpagentcommon.c
   kmssdpagent.c
@@ -77,6 +72,19 @@ add_dependencies(kmssdpagent sdputils kmsrefstruct)
 set_target_properties(kmssdpagent PROPERTIES PUBLIC_HEADER "${KMS_SDP_AGENT_HEADERS}")
 
 set_target_properties(kmssdpagent PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+
+set_property (TARGET kmssdpagent
+  PROPERTY INCLUDE_DIRECTORIES
+  ${CMAKE_CURRENT_BINARY_DIR}/../../../../
+  ${CMAKE_CURRENT_SOURCE_DIR}/../
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../
+  ${gstreamer-1.5_INCLUDE_DIRS}
+  ${gstreamer-base-1.5_INCLUDE_DIRS}
+  ${gstreamer-sdp-1.5_INCLUDE_DIRS}
+  ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 set(SDP_AGENT_INCLUDE_PREFIX "${INCLUDE_PREFIX}/sdpagent")
 

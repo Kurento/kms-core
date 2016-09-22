@@ -1,17 +1,19 @@
-include_directories(
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-base-1.5_INCLUDE_DIRS}
-  ${gstreamer-video-1.5_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${VPX_INCLUDE_DIRS}
-)
-
 set(VP8PARSE_SOURCES
   vp8parse.c
   kmsvp8parse.c kmsvp8parse.h
 )
 
 add_library(vp8parse MODULE ${VP8PARSE_SOURCES})
+
+set_property (TARGET vp8parse
+  PROPERTY INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../
+    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-base-1.5_INCLUDE_DIRS}
+    ${gstreamer-video-1.5_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${VPX_INCLUDE_DIRS}
+  )
 
 target_link_libraries(vp8parse
   ${gstreamer-1.5_LIBRARIES}
