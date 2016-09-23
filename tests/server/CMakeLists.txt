@@ -71,9 +71,9 @@ target_link_libraries(test_media_element
   kmsgstcommons
 )
 
-add_test_program (test_rtp_endpoint rtpEndpoint.cpp)
-add_dependencies(test_rtp_endpoint kmscoreplugins ${LIBRARY_NAME}impl)
-set_property (TARGET test_rtp_endpoint
+add_test_program (test_rtp_endpoint_cpp rtpEndpoint.cpp)
+add_dependencies(test_rtp_endpoint_cpp kmscoreplugins ${LIBRARY_NAME}impl)
+set_property (TARGET test_rtp_endpoint_cpp
   PROPERTY INCLUDE_DIRECTORIES
   ${KmsJsonRpc_INCLUDE_DIRS}
   ${sigc++-2.0_INCLUDE_DIRS}
@@ -87,7 +87,7 @@ set_property (TARGET test_rtp_endpoint
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${Boot_INCLUDE_DIRS}
   )
-target_link_libraries(test_rtp_endpoint
+target_link_libraries(test_rtp_endpoint_cpp
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
   ${Boot_LIBRARIES}
