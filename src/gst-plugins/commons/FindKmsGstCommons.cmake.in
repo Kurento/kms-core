@@ -16,28 +16,45 @@ find_path(KmsGstCommons_INCLUDE_DIR
     @CUSTOM_PREFIX@
 )
 
+set (GST_COMMONS_BINARY_DIR_PREFIX "build" CACHE PATH "Path prefix used to look for binary files")
+
+if (TARGET kmsgstcommons)
+
+  set (KmsGstCommons_GENERATED_INCLUDE_DIR "${GST_COMMONS_BINARY_DIR_PREFIX}/src/gst-plugins")
+
+else ()
+
 find_path(KmsGstCommons_GENERATED_INCLUDE_DIR
   NAMES
     commons/kms-core-marshal.h
     commons/kms-core-enumtypes.h
   PATH_SUFFIXES
-    build/src/gst-plugins
+    ${GST_COMMONS_BINARY_DIR_PREFIX}/src/gst-plugins
     @CUSTOM_PREFIX@
 )
 
+endif()
+
 set(KmsGstCommons_INCLUDE_DIRS ${KmsGstCommons_INCLUDE_DIR} ${KmsGstCommons_GENERATED_INCLUDE_DIR}
-  CACHE INTERNAL "Include directories for KmsGstCommons library"
+  CACHE INTERNAL "Include directories for KmsGstCommons library" FORCE
 )
 
-find_library (KmsGstCommons_LIBRARY
-  NAMES
-    kmsgstcommons
-  PATH_SUFFIXES
-    build/src/gst-plugins/commons
-)
+if (TARGET kmsgstcommons)
+  #Just get the target for the library
+  set (KmsGstCommons_LIBRARY kmsgstcommons)
+else ()
+
+  find_library (KmsGstCommons_LIBRARY
+    NAMES
+      kmsgstcommons
+    PATH_SUFFIXES
+      ${GST_COMMONS_BINARY_DIR_PREFIX}/src/gst-plugins/commons
+  )
+
+endif ()
 
 set (KmsGstCommons_LIBRARIES ${KmsGstCommons_LIBRARY}
-  CACHE INTERNAL "Libraries for KmsGstCommons"
+  CACHE INTERNAL "Libraries for KmsGstCommons" FORCE
 )
 
 include (GenericFind)
