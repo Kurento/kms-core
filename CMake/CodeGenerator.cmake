@@ -126,7 +126,11 @@ function (generate_sources)
     endif()
   endforeach()
 
-  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
+  set (COMMAND_LINE -c ${PARAM_GEN_FILES_DIR} -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -it ${PARAM_INTERNAL_TEMPLATES_DIR})
 
   if (PARAM_NO_OVERWRITE)
     set (COMMAND_LINE ${COMMAND_LINE} -n)
@@ -331,7 +335,11 @@ function (generate_kurento_libraries)
 
   set(CUSTOM_PREFIX "kurento")
 
-  set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR})
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
+  set (KTOOL_PROCESSOR_LINE -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE})
 
   string(TOUPPER ${VALUE_CODE_IMPLEMENTATION_LIB} VALUE_CODE_IMPLEMENTATION_LIB_UPPER)
 
@@ -627,7 +635,7 @@ function (generate_kurento_libraries)
   )
 
   file (WRITE ${CMAKE_CURRENT_BINARY_DIR}/generate_kmd_include.cmake
-"  execute_process (COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/)
+"  execute_process (COMMAND ${KurentoModuleCreator_EXECUTABLE} -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_CURRENT_BINARY_DIR}/)
 
   file (READ ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json KMD_DATA)
 
@@ -851,7 +859,7 @@ function (generate_kurento_libraries)
   ###############################################################
 
   execute_code_generator (
-    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
+    EXEC_PARAMS -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_CURRENT_BINARY_DIR}/kmd
   )
 
   file (GLOB_RECURSE FINAL_MODELS ${CMAKE_CURRENT_BINARY_DIR}/kmd/*kmd.json)
@@ -900,7 +908,7 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/java -maven
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/java -maven
     )
 
     find_program(xmllint_EXECUTABLE NAMES xmllint)
@@ -921,7 +929,7 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_BINARY_DIR}/java/src/main/kmd
     )
 
     if (${Maven_FOUND})
@@ -967,17 +975,17 @@ function (generate_kurento_libraries)
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js -npm
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/js -npm
     )
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -c ${CMAKE_BINARY_DIR}/js/lib -t ${KURENTO_CLIENT_JS_DIR}/templates
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -c ${CMAKE_BINARY_DIR}/js/lib -t ${KURENTO_CLIENT_JS_DIR}/templates
     )
 
     execute_code_generator (
       EXEC_PARAMS
-        -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -o ${CMAKE_BINARY_DIR}/js/src
+        -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -o ${CMAKE_BINARY_DIR}/js/src
     )
 
     if (EXISTS ${CMAKE_SOURCE_DIR}/LICENSE)
@@ -1030,8 +1038,12 @@ function (get_values_from_model)
     endif()
   endforeach()
 
+  foreach (MODULES_DIR ${KURENTO_MODULES_DIR})
+    set (KURENTO_MODULES_DIR_LINE "${KURENTO_MODULES_DIR_LINE};-dr;${MODULES_DIR}")
+  endforeach()
+
   execute_code_generator (
-    EXEC_PARAMS -r ${PARAM_MODELS} -dr ${KURENTO_MODULES_DIR} -s ${PARAM_KEYS}
+    EXEC_PARAMS -r ${PARAM_MODELS} ${KURENTO_MODULES_DIR_LINE} -s ${PARAM_KEYS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT
   )
 
