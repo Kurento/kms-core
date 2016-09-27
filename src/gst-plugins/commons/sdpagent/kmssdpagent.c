@@ -1360,7 +1360,7 @@ kms_sdp_agent_set_handler_group (KmsSdpAgent * agent, SdpHandler * handler,
 
   if (mids == NULL) {
     GST_DEBUG_OBJECT (agent, "Group not provided");
-    return;
+    goto end;
   }
 
   g_object_get (group, "semantics", &semantics, "id", &gid, NULL);
