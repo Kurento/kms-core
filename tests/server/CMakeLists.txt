@@ -62,12 +62,12 @@ set_property (TARGET test_media_element
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
-    ${Boot_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_element
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
   kmsgstcommons
 )
 
@@ -85,12 +85,12 @@ set_property (TARGET test_rtp_endpoint_cpp
   ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
   ${glibmm-2.4_INCLUDE_DIRS}
   ${gstreamer-1.5_INCLUDE_DIRS}
-  ${Boot_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
   )
 target_link_libraries(test_rtp_endpoint_cpp
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
   )
 
 add_test_program (test_sdp_endpoint sdpEndpoint.cpp)
@@ -107,12 +107,12 @@ set_property (TARGET test_sdp_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
-    ${Boot_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_sdp_endpoint
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
 )
 
 add_test_program (test_media_object mediaObject.cpp)
@@ -129,12 +129,12 @@ set_property (TARGET test_media_object
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
-    ${Boot_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_object
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
 )
 
 add_test_program (test_complex_type complexType.cpp)
@@ -150,12 +150,12 @@ set_property (TARGET test_complex_type
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
-    ${Boot_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_complex_type
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
 )
 
 add_test_program (test_uri_endpoint uriEndpoint.cpp)
@@ -172,10 +172,10 @@ set_property (TARGET test_uri_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
-    ${Boot_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_uri_endpoint
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
-  ${Boot_LIBRARIES}
+  ${Boost_LIBRARIES}
 )

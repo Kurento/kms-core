@@ -97,7 +97,7 @@ generate_code (
       "KmsJsonRpc ${JSON_RPC_REQUIRED}"
       "sigc++-2.0 ${sigc++-2.0_REQUIRED}"
       "glibmm-2.4 ${glibmm-2.4_REQUIRED}"
-      "LIBNAME Boost COMPONENTS filesystem system"
+      "LIBNAME Boost COMPONENTS filesystem system regex"
 )
 
 if (NOT ${DISABLE_LIBRARIES_GENERATION})
