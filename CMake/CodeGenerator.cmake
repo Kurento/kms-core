@@ -905,6 +905,12 @@ function (generate_kurento_libraries)
       ${CONFIG_FILES}
       DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/kurento/modules/${CONFIG_FILES_DIR}
     )
+
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/modules_config/${CONFIG_FILES_DIR})
+    foreach (CONFIG_FILE ${CONFIG_FILES})
+      execute_process (
+          COMMAND ln -fs ${CONFIG_FILE} ${CMAKE_BINARY_DIR}/modules_config/${CONFIG_FILES_DIR})
+    endforeach()
   else()
     message (STATUS "No config files found")
   endif()
