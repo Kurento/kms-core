@@ -239,13 +239,23 @@ function (generate_sources)
     endforeach()
   else ()
 
-    add_custom_command(
-      OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
-      COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
-      COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
-      DEPENDS ${MODEL_FILES}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
+    if (TARGET kurento-module-creator)
+      add_custom_command(
+        OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
+        COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
+        COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+        DEPENDS ${MODEL_FILES} kurento-module-creator ${KurentoModuleCreator_EXECUTABLE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      )
+    else()
+      add_custom_command(
+        OUTPUT  ${PARAM_INTERNAL_TEMPLATES_DIR}.generated ${GENERATED_SOURCE_FILES} ${GENERATED_HEADER_FILES}
+        COMMAND ${CMAKE_COMMAND} -E touch ${PARAM_INTERNAL_TEMPLATES_DIR}.generated
+        COMMAND ${KurentoModuleCreator_EXECUTABLE} ${COMMAND_LINE}
+        DEPENDS ${MODEL_FILES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      )
+    endif()
   endif()
 
   set (${PARAM_SOURCE_FILES_OUTPUT} ${${PARAM_SOURCE_FILES_OUTPUT}} ${GENERATED_SOURCE_FILES} PARENT_SCOPE)
