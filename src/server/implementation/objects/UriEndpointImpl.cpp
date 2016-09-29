@@ -14,12 +14,23 @@
  * limitations under the License.
  *
  */
+
+#include <config.h>
+
 #include <gst/gst.h>
 #include "UriEndpointImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
+#if REGEX_REPLACE_EXISTS
+#include <regex>
+using std::regex;
+using std::regex_replace;
+#else
 #include <boost/regex.hpp>
+using boost::regex;
+using boost::regex_replace;
+#endif
 #include "kmsuriendpointstate.h"
 #include <SignalHandler.hpp>
 
@@ -35,7 +46,7 @@ namespace kurento
 
 void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 {
-  boost::regex re ("//*");
+  regex re ("//*");
   gchar *location, *protocol;
 
   location = gst_uri_get_location (uri.c_str () );
@@ -53,7 +64,7 @@ void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
     uriWithoutProtocol.erase (0, 1);
   }
 
-  std::string uriWithoutSlash (boost::regex_replace (uriWithoutProtocol, re,
+  std::string uriWithoutSlash (regex_replace (uriWithoutProtocol, re,
                                "/") );
 
   if (uriProtocol == "file") {
@@ -65,8 +76,8 @@ void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 
 void UriEndpointImpl::checkUri ()
 {
-  boost::regex re ("%2F");
-  this->uri = (boost::regex_replace (uri, re, "/") );
+  regex re ("%2F");
+  this->uri = (regex_replace (uri, re, "/") );
   this->absolute_uri = this->uri;
 
   //Check if uri is an absolute or relative path.

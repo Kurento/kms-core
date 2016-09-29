@@ -26,7 +26,35 @@ set (GLIBMM_REQUIRED ^2.37)
 
 include (GenericFind)
 
-generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework regex)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement -Wno-deprecated-declarations -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DHAVE_CONFIG_H -Wall -Werror -std=c++11 -O2")
+
+include (CheckCXXSourceCompiles)
+
+set (CMAKE_REQUIRED_FLAGS ${CMAKE_CXX_FLAGS})
+
+check_cxx_source_compiles (
+  "#include <regex>
+  #include <iostream>
+  int main () {
+    std::regex re (\"//*\");
+    std::string orig = \"//\";
+
+    std::cout << std::regex_replace (orig, re, \"/\") << std::endl;
+
+    return 0;
+  }
+"
+  REGEX_REPLACE_EXISTS
+)
+
+if (${REGEX_REPLACE_EXISTS})
+  set (BOOST_REQUIRED_COMPONENTS "filesystem system")
+  generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework)
+else()
+  set (BOOST_REQUIRED_COMPONENTS "filesystem system regex")
+  generic_find (LIBNAME Boost REQUIRED COMPONENTS filesystem system regex unit_test_framework)
+endif()
 
 #gst-plugins dependencies
 generic_find (LIBNAME gstreamer-1.5 VERSION ${GST_REQUIRED} REQUIRED)
@@ -55,9 +83,6 @@ include(GNUInstallDirs)
 set (CMAKE_INSTALL_GST_PLUGINS_DIR ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.5)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement -Wno-deprecated-declarations -O2")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DHAVE_CONFIG_H -Wall -Werror -std=c++11 -O2")
 
 include(CheckCXXCompilerFlag)
 
