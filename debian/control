@@ -61,6 +61,7 @@ Depends: kms-core-6.0 (= ${binary:Version}),
  libboost-system-dev,
  libboost-filesystem-dev,
  libboost-test-dev,
+ libboost-regex-dev,
  kurento-module-creator-4.0 (>= 4.0.6)
 Breaks:
  kms-core-dev
