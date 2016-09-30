@@ -1377,6 +1377,7 @@ kms_rtp_receiver_adjust_pts (AdjustPtsData * data, GstBuffer ** buffer)
         GST_TIME_ARGS (pts_orig), GST_TIME_ARGS (GST_BUFFER_PTS (*buffer)));
   }
 
+  GST_BUFFER_DTS (*buffer) = GST_BUFFER_PTS (*buffer);
   data->last_pts = GST_BUFFER_PTS (*buffer);
 
   GST_TRACE_OBJECT (data->element, "PTS: %" GST_TIME_FORMAT,
