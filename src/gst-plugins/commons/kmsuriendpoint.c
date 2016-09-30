@@ -88,7 +88,7 @@ static const gchar *str_uristate[] = {
 const gchar *
 kms_uriendpoint_state_to_string (KmsUriEndpointState state)
 {
-  if (state >= 0 && state < G_N_ELEMENTS (str_uristate))
+  if (state < G_N_ELEMENTS (str_uristate))
     return str_uristate[state];
 
   GST_ERROR ("Invalid uri endpoint state: %u", state);

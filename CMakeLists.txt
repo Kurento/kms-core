@@ -26,7 +26,7 @@ set (GLIBMM_REQUIRED ^2.37)
 
 include (GenericFind)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement -Wno-deprecated-declarations -O2")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DHAVE_CONFIG_H -Werror -Wall -Werror=declaration-after-statement -Wno-deprecated-declarations -O2 -std=c11")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DHAVE_CONFIG_H -Wall -Werror -std=c++11 -O2")
 
 include (CheckCXXSourceCompiles)
