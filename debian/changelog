@@ -1,3 +1,53 @@
+kms-core-6.0 (6.6.1) testing; urgency=medium
+
+  [ Jose Antonio Santos Cadenas ]
+  * Prepare for next development iteration
+
+  [ Miguel París Díaz ]
+  * utils: adjust PTS after utility
+  * basertpendpoint: enable PTS adjustment for depayloader output
+  * enctreebin: use a local var for encoder sink pad
+  * filterelement: use a leaky queue before the filter
+  * enctreebin: add queue before encoder
+
+  [ Jose Antonio Santos Cadenas ]
+  * kmselement: Do not use KMS_ELEMENT_LOCK for accept_eos property
+
+  [ Miguel París Díaz ]
+  * utils: do not apply hack when PTS increment is greater than 200 msec
+
+  [ Jose Antonio Santos Cadenas ]
+  * CMake: Use relative source and build directories
+  * CMake: Do not make global includes
+  * CodeGenerator: Include dependencies using with a proper name
+  * FindGstCommons: Allow including from the same project
+  * rtpendpoint: Add more directories to get modules
+  * CMake: Rename rtp_endpoint test program
+  * CodeGenerator: Allow profiding multiple KURENTO_MODULES_DIR
+  * sdp_agent: Do not update for index twice
+
+  [ Miguel París Díaz ]
+  * sdpagent: fix leak when group not provied
+
+  [ Jose Antonio Santos Cadenas ]
+  * Include boost libraries correctly
+  * UriEndpointImpl: Use std regex instead of boost if possible
+  * debian/control: Require boost-regex-dev as a dev dependency
+
+  [ Santiago Carot-Nemesio ]
+  * kmsuriendpoint: Notify errors
+  * kmsuriendpoint: Provide method to get the state without using GObject's marshalling for getters/setters
+
+  [ Jose Antonio Santos Cadenas ]
+  * CodeGenerator: Make code generation depend on code generator changes
+  * CodeGenerator: Link configuration files to binary dir
+  * Fix clang compilation problems in trusty
+  * Prepare release 6.6.1
+
+  [ Jose Antonio Santos ]
+
+ -- Jose Antonio Santos Cadenas <santoscadenas@gmail.com>  Fri, 30 Sep 2016 11:40:03 +0200
+
 kms-core-6.0 (6.6.0) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]

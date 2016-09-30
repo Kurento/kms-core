@@ -1,3 +1,12 @@
+6.6.1
+=====
+
+  * Fix problem in pts synchronization algorithm when remote is sending
+    wrong RTCP SR packages that produces backwards PTS.
+  * Improve thread management when using filters. Filter processing uses
+    its own thread and drops packages that are late.
+  * Improve compilation issues.
+
 6.6.0
 =====
 
