@@ -300,6 +300,7 @@ kms_remb_local_update (KmsRembLocal * rl)
       remb_new = remb_base + rl->lineal_factor;
     }
 
+    remb_new = MIN (remb_new, rl->max_br * REMB_MAX_FACTOR_INPUT_BR);
     rl->remb = MAX (rl->remb, remb_new);
   } else {
     gint remb_base, lineal_factor_new;
@@ -322,8 +323,6 @@ kms_remb_local_update (KmsRembLocal * rl)
       rl->avg_br = 0;
     }
   }
-
-  rl->remb = MIN (rl->remb, rl->max_br * REMB_MAX_FACTOR_INPUT_BR);
 
   if (rl->max_bw > 0) {
     rl->remb = MIN (rl->remb, rl->max_bw * 1000);
