@@ -412,9 +412,8 @@ on_sending_rtcp (GObject * sess, GstBuffer * buffer, gboolean is_early,
 
   if (rl->min_bw > 0) {
     remb_packet.bitrate = MAX (remb_packet.bitrate, rl->min_bw * 1000);
-  } else {
-    remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
   }
+  remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
 
   remb_packet.n_ssrcs = 0;
   data.rl = rl;

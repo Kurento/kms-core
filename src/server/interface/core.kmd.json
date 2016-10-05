@@ -544,7 +544,7 @@
       "properties": [
         {
           "name": "minVideoRecvBandwidth",
-          "doc": "Minimum bandwidth announced for video reception, in kbps. The default value is 100 kbps. 0 is considered unconstrained.",
+          "doc": "Minimum bandwidth announced for video reception, in kbps. The default and absolute minimum value is 30 kbps, even if a lower value is set.",
           "type": "int"
         },
         {
