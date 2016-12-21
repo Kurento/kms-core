@@ -8,6 +8,9 @@ set (TEST_PROPERTIES
   GST_DEBUG_DUMP_DOT_DIR=${KURENTO_DOT_DIR}
   )
 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
+
 add_test_program (test_module_manager moduleManager.cpp)
 add_dependencies(test_module_manager ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
 set_property (TARGET test_module_manager
