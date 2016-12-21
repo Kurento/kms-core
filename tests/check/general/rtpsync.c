@@ -66,9 +66,9 @@ do {                                                                            
   GstBuffer *__buf;                                                                       \
                                                                                           \
   __buf = generate_rtp_buffer_full (gst_ts, ssrc, pt, seq_num, rtp_ts);                   \
-  GST_DEBUG ("in PTS: %lu", GST_BUFFER_PTS (__buf));                                      \
+  GST_DEBUG ("in PTS: %" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS (__buf)));         \
   fail_func (kms_rtp_synchronizer_process_rtp_buffer (sync, __buf, NULL));                \
-  GST_DEBUG ("out PTS: %lu", GST_BUFFER_PTS (__buf));                                     \
+  GST_DEBUG ("out PTS: %" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS (__buf)));        \
   fail_unless (GST_BUFFER_PTS (__buf) == expected_out_pts);                               \
   gst_buffer_unref (__buf);                                                               \
 } while (0)

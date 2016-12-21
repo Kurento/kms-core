@@ -92,7 +92,7 @@ MediaSet::deleteMediaSet()
       cv.notify_all();
     });
 
-    GST_INFO ("Destroying %ld pipelines that are already alive", pipes.size() );
+    GST_INFO ("Destroying %zd pipelines that are already alive", pipes.size() );
 
     for (auto it : pipes) {
       mediaSet->release (it);
@@ -166,7 +166,7 @@ MediaSet::~MediaSet ()
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
   if (!objectsMap.empty() ) {
-    GST_DEBUG ("Still %lu object/s alive", objectsMap.size() );
+    GST_DEBUG ("Still %zu object/s alive", objectsMap.size() );
   }
 
   terminated = true;

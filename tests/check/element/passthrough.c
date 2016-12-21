@@ -77,7 +77,7 @@ fakesink_hand_off_check_size (GstElement * fakesink, GstBuffer * buf,
     gsize bitrate = size * 8 / (count / 30);
 
     // TODO: Count for size
-    GST_INFO ("Bitrate is: %ld bits", bitrate);
+    GST_INFO ("Bitrate is: %" G_GSIZE_FORMAT " bits", bitrate);
 
     fail_if (abs ((int) ((gssize) bitrate - BITRATE)) > BITRATE * 0.15);
     g_object_set (G_OBJECT (fakesink), "signal-handoffs", FALSE, NULL);
