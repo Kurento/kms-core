@@ -90,6 +90,33 @@ install(
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
+# rabbitutils
+set(RABBIT_UTILS
+  rabbitutils.c rabbitutils.h
+)
+
+add_library(rabbitutils ${RABBIT_UTILS})
+
+set_property(TARGET rabbitutils
+  PROPERTY INCLUDE_DIRECTORIES
+  
+  ${rabbitmq_INCLUDE_DIRS}
+)
+
+set_target_properties(rabbitutils PROPERTIES PUBLIC_HEADER rabbitutils.h)
+
+target_link_libraries(rabbitutils
+  ${rabbitmq_LIBRARIES}
+)
+
+install(
+  TARGETS rabbitutils
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
+)
+# end rabbitutils
+
 set(KMS_COMMONS_SOURCES
   kmsrtcp.c
   kmsremb.c
@@ -176,11 +203,12 @@ set_property (TARGET kmsgstcommons
     ${gstreamer-rtp-1.5_INCLUDE_DIRS}
 )
 
-add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
+add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils rabbitutils)
 
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
+  rabbitutils
   kmsrefstruct
   kmssdpagent
   kmsrtpsync

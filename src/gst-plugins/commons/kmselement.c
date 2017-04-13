@@ -18,6 +18,9 @@
 #  include <config.h>
 #endif
 
+/* lunker :: rabbitmq header*/
+#include "rabbitutils.h"
+
 #include <gst/gst.h>
 
 #include "kms-core-enumtypes.h"
@@ -1803,6 +1806,7 @@ kms_element_create_output_element_default (KmsElement * self)
 static void
 kms_element_flow_out_stopped (KmsElement * self)
 {
+  /* dk */
   GST_DEBUG ("### kms_element_flow_out_stopped ! ");
 }
 
