@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <amqp.h>
 #include <amqp_framing.h>
+#include <amqp_tcp_socket.h>
 
 #ifndef librabbitmq_examples_utils_h
 #define librabbitmq_examples_utils_h
