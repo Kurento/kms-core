@@ -172,6 +172,11 @@ enum
   STATS,
   SIGNAL_FLOW_OUT_MEDIA,
   SIGNAL_FLOW_IN_MEDIA,
+
+  /* lunker:: actions */
+  FLOW_OUT_STOPPED,
+  FLOW_IN_STOPPED,
+
   LAST_SIGNAL
 };
 
@@ -1796,6 +1801,12 @@ kms_element_create_output_element_default (KmsElement * self)
 }
 
 static void
+kms_element_flow_out_stopped (KmsElement * self)
+{
+  GST_DEBUG ("### kms_element_flow_out_stopped ! ");
+}
+
+static void
 kms_element_class_init (KmsElementClass * klass)
 {
   GstElementClass *gstelement_class;
@@ -1892,6 +1903,12 @@ kms_element_class_init (KmsElementClass * klass)
       NULL, NULL, __kms_core_marshal_BOXED__STRING, GST_TYPE_STRUCTURE, 1,
       G_TYPE_STRING);
 
+  element_signals[FLOW_OUT_STOPPED] =
+      g_signal_new ("flow-out-stopped", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+      G_STRUCT_OFFSET (KmsElementClass, flow_out_stopped),
+      NULL, NULL, __kms_core_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
   element_signals[SIGNAL_FLOW_OUT_MEDIA] =
       g_signal_new ("flow-out-media",
       G_TYPE_FROM_CLASS (klass),
@@ -1913,6 +1930,7 @@ kms_element_class_init (KmsElementClass * klass)
   klass->release_requested_pad =
       GST_DEBUG_FUNCPTR (kms_element_release_requested_pad_action);
   klass->stats = GST_DEBUG_FUNCPTR (kms_element_stats_impl);
+  klass->flow_out_stopped = GST_DEBUG_FUNCPTR (kms_element_flow_out_stopped);
 
   g_type_class_add_private (klass, sizeof (KmsElementPrivate));
 
