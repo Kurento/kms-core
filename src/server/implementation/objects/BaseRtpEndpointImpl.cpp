@@ -132,11 +132,15 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
   case KMS_MEDIA_DISCONNECTED:
     current_media_state = std::make_shared <MediaState>
                           (MediaState::DISCONNECTED);
+//    GST_ERROR ("### MediaStateChanged:: change to disconnected");
+    GST_ERROR ("### Check For KMS Test. Media state :: DISCONNECTED!");
     break;
 
   case KMS_MEDIA_CONNECTED:
     current_media_state = std::make_shared <MediaState>
                           (MediaState::CONNECTED);
+//    GST_ERROR ("### MediaStateChanged:: change to connected");
+    GST_ERROR ("### Check For KMS Test. Media State :: CONNECTED!");
     break;
 
   default:

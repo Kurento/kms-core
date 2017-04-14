@@ -70,50 +70,50 @@ MediaSet::getMediaSet()
     mediaSet = std::shared_ptr<MediaSet> (new MediaSet() );
     /* lunker:: add rabbitmq listener */
 
-    /*
-        {
-          amqp_socket_t *socket = NULL;
-          amqp_connection_state_t conn;
+/*
+    {
+      amqp_socket_t *socket = NULL;
+      amqp_connection_state_t conn;
 
 
-          conn = amqp_new_connection();
+      conn = amqp_new_connection();
 
-          socket = amqp_tcp_socket_new(conn);
-          if (!socket) {
-            die("creating TCP socket");
-          }
-
-      status = amqp_socket_open(socket, hostname, port);
-      if (status) {
-        die("opening TCP socket");
+      socket = amqp_tcp_socket_new(conn);
+      if (!socket) {
+        die("creating TCP socket");
       }
 
-      die_on_amqp_error(amqp_login(conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, "guest", "guest"),
-                        "Logging in");
-      amqp_channel_open(conn, 1);
-      die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
+  status = amqp_socket_open(socket, hostname, port);
+  if (status) {
+    die("opening TCP socket");
+  }
 
-      {
-        amqp_queue_declare_ok_t *r = amqp_queue_declare(conn, 1, amqp_empty_bytes, 0, 0, 0, 1,
-                                     amqp_empty_table);
-        die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
-        queuename = amqp_bytes_malloc_dup(r->queue);
-        if (queuename.bytes == NULL) {
-          fprintf(stderr, "Out of memory while copying queue name");
-          return 1;
-        }
-      }
+  die_on_amqp_error(amqp_login(conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN, "guest", "guest"),
+                    "Logging in");
+  amqp_channel_open(conn, 1);
+  die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
 
-      amqp_queue_bind(conn, 1, queuename, amqp_cstring_bytes(exchange), amqp_cstring_bytes(bindingkey),
-                      amqp_empty_table);
-      die_on_amqp_error(amqp_get_rpc_reply(conn), "Binding queue");
+  {
+    amqp_queue_declare_ok_t *r = amqp_queue_declare(conn, 1, amqp_empty_bytes, 0, 0, 0, 1,
+                                 amqp_empty_table);
+    die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
+    queuename = amqp_bytes_malloc_dup(r->queue);
+    if (queuename.bytes == NULL) {
+      fprintf(stderr, "Out of memory while copying queue name");
+      return 1;
+    }
+  }
 
-      amqp_basic_consume(conn, 1, queuename, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
-      die_on_amqp_error(amqp_get_rpc_reply(conn), "Consuming");
+  amqp_queue_bind(conn, 1, queuename, amqp_cstring_bytes(exchange), amqp_cstring_bytes(bindingkey),
+                  amqp_empty_table);
+  die_on_amqp_error(amqp_get_rpc_reply(conn), "Binding queue");
+
+  amqp_basic_consume(conn, 1, queuename, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
+  die_on_amqp_error(amqp_get_rpc_reply(conn), "Consuming");
 
 
-        }// end inner block
-      */
+    }// end inner block     
+  */
   }
 
   return mediaSet;
@@ -566,8 +566,7 @@ void MediaSet::release (const std::string &mediaObjectRef)
 {
   try {
     std::shared_ptr< MediaObjectImpl > obj = getMediaObject (mediaObjectRef);
-    GST_DEBUG ("### MediaSet::release() mediaObjectRef :: %s",
-               mediaObjectRef.c_str() );
+    GST_DEBUG ("### MediaSet::release() mediaObjectRef :: %s", mediaObjectRef.c_str());
 
     release (obj);
   } catch (...) {

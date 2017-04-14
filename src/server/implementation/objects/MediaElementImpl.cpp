@@ -476,15 +476,18 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
   std::shared_ptr<MediaFlowData > data;
   std::string key;
   std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
+  auto object = shared_from_this();
 
   if (isFlowing) {
     GST_DEBUG_OBJECT (element, "Media Flowing IN in pad %s with type %s", padName,
                       padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
+    GST_ERROR ("### Check For KMS Test. Media Flow state :: flowing!");
   } else {
     GST_DEBUG_OBJECT (element, "Media NOT Flowing IN in pad %s with type %s",
                       padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
+    GST_ERROR ("### Check For KMS Test.  Media Flow state :: not flowing");
   }
 
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
@@ -501,6 +504,15 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
     data = std::make_shared <MediaFlowData> (padTypeToMediaType (type),
            std::string (padName), state);
     mediaFlowDataIn[key] = data;
+  }
+
+  GST_DEBUG ("### MediaElementimpl::mediaFlowInStateChange() get object : %s",
+             object.get()->getId().c_str() );
+
+  /* lunker :: release unhandled Media Object */
+  if (!isFlowing) {
+//    MediaSet::getMediaSet()->release(object.get()->getId().c_str());
+//    GST_DEBUG ("### Lunker:: Force Release Media object");
   }
 
   try {

@@ -164,6 +164,9 @@ struct _KmsElementPrivate
 
   /* Statistics */
   KmsElementStats stats;
+
+  /* lunker:: check unrelease */
+  int flowOutStoppedCount;
 };
 
 /* Signals and args */
@@ -1810,10 +1813,6 @@ createRabbitmqConnection (amqp_connection_state_t * connection)
   char const *hostname;
   int port;
   amqp_socket_t *socket;
-  
-
-  
-
 }
 
 static void 
@@ -1833,9 +1832,20 @@ kms_element_flow_out_stopped (KmsElement * self)
   char const *exchange;
   char const *routingKey;
   char const *messageBody;
+  GType elementType;
 
   /* dk */
   GST_DEBUG ("### kms_element_flow_out_stopped() ");
+  GST_DEBUG ("### get kms element name :: %s", GST_ELEMENT_NAME (self));
+
+//  elementType = gst_element_factory_get_element_type ( gst_element_get_factory (self)  );
+  elementType = KMS_TYPE_ELEMENT;
+  GST_DEBUG ("### get kms element factory type :: %s",
+      g_type_name (elementType));
+  GST_DEBUG ("### kmselement id :: %s", self->priv->id);
+  GST_DEBUG ("### kmselement flow-out-stopped count : %d",
+      self->priv->flowOutStoppedCount);
+  self->priv->flowOutStoppedCount++;
 
   /* 
      createRabbitmqConnection(&connection);
@@ -2040,6 +2050,8 @@ kms_element_init (KmsElement * element)
       (GDestroyNotify) destroy_output_element_data);
   element->priv->stats.avg_iss = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) kms_ref_struct_unref);
+
+  element->priv->flowOutStoppedCount = 0;
 }
 
 KmsElementPadType
