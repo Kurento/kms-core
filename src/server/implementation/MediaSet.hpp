@@ -89,6 +89,10 @@ public:
   sigc::signal<void> signalEmptyLocked;
   sigc::signal<void> signalEmpty;
 
+  /* lunker:: check session alive */
+  bool isSessionAlive (const std::string &sessionId);
+  void releaseRelatedComponents (const std::string &mediaObjectId);
+
 private:
 
   void keepAliveSession (const std::string &sessionId, bool create);

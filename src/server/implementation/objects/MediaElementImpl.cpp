@@ -429,17 +429,24 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
   std::shared_ptr<MediaFlowData > data;
   std::string key;
   std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
+  auto object = shared_from_this ();
 
   if (isFlowing) {
     GST_DEBUG_OBJECT (element, "Media Flowing OUT in pad %s with type %s", padName,
                       padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
+    GST_DEBUG ("### Check For KMS Test. Media Flow state :: flowing OUT");
+    GST_DEBUG ("### %s", object.get()->getId().c_str() );
+
   } else {
     GST_DEBUG_OBJECT (element, "Media NOT Flowing OUT in pad %s with type %s",
                       padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
-    g_signal_emit_by_name (element, "flow-out-stopped");
-    GST_DEBUG ("### fire FLOW-OUT-STOPPED SIGNAL");
+
+//    g_signal_emit_by_name (element, "flow-out-stopped");
+//    GST_DEBUG ("### fire FLOW-OUT-STOPPED SIGNAL");
+    GST_DEBUG ("### Check For KMS Test. Media Flow state :: NOT flowing OUT");
+    GST_DEBUG ("### %s", object.get()->getId().c_str() );
   }
 
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
@@ -482,12 +489,18 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
     GST_DEBUG_OBJECT (element, "Media Flowing IN in pad %s with type %s", padName,
                       padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
-    GST_ERROR ("### Check For KMS Test. Media Flow state :: flowing!");
+    GST_DEBUG ("### Check For KMS Test. Media Flow state :: flowing!");
+    GST_DEBUG ("### Check For KMS Test. Media Flow state :: flowing IN");
+    GST_DEBUG ("### %s", object.get()->getId().c_str() );
+
   } else {
     GST_DEBUG_OBJECT (element, "Media NOT Flowing IN in pad %s with type %s",
                       padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
-    GST_ERROR ("### Check For KMS Test.  Media Flow state :: not flowing");
+    GST_DEBUG ("### Check For KMS Test.  Media Flow state :: not flowing");
+    GST_DEBUG ("### Check For KMS Test.  Media Flow state :: NOT flowing IN");
+    GST_DEBUG ("### %s", object.get()->getId().c_str() );
+
   }
 
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {

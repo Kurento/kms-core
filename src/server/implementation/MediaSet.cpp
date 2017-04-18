@@ -60,6 +60,41 @@ MediaSet::getCollectorInterval()
 static std::shared_ptr<MediaSet> mediaSet;
 static std::recursive_mutex mutex;
 
+/* lunker:: check session alive */
+bool MediaSet::isSessionAlive (const std::string &sessionId)
+{
+  GST_ERROR ("### MediaSet::isSessionAlive()");
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+
+  if ( childrenMap.find (sessionId)->second.size() == 0
+       && sessionMap.find (sessionId)->second.size() == 0 ) {
+    GST_DEBUG ("### objectsMap Size : %d", static_cast<int> (objectsMap.size() ) );
+    GST_DEBUG ("### childrenMap Size : %d",
+               static_cast<int> (childrenMap.find (sessionId)->second.size() ) );
+    GST_DEBUG ("### sessionMap Size : %d",
+               static_cast<int> (sessionMap.find (sessionId)->second.size() ) );
+
+    return false;
+  } else {
+    GST_DEBUG ("### objectsMap Size : %d", static_cast<int> (objectsMap.size() ) );
+    GST_DEBUG ("### childrenMap Size : %d",
+               static_cast<int> (childrenMap.find (sessionId)->second.size() ) );
+    GST_DEBUG ("### sessionMap Size : %d",
+               static_cast<int> (sessionMap.find (sessionId)->second.size() ) );
+
+    return true;
+  }
+}
+
+void MediaSet::releaseRelatedComponents (const std::string &mediaObjectId)
+{
+  GST_DEBUG ("### MediaSet::releaseRelatedComponents()");
+  std::unique_lock <std::recursive_mutex> lock (recMutex);
+  GST_DEBUG ("### Release target object id : %s", mediaObjectId.c_str() );
+
+  release (mediaObjectId);
+}
+
 std::shared_ptr<MediaSet>
 MediaSet::getMediaSet()
 {
