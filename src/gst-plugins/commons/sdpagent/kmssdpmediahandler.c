@@ -92,7 +92,8 @@ static KmsSdpSupportedAttrType attributes[] = {
   {"mid", default_accept_attribute},
   {"ptime", default_accept_attribute},
   {"quality", default_accept_attribute},
-  {"setup", default_accept_attribute}
+  {"setup", default_accept_attribute},
+  {"direction", default_accept_attribute}
 };
 
 /* Object properties */
