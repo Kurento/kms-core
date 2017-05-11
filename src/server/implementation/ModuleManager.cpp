@@ -170,7 +170,7 @@ ModuleManager::loadModules (std::string dirPath)
       boost::filesystem::path extension = itr->path().extension();
 
       if (extension.string() == ".so") {
-
+        GST_INFO ("Found module: %s", itr->path().string().c_str() );
         loadModule (itr->path().string() );
       }
     } else if (boost::filesystem::is_directory (*itr) ) {

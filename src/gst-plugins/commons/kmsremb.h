@@ -46,7 +46,7 @@ struct _KmsRembLocal
 {
   KmsRembBase base;
 
-  GSList *remote_sessions;
+  GSList *remote_sessions; // List<KmsRlRemoteSession*>
   guint min_bw;
   guint max_bw;
 

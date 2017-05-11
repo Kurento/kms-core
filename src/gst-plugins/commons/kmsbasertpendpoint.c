@@ -43,8 +43,9 @@
 #include "kmsstats.h"
 
 #include <glib/gstdio.h>
+#include <gio/gio.h>
 
-#define PLUGIN_NAME "base_rtp_endpoint"
+#define PLUGIN_NAME "basertpendpoint"
 
 GST_DEBUG_CATEGORY_STATIC (kms_base_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_rtp_endpoint_debug
@@ -564,7 +565,8 @@ kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
   g_object_set (G_OBJECT (*handler), "rtcp-mux", self->priv->rtcp_mux, NULL);
 
   if (KMS_IS_SDP_RTP_AVPF_MEDIA_HANDLER (*handler)) {
-    g_object_set (G_OBJECT (*handler), "nack", self->priv->rtcp_nack,
+    g_object_set (G_OBJECT (*handler),
+        "nack", self->priv->rtcp_nack,
         "goog-remb", self->priv->rtcp_remb, NULL);
   }
   h_avp = KMS_SDP_RTP_AVP_MEDIA_HANDLER (*handler);
@@ -841,52 +843,6 @@ kms_base_rtp_endpoint_configure_media (KmsBaseSdpEndpoint *
 
 /* Start Transport Send begin */
 
-static void
-kms_base_rtp_endpoint_create_remb_managers (KmsBaseRtpSession * sess,
-    KmsBaseRtpEndpoint * self)
-{
-  GstElement *rtpbin = self->priv->rtpbin;
-  GObject *rtpsession;
-  GstPad *pad;
-  int max_recv_bw;
-
-  if (self->priv->rl != NULL) {
-    /* TODO: support more than one media with REMB */
-    GST_INFO_OBJECT (self, "Only support for one media with REMB");
-    return;
-  }
-
-  g_signal_emit_by_name (rtpbin, "get-internal-session", VIDEO_RTP_SESSION,
-      &rtpsession);
-  if (rtpsession == NULL) {
-    GST_WARNING_OBJECT (self,
-        "There is not session with id %" G_GUINT32_FORMAT, VIDEO_RTP_SESSION);
-    return;
-  }
-
-  g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
-  self->priv->rl =
-      kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
-      max_recv_bw);
-  kms_remb_local_add_remote_session (self->priv->rl, rtpsession,
-      sess->remote_video_ssrc);
-
-  pad = gst_element_get_static_pad (rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
-  self->priv->rm =
-      kms_remb_remote_create (rtpsession,
-      self->priv->video_config->local_ssrc, self->priv->min_video_send_bw,
-      self->priv->max_video_send_bw, pad);
-  g_object_unref (pad);
-  g_object_unref (rtpsession);
-
-  if (self->priv->remb_params != NULL) {
-    kms_remb_local_set_params (self->priv->rl, self->priv->remb_params);
-    kms_remb_remote_set_params (self->priv->rm, self->priv->remb_params);
-  }
-
-  GST_DEBUG_OBJECT (self, "REMB managers added");
-}
-
 static GstPad *
 kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
     KmsBaseRtpSession * sess, const GstSDPMedia * media)
@@ -1028,22 +984,81 @@ end:
 }
 
 static void
+kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
+    KmsBaseRtpSession *sess)
+{
+  GstPad *pad;
+  int max_recv_bw;
+
+  if (self->priv->rl != NULL) {
+    /* TODO: support more than one media with REMB */
+    GST_WARNING_OBJECT (self, "Only support for one media with REMB");
+
+    typedef struct {
+      void *p;
+      guint ssrc;
+    } Dummy; // Same as KmsRlRemoteSession
+    Dummy *rlrs = g_slist_nth_data (self->priv->rl->remote_sessions, 0);
+    GST_WARNING_OBJECT (self, "REMB is already in use for remote video SSRC %u",
+                        rlrs->ssrc);
+    return;
+  }
+  else {
+    KmsSdpSession *base_sess = KMS_SDP_SESSION (sess);
+    guint id = base_sess->id;
+    gchar *id_str = base_sess->id_str;
+    guint32 remote_video_ssrc = sess->remote_video_ssrc;
+    GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
+                        id, id_str, remote_video_ssrc);
+  }
+
+  GObject *rtpsession = kms_base_rtp_endpoint_get_internal_session (
+      KMS_BASE_RTP_ENDPOINT(self), VIDEO_RTP_SESSION);
+  if (!rtpsession) {
+    GST_WARNING_OBJECT (self,
+        "There is not session with id %" G_GUINT32_FORMAT, VIDEO_RTP_SESSION);
+  }
+
+  g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
+  self->priv->rl =
+      kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
+      max_recv_bw);
+  kms_remb_local_add_remote_session (self->priv->rl, rtpsession,
+      sess->remote_video_ssrc);
+
+  pad = gst_element_get_static_pad (self->priv->rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
+  self->priv->rm =
+      kms_remb_remote_create (rtpsession,
+      self->priv->video_config->local_ssrc, self->priv->min_video_send_bw,
+      self->priv->max_video_send_bw, pad);
+  g_object_unref (pad);
+  g_object_unref (rtpsession);
+
+  if (self->priv->remb_params != NULL) {
+    kms_remb_local_set_params (self->priv->rl, self->priv->remb_params);
+    kms_remb_remote_set_params (self->priv->rm, self->priv->remb_params);
+  }
+
+  GST_DEBUG_OBJECT (self, "REMB managers added");
+}
+
+static void
 kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
     base_sdp_endpoint, KmsSdpSession * sess, gboolean offerer)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (base_sdp_endpoint);
   KmsBaseRtpSession *base_rtp_sess = KMS_BASE_RTP_SESSION (sess);
-  guint i, len;
 
   kms_base_rtp_session_start_transport_send (base_rtp_sess, offerer);
 
-  len = gst_sdp_message_medias_len (sess->neg_sdp);
-
-  for (i = 0; i < len; i++) {
+  guint len = gst_sdp_message_medias_len (sess->neg_sdp);
+  for (guint i = 0; i < len; i++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (sess->neg_sdp, i);
 
     if (sdp_utils_media_has_remb (media)) {
-      kms_base_rtp_endpoint_create_remb_managers (base_rtp_sess, self);
+      const gchar *media_str = gst_sdp_media_get_media (media);
+      GST_INFO_OBJECT (self, "Media '%s' has REMB", media_str);
+      kms_base_rtp_endpoint_create_remb_manager (self, base_rtp_sess);
     }
   }
 }
@@ -3303,6 +3318,19 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->min_port = DEFAULT_MIN_PORT;
   self->priv->max_port = DEFAULT_MAX_PORT;
+}
+
+GObject *kms_base_rtp_endpoint_get_internal_session (KmsBaseRtpEndpoint *self,
+    guint session_id)
+{
+  GstElement *rtpbin = self->priv->rtpbin; // GstRtpBin*
+  GObject *rtpsession; // RTPSession* from GstRtpBin->GstRtpSession
+  g_signal_emit_by_name (rtpbin, "get-internal-session", session_id, &rtpsession);
+  if (!rtpsession) {
+    GST_ERROR_OBJECT (self, "GstRtpBin lacks internal RTPSession");
+  }
+
+  return rtpsession;
 }
 
 static void

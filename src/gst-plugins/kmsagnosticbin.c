@@ -385,13 +385,12 @@ proxy_src_pad_query_function (GstPad * pad, GstObject * parent,
 
       if (gp) {
         self = KMS_AGNOSTIC_BIN2 (GST_OBJECT_PARENT (gp));
-      }
-
-      if (self) {
-        KMS_AGNOSTIC_BIN2_LOCK (self);
-        remove_target_pad (GST_PAD_CAST (gp));
-        kms_agnostic_bin2_process_pad (self, GST_PAD_CAST (gp));
-        KMS_AGNOSTIC_BIN2_UNLOCK (self);
+        if (self) {
+          KMS_AGNOSTIC_BIN2_LOCK (self);
+          remove_target_pad (GST_PAD_CAST (gp));
+          kms_agnostic_bin2_process_pad (self, GST_PAD_CAST (gp));
+          KMS_AGNOSTIC_BIN2_UNLOCK (self);
+        }
       }
 
       g_object_unref (gp);

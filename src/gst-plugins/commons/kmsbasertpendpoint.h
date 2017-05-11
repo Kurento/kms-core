@@ -71,6 +71,7 @@ struct _KmsBaseRtpEndpointClass
 };
 
 GType kms_base_rtp_endpoint_get_type (void);
+GObject *kms_base_rtp_endpoint_get_internal_session (KmsBaseRtpEndpoint *self, guint session_id);
 
 G_END_DECLS
 #endif /* __KMS_BASE_RTP_ENDPOINT_H__ */
