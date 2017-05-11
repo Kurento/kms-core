@@ -1,16 +1,13 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 2.8)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
-
-include (CodeGenerator)
-
-set (KMS_CORE_INTERFACE_SOURCES
+set(KMS_CORE_INTERFACE_SOURCES
 )
-set (KMS_CORE_INTERFACE_HEADERS
+
+set(KMS_CORE_INTERFACE_HEADERS
   interface/KurentoException.hpp
 )
 
-set (KMS_CORE_IMPL_SOURCES
+set(KMS_CORE_IMPL_SOURCES
   implementation/EventHandler.cpp
   implementation/Factory.cpp
   implementation/MediaSet.cpp
@@ -21,7 +18,7 @@ set (KMS_CORE_IMPL_SOURCES
   implementation/DotGraph.cpp
 )
 
-set (KMS_CORE_IMPL_HEADERS
+set(KMS_CORE_IMPL_HEADERS
   implementation/EventHandler.hpp
   implementation/Factory.hpp
   implementation/MediaSet.hpp
@@ -34,9 +31,10 @@ set (KMS_CORE_IMPL_HEADERS
   implementation/SignalHandler.hpp
 )
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-generate_code (
+include(CodeGenerator)
+generate_code(
   MODELS ${CMAKE_CURRENT_SOURCE_DIR}/interface
   INTERFACE_LIB_EXTRA_SOURCES ${KMS_CORE_INTERFACE_SOURCES}
   INTERFACE_LIB_EXTRA_HEADERS ${KMS_CORE_INTERFACE_HEADERS}
@@ -100,6 +98,6 @@ generate_code (
       "LIBNAME Boost COMPONENTS ${BOOST_REQUIRED_COMPONENTS}"
 )
 
-if (NOT ${DISABLE_LIBRARIES_GENERATION})
+if(NOT ${DISABLE_LIBRARIES_GENERATION})
   add_dependencies(${LIBRARY_NAME}impl kmscoreplugins)
 endif()

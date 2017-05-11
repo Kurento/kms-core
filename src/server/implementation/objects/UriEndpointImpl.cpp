@@ -22,7 +22,7 @@
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
-#if REGEX_REPLACE_EXISTS
+#if HAS_STD_REGEX_REPLACE
 #include <regex>
 using std::regex;
 using std::regex_replace;

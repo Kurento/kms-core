@@ -2113,7 +2113,12 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     guint ssrc;
     const gchar *id;
 
+    // FIXME 'g_value_array_get_nth' is deprecated: Use 'GArray' instead
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     val = g_value_array_get_nth (arr, i);
+    #pragma GCC diagnostic pop
+
     source = g_value_get_object (val);
 
     g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
@@ -2171,7 +2176,11 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     g_free (ssrc_id);
   }
 
+  // FIXME 'g_value_array_free' is deprecated: Use 'GArray' instead
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   g_value_array_free (arr);
+  #pragma GCC diagnostic pop
 
   str_session = g_strdup_printf ("session-%u", GPOINTER_TO_UINT (session));
   gst_structure_set (stats, str_session, GST_TYPE_STRUCTURE, session_stats,

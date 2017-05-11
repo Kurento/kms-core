@@ -138,7 +138,13 @@ get_sessions_info (KmsRlRemoteSession * rlrs, GetRtpSessionsInfo * data)
     GObject *source;
     guint ssrc;
 
+    // FIXME 'g_value_array_get_nth' is deprecated: Use 'GArray' instead
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    // RTPSource*
     val = g_value_array_get_nth (arr, i);
+    #pragma GCC diagnostic pop
+
     source = g_value_get_object (val);
     g_object_get (source, "ssrc", &ssrc, NULL);
     GST_TRACE_OBJECT (source, "source ssrc: %u", ssrc);
@@ -190,7 +196,11 @@ get_sessions_info (KmsRlRemoteSession * rlrs, GetRtpSessionsInfo * data)
     }
   }
 
+  // FIXME 'g_value_array_free' is deprecated: Use 'GArray' instead
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   g_value_array_free (arr);
+  #pragma GCC diagnostic pop
 }
 
 static gboolean
