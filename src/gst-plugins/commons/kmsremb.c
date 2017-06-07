@@ -436,12 +436,15 @@ kms_remb_local_on_sending_rtcp (GObject *rtpsession,
     goto end;
   }
 
+  const guint32 old_bitrate = self->remb;
+
+  // Update the REMB bitrate estimations
   if (!kms_remb_local_update (self)) {
     GST_DEBUG_OBJECT (rtpsession, "REMB: Cannot update stats");
     goto end;
   }
 
-  remb_packet.bitrate = self->remb;
+  guint32 new_bitrate = self->remb;
 
   if (self->event_manager != NULL) {
     guint remb_local_max;
@@ -450,23 +453,22 @@ kms_remb_local_on_sending_rtcp (GObject *rtpsession,
     if (remb_local_max > 0) {
       GST_TRACE_OBJECT (rtpsession, "REMB: Local max: %" G_GUINT32_FORMAT,
           remb_local_max);
-      remb_packet.bitrate = MIN (remb_local_max, self->remb);
+      new_bitrate = MIN (new_bitrate, remb_local_max);
     }
   }
 
   if (self->min_bw > 0) {
-    remb_packet.bitrate = MAX (remb_packet.bitrate, self->min_bw * 1000);
-  }
-  remb_packet.bitrate = MAX (remb_packet.bitrate, REMB_MIN);
-
-  {
-    static guint32 old_bitrate = 0;
-    if (old_bitrate != remb_packet.bitrate) {
-      old_bitrate = remb_packet.bitrate;
-      GST_INFO_OBJECT (rtpsession, "REMB: New bitrate: %u", remb_packet.bitrate);
-    }
+    new_bitrate = MAX (new_bitrate, self->min_bw * 1000);
   }
 
+  new_bitrate = MAX (new_bitrate, REMB_MIN);
+
+  if (old_bitrate != new_bitrate) {
+    GST_INFO_OBJECT (rtpsession, "REMB: Old bitrate: %u, new bitrate: %u",
+        old_bitrate, new_bitrate);
+  }
+
+  remb_packet.bitrate = new_bitrate;
   remb_packet.n_ssrcs = 0;
   data.rl = self;
   data.remb_packet = &remb_packet;
