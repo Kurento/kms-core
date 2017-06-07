@@ -263,7 +263,7 @@ kms_utils_convert_media_type (KmsMediaType media_type)
   }
 }
 
-/* key frame management */
+/* keyframe management */
 
 #define DROPPING_UNTIL_KEY_FRAME "dropping-until-key-frame"
 G_DEFINE_QUARK (DROPPING_UNTIL_KEY_FRAME, dropping_until_key_frame);
@@ -390,7 +390,7 @@ drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
   set_dropping (pad, FALSE);
   GST_OBJECT_UNLOCK (pad);
 
-  GST_DEBUG_OBJECT (pad, "Finish dropping buffers until key frame");
+  GST_DEBUG_OBJECT (pad, "Finish dropping buffers until keyframe");
 
   /* So this buffer is a keyframe we don't need this probe any more */
   return GST_PAD_PROBE_REMOVE;
@@ -401,10 +401,10 @@ kms_utils_drop_until_keyframe (GstPad * pad, gboolean all_headers)
 {
   GST_OBJECT_LOCK (pad);
   if (is_dropping (pad)) {
-    GST_DEBUG_OBJECT (pad, "Already dropping buffers until key frame");
+    GST_DEBUG_OBJECT (pad, "Already dropping buffers until keyframe");
     GST_OBJECT_UNLOCK (pad);
   } else {
-    GST_DEBUG_OBJECT (pad, "Start dropping buffers until key frame");
+    GST_DEBUG_OBJECT (pad, "Start dropping buffers until keyframe");
     set_dropping (pad, TRUE);
     GST_OBJECT_UNLOCK (pad);
     gst_pad_add_probe (pad,
@@ -421,7 +421,7 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
     if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-      GST_WARNING_OBJECT (pad, "Discont detected");
+      GST_WARNING_OBJECT (pad, "Stream discontinuity detected on non-keyframe");
       kms_utils_drop_until_keyframe (pad, FALSE);
 
       return GST_PAD_PROBE_DROP;
@@ -437,7 +437,13 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GST_WARNING_OBJECT (pad, "Gap detected");
+    GstClockTime timestamp;
+    GstClockTime duration;
+    gst_event_parse_gap (event, &timestamp, &duration);
+    GST_WARNING_OBJECT (pad,
+        "Stream gap detected, timestamp: %" GST_TIME_FORMAT ", "
+        "duration: %" GST_TIME_FORMAT,
+        GST_TIME_ARGS(timestamp), GST_TIME_ARGS(duration));
     send_force_key_unit_event (pad, FALSE);
     return GST_PAD_PROBE_DROP;
   }
@@ -448,8 +454,8 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 void
 kms_utils_manage_gaps (GstPad * pad)
 {
-  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, discont_detection_probe,
-      NULL, NULL);
+  gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
+      discont_detection_probe, NULL, NULL);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
       gap_detection_probe, NULL, NULL);
 }
@@ -1380,8 +1386,8 @@ kms_rtp_receiver_adjust_pts (AdjustPtsData * data, GstBuffer ** buffer)
   GST_BUFFER_DTS (*buffer) = GST_BUFFER_PTS (*buffer);
   data->last_pts = GST_BUFFER_PTS (*buffer);
 
-  GST_TRACE_OBJECT (data->element, "PTS: %" GST_TIME_FORMAT,
-      GST_TIME_ARGS (GST_BUFFER_PTS (*buffer)));
+  //GST_TRACE_OBJECT (data->element, "PTS: %" GST_TIME_FORMAT,
+  //    GST_TIME_ARGS (GST_BUFFER_PTS (*buffer)));
 }
 
 static gboolean

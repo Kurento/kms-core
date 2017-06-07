@@ -52,7 +52,7 @@ const gchar * kms_utils_get_caps_codec_name_from_sdp (const gchar * codec_name);
 KmsElementPadType kms_utils_convert_media_type (KmsMediaType media_type);
 KmsMediaType kms_utils_convert_element_pad_type (KmsElementPadType pad_type);
 
-/* key frame management */
+/* keyframe management */
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);
 void kms_utils_manage_gaps (GstPad *pad);
 void kms_utils_control_key_frames_request_duplicates (GstPad *pad);

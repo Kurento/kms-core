@@ -1072,13 +1072,13 @@ kms_base_rtp_endpoint_request_local_key_frame (KmsBaseRtpEndpoint * self)
   GstEvent *event;
   gboolean ret;
 
-  GST_TRACE_OBJECT (self, "Request local key frame.");
+  GST_TRACE_OBJECT (self, "Request local keyframe.");
 
   pad =
       gst_element_get_static_pad (self->priv->rtpbin,
       VIDEO_RTPBIN_SEND_RTP_SRC);
   if (pad == NULL) {
-    GST_WARNING_OBJECT (self, "Not configured to request local key frame.");
+    GST_WARNING_OBJECT (self, "Not configured to request local keyframe.");
     return FALSE;
   }
 
@@ -1089,7 +1089,7 @@ kms_base_rtp_endpoint_request_local_key_frame (KmsBaseRtpEndpoint * self)
   g_object_unref (pad);
 
   if (ret == FALSE) {
-    GST_WARNING_OBJECT (self, "Key frame request not handled");
+    GST_WARNING_OBJECT (self, "Keyframe request not handled");
   }
 
   return ret;
