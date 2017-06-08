@@ -18,6 +18,9 @@
 #  include <config.h>
 #endif
 
+/* lunker :: rabbitmq header*/
+#include "rabbitutils.h"
+
 #include <gst/gst.h>
 
 #include "kms-core-enumtypes.h"
@@ -161,6 +164,9 @@ struct _KmsElementPrivate
 
   /* Statistics */
   KmsElementStats stats;
+
+  /* lunker:: check unrelease */
+  int flowOutStoppedCount;
 };
 
 /* Signals and args */
@@ -172,6 +178,11 @@ enum
   STATS,
   SIGNAL_FLOW_OUT_MEDIA,
   SIGNAL_FLOW_IN_MEDIA,
+
+  /* lunker:: actions */
+  FLOW_OUT_STOPPED,
+  FLOW_IN_STOPPED,
+
   LAST_SIGNAL
 };
 
@@ -1795,6 +1806,100 @@ kms_element_create_output_element_default (KmsElement * self)
   return gst_element_factory_make ("agnosticbin", NULL);
 }
 
+/*
+static void
+createRabbitmqConnection (amqp_connection_state_t * connection)
+{
+  char const *hostname;
+  int port;
+  amqp_socket_t *socket;
+}
+
+static void 
+publishMessage ()
+{
+
+}
+*/
+
+static void
+kms_element_flow_out_stopped (KmsElement * self)
+{
+  char const *hostname;
+  int port;
+  amqp_connection_state_t conn = NULL;
+  amqp_socket_t *socket = NULL;
+  char const *exchange;
+  char const *routingKey;
+  char const *messageBody;
+  GType elementType;
+
+  /* dk */
+  GST_DEBUG ("### kms_element_flow_out_stopped() ");
+  GST_DEBUG ("### get kms element name :: %s", GST_ELEMENT_NAME (self));
+
+//  elementType = gst_element_factory_get_element_type ( gst_element_get_factory (self)  );
+  elementType = KMS_TYPE_ELEMENT;
+  GST_DEBUG ("### get kms element factory type :: %s",
+      g_type_name (elementType));
+  GST_DEBUG ("### kmselement id :: %s", self->priv->id);
+  GST_DEBUG ("### kmselement flow-out-stopped count : %d",
+      self->priv->flowOutStoppedCount);
+  self->priv->flowOutStoppedCount++;
+
+  /* 
+     createRabbitmqConnection(&connection);
+     if ( conneciton != NULL ) {
+     publishMessage();
+     }
+   */
+
+  hostname = "localhost";
+  port = 5672;
+
+//  exchange = "kms.queue";
+  exchange = "amq.direct";
+  routingKey = "command";
+  messageBody = "test flow out stopped signal";
+
+  conn = amqp_new_connection ();
+
+  socket = amqp_tcp_socket_new (conn);
+
+  if (!socket) {
+    die ("creating TCP socket");
+  }
+
+  die_on_error (amqp_socket_open (socket, hostname, port),
+      "opening TCP socket");
+
+  die_on_amqp_error (amqp_login (conn, "/", 0, 131072, 0,
+          AMQP_SASL_METHOD_PLAIN, "guest", "guest"), "Logging in");
+
+  amqp_channel_open (conn, 1);
+  die_on_amqp_error (amqp_get_rpc_reply (conn), "Opening channel");
+
+  {
+    amqp_basic_properties_t props;
+
+    props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
+    props.content_type = amqp_cstring_bytes ("text/plain");
+    props.delivery_mode = 2;
+    die_on_error (amqp_basic_publish (conn,
+            1,
+            amqp_cstring_bytes (exchange),
+            amqp_cstring_bytes (routingKey),
+            0, 0, &props, amqp_cstring_bytes (messageBody)), "Publishing");
+  }
+
+  die_on_amqp_error (amqp_connection_close (conn, AMQP_REPLY_SUCCESS),
+      "Closing connection");
+  die_on_error (amqp_destroy_connection (conn), "Ending connection");
+
+  GST_DEBUG ("### publish message");
+  return;
+}
+
 static void
 kms_element_class_init (KmsElementClass * klass)
 {
@@ -1892,6 +1997,12 @@ kms_element_class_init (KmsElementClass * klass)
       NULL, NULL, __kms_core_marshal_BOXED__STRING, GST_TYPE_STRUCTURE, 1,
       G_TYPE_STRING);
 
+  element_signals[FLOW_OUT_STOPPED] =
+      g_signal_new ("flow-out-stopped", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+      G_STRUCT_OFFSET (KmsElementClass, flow_out_stopped),
+      NULL, NULL, __kms_core_marshal_VOID__VOID, G_TYPE_NONE, 0);
+
   element_signals[SIGNAL_FLOW_OUT_MEDIA] =
       g_signal_new ("flow-out-media",
       G_TYPE_FROM_CLASS (klass),
@@ -1913,6 +2024,7 @@ kms_element_class_init (KmsElementClass * klass)
   klass->release_requested_pad =
       GST_DEBUG_FUNCPTR (kms_element_release_requested_pad_action);
   klass->stats = GST_DEBUG_FUNCPTR (kms_element_stats_impl);
+  klass->flow_out_stopped = GST_DEBUG_FUNCPTR (kms_element_flow_out_stopped);
 
   g_type_class_add_private (klass, sizeof (KmsElementPrivate));
 
@@ -1938,6 +2050,8 @@ kms_element_init (KmsElement * element)
       (GDestroyNotify) destroy_output_element_data);
   element->priv->stats.avg_iss = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) kms_ref_struct_unref);
+
+  element->priv->flowOutStoppedCount = 0;
 }
 
 KmsElementPadType

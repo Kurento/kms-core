@@ -90,6 +90,48 @@ install(
   PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
 )
 
+if(WIN32)
+  set(SOCKET_IMPL "win32")
+else(WIN32)
+  set(SOCKET_IMPL "unix")
+endif(WIN32)
+
+set(LIBRABBITMQ_INCLUDE_DIRS
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${SOCKET_IMPL}
+  ${MSINTTYPES_INCLUDE}
+)
+
+set(RMQ_LIBRARY_TARGET rabbitmq)
+
+# rabbitutils
+set(RABBIT_UTILS
+  rabbitutils.c rabbitutils.h
+)
+
+add_library(rabbitutils ${RABBIT_UTILS})
+
+set_property(TARGET rabbitutils
+  PROPERTY INCLUDE_DIRECTORIES
+  
+  ${LIBRABBITMQ_INCLUDE_DIRS}
+)
+
+set_target_properties(rabbitutils PROPERTIES PUBLIC_HEADER rabbitutils.h)
+
+target_link_libraries(rabbitutils
+  ${RMQ_LIBRARY_TARGET}
+)
+
+install(
+  TARGETS rabbitutils
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${INCLUDE_PREFIX}
+)
+# end rabbitutils
+
 set(KMS_COMMONS_SOURCES
   kmsrtcp.c
   kmsremb.c
@@ -176,11 +218,12 @@ set_property (TARGET kmsgstcommons
     ${gstreamer-rtp-1.5_INCLUDE_DIRS}
 )
 
-add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
+add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils rabbitutils)
 
 target_link_libraries(kmsgstcommons
   kmsutils
   sdputils
+  rabbitutils
   kmsrefstruct
   kmssdpagent
   kmsrtpsync

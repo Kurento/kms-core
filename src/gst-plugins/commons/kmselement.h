@@ -82,6 +82,7 @@ struct _KmsElementClass
   gchar * (*request_new_pad) (KmsElement *self, KmsElementPadType type, const gchar *desc, GstPadDirection dir);
   gboolean (*release_requested_pad) (KmsElement *self, const gchar *pad_name);
   GstStructure * (*stats) (KmsElement * self, gchar * selector);
+  void (*flow_out_stopped) (KmsElement * self);
 
   /* signals */
   void (*flow_out_state) (KmsElement *self, gboolean flowing_media, gchar* pad_name, KmsElementPadType type);

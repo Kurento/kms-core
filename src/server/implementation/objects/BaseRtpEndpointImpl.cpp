@@ -33,6 +33,7 @@
 #include "EndpointStats.hpp"
 #include "kmsstats.h"
 #include "kmsutils.h"
+#include "MediaSet.hpp"
 
 #define GST_CAT_DEFAULT kurento_base_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -127,16 +128,25 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
 {
   std::unique_lock<std::recursive_mutex> lock (mutex);
   std::shared_ptr<MediaState> old_state = current_media_state;
+  auto object = shared_from_this ();
 
   switch (new_state) {
   case KMS_MEDIA_DISCONNECTED:
     current_media_state = std::make_shared <MediaState>
                           (MediaState::DISCONNECTED);
+    GST_DEBUG ("### Check For KMS Test. Media state :: DISCONNECTED!");
+
+    GST_ERROR ("### release media object by MediaStateChanged[DISCONNECTED]");
+    MediaSet::getMediaSet()->releaseRelatedComponents (
+      object.get()->getParent()->getId() );
+
     break;
 
   case KMS_MEDIA_CONNECTED:
     current_media_state = std::make_shared <MediaState>
                           (MediaState::CONNECTED);
+    GST_DEBUG ("### Check For KMS Test. Media State :: CONNECTED!");
+
     break;
 
   default:
