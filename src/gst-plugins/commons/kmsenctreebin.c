@@ -479,6 +479,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   convert = kms_utils_create_convert_for_caps (caps);
   mediator = kms_utils_create_mediator_element (caps);
   queue = gst_element_factory_make ("queue", NULL);
+  g_object_set (queue, "leaky", 2, "max-size-buffers", 1, NULL);
 
   if (rate) {
     gst_bin_add (GST_BIN (self), rate);
