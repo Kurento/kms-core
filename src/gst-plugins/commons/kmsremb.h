@@ -59,6 +59,7 @@ struct _KmsRembLocal
   gint up_losses;
 
   guint remb;
+  guint remb_sent; // Used to limit logging at kms_remb_local_on_sending_rtcp()
   GstClockTime last_sent_time;
   gboolean probed;
   guint threshold;

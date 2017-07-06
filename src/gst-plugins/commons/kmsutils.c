@@ -865,7 +865,7 @@ remb_event_manager_update_min (RembEventManager * manager, guint bitrate,
       GUINT_TO_POINTER (ssrc));
 
   if (last_value != NULL) {
-    new_br = bitrate != last_value->bitrate;
+    new_br = (bitrate != last_value->bitrate);
     last_value->bitrate = bitrate;
     last_value->ts = kms_utils_get_time_nsecs ();
   } else {
@@ -905,8 +905,9 @@ remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     return GST_PAD_PROBE_OK;
   }
 
-  GST_TRACE_OBJECT (pad, "<%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT ">", ssrc,
-      bitrate);
+  GST_TRACE_OBJECT (pad, "REMB: 'on-feedback-rtcp' received upstream event"
+      ", SSRC: %" G_GUINT32_FORMAT
+      ", bitrate: %" G_GUINT32_FORMAT, ssrc, bitrate);
 
   remb_event_manager_update_min (manager, bitrate, ssrc);
 
