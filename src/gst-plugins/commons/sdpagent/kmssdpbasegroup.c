@@ -148,9 +148,10 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
     return;
   }
 
-  if (index > gst_sdp_message_medias_len (val->msg)) {
-    GST_ERROR_OBJECT (val->group, "Index %u for handler (%u) out of SDP range",
-        index, id);
+  if (index >= gst_sdp_message_medias_len (val->msg)) {
+    GST_ERROR_OBJECT (val->group,
+        "Cannot append media to handler (%u): Invalid media index %u in SDP",
+        id, index);
     return;
   }
 

@@ -715,7 +715,8 @@ kms_sdp_agent_get_negotiated_media (KmsSdpAgent * agent,
 
   if (index >= gst_sdp_message_medias_len (desc)) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->sdph->media);
+        "Cannot process media: Invalid media index %u (%s)",
+        index, sdp_handler->sdph->media);
   } else {
     gst_sdp_media_copy (gst_sdp_message_get_media (desc, index), &media);
   }
@@ -826,7 +827,8 @@ kms_sdp_agent_create_proper_media_offer (KmsSdpAgent * agent,
   index = g_slist_index (agent->priv->offer_handlers, sdp_handler);
   if (index >= gst_sdp_message_medias_len (agent->priv->local_description)) {
     g_set_error (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_MEDIA,
-        "Could not process media '%s'", sdp_handler->sdph->media);
+        "Cannot create offer: Invalid media index %u (%s)",
+        index, sdp_handler->sdph->media);
     return NULL;
   }
 
