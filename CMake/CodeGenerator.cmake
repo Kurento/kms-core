@@ -11,16 +11,16 @@ set (GENERATE_JAVA_CLIENT_PROJECT FALSE CACHE BOOL "Generate java maven client l
 set (GENERATE_JS_CLIENT_PROJECT FALSE CACHE BOOL "Generate js npm client library")
 set (DISABLE_LIBRARIES_GENERATION FALSE CACHE BOOL "Disable C/C++ libraries generation, just useful for generating client code")
 
-set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if codding style of generated code is correct")
+set (ENABLE_CODE_GENERATION_FORMAT_CHECK FALSE CACHE BOOL "Check if coding style of generated code is correct")
 mark_as_advanced(ENABLE_CODE_GENERATION_FORMAT_CHECK)
 
-set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE PATH "Directory where kurento modules descriptors can be found")
+set (KURENTO_MODULES_DIR /usr/share/kurento/modules CACHE PATH "Directory where kurento module descriptors can be found")
 mark_as_advanced(KURENTO_MODULES_DIR)
 
-set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento modules descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
+set (KURENTO_MODULES_DIR_INSTALL_PREFIX kurento/modules CACHE PATH "Directory where kurento module descriptors are installed (relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}). Also .so module files are installed using this prefix, but relative to \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})")
 mark_as_advanced(KURENTO_MODULES_DIR_INSTALL_PREFIX)
 
-set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "Url of kurento-client-js git repository to get templates from")
+set (KURENTO_CLIENT_JS_GIT https://github.com/Kurento/kurento-client-js CACHE STRING "URL of kurento-client-js git repository to get templates from")
 set (KURENTO_CLIENT_JS_BRANCH master CACHE STRING "Branch of kurento-client-js repository to get templates from")
 
 set (CMAKE_MODULES_INSTALL_DIR
@@ -482,7 +482,6 @@ function (generate_kurento_libraries)
   set_target_properties(${VALUE_CODE_IMPLEMENTATION_LIB}interface PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    COMPILE_FLAGS "-fPIC"
   )
 
   install(TARGETS ${VALUE_CODE_IMPLEMENTATION_LIB}interface

@@ -1,5 +1,5 @@
 add_test_program (test_utils utils.c)
-add_dependencies(test_utils ${LIBRARY_NAME}plugins kmsgstcommons)
+add_dependencies(test_utils ${LIBRARY_NAME}plugins)
 target_include_directories(test_utils PRIVATE
                            ${gstreamer-1.5_INCLUDE_DIRS}
                            ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -10,7 +10,7 @@ target_link_libraries(test_utils
                       kmsgstcommons)
 
 add_test_program (test_refcounts refcounts.c)
-add_dependencies(test_refcounts ${LIBRARY_NAME}plugins kmsgstcommons)
+add_dependencies(test_refcounts ${LIBRARY_NAME}plugins)
 target_include_directories(test_refcounts PRIVATE
                            ${gstreamer-1.5_INCLUDE_DIRS}
                            ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -21,7 +21,7 @@ target_link_libraries(test_refcounts
                       kmsgstcommons)
 
 add_test_program (test_rembmanager rembmanager.c)
-add_dependencies(test_rembmanager ${LIBRARY_NAME}plugins kmsgstcommons)
+add_dependencies(test_rembmanager ${LIBRARY_NAME}plugins)
 target_include_directories(test_rembmanager PRIVATE
                            ${gstreamer-1.5_INCLUDE_DIRS}
                            ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -32,7 +32,7 @@ target_link_libraries(test_rembmanager
                       kmsgstcommons)
 
 add_test_program (test_rtpsync rtpsync.c)
-add_dependencies(test_rtpsync ${LIBRARY_NAME}plugins kmsrtpsync)
+add_dependencies(test_rtpsync ${LIBRARY_NAME}plugins)
 target_include_directories(test_rtpsync PRIVATE
                            ${gstreamer-1.5_INCLUDE_DIRS}
                            ${gstreamer-check-1.5_INCLUDE_DIRS}

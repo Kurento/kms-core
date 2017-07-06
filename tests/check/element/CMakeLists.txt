@@ -35,7 +35,6 @@ endforeach(test)
 
 #SDP Tests
 add_test_program (test_sdp_agent sdp_agent.c)
-add_dependencies(test_sdp_agent kmsgstcommons sdputils)
 target_include_directories(test_sdp_agent PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -54,7 +53,6 @@ target_link_libraries(test_sdp_agent
 
 # metadata
 add_test_program (test_metadata metadata.c)
-add_dependencies(test_metadata kmsgstcommons)
 target_include_directories(test_metadata PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -70,7 +68,6 @@ target_link_libraries(test_metadata
 
 #lists
 add_test_program (test_lists lists.c)
-add_dependencies(test_lists kmsgstcommons)
 target_include_directories(test_lists PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}

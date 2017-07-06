@@ -8,7 +8,7 @@ set(KMS_SDP_UTILS_HEADERS
 
 add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
 
-set_property (TARGET sdputils
+set_property(TARGET sdputils
   PROPERTY INCLUDE_DIRECTORIES
     ${gstreamer-1.5_INCLUDE_DIRS}
     ${gstreamer-base-1.5_INCLUDE_DIRS}
@@ -23,9 +23,11 @@ target_link_libraries(sdputils
   ${gstreamer-pbutils-1.5_LIBRARIES}
 )
 
-set_target_properties(sdputils PROPERTIES PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}")
-
-set_target_properties(sdputils PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+set_target_properties(sdputils PROPERTIES
+  PUBLIC_HEADER "${KMS_SDP_UTILS_HEADERS}"
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 
 set(CUSTOM_PREFIX "kurento")
 set(INCLUDE_PREFIX "${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}/commons")
@@ -164,7 +166,7 @@ add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
 
-set_property (TARGET kmsgstcommons
+set_property(TARGET kmsgstcommons
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -175,8 +177,6 @@ set_property (TARGET kmsgstcommons
     ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
     ${gstreamer-rtp-1.5_INCLUDE_DIRS}
 )
-
-add_dependencies(kmsgstcommons kmsrefstruct kmsutils sdputils)
 
 target_link_libraries(kmsgstcommons
   kmsutils
@@ -216,11 +216,11 @@ install(FILES
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
 
-foreach (HEADER ${KMS_COMMONS_HEADERS})
-  list (APPEND FIND_HEADERS commons/${HEADER})
-endforeach ()
+foreach(HEADER ${KMS_COMMONS_HEADERS})
+  list(APPEND FIND_HEADERS commons/${HEADER})
+endforeach()
 
-set (REQUIRED_LIBS
+set(REQUIRED_LIBS
   "gstreamer-1.5 ${GST_REQUIRED}"
   "gstreamer-base-1.5 ${GST_REQUIRED}"
   "gstreamer-sdp-1.5 ${GST_REQUIRED}"

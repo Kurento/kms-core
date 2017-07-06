@@ -8,7 +8,7 @@ set(VALGRIND_TEST_VARIABLES
 set(SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
 
 add_test_program(test_module_manager moduleManager.cpp)
-add_dependencies(test_module_manager ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
+add_dependencies(test_module_manager ${LIBRARY_NAME}module)
 set_property(TARGET test_module_manager
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../../
@@ -28,7 +28,7 @@ target_link_libraries(test_module_manager
 )
 
 add_test_program(test_media_set mediaSet.cpp)
-add_dependencies(test_media_set ${LIBRARY_NAME}module ${LIBRARY_NAME}impl)
+add_dependencies(test_media_set ${LIBRARY_NAME}module)
 set_property(TARGET test_media_set
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../../
@@ -48,7 +48,7 @@ target_link_libraries(test_media_set
 )
 
 add_test_program(test_media_element mediaElement.cpp)
-add_dependencies(test_media_element kmscoreplugins ${LIBRARY_NAME}impl kmsgstcommons)
+add_dependencies(test_media_element kmscoreplugins)
 set_property(TARGET test_media_element
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -71,7 +71,7 @@ target_link_libraries(test_media_element
 )
 
 add_test_program(test_rtp_endpoint_cpp rtpEndpoint.cpp)
-add_dependencies(test_rtp_endpoint_cpp kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_rtp_endpoint_cpp kmscoreplugins)
 set_property(TARGET test_rtp_endpoint_cpp
   PROPERTY INCLUDE_DIRECTORIES
   ${KmsJsonRpc_INCLUDE_DIRS}
@@ -85,15 +85,15 @@ set_property(TARGET test_rtp_endpoint_cpp
   ${glibmm-2.4_INCLUDE_DIRS}
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
-  )
+)
 target_link_libraries(test_rtp_endpoint_cpp
   ${LIBRARY_NAME}impl
   ${glibmm-2.4_LIBRARIES}
   ${Boost_LIBRARIES}
-  )
+)
 
 add_test_program(test_sdp_endpoint sdpEndpoint.cpp)
-add_dependencies(test_sdp_endpoint kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_sdp_endpoint kmscoreplugins)
 set_property(TARGET test_sdp_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -115,7 +115,7 @@ target_link_libraries(test_sdp_endpoint
 )
 
 add_test_program(test_media_object mediaObject.cpp)
-add_dependencies(test_media_object kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_media_object kmscoreplugins)
 set_property(TARGET test_media_object
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -137,7 +137,7 @@ target_link_libraries(test_media_object
 )
 
 add_test_program(test_complex_type complexType.cpp)
-add_dependencies(test_complex_type kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_complex_type kmscoreplugins)
 set_property(TARGET test_complex_type
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -158,7 +158,7 @@ target_link_libraries(test_complex_type
 )
 
 add_test_program(test_uri_endpoint uriEndpoint.cpp)
-add_dependencies(test_uri_endpoint kmscoreplugins ${LIBRARY_NAME}impl)
+add_dependencies(test_uri_endpoint kmscoreplugins)
 set_property(TARGET test_uri_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}

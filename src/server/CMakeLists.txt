@@ -31,8 +31,6 @@ set(KMS_CORE_IMPL_HEADERS
   implementation/SignalHandler.hpp
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-
 include(CodeGenerator)
 generate_code(
   MODELS ${CMAKE_CURRENT_SOURCE_DIR}/interface

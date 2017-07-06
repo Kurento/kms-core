@@ -1,5 +1,3 @@
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-
 include(GLibHelpers)
 
 add_subdirectory(commons)
