@@ -153,7 +153,7 @@ std::list<std::string> split (const std::string &s, char delim)
 void
 ModuleManager::loadModules (std::string dirPath)
 {
-  GST_INFO ("Looking for modules in %s", dirPath.c_str() );
+  GST_TRACE ("Looking for modules in %s", dirPath.c_str());
   boost::filesystem::path dir (dirPath);
 
   if (!boost::filesystem::is_directory (dir) ) {
