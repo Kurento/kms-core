@@ -100,7 +100,8 @@ create_sink_element ()
   return sink;
 }
 
-#ifdef ENABLE_DEBUGGING_TESTS
+#ifdef ENABLE_EXPERIMENTAL_TESTS
+
 GST_START_TEST (check_audio_connection)
 {
   GstElement *audiotestsrc1, *audiotestsrc2, *wavenc, *sink;
@@ -235,7 +236,7 @@ GST_START_TEST (check_delayed_audio_connection)
 
 GST_END_TEST;
 
-#endif
+#endif // ENABLE_EXPERIMENTAL_TESTS
 
 static gboolean
 remove_audiotestsrc (GstElement * audiotestsrc)
@@ -376,7 +377,7 @@ audiomixerbin_suite (void)
   TCase *tc_chain = tcase_create ("element");
 
   suite_add_tcase (s, tc_chain);
-#ifdef ENABLE_DEBUGGING_TESTS
+#ifdef ENABLE_EXPERIMENTAL_TESTS
   tcase_add_test (tc_chain, check_audio_connection);
   tcase_add_test (tc_chain, check_delayed_audio_connection);
 #endif

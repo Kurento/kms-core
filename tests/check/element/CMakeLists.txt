@@ -1,4 +1,8 @@
-set (SUPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/../valgrind.supp")
+set(SUPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/../valgrind.supp")
+
+if(${ENABLE_EXPERIMENTAL_TESTS})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_EXPERIMENTAL_TESTS")
+endif()
 
 # all test programs
 set(ALL_TESTS
@@ -16,7 +20,7 @@ set(ALL_TESTS
 
 # tests targets
 foreach(test ${ALL_TESTS})
-  add_test_program (test_${test} ${test}.c)
+  add_test_program(test_${test} ${test}.c)
 
   add_dependencies(test_${test} ${LIBRARY_NAME}plugins)
 
@@ -34,7 +38,7 @@ foreach(test ${ALL_TESTS})
 endforeach(test)
 
 #SDP Tests
-add_test_program (test_sdp_agent sdp_agent.c)
+add_test_program(test_sdp_agent sdp_agent.c)
 target_include_directories(test_sdp_agent PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -52,7 +56,7 @@ target_link_libraries(test_sdp_agent
 )
 
 # metadata
-add_test_program (test_metadata metadata.c)
+add_test_program(test_metadata metadata.c)
 target_include_directories(test_metadata PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}
@@ -67,7 +71,7 @@ target_link_libraries(test_metadata
 )
 
 #lists
-add_test_program (test_lists lists.c)
+add_test_program(test_lists lists.c)
 target_include_directories(test_lists PRIVATE
   ${gstreamer-1.5_INCLUDE_DIRS}
   ${gstreamer-check-1.5_INCLUDE_DIRS}

@@ -939,7 +939,7 @@ function (generate_kurento_libraries)
 
       file(WRITE ${CMAKE_BINARY_DIR}/java/pom.xml ${POM_CONTENT})
     else()
-      message(STATUS "Pom willn ot be indented unless you intall xmllint")
+      message(STATUS "'pom.xml' won't be indented unless you intall `xmllint` (libxml2-utils)")
     endif()
 
     execute_code_generator (
