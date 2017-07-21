@@ -1,3 +1,37 @@
+kms-core-6.0 (6.6.2) testing; urgency=medium
+
+  [ Juan Navarro Moreno ]
+
+  * Added
+    - REMB: Add "COMEDIA"/automatic port discovery.
+    - REMB: Enable for RTP connections. Previously, it would only work for
+      WebRTC.
+  * Changed
+    - Old ChangeLog.md moved to the new format in this CHANGELOG.md file.
+    - CMake: Full review of all CMakeLists.txt files to tidy up and homogenize
+      code style and compiler flags.
+    - CMake: Position Independent Code flags ("-fPIC") were scattered around
+      projects, and are now removed. Instead, the more CMake-idiomatic variable
+      "CMAKE_POSITION_INDEPENDENT_CODE" is used.
+    - CMake: All projects now compile with
+      "[-std=c11|-std=c++11] -Wall -Werror -pthread".
+    - CMake: Debug builds now compile with "-g -O0" (while default CMake used
+      "-O1" for Debug builds).
+    - CMake: include() and import() commands were moved to the code areas where
+      they are actually required.
+    - REMB: Limit estimations to the "double of the max bitrate" only in
+      increment phase.
+    - REMB: Make "minVideoRecvBandwidth" always >= 30 kbps.
+  * Fixed
+    - Bugfix: Out of bound access on SDP medias.
+    - Use format macros to fix compiler errors on 32bit systems, by @fancycode
+      (Joachim Bauch).
+    - When a non incremental PTS is discovered in an input stream, the internal
+      DTS gets updated with the new PTS value.
+  * Prepare release 6.6.2
+
+ -- Juan Navarro Moreno <juan.navarro@gmx.es>  Fri, 24 Jul 2017 11:00:00 +0200
+
 kms-core-6.0 (6.6.1) testing; urgency=medium
 
   [ Jose Antonio Santos Cadenas ]
