@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [6.6.3] - 2017-08-10
+
+### Changed
+- Prevent frames from building up in the buffer if the CPU falls behind, by @kc7bfi (David Robison).
+
 ## [6.6.2] - 2017-07-24
 
 ### Added
@@ -132,6 +137,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - MediaElement: Fix error notification mechanisms. Errors where not raising in most cases.
 - Improvements in format negotiations between elements, this fixes problems in RecorderEndpoint and Composite.
 
+[6.6.3]: https://github.com/Kurento/kms-core/compare/6.6.2...6.6.3
 [6.6.2]: https://github.com/Kurento/kms-core/compare/6.6.1...6.6.2
 [6.6.1]: https://github.com/Kurento/kms-core/compare/6.6.0...6.6.1
 [6.6.0]: https://github.com/Kurento/kms-core/compare/6.5.0...6.6.0
