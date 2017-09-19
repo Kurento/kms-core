@@ -443,12 +443,12 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
   std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
 
   if (isFlowing) {
-    GST_DEBUG_OBJECT (element, "Media Flowing OUT in pad %s with type %s", padName,
-                      padTypeToString (type).c_str () );
+    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChange: Media flowing OUT"
+        ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
   } else {
-    GST_DEBUG_OBJECT (element, "Media NOT Flowing OUT in pad %s with type %s",
-                      padName, padTypeToString (type).c_str () );
+    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChange: Media NOT flowing OUT"
+        ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
   }
 
@@ -488,12 +488,12 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
   std::map<std::string, std::shared_ptr <MediaFlowData>>::iterator it;
 
   if (isFlowing) {
-    GST_DEBUG_OBJECT (element, "Media Flowing IN in pad %s with type %s", padName,
-                      padTypeToString (type).c_str () );
+    GST_DEBUG_OBJECT (element, "MediaFlowInStateChange: Media flowing IN"
+        ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
   } else {
-    GST_DEBUG_OBJECT (element, "Media NOT Flowing IN in pad %s with type %s",
-                      padName, padTypeToString (type).c_str () );
+    GST_DEBUG_OBJECT (element, "MediaFlowInStateChange: Media NOT flowing IN"
+        ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str () );
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
   }
 

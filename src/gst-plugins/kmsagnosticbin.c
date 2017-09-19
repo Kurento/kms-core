@@ -470,6 +470,9 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
   GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
   GstCaps *current_caps = kms_tree_bin_get_input_caps (tree_bin);
 
+  GST_TRACE_OBJECT (tree_bin,
+      "Check compatibility for bin: %" GST_PTR_FORMAT, tree_bin);
+
   if (current_caps == NULL) {
     current_caps = gst_pad_get_allowed_caps (tee_sink);
     GST_TRACE_OBJECT (tree_bin, "Allowed caps are: %" GST_PTR_FORMAT,
@@ -514,6 +517,11 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   bins = g_hash_table_get_values (self->priv->bins);
   for (l = bins; l != NULL && bin == NULL; l = l->next) {
     KmsTreeBin *tree_bin = KMS_TREE_BIN (l->data);
+
+    if ((void*)tree_bin == (void*)self->priv->input_bin) {
+      // Skip: self->priv->input_bin has been already checked
+      continue;
+    }
 
     if (check_bin (tree_bin, caps)) {
       bin = GST_BIN_CAST (tree_bin);
@@ -681,11 +689,16 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
 {
   GstBin *bin;
 
+  GST_INFO_OBJECT (self, "Find bin for caps: %" GST_PTR_FORMAT, caps);
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
   if (bin == NULL) {
+    GST_INFO_OBJECT (self, "Bin not found. Create bin for given caps");
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
-    GST_DEBUG_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
+    GST_INFO_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
+  }
+  else {
+    GST_INFO_OBJECT (self, "Bin found! Use it for given caps");
   }
 
   return bin;
@@ -704,7 +717,8 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   GstCaps *caps;
   GstBin *bin;
 
-  GST_INFO_OBJECT (self, "Linking: %" GST_PTR_FORMAT, pad);
+  GST_INFO_OBJECT (self, "Linking: %" GST_PTR_FORMAT
+      " to %" GST_PTR_FORMAT, pad, peer);
 
   caps = gst_pad_query_caps (peer, NULL);
 
@@ -712,7 +726,7 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
     goto end;
   }
 
-  GST_DEBUG ("Query caps are: %" GST_PTR_FORMAT, caps);
+  GST_INFO_OBJECT (self, "Query caps are: %" GST_PTR_FORMAT, caps);
   bin = kms_agnostic_bin2_find_or_create_bin_for_caps (self, caps);
 
   if (bin != NULL) {
@@ -827,11 +841,9 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
   }
 
   gst_event_parse_caps (event, &current_caps);
+  GST_INFO_OBJECT (self, "Set input caps: %" GST_PTR_FORMAT, current_caps);
   self->priv->input_bin_src_caps = gst_caps_copy (current_caps);
   kms_agnostic_bin2_insert_bin (self, GST_BIN (bin));
-
-  GST_INFO_OBJECT (self, "Setting current caps to: %" GST_PTR_FORMAT,
-      current_caps);
 
   kms_element_for_each_src_pad (GST_ELEMENT (self),
       (KmsPadIterationAction) add_linked_pads, self);
