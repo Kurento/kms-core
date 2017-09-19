@@ -86,6 +86,8 @@ typedef struct _KmsRlRemoteSession
   GObject *rtpsess; // RTPSession* from GstRtpBin->GstRtpSession
   guint ssrc;
 
+  guint64 last_octets_received;
+  guint64 last_packets_received;
   guint64 last_packets_received_expected;
 } KmsRlRemoteSession;
 
@@ -113,8 +115,8 @@ typedef struct _GetRtpSessionsInfo
   guint64 bitrate;
   guint fraction_lost_accumulative;     /* the sum of all sessions, it should be normalized */
   guint64 packets_received_expected_interval_accumulative;
-  guint64 octets_received;
-  guint64 packets_received;
+  guint64 octets_received_interval;
+  guint64 packets_received_interval;
 } GetRtpSessionsInfo;
 
 static void
@@ -195,7 +197,7 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
     gint packets_lost = 0;
     guint fraction_lost = 0;
     if (!gst_structure_get_uint64 (s, "bitrate", &bitrate)) {
-      GST_ERROR_OBJECT (rtpsource, "RTPSource stats lack property 'bitrate'");
+      GST_ERROR_OBJECT (rtpsource,  "RTPSource stats lack property 'bitrate'");
     }
     if (!gst_structure_get_uint64 (s, "octets-received", &octets_received)) {
       GST_ERROR_OBJECT (rtpsource, "RTPSource stats lack property 'octets-received'");
@@ -211,21 +213,40 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
     }
     gst_structure_free (s);
 
-    guint64 packets_received_expected =
-        packets_received + packets_lost;
-    guint64 packets_received_expected_interval =
-        packets_received_expected - self->last_packets_received_expected;
+    // In case of an interrupted connection, the sequence number could make
+    // a very large jump, and the RTPSource will reset its stats.
+    // To account for this case, our own counters must be also reset.
+    if (self->last_packets_received > packets_received) {
+      GST_INFO_OBJECT (self->rtpsess,
+        "RTP stats restarted due to long gap in RTP sequence numbers");
+      self->last_octets_received = 0;
+      self->last_packets_received = 0;
+      self->last_packets_received_expected = 0;
+    }
 
+    const guint64 packets_received_expected =
+        packets_received + packets_lost;
+
+    const guint64 packets_received_expected_interval =
+        packets_received_expected - self->last_packets_received_expected;
     self->last_packets_received_expected = packets_received_expected;
 
+    data->count++;
     data->bitrate += bitrate;
+
     data->fraction_lost_accumulative +=
-        fraction_lost * packets_received_expected_interval;
+        (fraction_lost * packets_received_expected_interval);
+
     data->packets_received_expected_interval_accumulative +=
         packets_received_expected_interval;
-    data->octets_received += octets_received;
-    data->packets_received += packets_received;
-    data->count++;
+
+    data->octets_received_interval +=
+        (octets_received - self->last_octets_received);
+    self->last_octets_received = octets_received;
+
+    data->packets_received_interval +=
+        (packets_received - self->last_packets_received);
+    self->last_packets_received = packets_received;
 
     GST_TRACE_OBJECT (rtpsource,
         "packets_received: %" G_GUINT64_FORMAT
@@ -249,20 +270,13 @@ static gboolean
 kms_remb_local_get_video_recv_info (KmsRembLocal * self,
     guint64 * bitrate, guint * fraction_lost, guint64 * packets_rcv_interval)
 {
-  GetRtpSessionsInfo data;
   GstClockTime current_time;
+  GetRtpSessionsInfo data = {0};
 
   if (!KMS_REMB_BASE (self)->rtpsess) {
     GST_WARNING_OBJECT (self, "KmsRembLocal: No session object");
     return FALSE;
   }
-
-  data.count = 0;
-  data.bitrate = 0;
-  data.fraction_lost_accumulative = 0;
-  data.packets_received_expected_interval_accumulative = 0;
-  data.octets_received = 0;
-  data.packets_received = 0;
 
   //J REVIEW - Is it really possible to have more than 1 session in self->remote_sessions?
   const guint sessions_count = g_slist_length (self->remote_sessions);
@@ -297,8 +311,8 @@ kms_remb_local_get_video_recv_info (KmsRembLocal * self,
   *bitrate = data.bitrate;
 
   if (self->last_time != 0) {
-    GstClockTime elapsed = current_time - self->last_time;
-    guint64 bytes_handled = data.octets_received - self->last_octets_received;
+    const GstClockTime elapsed = current_time - self->last_time;
+    const guint64 bytes_handled = data.octets_received_interval;
 
     *bitrate = gst_util_uint64_scale (bytes_handled, 8 * GST_SECOND, elapsed);
 
@@ -308,12 +322,9 @@ kms_remb_local_get_video_recv_info (KmsRembLocal * self,
         ", bitrate: %" G_GUINT64_FORMAT,
         elapsed, bytes_handled, *bitrate);
   }
-
   self->last_time = current_time;
-  self->last_octets_received = data.octets_received;
 
-  *packets_rcv_interval = data.packets_received - self->last_packets_received;
-  self->last_packets_received = data.packets_received;
+  *packets_rcv_interval = data.packets_received_interval;
 
   return TRUE;
 }
