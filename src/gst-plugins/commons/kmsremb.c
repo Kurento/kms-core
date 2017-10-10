@@ -180,7 +180,7 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
     }
 
     if (ssrc != self->ssrc) {
-      GST_WARNING_OBJECT (self->rtpsess,
+      GST_LOG_OBJECT (self->rtpsess,
           "SSRC mismatch, RTPSource: %u, SDP: %u", ssrc, self->ssrc);
       continue;
     }
@@ -415,7 +415,7 @@ kms_remb_local_update (KmsRembLocal * self)
     self->remb = MIN (self->remb, self->max_bw * 1000);
   }
 
-  GST_LOG_OBJECT (KMS_REMB_BASE (self)->rtpsess,
+  GST_TRACE_OBJECT (KMS_REMB_BASE (self)->rtpsess,
       "REMB: %" G_GUINT32_FORMAT
       ", Threshold: %" G_GUINT32_FORMAT
       ", fraction_lost: %d, fraction_lost_record: %" G_GUINT64_FORMAT
@@ -820,7 +820,7 @@ kms_remb_remote_on_feedback_rtcp (GObject *rtpsession,
     guint type, guint fbtype, guint sender_ssrc, guint media_ssrc,
     GstBuffer *fci)
 {
-  GST_DEBUG_OBJECT (rtpsession, "Signal 'on-feedback-rtcp'");
+  GST_LOG_OBJECT (rtpsession, "Signal 'on-feedback-rtcp'");
   if (type == GST_RTCP_TYPE_PSFB
       && fbtype == GST_RTCP_PSFB_TYPE_AFB) {
     process_psfb_afb (rtpsession, sender_ssrc, fci);
