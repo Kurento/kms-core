@@ -25,7 +25,7 @@
 #include "sdpagent/kmssdprtpavpmediahandler.h"
 #include "sdpagent/kmssdpbundlegroup.h"
 
-#define PLUGIN_NAME "base_sdp_endpoint"
+#define PLUGIN_NAME "basesdpendpoint"
 
 GST_DEBUG_CATEGORY_STATIC (kms_base_sdp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_base_sdp_endpoint_debug
@@ -599,11 +599,11 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
 
   KMS_ELEMENT_LOCK (self);
 
-  GST_DEBUG_OBJECT (self, "Process offer for session '%s'", sess_id);
+  GST_DEBUG_OBJECT (self, "Process SDP Offer, session ID: '%s'", sess_id);
 
   sess = g_hash_table_lookup (self->priv->sessions, sess_id);
   if (sess == NULL) {
-    GST_WARNING_OBJECT (self, "There is not session '%s'", sess_id);
+    GST_WARNING_OBJECT (self, "Unknown session ID: '%s'", sess_id);
     goto end;
   }
 
@@ -618,7 +618,7 @@ kms_base_sdp_endpoint_process_offer (KmsBaseSdpEndpoint * self,
         &err, NULL);
 
     if (gid < 0) {
-      GST_ERROR_OBJECT (self, "Can not create bundle group: %s.", err->message);
+      GST_ERROR_OBJECT (self, "Cannot create bundle group: %s.", err->message);
       g_error_free (err);
     }
   }
