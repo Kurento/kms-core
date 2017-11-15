@@ -24,7 +24,7 @@
 
 #define GST_CAT_DEFAULT sdp_utils
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
-#define GST_DEFAULT_NAME "sdp_utils"
+#define GST_DEFAULT_NAME "sdputils"
 
 static gchar *directions[] =
     { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR, NULL };
@@ -412,7 +412,7 @@ intersect_attribute (const GstSDPAttribute * attr,
     a = &new_attr;
   }
   else if (g_strcmp0 (attr->key, "direction") == 0) {
-    //J COMEDIA-based discovery of remote IP+port
+    // COMEDIA-based discovery of remote IP+port
     if (!sdp_utils_add_comedia_attribute (attr, &new_attr)) {
       GST_WARNING ("Cannot set attribute a=%s:%s", attr->key, attr->value);
       return FALSE;
