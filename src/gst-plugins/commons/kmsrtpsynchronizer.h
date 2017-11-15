@@ -21,7 +21,6 @@
 #include <gst/gst.h>
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
-#include "kmsrtpsynccontext.h"
 
 G_BEGIN_DECLS
 
@@ -91,22 +90,22 @@ struct _KmsRtpSynchronizerClass
 
 GType kms_rtp_synchronizer_get_type ();
 
-KmsRtpSynchronizer * kms_rtp_synchronizer_new (KmsRtpSyncContext * context,
-                                               gboolean feeded_ordered);
+// 'stats_name': Name of the stats file that will be generated if
+// the environment variable "KMS_RTP_SYNC_STATS_PATH" is set. Can be NULL.
+KmsRtpSynchronizer * kms_rtp_synchronizer_new (gboolean feeded_ordered,
+    const gchar * stats_name);
 
 gboolean kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
                                                      gint32 pt,
                                                      gint32 clock_rate,
                                                      GError ** error);
 
+// Get timing info from the RTCP Sender Reports
 gboolean kms_rtp_synchronizer_process_rtcp_buffer (KmsRtpSynchronizer * self,
                                                    GstBuffer * buffer,
-                                                   GstClockTime current_time,
                                                    GError ** error);
 
-gboolean kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
-                                                         GstRTPBuffer * rtp_buffer,
-                                                         GError ** error);
+// Adjust PTS, using timing info from the RTCP Sender Reports
 gboolean kms_rtp_synchronizer_process_rtp_buffer (KmsRtpSynchronizer * self,
                                                   GstBuffer * buffer,
                                                   GError ** error);

@@ -21,7 +21,7 @@
 #include <string.h>
 #include "kmsbasertpendpoint.h"
 #include "kmsbasertpsession.h"
-#include "rtpsync/kmsrtpsynchronizer.h"
+#include "kmsrtpsynchronizer.h"
 #include "constants.h"
 
 #include <stdlib.h>
