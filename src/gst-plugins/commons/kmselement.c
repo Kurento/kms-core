@@ -73,7 +73,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
   g_mutex_unlock (&(((KmsElement *)obj)->priv->sync_lock))  \
 )
 
-#define KMS_SET_OBJECT_PROPERTY_SAFETLY(obj,name,val) ({      \
+#define KMS_SET_OBJECT_PROPERTY_SAFELY(obj,name,val) ({      \
   if (g_object_class_find_property (G_OBJECT_GET_CLASS (obj), \
       (name)) != NULL) {                                      \
     GST_DEBUG_OBJECT (obj, "Setting property %s", name);      \
@@ -689,13 +689,13 @@ static void
 kms_element_set_video_output_properties (KmsElement * self,
     GstElement * element)
 {
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, CODEC_CONFIG,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, CODEC_CONFIG,
       self->priv->codec_config);
 
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MAX_BITRATE,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, MAX_BITRATE,
       self->priv->max_bitrate);
 
-  KMS_SET_OBJECT_PROPERTY_SAFETLY (element, MIN_BITRATE,
+  KMS_SET_OBJECT_PROPERTY_SAFELY (element, MIN_BITRATE,
       self->priv->min_bitrate);
 }
 
@@ -1188,7 +1188,7 @@ set_min_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     if (odata->element != NULL) {
-      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MIN_BITRATE,
+      KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, MIN_BITRATE,
           self->priv->min_bitrate);
     }
   }
@@ -1199,7 +1199,7 @@ set_max_bitrate (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     if (odata->element != NULL) {
-      KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, MAX_BITRATE,
+      KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, MAX_BITRATE,
           self->priv->max_bitrate);
     }
   }
@@ -1210,7 +1210,7 @@ set_codec_config (gchar * id, KmsOutputElementData * odata, KmsElement * self)
 {
   if (odata->type == KMS_ELEMENT_PAD_TYPE_AUDIO ||
       odata->type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
-    KMS_SET_OBJECT_PROPERTY_SAFETLY (odata->element, CODEC_CONFIG,
+    KMS_SET_OBJECT_PROPERTY_SAFELY (odata->element, CODEC_CONFIG,
         self->priv->codec_config);
   }
 }
