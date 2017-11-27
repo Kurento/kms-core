@@ -1307,8 +1307,9 @@ kms_sdp_agent_request_handler (KmsSdpAgent * agent, const GstSDPMedia * media)
 
   if (!kms_sdp_media_handler_manage_protocol (handler,
           gst_sdp_media_get_proto (media))) {
-    GST_WARNING_OBJECT (agent, "Handler can not manage media: %s",
-        gst_sdp_media_get_media (media));
+    GST_WARNING_OBJECT (agent, "Unmanaged protocol: %s %s, handler: %s",
+        gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media),
+        G_OBJECT_TYPE_NAME (handler));
     g_object_unref (handler);
     return NULL;
   }
@@ -1582,6 +1583,15 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
       data->answer, media, err);
 
   if (answer_media == NULL) {
+    gchar *err_message = NULL;
+
+    if (*err != NULL) {
+      err_message = (*err)->message;
+    }
+    GST_WARNING_OBJECT (agent, "Error creating answer for media '%s %u %s': %s",
+        gst_sdp_media_get_media (media), gst_sdp_media_get_port (media),
+        gst_sdp_media_get_proto (media), err_message ? err_message : "");
+
     ret = FALSE;
     goto end;
   }

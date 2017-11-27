@@ -105,7 +105,7 @@ set_encoder_configuration (GstElement * encoder, GstStructure * codec_config,
       const gchar *name = g_param_spec_get_name (props[i]);
 
       if (gst_structure_has_field (config, name)) {
-        GValue final_value = { 0, };
+        GValue final_value = G_VALUE_INIT;
         gchar *st_value;
         const GValue *val;
 

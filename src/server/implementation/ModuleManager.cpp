@@ -52,7 +52,7 @@ ModuleManager::loadModule (std::string modulePath)
   moduleFileName = path.filename().string();
 
   if (loadedModules.find (moduleFileName) != loadedModules.end() ) {
-    GST_WARNING ("Module named %s already loaded", moduleFileName.c_str() );
+    GST_DEBUG ("Module named %s already loaded", moduleFileName.c_str() );
     return -1;
   }
 
@@ -76,17 +76,18 @@ ModuleManager::loadModule (std::string modulePath)
 
   for (auto it : factories) {
     if (loadedFactories.find (it.first) != loadedFactories.end() ) {
-      GST_WARNING ("Factory %s is already registered, skiping module %s",
-                   it.first.c_str(), module.get_name().c_str() );
+      GST_DEBUG ("Factory %s is already registered, skiping module %s",
+                 it.first.c_str(), module.get_name().c_str() );
       return -1;
     }
   }
 
   module.make_resident();
 
-  loadedFactories.insert (factories.begin(), factories.end() );
+  GST_INFO ("Load file: %s, module name: %s", modulePath.c_str(),
+            module.get_name().c_str() );
 
-  GST_DEBUG ("Module loaded from %s", module.get_name().c_str() );
+  loadedFactories.insert (factories.begin(), factories.end() );
 
   if (!module.get_symbol ("getModuleVersion", getVersion) ) {
     GST_WARNING ("Cannot get module version");
@@ -131,7 +132,7 @@ ModuleManager::loadModule (std::string modulePath)
                                     moduleName, moduleVersion, generationTime,
                                     moduleDescriptor, factories) );
 
-  GST_INFO ("Loaded %s version %s generated at %s", moduleName.c_str() ,
+  GST_INFO ("Loaded module: %s, version: %s, date: %s", moduleName.c_str(),
             moduleVersion.c_str(), generationTime.c_str() );
 
   return 0;
@@ -153,7 +154,7 @@ std::list<std::string> split (const std::string &s, char delim)
 void
 ModuleManager::loadModules (std::string dirPath)
 {
-  GST_TRACE ("Looking for modules in %s", dirPath.c_str());
+  GST_INFO ("Looking for modules, path: %s", dirPath.c_str() );
   boost::filesystem::path dir (dirPath);
 
   if (!boost::filesystem::is_directory (dir) ) {
@@ -170,7 +171,7 @@ ModuleManager::loadModules (std::string dirPath)
       boost::filesystem::path extension = itr->path().extension();
 
       if (extension.string() == ".so") {
-        GST_INFO ("Found module: %s", itr->path().string().c_str() );
+        GST_DEBUG ("Found file: %s", itr->path().string().c_str() );
         loadModule (itr->path().string() );
       }
     } else if (boost::filesystem::is_directory (*itr) ) {
