@@ -99,14 +99,14 @@ static GstStaticPadTemplate sink_factory =
 GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SINK_PAD,
     GST_PAD_SINK,
     GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS)
     );
 
 static GstStaticPadTemplate src_factory =
 GST_STATIC_PAD_TEMPLATE (AGNOSTICBIN3_SRC_PAD,
     GST_PAD_SRC,
     GST_PAD_REQUEST,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS_CAPS)
+    GST_STATIC_CAPS (KMS_AGNOSTIC_CAPS)
     );
 
 static gboolean set_transcoder_src_target_pad (GstGhostPad *, GstElement *);

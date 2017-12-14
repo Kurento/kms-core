@@ -17,16 +17,23 @@
 #ifndef __KMS_AGNOSTIC_CAPS_H__
 #define __KMS_AGNOSTIC_CAPS_H__
 
-#define KMS_AGNOSTIC_RAW_VIDEO_CAPS \
-     "video/x-raw;"
 #define KMS_AGNOSTIC_RAW_AUDIO_CAPS \
-     "audio/x-raw;"
+  "audio/x-raw;"
+
+#define KMS_AGNOSTIC_RAW_VIDEO_CAPS \
+  "video/x-raw;"
+
 #define KMS_AGNOSTIC_RAW_CAPS \
   KMS_AGNOSTIC_RAW_AUDIO_CAPS \
   KMS_AGNOSTIC_RAW_VIDEO_CAPS
-#define KMS_AGNOSTIC_RTP_CAPS \
-  "application/x-rtp;"
-#define KMS_AGNOSTIC_ALL_AUDIO_FORMAT_CAPS \
+
+#define KMS_AGNOSTIC_RTP_AUDIO_CAPS \
+  "application/x-rtp,media=audio;"
+
+#define KMS_AGNOSTIC_RTP_VIDEO_CAPS \
+  "application/x-rtp,media=video;"
+
+#define KMS_AGNOSTIC_FORMATS_AUDIO_CAPS \
   "audio/x-sbc;" \
   "audio/x-mulaw;" \
   "audio/x-flac;" \
@@ -56,13 +63,16 @@
   "audio/x-opus;" \
   "audio/AMR,rate=[8000, 16000],channels=1;" \
   "audio/x-gsm;"
+
 #define KMS_AGNOSTIC_NO_RTP_AUDIO_CAPS \
   KMS_AGNOSTIC_RAW_AUDIO_CAPS \
-  KMS_AGNOSTIC_ALL_AUDIO_FORMAT_CAPS
+  KMS_AGNOSTIC_FORMATS_AUDIO_CAPS
+
 #define KMS_AGNOSTIC_AUDIO_CAPS \
   KMS_AGNOSTIC_NO_RTP_AUDIO_CAPS \
-  KMS_AGNOSTIC_RTP_CAPS
-#define KMS_AGNOSTIC_ALL_VIDEO_FORMAT_CAPS \
+  KMS_AGNOSTIC_RTP_AUDIO_CAPS
+
+#define KMS_AGNOSTIC_FORMATS_VIDEO_CAPS \
   "video/x-dirac;" \
   "image/png;" \
   "image/jpeg;" \
@@ -112,15 +122,24 @@
   "video/x-theora;" \
   "video/x-vp8;" \
   "application/x-yuv4mpeg,y4mversion=2;"
+
 #define KMS_AGNOSTIC_NO_RTP_VIDEO_CAPS \
   KMS_AGNOSTIC_RAW_VIDEO_CAPS \
-  KMS_AGNOSTIC_ALL_VIDEO_FORMAT_CAPS
+  KMS_AGNOSTIC_FORMATS_VIDEO_CAPS
+
 #define KMS_AGNOSTIC_VIDEO_CAPS \
   KMS_AGNOSTIC_NO_RTP_VIDEO_CAPS \
-  KMS_AGNOSTIC_RTP_CAPS
-#define KMS_AGNOSTIC_DATA_CAPS "application/data;"
+  KMS_AGNOSTIC_RTP_VIDEO_CAPS
 
-#define KMS_AGNOSTIC_CAPS_CAPS KMS_AGNOSTIC_AUDIO_CAPS KMS_AGNOSTIC_VIDEO_CAPS
-#define KMS_AGNOSTIC_NO_RTP_CAPS_CAPS KMS_AGNOSTIC_NO_RTP_AUDIO_CAPS KMS_AGNOSTIC_NO_RTP_VIDEO_CAPS
+#define KMS_AGNOSTIC_DATA_CAPS \
+  "application/data;"
+
+#define KMS_AGNOSTIC_CAPS \
+  KMS_AGNOSTIC_AUDIO_CAPS \
+  KMS_AGNOSTIC_VIDEO_CAPS
+
+#define KMS_AGNOSTIC_NO_RTP_CAPS \
+  KMS_AGNOSTIC_NO_RTP_AUDIO_CAPS \
+  KMS_AGNOSTIC_NO_RTP_VIDEO_CAPS
 
 #endif /* __KMS_AGNOSTIC_CAPS_H__ */

@@ -105,7 +105,7 @@ enum
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (KMS_AGNOSTIC_NO_RTP_CAPS_CAPS));
+    GST_STATIC_CAPS (KMS_AGNOSTIC_NO_RTP_CAPS));
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src_%u",
     GST_PAD_SRC,
@@ -518,7 +518,7 @@ kms_agnostic_bin2_find_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   for (l = bins; l != NULL && bin == NULL; l = l->next) {
     KmsTreeBin *tree_bin = KMS_TREE_BIN (l->data);
 
-    if ((void*)tree_bin == (void*)self->priv->input_bin) {
+    if ((void *) tree_bin == (void *) self->priv->input_bin) {
       // Skip: self->priv->input_bin has been already checked
       continue;
     }
@@ -696,8 +696,7 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     GST_INFO_OBJECT (self, "Bin not found. Create bin for given caps");
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
     GST_INFO_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
-  }
-  else {
+  } else {
     GST_INFO_OBJECT (self, "Bin found! Use it for given caps");
   }
 
