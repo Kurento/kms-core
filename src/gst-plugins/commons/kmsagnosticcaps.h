@@ -33,6 +33,10 @@
 #define KMS_AGNOSTIC_RTP_VIDEO_CAPS \
   "application/x-rtp,media=video;"
 
+#define KMS_AGNOSTIC_RTP_CAPS \
+  KMS_AGNOSTIC_RTP_AUDIO_CAPS \
+  KMS_AGNOSTIC_RTP_VIDEO_CAPS
+
 #define KMS_AGNOSTIC_FORMATS_AUDIO_CAPS \
   "audio/x-sbc;" \
   "audio/x-mulaw;" \
