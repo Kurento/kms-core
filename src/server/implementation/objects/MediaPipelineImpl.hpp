@@ -75,6 +75,7 @@ private:
   std::recursive_mutex recMutex;
   bool latencyStats = false;
 
+  void log_bus_issue (GstBin * bin, GstMessage * msg, gboolean is_error);
   void busMessage (GstMessage *message);
 
   class StaticConstructor
