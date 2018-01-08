@@ -690,7 +690,7 @@
         },
         {
           "name": "disconnect",
-          "doc": "Disconnectes two media elements. This will release the source pads of the source media element, and the sink pads of the sink media element.",
+          "doc": "Disconnects two media elements. This will release the source pads of the source media element, and the sink pads of the sink media element.",
           "params": [
             {
               "name": "sink",
