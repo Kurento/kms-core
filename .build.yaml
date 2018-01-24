@@ -1,19 +1,19 @@
 dependencies:
-  - name: kms-cmake-utils
-    version: ">= 1.5.0"
-  - name: kms-jsonrpc
-    version: ">= 1.1.2"
   - name: gstreamer
+    version: ">= 1.7.1"
+  - name: gst-plugins-bad
     version: ">= 1.7.1"
   - name: gst-plugins-base
     version: ">= 1.7.1"
   - name: gst-plugins-good
-    version: ">= 1.7.1"
-  - name: gst-plugins-bad
     version: ">= 1.7.1"
   - name: gst-plugins-ugly
     version: ">= 1.7.1"
   - name: gst-libav
     version: ">= 1.7.1"
   - name: kurento-module-creator
-    version: ">= 4.0.6"
+    version: ">= 6.7.0"
+  - name: kms-cmake-utils
+    version: ">= 6.7.0"
+  - name: kms-jsonrpc
+    version: ">= 6.7.0"

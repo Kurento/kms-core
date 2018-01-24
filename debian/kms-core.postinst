@@ -6,4 +6,3 @@ if [ ! -d "$DIRECTORY" ]; then
   mkdir /var/kurento
   chmod 777 /var/kurento
 fi
-
