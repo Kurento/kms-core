@@ -1,3 +1,4 @@
+name: kms-core
 dependencies:
   - name: gstreamer
     version: ">= 1.7.1"

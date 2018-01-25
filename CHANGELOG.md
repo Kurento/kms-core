@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [6.7.0] - 2018-01-24
 
 ### Changed
+- CMake: Compile and link as Position Independent Code ('-fPIC').
 - Add more verbose logging in some areas that required it.
 - Debian: Align all version numbers of KMS-related modules.
 - Debian: Remove version numbers from package names.
