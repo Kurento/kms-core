@@ -365,7 +365,7 @@ static void
 remove_agnostic_bin (GstElement * agnosticbin)
 {
   KmsAudioMixer *self;
-  GstElement *audiorate = NULL, *typefind = NULL;
+  GstElement *typefind = NULL;
   GstPad *sinkpad, *peerpad;
 
   self = (KmsAudioMixer *) gst_element_get_parent (agnosticbin);
@@ -383,23 +383,6 @@ remove_agnostic_bin (GstElement * agnosticbin)
     goto end;
   }
 
-  audiorate = gst_pad_get_parent_element (peerpad);
-  gst_object_unref (sinkpad);
-  gst_object_unref (peerpad);
-
-  if (audiorate == NULL) {
-    GST_WARNING_OBJECT (self, "No audiorate");
-    goto end;
-  }
-
-  sinkpad = gst_element_get_static_pad (audiorate, "sink");
-  peerpad = gst_pad_get_peer (sinkpad);
-  if (peerpad == NULL) {
-    GST_WARNING_OBJECT (sinkpad, "Not linked");
-    gst_object_unref (sinkpad);
-    goto end;
-  }
-
   typefind = gst_pad_get_parent_element (peerpad);
   gst_object_unref (sinkpad);
   gst_object_unref (peerpad);
@@ -409,26 +392,21 @@ remove_agnostic_bin (GstElement * agnosticbin)
     goto end;
   }
 
-  gst_element_unlink_many (typefind, audiorate, agnosticbin, NULL);
+  gst_element_unlink_many (typefind, agnosticbin, NULL);
 
   gst_element_set_locked_state (typefind, TRUE);
-  gst_element_set_locked_state (audiorate, TRUE);
   gst_element_set_locked_state (agnosticbin, TRUE);
 
   gst_element_set_state (typefind, GST_STATE_NULL);
-  gst_element_set_state (audiorate, GST_STATE_NULL);
   gst_element_set_state (agnosticbin, GST_STATE_NULL);
 
   gst_object_ref (agnosticbin);
 
-  gst_bin_remove_many (GST_BIN (self), typefind, audiorate, agnosticbin, NULL);
+  gst_bin_remove_many (GST_BIN (self), typefind, agnosticbin, NULL);
 
   gst_object_unref (agnosticbin);
 
 end:
-  if (audiorate != NULL) {
-    gst_object_unref (audiorate);
-  }
 
   if (typefind != NULL) {
     gst_object_unref (typefind);
@@ -511,7 +489,7 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
     gpointer data)
 {
   KmsAudioMixer *self = KMS_AUDIO_MIXER (data);
-  GstElement *audiorate, *agnosticbin;
+  GstElement *agnosticbin;
   gchar *padname;
   gint id;
 
@@ -531,13 +509,12 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
     return;
   }
 
-  audiorate = gst_element_factory_make ("audiorate", NULL);
   agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   g_object_set_qdata_full (G_OBJECT (agnosticbin), key_sink_pad_name_quark (),
       g_strdup (padname), g_free);
 
-  gst_bin_add_many (GST_BIN (self), audiorate, agnosticbin, NULL);
-  gst_element_link_many (typefind, audiorate, agnosticbin, NULL);
+  gst_bin_add_many (GST_BIN (self), agnosticbin, NULL);
+  gst_element_link_many (typefind, agnosticbin, NULL);
 
   g_hash_table_foreach (self->priv->adders, (GHFunc) link_new_agnosticbin,
       agnosticbin);
@@ -547,7 +524,6 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
   gst_bin_recalculate_latency (GST_BIN (self));
   KMS_AUDIO_MIXER_UNLOCK (self);
 
-  gst_element_sync_state_with_parent (audiorate);
   gst_element_sync_state_with_parent (agnosticbin);
 }
 
