@@ -27,6 +27,8 @@
 #include "kmsenctreebin.h"
 #include "kmsrtppaytreebin.h"
 
+#include "kms-core-enumtypes.h"
+
 #define PLUGIN_NAME "agnosticbin"
 
 #define UNLINKING_DATA "unlinking-data"
@@ -67,6 +69,14 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 #define MIN_BITRATE_DEFAULT 0
 #define MAX_BITRATE_DEFAULT G_MAXINT
 #define LEAKY_TIME 600000000    /*600 ms */
+
+enum
+{
+  SIGNAL_MEDIA_TRANSCODING,
+  LAST_SIGNAL
+};
+
+static guint kms_agnostic_bin2_signals[LAST_SIGNAL] = { 0 };
 
 struct _KmsAgnosticBin2Private
 {
@@ -688,16 +698,32 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     GstCaps * caps)
 {
   GstBin *bin;
+  KmsMediaType type;
 
+  if (kms_utils_caps_are_audio (caps)) {
+    type = KMS_MEDIA_TYPE_AUDIO;
+  }
+  else {
+    type = KMS_MEDIA_TYPE_VIDEO;
+  }
+
+  // Caps shown here are those expected by the receiving side
   GST_INFO_OBJECT (self, "Find bin for caps: %" GST_PTR_FORMAT, caps);
+
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
   if (bin == NULL) {
     GST_INFO_OBJECT (self, "Bin not found. Create bin for given caps");
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
     GST_INFO_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
+
+    g_signal_emit (GST_BIN (self),
+        kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, TRUE, type);
   } else {
     GST_INFO_OBJECT (self, "Bin found! Use it for given caps");
+
+    g_signal_emit (GST_BIN (self),
+        kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
   }
 
   return bin;
@@ -1215,6 +1241,8 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
       "Automatically encodes/decodes media to match sink and source pads caps",
       "José Antonio Santos Cadenas <santoscadenas@kurento.com>");
 
+  GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
+
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&src_factory));
   gst_element_class_add_pad_template (gstelement_class,
@@ -1239,7 +1267,18 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
       g_param_spec_boxed ("codec-config", "codec config",
           "Codec configuration", GST_TYPE_STRUCTURE, G_PARAM_READWRITE));
 
-  GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
+  /* Signal "KmsAgnosticBin::media-transcoding"
+   * Arguments:
+   * - Is transcoding?
+   * - Media type (audio/video)
+   */
+  kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING] =
+      g_signal_new ("media-transcoding",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsAgnosticBin2Class, media_transcoding), NULL,
+      NULL, NULL, G_TYPE_NONE,
+      2, G_TYPE_BOOLEAN, KMS_TYPE_MEDIA_TYPE);
 
   g_type_class_add_private (klass, sizeof (KmsAgnosticBin2Private));
 }
