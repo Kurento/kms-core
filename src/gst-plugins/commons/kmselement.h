@@ -86,6 +86,7 @@ struct _KmsElementClass
   /* signals */
   void (*flow_out_state) (KmsElement *self, gboolean flowing_media, gchar* pad_name, KmsElementPadType type);
   void (*flow_in_state) (KmsElement *self, gboolean flowing_media, gchar* pad_name, KmsElementPadType type);
+  void (*media_transcoding) (KmsElement *self, gboolean is_transcoding, gchar* bin_name, KmsElementPadType type);
 
   /* protected methods */
   gboolean (*sink_query) (KmsElement *self, GstPad * pad, GstQuery *query);
