@@ -713,17 +713,19 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
   if (bin == NULL) {
-    GST_INFO_OBJECT (self, "Bin not found. Create bin for given caps");
+    GST_INFO_OBJECT (self, "Bin not found! Connection requires transcoding");
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
     GST_INFO_OBJECT (self, "Created bin: %" GST_PTR_FORMAT, bin);
 
     g_signal_emit (GST_BIN (self),
         kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, TRUE, type);
+    GST_INFO_OBJECT (self, "TRANSCODING is ACTIVE for this media");
   } else {
-    GST_INFO_OBJECT (self, "Bin found! Use it for given caps");
+    GST_INFO_OBJECT (self, "Bin found! Connection doesn't require transcoding");
 
     g_signal_emit (GST_BIN (self),
         kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
+    GST_INFO_OBJECT (self, "TRANSCODING is INACTIVE for this media");
   }
 
   return bin;
