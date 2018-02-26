@@ -42,19 +42,22 @@ MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
   gchar *dbg_info = NULL;
   gst_message_parse_error (msg, &err, &dbg_info);
 
+  gint err_code = (err ? err->code : -1);
+  gchar *err_msg = (err ? g_strdup (err->message) : g_strdup ("None"));
+
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Element '%s' bus code %d: %s", GST_OBJECT_NAME (msg->src), err->code,
-      err->message);
+      "Element '%s' bus code %d: %s", GST_OBJECT_NAME (msg->src), err_code,
+      err_msg);
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
       "Debugging info: %s", ((dbg_info) ? dbg_info : "None"));
 
-  std::string errorMessage (err->message);
+  std::string errorMessage (err_msg);
   if (dbg_info) {
     errorMessage += " (" + std::string (dbg_info) + ")";
   }
 
   try {
-    gint code = err->code;
+    gint code = err_code;
     Error error (shared_from_this(), errorMessage, code,
                  "UNEXPECTED_PIPELINE_ERROR");
 
@@ -62,12 +65,13 @@ MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
   } catch (std::bad_weak_ptr &e) {
   }
 
-  gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err->code);
+  gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err_code);
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (bin, GST_DEBUG_GRAPH_SHOW_ALL, dot_name);
   g_free(dot_name);
 
   g_error_free (err);
   g_free (dbg_info);
+  g_free (err_msg);
 }
 
 void
