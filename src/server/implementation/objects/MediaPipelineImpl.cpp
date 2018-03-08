@@ -36,42 +36,28 @@ void
 MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
     gboolean is_error)
 {
-  gchar *type;
+  GstDebugLevel log_level = is_error ? GST_LEVEL_ERROR : GST_LEVEL_WARNING;
+
   GError *err = NULL;
   gchar *dbg_info = NULL;
-  gchar *dot_name;
-  GstDebugLevel log_level;
-
   gst_message_parse_error (msg, &err, &dbg_info);
 
-  if (is_error) {
-    log_level = GST_LEVEL_ERROR;
-    type = g_strdup ("error");
-  } else {
-    log_level = GST_LEVEL_WARNING;
-    type = g_strdup ("warning");
-  }
+  gint err_code = (err ? err->code : -1);
+  gchar *err_msg = (err ? g_strdup (err->message) : g_strdup ("None"));
 
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Element '%s': Bus %s %d: %s", GST_ELEMENT_NAME (bin), type, err->code,
-      err->message);
+      "Element '%s' bus code %d: %s", GST_OBJECT_NAME (msg->src), err_code,
+      err_msg);
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
       "Debugging info: %s", ((dbg_info) ? dbg_info : "None"));
 
-  std::string errorMessage;
-  if (err) {
-    errorMessage = std::string (err->message);
-  }
+  std::string errorMessage (err_msg);
   if (dbg_info) {
-    errorMessage += " -> " + std::string (dbg_info);
+    errorMessage += " (" + std::string (dbg_info) + ")";
   }
+
   try {
-    gint code = 0;
-
-    if (err) {
-      code = err->code;
-    }
-
+    gint code = err_code;
     Error error (shared_from_this(), errorMessage, code,
                  "UNEXPECTED_PIPELINE_ERROR");
 
@@ -79,26 +65,25 @@ MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
   } catch (std::bad_weak_ptr &e) {
   }
 
-  g_error_free (err);
-  g_free (dbg_info);
-
-  dot_name = g_strdup_printf ("%s_bus_%s", GST_DEFAULT_NAME, type);
+  gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err_code);
   GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (bin, GST_DEBUG_GRAPH_SHOW_ALL, dot_name);
   g_free(dot_name);
 
-  g_free(type);
+  g_error_free (err);
+  g_free (dbg_info);
+  g_free (err_msg);
 }
 
 void
 MediaPipelineImpl::busMessage (GstMessage *message)
 {
-  switch (GST_MESSAGE_TYPE(message)) {
+  switch (GST_MESSAGE_TYPE (message)) {
   case GST_MESSAGE_ERROR:
-      log_bus_issue (GST_BIN (pipeline), message, TRUE);
-      break;
+    log_bus_issue (GST_BIN (pipeline), message, TRUE);
+    break;
   case GST_MESSAGE_WARNING:
-      log_bus_issue (GST_BIN (pipeline), message, FALSE);
-      break;
+    log_bus_issue (GST_BIN (pipeline), message, FALSE);
+    break;
   default:
     break;
   }
