@@ -835,6 +835,29 @@
             "doc": "TRUE if there is media, FALSE in other case",
             "type": "boolean"
           }
+        },
+        {
+          "name": "isMediaTranscoding",
+          "doc": "Indicates whether this media element is actively transcoding between input and output codecs. This operation is only supported for AUDIO and VIDEO media types, raising a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR otherwise.
+          The internal GStreamer processing bin can be indicated, if needed; if the bin doesn't exist, the return value will be FALSE.",
+          "params": [
+            {
+              "name": "mediaType",
+              "doc": "One of :rom:attr:`MediaType.AUDIO` or :rom:attr:`MediaType.VIDEO`",
+              "type": "MediaType"
+            },
+            {
+              "name": "binName",
+              "doc": "Internal name of the processing bin, as previously given by ``MediaTranscodingStateChange``.",
+              "type": "String",
+              "optional": true,
+              "defaultValue": "default"
+            }
+          ],
+          "return" : {
+            "doc": "TRUE if media is being transcoded, FALSE otherwise.",
+            "type": "boolean"
+          }
         }
       ],
       "properties": [
@@ -967,10 +990,19 @@
     {
       "name": "MediaFlowState",
       "typeFormat": "ENUM",
-      "doc": "State of the media.",
+      "doc": "Flowing state of the media.",
       "values": [
         "FLOWING",
         "NOT_FLOWING"
+      ]
+    },
+    {
+      "name": "MediaTranscodingState",
+      "typeFormat": "ENUM",
+      "doc": "Transcoding state for a media.",
+      "values": [
+        "TRANSCODING",
+        "NOT_TRANSCODING"
       ]
     },
     {
@@ -2037,6 +2069,28 @@
         {
           "name": "mediaType",
           "doc": "Type of media that is flowing",
+          "type": "MediaType"
+        }
+      ]
+    },
+    {
+      "name": "MediaTranscodingStateChange",
+      "extends": "Media",
+      "doc": "Fired when an incoming media begins, after the core decides if codec transcoding is required or not.",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current transcoding state; either enabled or disabled.",
+          "type": "MediaTranscodingState"
+        },
+        {
+          "name": "binName",
+          "doc": "Name of the GStreamer bin which is processing the media.",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is being processed; either audio or video.",
           "type": "MediaType"
         }
       ]

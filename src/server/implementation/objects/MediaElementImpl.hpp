@@ -28,8 +28,11 @@
 #include <random>
 #include "MediaFlowOutStateChange.hpp"
 #include "MediaFlowInStateChange.hpp"
+#include "MediaTranscodingStateChange.hpp"
 #include "MediaFlowState.hpp"
+#include "MediaTranscodingState.hpp"
 #include "commons/kmselement.h"
+#include "commons/kmselementpadtype.h"
 
 namespace kurento
 {
@@ -38,34 +41,6 @@ class MediaType;
 class MediaElementImpl;
 class AudioCodec;
 class VideoCodec;
-
-class MediaFlowData
-{
-public:
-  MediaFlowData (std::shared_ptr<MediaType> type,
-                 const std::string &description,
-                 std::shared_ptr<MediaFlowState> state)
-  {
-    this->type = type;
-    this->state = state;
-    this->description = description;
-  }
-
-  void setState (std::shared_ptr<MediaFlowState> state )
-  {
-    this->state = state;
-  }
-
-  std::shared_ptr<MediaFlowState>  getState ()
-  {
-    return this->state;
-  }
-
-private:
-  std::shared_ptr<MediaType> type;
-  std::shared_ptr<MediaFlowState> state;
-  std::string description;
-};
 
 struct MediaTypeCmp {
   bool operator() (const std::shared_ptr<MediaType> &a,
@@ -151,6 +126,9 @@ public:
   bool isMediaFlowingOut (std::shared_ptr<MediaType> mediaType) override;
   bool isMediaFlowingOut (std::shared_ptr<MediaType> mediaType,
                           const std::string &sourceMediaDescription) override;
+  bool isMediaTranscoding (std::shared_ptr<MediaType> mediaType) override;
+  bool isMediaTranscoding (std::shared_ptr<MediaType> mediaType,
+                           const std::string &binName) override;
 
   virtual int getMinOuputBitrate () override;
   virtual void setMinOuputBitrate (int minOuputBitrate) override;
@@ -172,6 +150,7 @@ public:
   sigc::signal<void, ElementDisconnected> signalElementDisconnected;
   sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
   sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
+  sigc::signal<void, MediaTranscodingStateChange> signalMediaTranscodingStateChange;
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -183,8 +162,9 @@ protected:
   GstElement *element;
   GstBus *bus;
   gulong handlerId;
-  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataIn;
-  std::map <std::string, std::shared_ptr <MediaFlowData>> mediaFlowDataOut;
+  std::map <std::string, std::shared_ptr <MediaFlowState>> mediaFlowInStates;
+  std::map <std::string, std::shared_ptr <MediaFlowState>> mediaFlowOutStates;
+  std::map <std::string, std::shared_ptr <MediaTranscodingState>> mediaTranscodingStates;
 
   virtual void postConstructor () override;
   void collectLatencyStats (std::vector<std::shared_ptr<MediaLatencyStat>>
@@ -213,6 +193,7 @@ private:
   gulong padAddedHandlerId = 0;
   gulong mediaFlowOutHandler = 0;
   gulong mediaFlowInHandler = 0;
+  gulong mediaTranscodingHandler = 0;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
@@ -222,6 +203,8 @@ private:
                                 KmsElementPadType type);
   void mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
                                KmsElementPadType type);
+  void onMediaTranscodingStateChange (gboolean isTranscoding, gchar *binName,
+                                      KmsElementPadType type);
 
   class StaticConstructor
   {

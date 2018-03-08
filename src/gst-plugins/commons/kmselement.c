@@ -172,6 +172,7 @@ enum
   STATS,
   SIGNAL_FLOW_OUT_MEDIA,
   SIGNAL_FLOW_IN_MEDIA,
+  SIGNAL_MEDIA_TRANSCODING,
   LAST_SIGNAL
 };
 
@@ -699,6 +700,17 @@ kms_element_set_video_output_properties (KmsElement * self,
       self->priv->min_bitrate);
 }
 
+static void
+on_agnosticbin_media_transcoding (GstBin * bin, gboolean is_transcoding,
+    KmsMediaType media_type, KmsElement * self)
+{
+  KmsElementPadType pad_type = kms_utils_convert_media_type (media_type);
+
+  g_signal_emit (self,
+      element_signals[SIGNAL_MEDIA_TRANSCODING], 0,
+      is_transcoding, GST_ELEMENT_NAME (bin), pad_type);
+}
+
 GstElement *
 kms_element_get_output_element (KmsElement * self, KmsElementPadType pad_type,
     const gchar * description)
@@ -749,6 +761,10 @@ kms_element_get_output_element (KmsElement * self, KmsElementPadType pad_type,
     KmsMediaFlowTimeoutData *fdto_data;
 
     odata->element = KMS_ELEMENT_GET_CLASS (self)->create_output_element (self);
+
+    g_signal_connect (odata->element, "media-transcoding",
+        G_CALLBACK (on_agnosticbin_media_transcoding), self);
+
     fdto_data =
         media_flow_timeout_data_new (self, desc, pad_type, KMS_MEDIA_FLOW_OUT);
     add_flow_out_event_probes_to_element_sinks (odata->element, fdto_data);
@@ -1906,6 +1922,21 @@ kms_element_class_init (KmsElementClass * klass)
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsElementClass, flow_in_state),
       NULL, NULL, __kms_core_marshal_VOID__BOOLEAN_STRING_ENUM, G_TYPE_NONE,
+      3, G_TYPE_BOOLEAN, G_TYPE_STRING, KMS_TYPE_ELEMENT_PAD_TYPE);
+
+  /* Signal "KmsElement::media-transcoding"
+   * Arguments:
+   * - self
+   * - Is transcoding?
+   * - GstBin (KmsAgnosticBin) name
+   * - Media type (audio/video)
+   */
+  element_signals[SIGNAL_MEDIA_TRANSCODING] =
+      g_signal_new ("media-transcoding",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsElementClass, media_transcoding),
+      NULL, NULL, NULL, G_TYPE_NONE,
       3, G_TYPE_BOOLEAN, G_TYPE_STRING, KMS_TYPE_ELEMENT_PAD_TYPE);
 
   klass->request_new_pad =

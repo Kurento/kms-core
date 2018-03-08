@@ -20,6 +20,8 @@
 
 #include <gst/gst.h>
 
+#include "commons/kmsmediatype.h"
+
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
 #define KMS_TYPE_AGNOSTIC_BIN2 \
@@ -48,6 +50,10 @@ struct _KmsAgnosticBin2
 struct _KmsAgnosticBin2Class
 {
   GstBinClass parent_class;
+
+  /* Signals */
+  void (*media_transcoding) (GstBin *self, gboolean is_transcoding,
+      KmsMediaType type);
 };
 
 GType kms_agnostic_bin2_get_type (void);
