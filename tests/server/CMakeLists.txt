@@ -8,7 +8,9 @@ set(VALGRIND_TEST_VARIABLES
 set(SUPPRESSIONS "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
 
 add_test_program(test_module_manager moduleManager.cpp)
-add_dependencies(test_module_manager ${LIBRARY_NAME}module)
+if(TARGET ${LIBRARY_NAME}module)
+  add_dependencies(test_module_manager ${LIBRARY_NAME}module)
+endif()
 set_property(TARGET test_module_manager
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../../
@@ -28,7 +30,9 @@ target_link_libraries(test_module_manager
 )
 
 add_test_program(test_media_set mediaSet.cpp)
-add_dependencies(test_media_set ${LIBRARY_NAME}module)
+if(TARGET ${LIBRARY_NAME}module)
+  add_dependencies(test_media_set ${LIBRARY_NAME}module)
+endif()
 set_property(TARGET test_media_set
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../../
