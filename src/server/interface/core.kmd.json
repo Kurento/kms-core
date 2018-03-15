@@ -838,7 +838,7 @@
         },
         {
           "name": "isMediaTranscoding",
-          "doc": "Indicates whether this media element is actively transcoding between input and output codecs. This operation is only supported for AUDIO and VIDEO media types, raising a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR otherwise.
+          "doc": "Indicates whether this media element is actively transcoding between input and output pads. This operation is only supported for AUDIO and VIDEO media types, raising a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR otherwise.
           The internal GStreamer processing bin can be indicated, if needed; if the bin doesn't exist, the return value will be FALSE.",
           "params": [
             {
@@ -2076,7 +2076,7 @@
     {
       "name": "MediaTranscodingStateChange",
       "extends": "Media",
-      "doc": "Fired when an incoming media begins, after the core decides if codec transcoding is required or not.",
+      "doc": "Event fired when an incoming media begins and codec transcoding is either required or not.",
       "properties": [
         {
           "name": "state",
