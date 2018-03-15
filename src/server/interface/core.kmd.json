@@ -886,7 +886,8 @@
         "ElementConnected",
         "ElementDisconnected",
         "MediaFlowOutStateChange",
-        "MediaFlowInStateChange"
+        "MediaFlowInStateChange",
+        "MediaTranscodingStateChange"
       ]
     }
   ],
