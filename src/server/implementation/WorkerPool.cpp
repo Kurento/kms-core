@@ -94,18 +94,18 @@ WorkerPool::~WorkerPool()
     GST_ERROR ("Error detaching: %s", e.what() );
   }
 
-  for (uint i = 0; i < workers.size (); i++) {
+  for (auto &worker : workers) {
     try {
-      if (std::this_thread::get_id() != workers[i].get_id() ) {
-        workers[i].join();
+      if (std::this_thread::get_id() != worker.get_id()) {
+        worker.join();
       }
     } catch (std::system_error &e) {
       GST_ERROR ("Error joining: %s", e.what() );
     }
 
     try {
-      if (workers[i].joinable() ) {
-        workers[i].detach();
+      if (worker.joinable()) {
+        worker.detach();
       }
     } catch (std::system_error &e) {
       GST_ERROR ("Error detaching: %s", e.what() );

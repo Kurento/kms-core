@@ -1307,11 +1307,11 @@ setDeprecatedProperties (std::shared_ptr<ElementStats> eStats)
   std::vector<std::shared_ptr<MediaLatencyStat>> inStats =
         eStats->getInputLatency();
 
-  for (unsigned i = 0; i < inStats.size(); i++) {
-    if (inStats[i]->getName() == "sink_audio_default") {
-      eStats->setInputAudioLatency (inStats[i]->getAvg() );
-    } else if (inStats[i]->getName() == "sink_video_default") {
-      eStats->setInputVideoLatency (inStats[i]->getAvg() );
+  for (auto &inStat : inStats) {
+    if (inStat->getName() == "sink_audio_default") {
+      eStats->setInputAudioLatency(inStat->getAvg());
+    } else if (inStat->getName() == "sink_video_default") {
+      eStats->setInputVideoLatency(inStat->getAvg());
     }
   }
 }
