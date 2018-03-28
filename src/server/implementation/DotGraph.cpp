@@ -16,7 +16,7 @@
  */
 
 #include "DotGraph.hpp"
-#include <string.h>
+#include <cstring>
 
 namespace kurento
 {

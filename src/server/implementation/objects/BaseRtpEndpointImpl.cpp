@@ -21,7 +21,7 @@
 #include <KurentoException.hpp>
 #include <MediaState.hpp>
 #include <ConnectionState.hpp>
-#include <time.h>
+#include <ctime>
 #include <SignalHandler.hpp>
 #include <MediaType.hpp>
 
