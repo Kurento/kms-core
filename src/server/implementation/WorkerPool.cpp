@@ -65,7 +65,7 @@ WorkerPool::WorkerPool (int threads)
   work = std::make_shared<boost::asio::io_service::work>(*io_service);
 
   for (int i = 0; i < threads; i++) {
-    workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
+    workers.emplace_back(std::bind(&workerThreadLoop, io_service));
   }
 }
 
@@ -157,7 +157,7 @@ WorkerPool::checkWorkers ()
     std::unique_lock <std::mutex> lock (mutex);
 
     if (!terminated) {
-      workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
+      workers.emplace_back(std::bind(&workerThreadLoop, io_service));
     }
   });
 }

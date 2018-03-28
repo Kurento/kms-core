@@ -88,7 +88,7 @@ F::F ()
 
   std::shared_ptr<ServerType> type (new ServerType (ServerType::KMS) );
   std::vector<std::string> capabilities;
-  capabilities.push_back ("transactions");
+  capabilities.emplace_back("transactions");
 
   std::shared_ptr<ServerInfo> serverInfo =
       std::make_shared<ServerInfo>("", modules, type, capabilities);
