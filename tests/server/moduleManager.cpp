@@ -36,9 +36,7 @@ struct GF {
 
 BOOST_GLOBAL_FIXTURE (GF)
 
-GF::GF()
-{
-}
+GF::GF() = default;
 
 GF::~GF()
 {
