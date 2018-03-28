@@ -36,6 +36,7 @@
 #include "ElementStats.hpp"
 #include "kmsstats.h"
 #include <SignalHandler.hpp>
+#include <memory>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -316,13 +317,13 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
       std::string description;
 
       if (g_str_has_prefix (GST_OBJECT_NAME (pad), "audio_") ) {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+        type = std::make_shared<MediaType>(MediaType::AUDIO);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("audio_src") );
       } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "video_") ) {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+        type = std::make_shared<MediaType>(MediaType::VIDEO);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("video_src") );
       } else {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+        type = std::make_shared<MediaType>(MediaType::DATA);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("data_src") );
       }
 
@@ -364,13 +365,13 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
       std::string description;
 
       if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_audio_") ) {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) );
+        type = std::make_shared<MediaType>(MediaType::AUDIO);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_audio") );
       } else if (g_str_has_prefix (GST_OBJECT_NAME (pad), "sink_video_") ) {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) );
+        type = std::make_shared<MediaType>(MediaType::VIDEO);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_video") );
       } else {
-        type = std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) );
+        type = std::make_shared<MediaType>(MediaType::DATA);
         description = std::string (GST_OBJECT_NAME (pad) + sizeof ("sink_data") );
       }
 
@@ -829,12 +830,11 @@ std::vector<std::shared_ptr<ElementConnectionData>>
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink)
 {
   // Until mediaDescriptions are really used, we just connect audio an video
-  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::AUDIO) ),
-           DEFAULT, DEFAULT);
-  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO) ),
-           DEFAULT, DEFAULT);
-  connect (sink, std::shared_ptr<MediaType> (new MediaType (MediaType::DATA) ),
-           DEFAULT, DEFAULT);
+  connect(sink, std::make_shared<MediaType>(MediaType::AUDIO), DEFAULT,
+          DEFAULT);
+  connect(sink, std::make_shared<MediaType>(MediaType::VIDEO), DEFAULT,
+          DEFAULT);
+  connect(sink, std::make_shared<MediaType>(MediaType::DATA), DEFAULT, DEFAULT);
 }
 
 void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
@@ -972,12 +972,12 @@ MediaElementImpl::performConnection (std::shared_ptr
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
 {
   // Until mediaDescriptions are really used, we just disconnect audio an video
-  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::AUDIO) ), DEFAULT, DEFAULT);
-  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::VIDEO) ), DEFAULT, DEFAULT);
-  disconnect (sink, std::shared_ptr<MediaType> (new MediaType (
-                MediaType::DATA) ), DEFAULT, DEFAULT);
+  disconnect(sink, std::make_shared<MediaType>(MediaType::AUDIO), DEFAULT,
+             DEFAULT);
+  disconnect(sink, std::make_shared<MediaType>(MediaType::VIDEO), DEFAULT,
+             DEFAULT);
+  disconnect(sink, std::make_shared<MediaType>(MediaType::DATA), DEFAULT,
+             DEFAULT);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
@@ -1126,9 +1126,9 @@ std::string MediaElementImpl::getGstreamerDot (
 
 std::string MediaElementImpl::getGstreamerDot()
 {
-  return generateDotGraph (GST_BIN (element),
-                           std::shared_ptr <GstreamerDotDetails> (new GstreamerDotDetails (
-                                 GstreamerDotDetails::SHOW_VERBOSE) ) );
+  return generateDotGraph(
+      GST_BIN(element),
+      std::make_shared<GstreamerDotDetails>(GstreamerDotDetails::SHOW_VERBOSE));
 }
 
 void MediaElementImpl::setOutputBitrate (int bitrate)

@@ -25,6 +25,7 @@
 #include <functional>
 
 /* This is included to avoid problems with slots and lamdas */
+#include <memory>
 #include <type_traits>
 #include <sigc++/sigc++.h>
 
@@ -137,8 +138,7 @@ MediaSet::MediaSet()
 {
   terminated = false;
 
-  workers = std::shared_ptr<WorkerPool> (new WorkerPool (
-      MEDIASET_THREADS_DEFAULT) );
+  workers = std::make_shared<WorkerPool>(MEDIASET_THREADS_DEFAULT);
 
   thread = std::thread ( [&] () {
     std::unique_lock <std::recursive_mutex> lock (recMutex);

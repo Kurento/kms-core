@@ -28,6 +28,7 @@
 #include <ServerType.hpp>
 #include <ObjectCreated.hpp>
 #include <ObjectDestroyed.hpp>
+#include <memory>
 
 #include <config.h>
 
@@ -46,7 +47,7 @@ InitTests::InitTests()
 {
   gst_init (NULL, NULL);
 
-  moduleManager = std::shared_ptr<ModuleManager> (new ModuleManager() );
+  moduleManager = std::make_shared<ModuleManager>();
 
   gst_init (NULL, NULL);
 
@@ -80,18 +81,17 @@ F::F ()
       factories.push_back (factIt.first);
     }
 
-    modules.push_back (std::shared_ptr<ModuleInfo> (new ModuleInfo (
-                         moduleIt.second->getVersion(), moduleIt.second->getName(),
-                         moduleIt.second->getGenerationTime(), factories) ) );
+    modules.push_back(std::make_shared<ModuleInfo>(
+        moduleIt.second->getVersion(), moduleIt.second->getName(),
+        moduleIt.second->getGenerationTime(), factories));
   }
 
   std::shared_ptr<ServerType> type (new ServerType (ServerType::KMS) );
   std::vector<std::string> capabilities;
   capabilities.push_back ("transactions");
 
-  std::shared_ptr<ServerInfo> serverInfo = std::shared_ptr <ServerInfo>
-      (new ServerInfo ("", modules,
-                       type, capabilities) );
+  std::shared_ptr<ServerInfo> serverInfo =
+      std::make_shared<ServerInfo>("", modules, type, capabilities);
 
   serverManager =  std::dynamic_pointer_cast <ServerManagerImpl>
                    (MediaSet::getMediaSet ()->ref (new ServerManagerImpl (

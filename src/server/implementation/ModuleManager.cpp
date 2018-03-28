@@ -20,6 +20,7 @@
 
 #include <gst/gst.h>
 #include <KurentoException.hpp>
+#include <memory>
 #include <sstream>
 #include <boost/filesystem.hpp>
 
@@ -128,9 +129,8 @@ ModuleManager::loadModule (std::string modulePath)
     generationTime = ( (GetGenerationTimeFunc) getGenerationTime) ();
   }
 
-  loadedModules[moduleFileName] = std::shared_ptr<ModuleData> (new ModuleData (
-                                    moduleName, moduleVersion, generationTime,
-                                    moduleDescriptor, factories) );
+  loadedModules[moduleFileName] = std::make_shared<ModuleData>(
+      moduleName, moduleVersion, generationTime, moduleDescriptor, factories);
 
   GST_INFO ("Loaded module: %s, version: %s, date: %s", moduleName.c_str(),
             moduleVersion.c_str(), generationTime.c_str() );

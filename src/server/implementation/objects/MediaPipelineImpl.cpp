@@ -23,6 +23,7 @@
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
 #include <SignalHandler.hpp>
+#include <memory>
 #include "kmselement.h"
 
 #define GST_CAT_DEFAULT kurento_media_pipeline_impl
@@ -150,9 +151,9 @@ std::string MediaPipelineImpl::getGstreamerDot (
 
 std::string MediaPipelineImpl::getGstreamerDot()
 {
-  return generateDotGraph (GST_BIN (pipeline),
-                           std::shared_ptr <GstreamerDotDetails> (new GstreamerDotDetails (
-                                 GstreamerDotDetails::SHOW_VERBOSE) ) );
+  return generateDotGraph(
+      GST_BIN(pipeline),
+      std::make_shared<GstreamerDotDetails>(GstreamerDotDetails::SHOW_VERBOSE));
 }
 
 bool

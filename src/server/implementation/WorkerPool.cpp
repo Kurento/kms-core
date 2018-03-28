@@ -19,6 +19,7 @@
 
 #include "WorkerPool.hpp"
 #include <atomic>
+#include <memory>
 
 #define GST_CAT_DEFAULT kurento_worker_pool
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -54,15 +55,14 @@ WorkerPool::WorkerPool (int threads)
   /* Prepare watcher */
   watcher_service = boost::shared_ptr< boost::asio::io_service >
                     ( new boost::asio::io_service () );
-  watcher_work = std::shared_ptr< boost::asio::io_service::work >
-                 ( new boost::asio::io_service::work (*watcher_service) );
+  watcher_work =
+      std::make_shared<boost::asio::io_service::work>(*watcher_service);
   watcher = std::thread (std::bind (&workerThreadLoop, watcher_service) );
 
   /* Prepare pool of threads */
   io_service = boost::shared_ptr< boost::asio::io_service >
                ( new boost::asio::io_service () );
-  work = std::shared_ptr< boost::asio::io_service::work >
-         ( new boost::asio::io_service::work (*io_service) );
+  work = std::make_shared<boost::asio::io_service::work>(*io_service);
 
   for (int i = 0; i < threads; i++) {
     workers.push_back (std::thread (std::bind (&workerThreadLoop, io_service) ) );
@@ -132,7 +132,7 @@ WorkerPool::checkWorkers ()
 {
   std::shared_ptr<std::atomic<bool>> alive;
 
-  alive = std::shared_ptr<std::atomic<bool>> ( new std::atomic<bool> (false) );
+  alive = std::make_shared<std::atomic<bool>>(false);
 
   io_service->post (std::bind (&async_worker_test, alive) );
 
