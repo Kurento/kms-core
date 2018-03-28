@@ -45,11 +45,11 @@ BOOST_GLOBAL_FIXTURE (InitTests)
 
 InitTests::InitTests()
 {
-  gst_init (NULL, NULL);
+  gst_init(nullptr, nullptr);
 
   moduleManager = std::make_shared<ModuleManager>();
 
-  gst_init (NULL, NULL);
+  gst_init(nullptr, nullptr);
 
   std::string moduleName = "../../src/server/libkmscoremodule.so";
 

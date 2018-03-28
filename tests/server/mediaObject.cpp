@@ -42,7 +42,7 @@ BOOST_GLOBAL_FIXTURE (GF)
 
 GF::GF()
 {
-  gst_init (NULL, NULL);
+  gst_init(nullptr, nullptr);
   moduleManager.loadModulesFromDirectories ("../../src/server");
 }
 
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE (creation_time)
   std::shared_ptr <MediaPipelineImpl> pipe = std::dynamic_pointer_cast
       <MediaPipelineImpl> (MediaSet::getMediaSet()->getMediaObject (
                              mediaPipelineId) );
-  time_t now = time (NULL);
+  time_t now = time(nullptr);
 
   BOOST_CHECK (pipe->getCreationTime() <= mediaElement->getCreationTime() );
   BOOST_CHECK (pipe->getCreationTime() <= now);

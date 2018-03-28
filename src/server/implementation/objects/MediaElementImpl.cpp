@@ -69,13 +69,13 @@ public:
     this->type = type;
     this->sourceDescription = sourceDescription;
     this->sinkDescription = sinkDescription;
-    this->sourcePadName = NULL;
+    this->sourcePadName = nullptr;
     setSinkPadName ();
   }
 
   ~ElementConnectionDataInternal()
   {
-    if (sourcePadName != NULL) {
+    if (sourcePadName != nullptr) {
       g_free (sourcePadName);
     }
   }
@@ -87,7 +87,7 @@ public:
     this->type = data->getType();
     this->sourceDescription = data->getSourceDescription();
     this->sinkDescription = data->getSinkDescription();
-    this->sourcePadName = NULL;
+    this->sourcePadName = nullptr;
     setSinkPadName ();
   }
 
@@ -113,7 +113,7 @@ public:
 
   void setSourcePadName (gchar *padName)
   {
-    if (this->sourcePadName != NULL) {
+    if (this->sourcePadName != nullptr) {
       GST_WARNING ("Resetting padName for connection");
 
       if (this->sourcePadName != padName) {
@@ -159,7 +159,7 @@ public:
     std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
 
     if (!sinkLocked) {
-      return NULL;
+      return nullptr;
     }
 
     return gst_element_get_static_pad (sinkLocked->getGstreamerElement (),
@@ -170,8 +170,8 @@ public:
   {
     std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
 
-    if (!sourceLocked || sourcePadName == NULL) {
-      return NULL;
+    if (!sourceLocked || sourcePadName == nullptr) {
+      return nullptr;
     }
 
     return gst_element_get_static_pad (sourceLocked->getGstreamerElement (),
@@ -231,7 +231,7 @@ check_parent_element (GstObject *src, GstObject *elem)
     return true;
   }
 
-  while (parent != NULL) {
+  while (parent != nullptr) {
     if ( parent == elem ) {
       return true;
     }
@@ -247,11 +247,11 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
                                  gpointer data)
 {
   if (message->type == GST_MESSAGE_ERROR) {
-    GError *err = NULL;
-    gchar *debug = NULL;
+    GError *err = nullptr;
+    gchar *debug = nullptr;
     MediaElementImpl *elem = reinterpret_cast <MediaElementImpl *> (data);
 
-    if (elem == NULL) {
+    if (elem == nullptr) {
       return;
     }
 
@@ -267,7 +267,7 @@ _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
       errorMessage = std::string (err->message);
     }
 
-    if (debug != NULL) {
+    if (debug != nullptr) {
       errorMessage += " -> " + std::string (debug);
     }
 
@@ -570,9 +570,9 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
 
   pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
 
-  element = gst_element_factory_make (factoryName.c_str(), NULL);
+  element = gst_element_factory_make(factoryName.c_str(), nullptr);
 
-  if (element == NULL) {
+  if (element == nullptr) {
     throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
                             "Cannot create gstreamer element: " + factoryName);
   }
@@ -903,7 +903,7 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
                          sourceMediaDescription.c_str (), GST_PAD_SRC, &padName,
                          NULL);
 
-  if (padName == NULL) {
+  if (padName == nullptr) {
     throw KurentoException (CONNECT_ERROR, "Element: '" + getName() +
                             "'does note provide a connection for " +
                             mediaType->getString () + "-" +
@@ -931,7 +931,7 @@ void
 MediaElementImpl::performConnection (std::shared_ptr
                                      <ElementConnectionDataInternal> data)
 {
-  GstPad *src = NULL, *sink = NULL;
+  GstPad *src = nullptr, *sink = nullptr;
 
   src = data->getSourcePad ();
 
@@ -1052,7 +1052,7 @@ void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
   std::shared_ptr<AudioCodec> codec;
   std::stringstream sstm;
   std::string str_caps;
-  GstCaps *c = NULL;
+  GstCaps *c = nullptr;
 
   codec = caps->getCodec();
 
@@ -1087,7 +1087,7 @@ void MediaElementImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
   std::shared_ptr<Fraction> fraction;
   std::stringstream sstm;
   std::string str_caps;
-  GstCaps *c = NULL;
+  GstCaps *c = nullptr;
 
   codec = caps->getCodec();
   fraction = caps->getFramerate();
@@ -1215,7 +1215,7 @@ std::map <std::string, std::shared_ptr<Stats>>
 
   g_signal_emit_by_name (getGstreamerElement(), "stats", selector, &stats);
 
-  fillStatsReport (statsReport, stats, time (NULL) );
+  fillStatsReport(statsReport, stats, time(nullptr));
 
   gst_structure_free (stats);
 
@@ -1225,13 +1225,13 @@ std::map <std::string, std::shared_ptr<Stats>>
 std::map <std::string, std::shared_ptr<Stats>>
     MediaElementImpl::getStats ()
 {
-  return generateStats (NULL);
+  return generateStats(nullptr);
 }
 
 std::map <std::string, std::shared_ptr<Stats>>
     MediaElementImpl::getStats (std::shared_ptr<MediaType> mediaType)
 {
-  const gchar *selector = NULL;
+  const gchar *selector = nullptr;
 
   switch (mediaType->getValue () ) {
   case MediaType::AUDIO:
@@ -1327,7 +1327,7 @@ MediaElementImpl::fillStatsReport (std::map
 
   value = gst_structure_get_value (stats, KMS_MEDIA_ELEMENT_FIELD);
 
-  if (value == NULL) {
+  if (value == nullptr) {
     /* No element stats available */
     return;
   }

@@ -40,7 +40,7 @@ MediaObjectImpl::MediaObjectImpl (const boost::property_tree::ptree &config,
 {
   this->parent = parent;
 
-  creationTime = time (NULL);
+  creationTime = time(nullptr);
   initialId = createId();
   this->sendTagsInEvents = false;
 }

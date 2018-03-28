@@ -226,7 +226,7 @@ MediaSet::ref (MediaObjectImpl *mediaObjectPtr)
   std::unique_lock <std::recursive_mutex> lock (recMutex);
   std::shared_ptr<MediaObjectImpl> mediaObject;
 
-  if (mediaObjectPtr == NULL) {
+  if (mediaObjectPtr == nullptr) {
     throw KurentoException (MEDIA_OBJECT_NOT_FOUND, "Invalid object");
   }
 

@@ -51,7 +51,7 @@ HubImpl::HubImpl (const boost::property_tree::ptree &config,
 
   pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
 
-  element = gst_element_factory_make (factoryName.c_str(), NULL);
+  element = gst_element_factory_make(factoryName.c_str(), nullptr);
 
   g_object_ref (element);
   pipe->addElement (element);

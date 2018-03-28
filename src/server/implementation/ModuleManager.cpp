@@ -40,13 +40,14 @@ int
 ModuleManager::loadModule (std::string modulePath)
 {
   const kurento::FactoryRegistrar *registrar;
-  void *registrarFactory, *getVersion = NULL, *getName = NULL,
-                           *getDescriptor = NULL, *getGenerationTime = NULL;
+  void *registrarFactory, *getVersion = nullptr, *getName = nullptr,
+                          *getDescriptor = nullptr,
+                          *getGenerationTime = nullptr;
   std::string moduleFileName;
   std::string moduleName;
   std::string moduleVersion;
   std::string generationTime;
-  const char *moduleDescriptor = NULL;
+  const char *moduleDescriptor = nullptr;
 
   boost::filesystem::path path (modulePath);
 

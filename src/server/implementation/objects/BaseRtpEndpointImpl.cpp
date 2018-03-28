@@ -268,7 +268,7 @@ BaseRtpEndpointImpl::getRembParams ()
 
   g_object_get (G_OBJECT (element), REMB_PARAMS, &params, NULL);
 
-  if (params == NULL)  {
+  if (params == nullptr) {
     return ret;
   }
 
@@ -629,13 +629,13 @@ BaseRtpEndpointImpl::fillStatsReport (std::map
 
   e_stats = kms_utils_get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
 
-  if (e_stats != NULL) {
+  if (e_stats != nullptr) {
     collectEndpointStats (report, getId (), e_stats, timestamp);
   }
 
   rtc_stats = kms_utils_get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);
 
-  if (rtc_stats != NULL) {
+  if (rtc_stats != nullptr) {
     collectRTCStats (report, timestamp, rtc_stats );
   }
 

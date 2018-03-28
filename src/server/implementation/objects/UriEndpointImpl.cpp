@@ -162,7 +162,7 @@ UriEndpointImpl::~UriEndpointImpl ()
 
 void UriEndpointImpl::pause ()
 {
-  GError *error = NULL;
+  GError *error = nullptr;
 
   if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
                                    KMS_URI_ENDPOINT_STATE_PAUSE, &error) ) {
@@ -173,7 +173,7 @@ void UriEndpointImpl::pause ()
 
 void UriEndpointImpl::stop ()
 {
-  GError *error = NULL;
+  GError *error = nullptr;
 
   if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
                                    KMS_URI_ENDPOINT_STATE_STOP, &error) ) {
@@ -185,7 +185,7 @@ void UriEndpointImpl::stop ()
 void
 UriEndpointImpl::start ()
 {
-  GError *error = NULL;
+  GError *error = nullptr;
 
   if (!kms_uri_endpoint_set_state (KMS_URI_ENDPOINT (getGstreamerElement() ),
                                    KMS_URI_ENDPOINT_STATE_START, &error) ) {

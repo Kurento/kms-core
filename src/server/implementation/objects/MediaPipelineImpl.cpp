@@ -39,8 +39,8 @@ MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
 {
   GstDebugLevel log_level = is_error ? GST_LEVEL_ERROR : GST_LEVEL_WARNING;
 
-  GError *err = NULL;
-  gchar *dbg_info = NULL;
+  GError *err = nullptr;
+  gchar *dbg_info = nullptr;
   gst_message_parse_error (msg, &err, &dbg_info);
 
   gint err_code = (err ? err->code : -1);
@@ -112,9 +112,9 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
 {
   GstClock *clock;
 
-  pipeline = gst_pipeline_new (NULL);
+  pipeline = gst_pipeline_new(nullptr);
 
-  if (pipeline == NULL) {
+  if (pipeline == nullptr) {
     throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
                             "Cannot create gstreamer pipeline");
   }

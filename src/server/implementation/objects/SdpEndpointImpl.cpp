@@ -41,7 +41,7 @@ static GstSDPMessage *
 str_to_sdp (const std::string &sdpStr)
 {
   GstSDPResult result;
-  GstSDPMessage *sdp = NULL;
+  GstSDPMessage *sdp = nullptr;
 
   result = gst_sdp_message_new (&sdp);
 
@@ -58,7 +58,7 @@ str_to_sdp (const std::string &sdpStr)
     throw KurentoException (SDP_PARSE_ERROR, "Error parsing SDP");
   }
 
-  if (gst_sdp_message_get_version (sdp) == NULL) {
+  if (gst_sdp_message_get_version(sdp) == nullptr) {
     gst_sdp_message_free (sdp);
     throw KurentoException (SDP_PARSE_ERROR, "Invalid SDP");
   }
@@ -97,7 +97,7 @@ void SdpEndpointImpl::postConstructor ()
 
   g_signal_emit_by_name (element, "create-session", &sess_id);
 
-  if (sess_id == NULL) {
+  if (sess_id == nullptr) {
     throw KurentoException (SDP_END_POINT_CANNOT_CREATE_SESSON,
                             "Cannot create session");
   }
@@ -193,7 +193,7 @@ void SdpEndpointImpl::setMaxAudioRecvBandwidth (int maxAudioRecvBandwidth)
 
 std::string SdpEndpointImpl::generateOffer ()
 {
-  GstSDPMessage *offer = NULL;
+  GstSDPMessage *offer = nullptr;
   std::string offerStr;
   bool expected = false;
 
@@ -205,7 +205,7 @@ std::string SdpEndpointImpl::generateOffer ()
 
   g_signal_emit_by_name (element, "generate-offer", sessId.c_str (), &offer);
 
-  if (offer == NULL) {
+  if (offer == nullptr) {
     offerInProcess = false;
     throw KurentoException (SDP_END_POINT_GENERATE_OFFER_ERROR,
                             "Error generating offer");
@@ -220,7 +220,7 @@ std::string SdpEndpointImpl::generateOffer ()
 
 std::string SdpEndpointImpl::processOffer (const std::string &offer)
 {
-  GstSDPMessage *offerSdp = NULL, *result = NULL;
+  GstSDPMessage *offerSdp = nullptr, *result = nullptr;
   std::string offerSdpStr;
   bool expected = false;
 
@@ -240,7 +240,7 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
                          &result);
   gst_sdp_message_free (offerSdp);
 
-  if (result == NULL) {
+  if (result == nullptr) {
     offerInProcess = false;
     throw KurentoException (SDP_END_POINT_PROCESS_OFFER_ERROR,
                             "Error processing offer");
@@ -298,12 +298,12 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
 
 std::string SdpEndpointImpl::getLocalSessionDescriptor ()
 {
-  GstSDPMessage *localSdp = NULL;
+  GstSDPMessage *localSdp = nullptr;
   std::string localSdpStr;
 
   g_signal_emit_by_name (element, "get-local-sdp", sessId.c_str (), &localSdp);
 
-  if (localSdp == NULL) {
+  if (localSdp == nullptr) {
     throw KurentoException (SDP_END_POINT_NO_LOCAL_SDP_ERROR, "No local SDP");
   }
 
@@ -315,12 +315,12 @@ std::string SdpEndpointImpl::getLocalSessionDescriptor ()
 
 std::string SdpEndpointImpl::getRemoteSessionDescriptor ()
 {
-  GstSDPMessage *remoteSdp = NULL;
+  GstSDPMessage *remoteSdp = nullptr;
   std::string remoteSdpStr;
 
   g_signal_emit_by_name (element, "get-remote-sdp", sessId.c_str (), &remoteSdp);
 
-  if (remoteSdp == NULL) {
+  if (remoteSdp == nullptr) {
     throw KurentoException (SDP_END_POINT_NO_REMOTE_SDP_ERROR, "No remote SDP");
   }
 

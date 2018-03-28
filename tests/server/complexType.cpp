@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE (complex_type)
   std::shared_ptr<kurento::Factory> mediaPipelineFactory;
   std::shared_ptr<kurento::MediaObject> mediaPipeline;
 
-  gst_init (NULL, NULL);
+  gst_init(nullptr, nullptr);
 
   std::string moduleName = "../../src/server/libkmscoremodule.so";
 
