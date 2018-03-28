@@ -75,7 +75,7 @@ public:
   ~ElementConnectionDataInternal()
   {
     if (sourcePadName != NULL) {
-      free (sourcePadName);
+      g_free (sourcePadName);
     }
   }
 
@@ -116,7 +116,7 @@ public:
       GST_WARNING ("Resetting padName for connection");
 
       if (this->sourcePadName != padName) {
-        free (this->sourcePadName);
+        g_free (this->sourcePadName);
       }
     }
 

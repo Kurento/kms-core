@@ -74,7 +74,7 @@ sdp_to_str (std::string &_return, const GstSDPMessage *sdp)
   sdpGchar = gst_sdp_message_as_text (sdp);
   _return.clear ();
   _return.append (sdpGchar);
-  free (sdpGchar);
+  g_free (sdpGchar);
 }
 
 static void
