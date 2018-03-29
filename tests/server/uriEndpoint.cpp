@@ -41,14 +41,11 @@ struct GF {
 class UriEndpointFactory : public Factory
 {
 public:
-  std::string getName() const
-  {
-    return "UriEndpointFactory";
-  }
+  std::string getName () const override { return "UriEndpointFactory"; }
 
 protected:
-  MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree
-                                        &conf, const Json::Value &params) const
+  MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree &conf,
+      const Json::Value &params) const override
   {
     std::string mediaPipelineId = params["mediaPipeline"].asString ();
     std::string uri = params["uri"].asString ();

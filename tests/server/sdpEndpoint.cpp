@@ -41,17 +41,14 @@ struct GF {
 class SdpEndpointFactory : public Factory
 {
 public:
-  std::string getName() const
-  {
-    return "SdpEndpointFactory";
-  }
+  std::string getName () const override { return "SdpEndpointFactory"; }
 
 protected:
-  MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree
-                                        &conf, const Json::Value &params) const
+  MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree &conf,
+      const Json::Value &params) const override
   {
     std::string mediaPipelineId = params["mediaPipeline"].asString ();
-    bool useIpv6 = false;;
+    bool useIpv6 = false;
 
     if (params.isMember ("useIpv6") ) {
       Json::Value useIpv6Param = params["useIpv6"];

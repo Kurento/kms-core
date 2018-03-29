@@ -41,8 +41,9 @@ public:
   virtual std::string getName() const = 0;
 
 protected:
-  virtual MediaObjectImpl *createObjectPointer (const boost::property_tree::ptree
-      &conf, const Json::Value &params) const = 0;
+  virtual MediaObjectImpl *createObjectPointer (
+      const boost::property_tree::ptree &conf,
+      const Json::Value &params) const = 0;
 };
 
 } /* kurento */
