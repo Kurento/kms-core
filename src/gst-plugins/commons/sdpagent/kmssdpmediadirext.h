@@ -20,7 +20,7 @@
 
 #include <gst/gst.h>
 
-#include <commons/sdp_utils.h>
+#include <sdp_utils.h>
 
 G_BEGIN_DECLS
 

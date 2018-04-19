@@ -29,6 +29,7 @@
 #include "kms-core-enumtypes.h"
 #include "kms-core-marshal.h"
 #include "sdp_utils.h"
+#include "sdpagent/kmssdpmediadirext.h"
 #include "sdpagent/kmssdpulpfecext.h"
 #include "sdpagent/kmssdpredundantext.h"
 #include "sdpagent/kmssdprtpavpfmediahandler.h"
@@ -208,6 +209,7 @@ struct _KmsBaseRtpEndpointPrivate
 
   GstElement *rtpbin;
   KmsMediaState media_state;
+  GstSDPDirection offer_dir;
 
   gboolean support_fec;
   gboolean rtcp_mux;
@@ -261,6 +263,7 @@ enum
 
 static guint obj_signals[LAST_SIGNAL] = { 0 };
 
+#define DEFAULT_OFFER_DIR   GST_SDP_DIRECTION_SENDRECV
 #define DEFAULT_RTCP_MUX    FALSE
 #define DEFAULT_RTCP_NACK    FALSE
 #define DEFAULT_RTCP_REMB    FALSE
@@ -284,6 +287,7 @@ enum
   PROP_MIN_PORT,
   PROP_MAX_PORT,
   PROP_SUPPORT_FEC,
+  PROP_OFFER_DIR,
   PROP_LAST
 };
 
@@ -492,6 +496,15 @@ kms_base_rtp_endpoint_config_rtp_hdr_ext (KmsBaseRtpEndpoint * self,
 
 /* Media handler management begin */
 
+static GstSDPDirection
+on_offer_media_direction (KmsSdpMediaDirectionExt * ext,
+    KmsBaseRtpEndpoint * self)
+{
+  GstSDPDirection offer_dir;
+
+  g_object_get (self, "offer-dir", &offer_dir, NULL);
+}
+
 static gboolean
 on_offered_ulp_fec_cb (KmsSdpUlpFecExt * ext, guint pt, guint clock_rate,
     gpointer user_data)
@@ -518,9 +531,20 @@ static void
 kms_base_rtp_configure_extensions (KmsBaseRtpEndpoint * self,
     const gchar * media, KmsSdpMediaHandler * handler)
 {
+  KmsSdpMediaDirectionExt *mediadirext;
   KmsSdpUlpFecExt *ulpfecext;
   KmsSdpRedundantExt *redext;
   ExtData *edata;
+
+  mediadirext = kms_sdp_media_direction_ext_new ();
+  g_signal_connect (mediadirext, "on-offer-media-direction",
+      G_CALLBACK (on_offer_media_direction), self);
+  kms_sdp_media_handler_add_media_extension (handler,
+      KMS_I_SDP_MEDIA_EXTENSION (mediadirext));
+
+  if (!self->priv->support_fec) {
+    return;
+  }
 
   edata = ext_data_new ();
   kms_list_append (self->priv->prot_medias, g_strdup (media), edata);
@@ -579,9 +603,7 @@ kms_base_rtp_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
     err = NULL;
   }
 
-  if (self->priv->support_fec) {
-    kms_base_rtp_configure_extensions (self, media, *handler);
-  }
+  kms_base_rtp_configure_extensions (self, media, *handler);
 }
 
 /* Media handler management end */
@@ -2375,6 +2397,9 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       self->priv->max_port = v;
       break;
     }
+    case PROP_OFFER_DIR:
+      self->priv->offer_dir = g_value_get_enum (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -2414,6 +2439,9 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_MEDIA_STATE:
       g_value_set_enum (value, self->priv->media_state);
+      break;
+    case PROP_OFFER_DIR:
+      g_value_set_enum (value, self->priv->offer_dir);
       break;
     case PROP_REMB_PARAMS:
       if (self->priv->rl != NULL) {
@@ -2822,6 +2850,11 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_enum ("media-state", "Media state", "Media state",
           KMS_TYPE_MEDIA_STATE, KMS_MEDIA_STATE_DISCONNECTED,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_OFFER_DIR,
+      g_param_spec_enum ("offer-dir", "Offer direction", "Offer direction",
+          KMS_TYPE_SDP_DIRECTION, DEFAULT_OFFER_DIR,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_RTCP_MUX,
       g_param_spec_boolean ("rtcp-mux", "RTCP mux",
@@ -3356,6 +3389,8 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->min_port = DEFAULT_MIN_PORT;
   self->priv->max_port = DEFAULT_MAX_PORT;
+
+  self->priv->offer_dir = DEFAULT_OFFER_DIR;
 }
 
 GObject *
