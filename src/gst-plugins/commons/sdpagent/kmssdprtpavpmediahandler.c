@@ -778,6 +778,17 @@ kms_sdp_rtp_avp_media_handler_init_new_offer (KmsSdpMediaHandler * handler,
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
         "Can not set port");
     ret = FALSE;
+    goto end;
+  }
+
+  // RFC 5763 says:
+  // > The endpoint that is the offerer MUST use the setup attribute
+  // > value of setup:actpass
+  if (gst_sdp_media_add_attribute (offer, "setup", "actpass") != GST_SDP_OK) {
+    g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+        "Can not set attribute 'setup:actpass'");
+    ret = FALSE;
+    goto end;
   }
 
 end:
