@@ -505,6 +505,27 @@ on_offer_media_direction (KmsSdpMediaDirectionExt * ext,
   GstSDPDirection offer_dir;
 
   g_object_get (self, "offer-dir", &offer_dir, NULL);
+
+  return offer_dir;
+}
+
+static GstSDPDirection
+on_answer_media_direction (KmsSdpMediaDirectionExt * ext,
+    GstSDPDirection dir, KmsBaseRtpEndpoint * self)
+{
+  // RFC3264 6.1
+  switch (dir) {
+    case GST_SDP_DIRECTION_SENDONLY:
+      return GST_SDP_DIRECTION_RECVONLY;
+    case GST_SDP_DIRECTION_RECVONLY:
+      return GST_SDP_DIRECTION_SENDONLY;
+    case GST_SDP_DIRECTION_SENDRECV:
+      return GST_SDP_DIRECTION_SENDRECV;
+    case GST_SDP_DIRECTION_INACTIVE:
+      return GST_SDP_DIRECTION_INACTIVE;
+    default:
+      return GST_SDP_DIRECTION_SENDRECV;
+  }
 }
 
 static gboolean
@@ -539,8 +560,12 @@ kms_base_rtp_configure_extensions (KmsBaseRtpEndpoint * self,
   ExtData *edata;
 
   mediadirext = kms_sdp_media_direction_ext_new ();
+
   g_signal_connect (mediadirext, "on-offer-media-direction",
       G_CALLBACK (on_offer_media_direction), self);
+  g_signal_connect (mediadirext, "on-answer-media-direction",
+      G_CALLBACK (on_answer_media_direction), self);
+
   kms_sdp_media_handler_add_media_extension (handler,
       KMS_I_SDP_MEDIA_EXTENSION (mediadirext));
 
