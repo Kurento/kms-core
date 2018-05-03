@@ -57,8 +57,7 @@ public:
   virtual void Serialize (JsonSerializer &serializer) override;
 
 private:
-
-  int handlerId;
+  int handlerId{};
 
   class StaticConstructor
   {

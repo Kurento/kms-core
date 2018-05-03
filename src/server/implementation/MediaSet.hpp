@@ -107,7 +107,7 @@ private:
 
   std::recursive_mutex recMutex;
   std::condition_variable_any waitCond;
-  std::atomic<bool> terminated;
+  std::atomic<bool> terminated{};
 
   std::shared_ptr <ServerManagerImpl> serverManager;
 

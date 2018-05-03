@@ -127,7 +127,7 @@ public:
     } catch (KurentoException &e) {
       GST_WARNING ("Posible error deserializing %s from config", key.c_str() );
     } catch (std::exception &e) {
-      GST_WARNING ("Unknown error getting%s from config", key.c_str() );
+      GST_WARNING ("Unknown error getting '%s' from config", key.c_str() );
     }
 
     return defaultValue;

@@ -407,8 +407,9 @@ kms_sdp_sctp_media_handler_init_offer (KmsSdpMediaHandler * handler,
 
   if (gst_sdp_media_add_attribute (offer, "setup", "actpass") != GST_SDP_OK) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Can not to set attribute 'setup:actpass'");
+        "Can not set attribute 'setup:actpass'");
     ret = FALSE;
+    goto end;
   }
 
 end:

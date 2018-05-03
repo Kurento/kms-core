@@ -70,7 +70,7 @@ private:
 
   std::string uri;
   std::string absolute_uri;
-  gulong stateChangedHandlerId;
+  gulong stateChangedHandlerId{};
   std::shared_ptr<UriEndpointState> state;
 
   void checkUri ();

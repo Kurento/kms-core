@@ -30,7 +30,7 @@ class RandomGenerator
 {
   boost::uuids::basic_random_generator<boost::mt19937> gen;
   boost::mt19937 ran;
-  pid_t pid;
+  pid_t pid{};
 
 public:
   RandomGenerator () : gen (&ran)
