@@ -567,14 +567,14 @@ kms_sdp_rtp_avpf_media_handler_class_init (KmsSdpRtpAvpfMediaHandlerClass *
       kms_sdp_rtp_avpf_media_handler_add_answer_attributes_impl;
 
   g_object_class_install_property (gobject_class, PROP_NACK,
-      g_param_spec_boolean ("nack", "Nack",
-          "Wheter rtcp-fb-nack-param if supproted or not",
+      g_param_spec_boolean (SDP_MEDIA_RTCP_FB_NACK, "Nack",
+          "Whether rtcp-fb-nack-param if supproted or not",
           DEFAULT_SDP_MEDIA_RTP_AVPF_NACK,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_GOOG_REMB,
-      g_param_spec_boolean ("goog-remb", "goog-remb",
-          "Wheter receiver estimated maximum bitrate is supported",
+      g_param_spec_boolean (SDP_MEDIA_RTCP_FB_GOOG_REMB, "Google-REMB",
+          "Whether Google's Receiver Estimated Maximum Bitrate is supported",
           DEFAULT_SDP_MEDIA_RTP_GOOG_REMB,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 

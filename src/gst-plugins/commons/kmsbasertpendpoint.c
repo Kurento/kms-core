@@ -76,6 +76,8 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define JB_INITIAL_LATENCY 0
 #define JB_READY_AUDIO_LATENCY 100
 #define JB_READY_VIDEO_LATENCY 500
+#define RTCP_FB_CCM_FIR   SDP_MEDIA_RTCP_FB_CCM " " SDP_MEDIA_RTCP_FB_FIR
+#define RTCP_FB_NACK_PLI  SDP_MEDIA_RTCP_FB_NACK " " SDP_MEDIA_RTCP_FB_PLI
 
 #define DEFAULT_MIN_PORT 1
 #define DEFAULT_MAX_PORT G_MAXUINT16
@@ -1559,17 +1561,17 @@ complete_caps_with_fb (GstCaps * caps, const GstSDPMedia * media,
   for (a = 0;; a++) {
     const gchar *attr;
 
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    attr = gst_sdp_media_get_attribute_val_n (media, SDP_MEDIA_RTCP_FB, a);
     if (attr == NULL) {
       break;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_FIR)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_CCM_FIR)) {
       fir = TRUE;
       continue;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_PLI)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_NACK_PLI)) {
       pli = TRUE;
       continue;
     }

@@ -17,8 +17,6 @@
 #ifndef __KMS_CONSTANTS_H__
 #define __KMS_CONSTANTS_H__
 
-G_BEGIN_DECLS
-
 #define SDP_MEDIA_RTCP_FB "rtcp-fb"
 #define SDP_MEDIA_RTCP_FB_NACK "nack"
 #define SDP_MEDIA_RTCP_FB_CCM "ccm"
@@ -34,8 +32,6 @@ G_BEGIN_DECLS
 /* RTP/RTCP profiles */
 #define SDP_MEDIA_RTP_AVP_PROTO "RTP/AVP"
 #define SDP_MEDIA_RTP_SAVPF_PROTO "RTP/SAVPF"
-
-#define RTCP_MUX "rtcp-mux"
 
 #define RTCP_MIN_INTERVAL 500 /* ms */
 #define REMB_MAX_INTERVAL 200 /* ms */
@@ -77,5 +73,4 @@ G_BEGIN_DECLS
 #define OPUS_ENCONDING_NAME "OPUS"
 #define VP8_ENCONDING_NAME "VP8"
 
-G_END_DECLS
 #endif /* __KMS_CONSTANTS_H__ */

@@ -26,14 +26,6 @@
 #define SENDRECV_STR  "sendrecv"
 #define INACTIVE_STR  "inactive"
 
-#define RTCP_FB "rtcp-fb"
-#define RTCP_FB_FIR "ccm fir"
-#define RTCP_FB_NACK "nack"
-#define RTCP_FB_PLI "nack pli"
-#define RTCP_FB_REMB "goog-remb"
-
-#define EXT_MAP "extmap"
-
 typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
 typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, gpointer user_data);
 

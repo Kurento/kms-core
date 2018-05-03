@@ -29,6 +29,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 static gchar *directions[] =
     { SENDONLY_STR, RECVONLY_STR, SENDRECV_STR, INACTIVE_STR, NULL };
 
+#define EXT_MAP "extmap"
 #define RTPMAP "rtpmap"
 #define FMTP "fmtp"
 
@@ -625,12 +626,13 @@ sdp_utils_media_has_remb (const GstSDPMedia * media)
   for (a = 0;; a++) {
     const gchar *attr;
 
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    attr = gst_sdp_media_get_attribute_val_n (media, SDP_MEDIA_RTCP_FB, a);
     if (attr == NULL) {
       break;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_REMB)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload,
+        SDP_MEDIA_RTCP_FB_GOOG_REMB)) {
       return TRUE;
     }
   }
@@ -651,12 +653,13 @@ sdp_utils_media_has_rtcp_nack (const GstSDPMedia * media)
   for (a = 0;; a++) {
     const gchar *attr;
 
-    attr = gst_sdp_media_get_attribute_val_n (media, RTCP_FB, a);
+    attr = gst_sdp_media_get_attribute_val_n (media, SDP_MEDIA_RTCP_FB, a);
     if (attr == NULL) {
       break;
     }
 
-    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload, RTCP_FB_NACK)) {
+    if (sdp_utils_rtcp_fb_attr_check_type (attr, payload,
+        SDP_MEDIA_RTCP_FB_NACK)) {
       return TRUE;
     }
   }
