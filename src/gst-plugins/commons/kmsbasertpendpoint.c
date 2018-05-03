@@ -742,7 +742,7 @@ kms_base_rtp_endpoint_is_video_rtcp_nack (KmsBaseRtpEndpoint * self)
 /* Configure media SDP begin */
 static GObject *
 kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
-    guint session_id, const gchar * rtpbin_pad_name, guint rtp_profile,
+    guint session_id, const gchar * rtpbin_pad_name, GstRTPProfile rtp_profile,
     GstSDPDirection direction)
 {
   GstElement *rtpbin = self->priv->rtpbin;
@@ -776,13 +776,12 @@ kms_base_rtp_endpoint_create_rtp_session (KmsBaseRtpEndpoint * self,
 
   KMS_ELEMENT_UNLOCK (self);
 
-  g_object_set (rtpsession, "rtcp-min-interval",
-      RTCP_MIN_INTERVAL * GST_MSECOND, "rtp-profile", rtp_profile, NULL);
+  g_object_set (rtpsession, "rtp-profile", rtp_profile, NULL);
 
   return rtpsession;
 }
 
-static guint
+static GstRTPProfile
 kms_base_rtp_endpoint_media_proto_to_rtp_profile (KmsBaseRtpEndpoint * self,
     const gchar * proto)
 {
@@ -1063,11 +1062,15 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
 
   GObject *rtpsession = kms_base_rtp_endpoint_get_internal_session (
       KMS_BASE_RTP_ENDPOINT(self), VIDEO_RTP_SESSION);
-  if (!rtpsession) {
-    GST_WARNING_OBJECT (self,
-        "Abort: No RTP Session with ID %u", VIDEO_RTP_SESSION);
+  if (rtpsession == NULL) {
     return;
   }
+
+  // Decrease minimum interval between RTCP packets,
+  // for better reaction times in case of bad network
+  GST_INFO_OBJECT (self, "REMB: Set RTCP min interval to 500ms");
+  g_object_set (rtpsession, "rtcp-min-interval",
+      RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
@@ -1947,8 +1950,6 @@ static GstPadProbeReturn
 kms_base_rtp_endpoint_sync_rtcp_probe (GstPad * pad, GstPadProbeInfo * info,
     KmsRtpSynchronizer * sync)
 {
-  return GST_PAD_PROBE_OK;
-
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
     GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
@@ -3425,12 +3426,15 @@ kms_base_rtp_endpoint_get_internal_session (KmsBaseRtpEndpoint *self,
     guint session_id)
 {
   GstElement *rtpbin = self->priv->rtpbin; // GstRtpBin*
-  GObject *rtpsession; // RTPSession* from GstRtpBin->GstRtpSession
-  g_signal_emit_by_name (rtpbin, "get-internal-session", session_id, &rtpsession);
-  if (!rtpsession) {
-    GST_ERROR_OBJECT (self, "GstRtpBin lacks internal RTPSession");
-    return NULL;
+  GObject *rtpsession = NULL; // RTPSession* from GstRtpBin->GstRtpSession
+
+  g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
+      &rtpsession);
+  if (rtpsession == NULL) {
+    GST_WARNING_OBJECT (self, "GstRtpBin: No RTP session, id: %u",
+        session_id);
   }
+
   return rtpsession;
 }
 
