@@ -54,7 +54,7 @@ KmsMediaType kms_utils_convert_element_pad_type (KmsElementPadType pad_type);
 
 /* keyframe management */
 void kms_utils_drop_until_keyframe (GstPad *pad, gboolean all_headers);
-void kms_utils_manage_gaps (GstPad *pad);
+void kms_utils_pad_monitor_gaps (GstPad *pad);
 void kms_utils_control_key_frames_request_duplicates (GstPad *pad);
 
 /* Pad blocked action */

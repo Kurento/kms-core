@@ -452,10 +452,13 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 }
 
 void
-kms_utils_manage_gaps (GstPad * pad)
+kms_utils_pad_monitor_gaps (GstPad * pad)
 {
+  GST_INFO_OBJECT (pad, "Add probe: Detect stream gaps");
+
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
       discont_detection_probe, NULL, NULL);
+
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
       gap_detection_probe, NULL, NULL);
 }

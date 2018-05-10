@@ -996,7 +996,7 @@ kms_element_connect_sink_target_full (KmsElement * self, GstPad * target,
 
   if (type == KMS_ELEMENT_PAD_TYPE_VIDEO) {
     kms_utils_drop_until_keyframe (pad, TRUE);
-    kms_utils_manage_gaps (pad);
+    kms_utils_pad_monitor_gaps (pad);
   }
 
   gst_pad_set_query_function (pad, kms_element_pad_query);
