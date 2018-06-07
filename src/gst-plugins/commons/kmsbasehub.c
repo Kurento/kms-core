@@ -19,6 +19,7 @@
 #endif
 
 #include "kmsbasehub.h"
+#include "constants.h"
 #include "kmsagnosticcaps.h"
 #include "kms-core-marshal.h"
 #include "kmshubport.h"
@@ -714,7 +715,7 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
   KMS_BASE_HUB_LOCK (port_data->hub);
 
   if (port_data->video_sink_target != NULL
-      && g_strstr_len (GST_OBJECT_NAME (pad), -1, "video")) {
+      && g_strstr_len (GST_OBJECT_NAME (pad), -1, VIDEO_STREAM_NAME)) {
     gchar *gp_name = g_strdup_printf (VIDEO_SINK_PAD_PREFIX "%d",
         port_data->id);
 
@@ -726,7 +727,7 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
         VIDEO_SINK_PAD_NAME, port_data->video_sink_target);
     g_free (gp_name);
   } else if (port_data->video_sink_target != NULL
-      && g_strstr_len (GST_OBJECT_NAME (pad), -1, "audio")) {
+      && g_strstr_len (GST_OBJECT_NAME (pad), -1, AUDIO_STREAM_NAME)) {
     gchar *gp_name = g_strdup_printf (AUDIO_SINK_PAD_PREFIX "%d",
         port_data->id);
 
