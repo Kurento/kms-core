@@ -66,42 +66,42 @@ struct _KmsBaseHubClass
   void (*unhandle_port) (KmsBaseHub * self, gint port_id);
 
   /* Virtual methods */
-  gboolean (*link_video_src) (KmsBaseHub * mixer, gint id,
+  gboolean (*link_audio_src) (KmsBaseHub * self, gint id,
       GstElement * internal_element, const gchar * pad_name,
       gboolean remove_on_unlink);
-  gboolean (*link_audio_src) (KmsBaseHub * mixer, gint id,
+  gboolean (*link_video_src) (KmsBaseHub * self, gint id,
       GstElement * internal_element, const gchar * pad_name,
       gboolean remove_on_unlink);
-  gboolean (*link_video_sink) (KmsBaseHub * mixer, gint id,
+  gboolean (*link_audio_sink) (KmsBaseHub * self, gint id,
       GstElement * internal_element, const gchar * pad_name,
       gboolean remove_on_unlink);
-  gboolean (*link_audio_sink) (KmsBaseHub * mixer, gint id,
+  gboolean (*link_video_sink) (KmsBaseHub * self, gint id,
       GstElement * internal_element, const gchar * pad_name,
       gboolean remove_on_unlink);
 
-  gboolean (*unlink_video_src) (KmsBaseHub * mixer, gint id);
-  gboolean (*unlink_audio_src) (KmsBaseHub * mixer, gint id);
-  gboolean (*unlink_video_sink) (KmsBaseHub * mixer, gint id);
-  gboolean (*unlink_audio_sink) (KmsBaseHub * mixer, gint id);
+  gboolean (*unlink_audio_src) (KmsBaseHub * self, gint id);
+  gboolean (*unlink_video_src) (KmsBaseHub * self, gint id);
+  gboolean (*unlink_audio_sink) (KmsBaseHub * self, gint id);
+  gboolean (*unlink_video_sink) (KmsBaseHub * self, gint id);
 };
 
-gboolean kms_base_hub_link_video_src (KmsBaseHub * mixer, gint id,
+gboolean kms_base_hub_link_audio_src (KmsBaseHub * self, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink);
-gboolean kms_base_hub_link_audio_src (KmsBaseHub * mixer, gint id,
+gboolean kms_base_hub_link_video_src (KmsBaseHub * self, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink);
-gboolean kms_base_hub_link_video_sink (KmsBaseHub * mixer, gint id,
+gboolean kms_base_hub_link_audio_sink (KmsBaseHub * self, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink);
-gboolean kms_base_hub_link_audio_sink (KmsBaseHub * mixer, gint id,
+gboolean kms_base_hub_link_video_sink (KmsBaseHub * self, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink);
 
-gboolean kms_base_hub_unlink_video_src (KmsBaseHub * mixer, gint id);
-gboolean kms_base_hub_unlink_audio_src (KmsBaseHub * mixer, gint id);
-gboolean kms_base_hub_unlink_video_sink (KmsBaseHub * mixer, gint id);
-gboolean kms_base_hub_unlink_audio_sink (KmsBaseHub * mixer, gint id);
+gboolean kms_base_hub_unlink_audio_src (KmsBaseHub * self, gint id);
+gboolean kms_base_hub_unlink_video_src (KmsBaseHub * self, gint id);
+gboolean kms_base_hub_unlink_audio_sink (KmsBaseHub * self, gint id);
+gboolean kms_base_hub_unlink_video_sink (KmsBaseHub * self, gint id);
 
 GType kms_base_hub_get_type (void);
 
