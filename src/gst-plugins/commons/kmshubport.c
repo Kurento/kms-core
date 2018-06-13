@@ -46,6 +46,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_hub_port_debug_category);
 
 struct _KmsHubPortPrivate
 {
+  void *dummy;
 };
 
 /* Pad templates */
