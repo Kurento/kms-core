@@ -174,7 +174,19 @@ kms_hub_port_internal_src_unhandled (KmsHubPort * self, GstPad * pad)
 {
   GstPad *sink = g_object_get_qdata (G_OBJECT (pad), key_pad_data_quark ());
 
-  g_return_if_fail (sink);
+  if (sink == NULL) {
+    // Classes that derive from BaseHub should link their internal elements
+    // to all possible source pad types: audio, video, data.
+    // Data pads are new and optional, so they might not be linked and the sink
+    // here will be NULL. Audio and video pads are mandatory, so the sink here
+    // should not be NULL.
+    GstCaps *caps = gst_pad_query_caps (pad, NULL);
+    if (!kms_utils_caps_is_data (caps)) {
+      GST_ERROR_OBJECT (self, "Derived class is missing links for some SRCs");
+      g_return_if_fail (sink);
+    }
+    return;
+  }
 
   kms_element_remove_sink (KMS_ELEMENT (self), sink);
 
@@ -220,6 +232,7 @@ kms_hub_port_internal_src_pad_linked (GstPad * pad, GstPad * peer,
 
   target = gst_element_get_static_pad (capsfilter, "sink");
   if (!target) {
+    GST_WARNING_OBJECT (pad, "No sink in capsfilter");
     goto end;
   }
 
