@@ -22,6 +22,7 @@
 #include <EventHandler.hpp>
 #include <gst/gst.h>
 #include <boost/property_tree/ptree.hpp>
+#include <string>
 
 namespace kurento
 {
@@ -75,8 +76,7 @@ private:
   std::recursive_mutex recMutex;
   bool latencyStats = false;
 
-  void log_bus_issue (GstBin * bin, GstMessage * msg, gboolean is_error);
-  void busMessage (GstMessage *message);
+  void processBusMessage (GstMessage *msg);
 
   class StaticConstructor
   {

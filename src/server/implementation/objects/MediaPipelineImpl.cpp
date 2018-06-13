@@ -34,23 +34,42 @@ namespace kurento
 {
 
 void
-MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
-    gboolean is_error)
+MediaPipelineImpl::processBusMessage (GstMessage *msg)
 {
-  GstDebugLevel log_level = is_error ? GST_LEVEL_ERROR : GST_LEVEL_WARNING;
+  GstDebugLevel log_level = GST_LEVEL_NONE;
+  GError *err = NULL;
+  gchar *dbg_info = NULL;
 
-  GError *err = nullptr;
-  gchar *dbg_info = nullptr;
-  gst_message_parse_error (msg, &err, &dbg_info);
+  switch (GST_MESSAGE_TYPE (msg)) {
+    case GST_MESSAGE_ERROR:
+      log_level = GST_LEVEL_ERROR;
+      gst_message_parse_error (msg, &err, &dbg_info);
+      break;
+    case GST_MESSAGE_WARNING:
+      log_level = GST_LEVEL_WARNING;
+      gst_message_parse_warning (msg, &err, &dbg_info);
+      break;
+    default:
+      return;
+      break;
+  }
 
-  gint err_code = (err ? err->code : -1);
-  gchar *err_msg = (err ? g_strdup (err->message) : g_strdup ("None"));
+  GstElement *parent = this->pipeline;
+  gint err_code = 0;
+  gchar *err_msg = NULL;
+
+  if (err != NULL) {
+    err_code = err->code;
+    err_msg = err->message;
+  }
 
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Element '%s' bus code %d: %s", GST_OBJECT_NAME (msg->src), err_code,
-      err_msg);
+      "Error code %d: '%s', element: %s, parent: %s", err_code,
+      (err_msg ? err_msg : "(None)"), GST_MESSAGE_SRC_NAME (msg),
+      GST_ELEMENT_NAME (parent));
+
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Debugging info: %s", ((dbg_info) ? dbg_info : "None"));
+      "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
 
   std::string errorMessage (err_msg);
   if (dbg_info) {
@@ -67,27 +86,14 @@ MediaPipelineImpl::log_bus_issue(GstBin *bin, GstMessage *msg,
   }
 
   gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err_code);
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (bin, GST_DEBUG_GRAPH_SHOW_ALL, dot_name);
+  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (parent), GST_DEBUG_GRAPH_SHOW_ALL,
+      dot_name);
   g_free(dot_name);
 
   g_error_free (err);
   g_free (dbg_info);
-  g_free (err_msg);
-}
 
-void
-MediaPipelineImpl::busMessage (GstMessage *message)
-{
-  switch (GST_MESSAGE_TYPE (message)) {
-  case GST_MESSAGE_ERROR:
-    log_bus_issue (GST_BIN (pipeline), message, TRUE);
-    break;
-  case GST_MESSAGE_WARNING:
-    log_bus_issue (GST_BIN (pipeline), message, FALSE);
-    break;
-  default:
-    break;
-  }
+  return;
 }
 
 void MediaPipelineImpl::postConstructor ()
@@ -100,7 +106,7 @@ void MediaPipelineImpl::postConstructor ()
   gst_bus_add_signal_watch (bus);
   busMessageHandler = register_signal_handler (G_OBJECT (bus), "message",
                       std::function <void (GstBus *, GstMessage *) > (std::bind (
-                            &MediaPipelineImpl::busMessage, this,
+                            &MediaPipelineImpl::processBusMessage, this,
                             std::placeholders::_2) ),
                       std::dynamic_pointer_cast<MediaPipelineImpl>
                       (shared_from_this() ) );
