@@ -25,13 +25,13 @@
 #define PLUGIN_NAME "hubport"
 
 #define KEY_ELEM_DATA "kms-hub-elem-data"
-G_DEFINE_QUARK (KEY_ELEM_DATA, key_elem_data);
+G_DEFINE_QUARK (KEY_ELEM_DATA, key_elem_data)
 
 #define KEY_TYPE_DATA "kms-hub-type-data"
-G_DEFINE_QUARK (KEY_TYPE_DATA, key_type_data);
+G_DEFINE_QUARK (KEY_TYPE_DATA, key_type_data)
 
 #define KEY_PAD_DATA "kms-hub-pad-data"
-G_DEFINE_QUARK (KEY_PAD_DATA, key_pad_data);
+G_DEFINE_QUARK (KEY_PAD_DATA, key_pad_data)
 
 GST_DEBUG_CATEGORY_STATIC (kms_hub_port_debug_category);
 #define GST_CAT_DEFAULT kms_hub_port_debug_category
