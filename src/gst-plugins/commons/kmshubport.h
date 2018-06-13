@@ -21,8 +21,11 @@
 
 #define HUB_AUDIO_SINK_PAD "hub_audio_sink"
 #define HUB_VIDEO_SINK_PAD "hub_video_sink"
+#define HUB_DATA_SINK_PAD "hub_data_sink"
+
 #define HUB_AUDIO_SRC_PAD "hub_audio_src"
 #define HUB_VIDEO_SRC_PAD "hub_video_src"
+#define HUB_DATA_SRC_PAD "hub_data_src"
 
 G_BEGIN_DECLS
 #define KMS_TYPE_HUB_PORT kms_hub_port_get_type()

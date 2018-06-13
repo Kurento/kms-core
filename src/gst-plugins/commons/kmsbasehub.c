@@ -45,15 +45,20 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_hub_debug_category);
 
 #define AUDIO_SINK_PAD_PREFIX "audio_sink_"
 #define VIDEO_SINK_PAD_PREFIX "video_sink_"
+#define DATA_SINK_PAD_PREFIX "data_sink_"
 #define AUDIO_SINK_PAD_NAME AUDIO_SINK_PAD_PREFIX "%u"
 #define VIDEO_SINK_PAD_NAME VIDEO_SINK_PAD_PREFIX "%u"
+#define DATA_SINK_PAD_NAME DATA_SINK_PAD_PREFIX "%u"
 
 #define AUDIO_SRC_PAD_PREFIX "audio_src_"
 #define VIDEO_SRC_PAD_PREFIX "video_src_"
+#define DATA_SRC_PAD_PREFIX "data_src_"
 #define LENGTH_AUDIO_SRC_PAD_PREFIX 10  // sizeof("audio_src_")
 #define LENGTH_VIDEO_SRC_PAD_PREFIX 10  // sizeof("video_src_")
+#define LENGTH_DATA_SRC_PAD_PREFIX 9  // sizeof("data_src_")
 #define AUDIO_SRC_PAD_NAME AUDIO_SRC_PAD_PREFIX "%u"
 #define VIDEO_SRC_PAD_NAME VIDEO_SRC_PAD_PREFIX "%u"
+#define DATA_SRC_PAD_NAME DATA_SRC_PAD_PREFIX "%u"
 
 static GstStaticPadTemplate audio_sink_factory =
 GST_STATIC_PAD_TEMPLATE (AUDIO_SINK_PAD_NAME,
@@ -67,6 +72,11 @@ GST_STATIC_PAD_TEMPLATE (VIDEO_SINK_PAD_NAME,
     GST_PAD_SOMETIMES,
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS));
 
+static GstStaticPadTemplate data_sink_factory =
+GST_STATIC_PAD_TEMPLATE (DATA_SINK_PAD_NAME,
+    GST_PAD_SINK,
+    GST_PAD_SOMETIMES,
+    GST_STATIC_CAPS (KMS_AGNOSTIC_DATA_CAPS));
 
 static GstStaticPadTemplate audio_src_factory =
 GST_STATIC_PAD_TEMPLATE (AUDIO_SRC_PAD_NAME,
@@ -80,6 +90,11 @@ GST_STATIC_PAD_TEMPLATE (VIDEO_SRC_PAD_NAME,
     GST_PAD_SOMETIMES,
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS));
 
+static GstStaticPadTemplate data_src_factory =
+GST_STATIC_PAD_TEMPLATE (DATA_SRC_PAD_NAME,
+    GST_PAD_SRC,
+    GST_PAD_SOMETIMES,
+    GST_STATIC_CAPS (KMS_AGNOSTIC_DATA_CAPS));
 
 enum
 {
@@ -108,6 +123,7 @@ struct _KmsBaseHubPortData
   gint id;
   GstPad *audio_sink_target;
   GstPad *video_sink_target;
+  GstPad *data_sink_target;
 };
 
 /* class initialization */
@@ -167,6 +183,7 @@ kms_base_hub_port_data_destroy (gpointer data)
 
   g_clear_object (&port_data->audio_sink_target);
   g_clear_object (&port_data->video_sink_target);
+  g_clear_object (&port_data->data_sink_target);
 
   g_clear_object (&port_data->port);
   g_slice_free (KmsBaseHubPortData, data);
@@ -197,12 +214,14 @@ kms_base_hub_link_video_sink (KmsBaseHub * self, gint id,
 }
 
 gboolean
+kms_base_hub_link_data_sink (KmsBaseHub * self, gint id,
     GstElement * internal_element, const gchar * pad_name,
     gboolean remove_on_unlink)
 {
   g_return_val_if_fail (KMS_IS_BASE_HUB (self), FALSE);
 
   return
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (self))->link_data_sink (self,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
@@ -230,6 +249,17 @@ kms_base_hub_link_video_src (KmsBaseHub * self, gint id,
       id, internal_element, pad_name, remove_on_unlink);
 }
 
+gboolean
+kms_base_hub_link_data_src (KmsBaseHub * self, gint id,
+    GstElement * internal_element, const gchar * pad_name,
+    gboolean remove_on_unlink)
+{
+  g_return_val_if_fail (KMS_IS_BASE_HUB (self), FALSE);
+
+  return
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (self))->link_data_src (self,
+      id, internal_element, pad_name, remove_on_unlink);
+}
 
 gboolean
 kms_base_hub_unlink_audio_sink (KmsBaseHub * self, gint id)
@@ -251,10 +281,14 @@ kms_base_hub_unlink_video_sink (KmsBaseHub * self, gint id)
       (self, id);
 }
 
+gboolean
+kms_base_hub_unlink_data_sink (KmsBaseHub * self, gint id)
 {
   g_return_val_if_fail (KMS_IS_BASE_HUB (self), FALSE);
 
   return
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (self))->unlink_data_sink
+      (self, id);
 }
 
 gboolean
@@ -278,10 +312,13 @@ kms_base_hub_unlink_video_src (KmsBaseHub * self, gint id)
 }
 
 gboolean
+kms_base_hub_unlink_data_src (KmsBaseHub * self, gint id)
 {
   g_return_val_if_fail (KMS_IS_BASE_HUB (self), FALSE);
 
   return
+      KMS_BASE_HUB_CLASS (G_OBJECT_GET_CLASS (self))->unlink_data_src (self,
+      id);
 }
 
 static void
@@ -333,6 +370,20 @@ kms_base_hub_unlink_video_sink_default (KmsBaseHub * self, gint id)
   return ret;
 }
 
+static gboolean
+kms_base_hub_unlink_data_sink_default (KmsBaseHub * self, gint id)
+{
+  gboolean ret;
+  gchar *gp_name = g_strdup_printf (DATA_SINK_PAD_PREFIX "%d", id);
+
+  ret = kms_base_hub_unlink_pad (self, gp_name);
+
+  g_free (gp_name);
+
+  return ret;
+}
+
+static gboolean
 kms_base_hub_unlink_audio_src_default (KmsBaseHub * self, gint id)
 {
   gboolean ret;
@@ -358,6 +409,13 @@ kms_base_hub_unlink_video_src_default (KmsBaseHub * self, gint id)
   return ret;
 }
 
+static gboolean
+kms_base_hub_unlink_data_src_default (KmsBaseHub * self, gint id)
+{
+  gboolean ret;
+  gchar *gp_name = g_strdup_printf (DATA_SRC_PAD_PREFIX "%d", id);
+
+  ret = kms_base_hub_unlink_pad (self, gp_name);
 
   g_free (gp_name);
 
@@ -492,6 +550,8 @@ kms_base_hub_link_sink_pad (KmsBaseHub * hub, gint id,
       port_data->id, port_data->audio_sink_target);
   GST_DEBUG_OBJECT (hub, "Video target pad for port %d: %" GST_PTR_FORMAT,
       port_data->id, port_data->video_sink_target);
+  GST_DEBUG_OBJECT (hub, "Data target pad for port %d: %" GST_PTR_FORMAT,
+      port_data->id, port_data->data_sink_target);
 
 end:
 
@@ -531,6 +591,24 @@ kms_base_hub_link_video_sink_default (KmsBaseHub * self, gint id,
   ret = kms_base_hub_link_sink_pad (self, id, gp_name, VIDEO_SINK_PAD_NAME,
       internal_element, pad_name, HUB_VIDEO_SRC_PAD,
       G_STRUCT_OFFSET (KmsBaseHubPortData, video_sink_target),
+      remove_on_unlink);
+
+  g_free (gp_name);
+
+  return ret;
+}
+
+static gboolean
+kms_base_hub_link_data_sink_default (KmsBaseHub * self, gint id,
+    GstElement * internal_element, const gchar * pad_name,
+    gboolean remove_on_unlink)
+{
+  gboolean ret;
+  gchar *gp_name = g_strdup_printf (DATA_SINK_PAD_PREFIX "%d", id);
+
+  ret = kms_base_hub_link_sink_pad (self, id, gp_name, DATA_SINK_PAD_NAME,
+      internal_element, pad_name, HUB_DATA_SRC_PAD,
+      G_STRUCT_OFFSET (KmsBaseHubPortData, data_sink_target),
       remove_on_unlink);
 
   g_free (gp_name);
@@ -631,6 +709,23 @@ kms_base_hub_link_video_src_default (KmsBaseHub * self, gint id,
 
   return ret;
 }
+
+static gboolean
+kms_base_hub_link_data_src_default (KmsBaseHub * self, gint id,
+    GstElement * internal_element, const gchar * pad_name,
+    gboolean remove_on_unlink)
+{
+  gchar *gp_name = g_strdup_printf (DATA_SRC_PAD_PREFIX "%d", id);
+  gboolean ret;
+
+  ret =
+      kms_base_hub_link_src_pad (self, gp_name, DATA_SRC_PAD_NAME,
+      internal_element, pad_name, remove_on_unlink);
+  g_free (gp_name);
+
+  return ret;
+}
+
 static void
 kms_base_hub_remove_port_pad (KmsBaseHub * hub, gint id,
     const gchar * pad_prefix)
@@ -729,6 +824,18 @@ kms_base_hub_pad_added (KmsBaseHub * self, GstPad * pad, gpointer data)
     gst_element_link_pads (GST_ELEMENT (self), GST_OBJECT_NAME (pad),
         port->port, HUB_AUDIO_SINK_PAD);
   }
+  else if (g_str_has_prefix (GST_OBJECT_NAME (pad), DATA_SRC_PAD_PREFIX)) {
+    KmsBaseHubPortData *port;
+    gint64 id;
+    const gchar *pad_name;
+
+    pad_name = GST_OBJECT_NAME (pad);
+    id = g_ascii_strtoll (pad_name + LENGTH_DATA_SRC_PAD_PREFIX, NULL, 10);
+    port = g_hash_table_lookup (self->priv->ports, &id);
+
+    gst_element_link_pads (GST_ELEMENT (self), GST_OBJECT_NAME (pad),
+        port->port, HUB_DATA_SINK_PAD);
+  }
 
   KMS_BASE_HUB_UNLOCK (self);
 }
@@ -772,6 +879,18 @@ endpoint_pad_added (GstElement * endpoint, GstPad * pad,
 
     g_free (gp_name);
   }
+  else if (port_data->data_sink_target != NULL
+      && g_strstr_len (GST_OBJECT_NAME (pad), -1, DATA_STREAM_NAME)) {
+    gchar *gp_name = g_strdup_printf (DATA_SINK_PAD_PREFIX "%d",
+        port_data->id);
+
+    GST_DEBUG_OBJECT (port_data->hub,
+        "Connect %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, pad,
+        port_data->data_sink_target);
+
+    kms_base_hub_create_and_link_ghost_pad (port_data->hub, pad, gp_name,
+        DATA_SINK_PAD_NAME, port_data->data_sink_target);
+
     g_free (gp_name);
   }
 
@@ -861,19 +980,27 @@ kms_base_hub_class_init (KmsBaseHubClass * klass)
       GST_DEBUG_FUNCPTR (kms_base_hub_link_audio_sink_default);
   klass->link_video_sink =
       GST_DEBUG_FUNCPTR (kms_base_hub_link_video_sink_default);
+  klass->link_data_sink =
+      GST_DEBUG_FUNCPTR (kms_base_hub_link_data_sink_default);
   klass->link_audio_src =
       GST_DEBUG_FUNCPTR (kms_base_hub_link_audio_src_default);
   klass->link_video_src =
       GST_DEBUG_FUNCPTR (kms_base_hub_link_video_src_default);
+  klass->link_data_src =
+      GST_DEBUG_FUNCPTR (kms_base_hub_link_data_src_default);
 
   klass->unlink_audio_sink =
       GST_DEBUG_FUNCPTR (kms_base_hub_unlink_audio_sink_default);
   klass->unlink_video_sink =
       GST_DEBUG_FUNCPTR (kms_base_hub_unlink_video_sink_default);
+  klass->unlink_data_sink =
+      GST_DEBUG_FUNCPTR (kms_base_hub_unlink_data_sink_default);
   klass->unlink_audio_src =
       GST_DEBUG_FUNCPTR (kms_base_hub_unlink_audio_src_default);
   klass->unlink_video_src =
       GST_DEBUG_FUNCPTR (kms_base_hub_unlink_video_src_default);
+  klass->unlink_data_src =
+      GST_DEBUG_FUNCPTR (kms_base_hub_unlink_data_src_default);
 
   gobject_class->dispose = GST_DEBUG_FUNCPTR (kms_base_hub_dispose);
   gobject_class->finalize = GST_DEBUG_FUNCPTR (kms_base_hub_finalize);
@@ -882,11 +1009,15 @@ kms_base_hub_class_init (KmsBaseHubClass * klass)
       gst_static_pad_template_get (&audio_sink_factory));
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&video_sink_factory));
+  gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&data_sink_factory));
 
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&audio_src_factory));
   gst_element_class_add_pad_template (gstelement_class,
       gst_static_pad_template_get (&video_src_factory));
+  gst_element_class_add_pad_template (gstelement_class,
+      gst_static_pad_template_get (&data_src_factory));
 
   /* Signals initialization */
   kms_base_hub_signals[SIGNAL_HANDLE_PORT] =
