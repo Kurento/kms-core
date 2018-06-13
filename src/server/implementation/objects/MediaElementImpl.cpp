@@ -222,72 +222,66 @@ convertMediaType (std::shared_ptr<MediaType> mediaType)
   throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
 }
 
-static bool
-check_parent_element (GstObject *src, GstObject *elem)
-{
-  GstObject *parent = GST_OBJECT_PARENT ( src);
-
-  if (src == elem) {
-    return true;
-  }
-
-  while (parent != nullptr) {
-    if ( parent == elem ) {
-      return true;
-    }
-
-    parent = GST_OBJECT_PARENT (parent);
-  }
-
-  return false;
-}
-
 void
-_media_element_impl_bus_message (GstBus *bus, GstMessage *message,
-                                 gpointer data)
+processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
 {
-  if (message->type == GST_MESSAGE_ERROR) {
-    GError *err = nullptr;
-    gchar *debug = nullptr;
-    MediaElementImpl *elem = reinterpret_cast <MediaElementImpl *> (data);
+  GstDebugLevel log_level = GST_LEVEL_NONE;
+  GError *err = NULL;
+  gchar *dbg_info = NULL;
 
-    if (elem == nullptr) {
+  switch (GST_MESSAGE_TYPE (msg)) {
+    case GST_MESSAGE_ERROR:
+      log_level = GST_LEVEL_ERROR;
+      gst_message_parse_error (msg, &err, &dbg_info);
+      break;
+    case GST_MESSAGE_WARNING:
+      log_level = GST_LEVEL_WARNING;
+      gst_message_parse_warning (msg, &err, &dbg_info);
+      break;
+    default:
       return;
-    }
-
-    if (!check_parent_element (message->src, GST_OBJECT (elem->element) ) ) {
-      return;
-    }
-
-    GST_ERROR ("MediaElement error: %" GST_PTR_FORMAT, message);
-    gst_message_parse_error (message, &err, &debug);
-    std::string errorMessage;
-
-    if (err) {
-      errorMessage = std::string (err->message);
-    }
-
-    if (debug != nullptr) {
-      errorMessage += " -> " + std::string (debug);
-    }
-
-    try {
-      gint code = 0;
-
-      if (err) {
-        code = err->code;
-      }
-
-      Error error (elem->shared_from_this(), errorMessage , code,
-                   "UNEXPECTED_ELEMENT_ERROR");
-
-      elem->signalError (error);
-    } catch (std::bad_weak_ptr &e) {
-    }
-
-    g_error_free (err);
-    g_free (debug);
+      break;
   }
+
+  GstElement *parent = self->element;
+  gint err_code = 0;
+  gchar *err_msg = NULL;
+
+  if (!gst_object_has_as_ancestor (msg->src, GST_OBJECT (parent))) {
+    return;
+  }
+
+  if (err != NULL) {
+    err_code = err->code;
+    err_msg = err->message;
+  }
+
+  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
+      "Error code %d: '%s', element: %s, parent: %s", err_code,
+      (err_msg ? err_msg : "(None)"), GST_MESSAGE_SRC_NAME (msg),
+      GST_ELEMENT_NAME (parent));
+
+  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
+      "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
+
+  std::string errorMessage (err_msg);
+  if (dbg_info) {
+    errorMessage += " (" + std::string (dbg_info) + ")";
+  }
+
+  try {
+    gint code = err_code;
+    Error error (self->shared_from_this(), errorMessage, code,
+                 "UNEXPECTED_ELEMENT_ERROR");
+
+    self->signalError (error);
+  } catch (std::bad_weak_ptr &e) {
+  }
+
+  g_error_free (err);
+  g_free (dbg_info);
+
+  return;
 }
 
 void
@@ -579,7 +573,7 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
 
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
   handlerId = g_signal_connect (bus, "message",
-                                G_CALLBACK (_media_element_impl_bus_message), this);
+                                G_CALLBACK (processBusMessage), this);
 
 
   padAddedHandlerId = g_signal_connect (element, "pad_added",

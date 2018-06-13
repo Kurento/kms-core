@@ -214,8 +214,9 @@ private:
 
   static StaticConstructor staticConstructor;
 
-  friend void _media_element_impl_bus_message (GstBus *bus, GstMessage *message,
-      gpointer data);
+  friend void processBusMessage (GstBus *bus, GstMessage *msg,
+                                 MediaElementImpl *self);
+
   friend void _media_element_pad_added (GstElement *elem, GstPad *pad,
                                         gpointer data);
 };
