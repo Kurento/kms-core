@@ -37,11 +37,11 @@ gboolean kms_is_valid_uri (const gchar * url);
 gboolean gst_element_sync_state_with_parent_target_state (GstElement * element);
 
 /* Caps */
-gboolean kms_utils_caps_are_audio (const GstCaps * caps);
-gboolean kms_utils_caps_are_video (const GstCaps * caps);
-gboolean kms_utils_caps_are_rtp (const GstCaps * caps);
-
-gboolean kms_utils_caps_are_raw (const GstCaps * caps);
+gboolean kms_utils_caps_is_audio (const GstCaps * caps);
+gboolean kms_utils_caps_is_video (const GstCaps * caps);
+gboolean kms_utils_caps_is_data (const GstCaps * caps);
+gboolean kms_utils_caps_is_rtp (const GstCaps * caps);
+gboolean kms_utils_caps_is_raw (const GstCaps * caps);
 
 GstElement * kms_utils_create_convert_for_caps (const GstCaps * caps);
 GstElement * kms_utils_create_mediator_element (const GstCaps * caps);

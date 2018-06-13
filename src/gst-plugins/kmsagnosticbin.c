@@ -422,12 +422,12 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
   gst_element_sync_state_with_parent (queue);
 
   if (!(gst_caps_is_any (caps) || gst_caps_is_empty (caps))
-      && kms_utils_caps_are_raw (caps)) {
+      && kms_utils_caps_is_raw (caps)) {
     GstElement *convert = kms_utils_create_convert_for_caps (caps);
     GstElement *rate = kms_utils_create_rate_for_caps (caps);
     GstElement *mediator = kms_utils_create_mediator_element (caps);
 
-    if (kms_utils_caps_are_video (caps)) {
+    if (kms_utils_caps_is_video (caps)) {
       g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
     }
 
@@ -547,9 +547,9 @@ kms_agnostic_bin2_get_raw_caps (const GstCaps * caps)
 {
   GstCaps *raw_caps = NULL;
 
-  if (kms_utils_caps_are_audio (caps)) {
+  if (kms_utils_caps_is_audio (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_audio_caps);
-  } else if (kms_utils_caps_are_video (caps)) {
+  } else if (kms_utils_caps_is_video (caps)) {
     raw_caps = gst_static_caps_get (&static_raw_video_caps);
   }
 
@@ -589,7 +589,7 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
 {
   GstCaps *raw_caps;
 
-  if (kms_utils_caps_are_raw (self->priv->input_caps)
+  if (kms_utils_caps_is_raw (self->priv->input_caps)
       || gst_caps_is_empty (caps) || gst_caps_is_any (caps)) {
     return self->priv->input_bin;
   }
@@ -660,7 +660,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
   KmsEncTreeBin *enc_bin;
   GstElement *input_element, *output_tee;
 
-  if (kms_utils_caps_are_rtp (caps)) {
+  if (kms_utils_caps_is_rtp (caps)) {
     return kms_agnostic_bin2_create_rtp_pay_bin (self, caps);
   }
 
@@ -669,7 +669,7 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return NULL;
   }
 
-  if (kms_utils_caps_are_raw (caps)) {
+  if (kms_utils_caps_is_raw (caps)) {
     return dec_bin;
   }
 
@@ -700,7 +700,7 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
   GstBin *bin;
   KmsMediaType type;
 
-  if (kms_utils_caps_are_audio (caps)) {
+  if (kms_utils_caps_is_audio (caps)) {
     type = KMS_MEDIA_TYPE_AUDIO;
   }
   else {
@@ -759,7 +759,7 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   if (bin != NULL) {
     GstElement *tee = kms_tree_bin_get_output_tee (KMS_TREE_BIN (bin));
 
-    if (!kms_utils_caps_are_rtp (caps)) {
+    if (!kms_utils_caps_is_rtp (caps)) {
       kms_utils_drop_until_keyframe (pad, TRUE);
     }
     kms_agnostic_bin2_link_to_tee (self, pad, tee, caps);
@@ -971,8 +971,8 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
         "streamheader", "codec_data", NULL);
 
     if (!gst_caps_can_intersect (new_caps, current_caps) &&
-        !kms_utils_caps_are_raw (current_caps)
-        && !kms_utils_caps_are_raw (new_caps)) {
+        !kms_utils_caps_is_raw (current_caps)
+        && !kms_utils_caps_is_raw (new_caps)) {
       GST_DEBUG_OBJECT (self, "Caps differ caps: %" GST_PTR_FORMAT, new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
     }

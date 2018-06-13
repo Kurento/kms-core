@@ -113,6 +113,8 @@ static GstStaticCaps static_audio_caps =
     GST_STATIC_CAPS (KMS_AGNOSTIC_AUDIO_CAPS);
 static GstStaticCaps static_video_caps =
     GST_STATIC_CAPS (KMS_AGNOSTIC_VIDEO_CAPS);
+static GstStaticCaps static_data_caps =
+    GST_STATIC_CAPS (KMS_AGNOSTIC_DATA_CAPS);
 static GstStaticCaps static_rtp_caps =
     GST_STATIC_CAPS (KMS_AGNOSTIC_RTP_CAPS);
 static GstStaticCaps static_raw_caps =
@@ -137,22 +139,28 @@ caps_can_intersect_with_static (const GstCaps * caps,
 }
 
 gboolean
-kms_utils_caps_are_audio (const GstCaps * caps)
+kms_utils_caps_is_audio (const GstCaps * caps)
 {
   return caps_can_intersect_with_static (caps, &static_audio_caps);
 }
 
 gboolean
-kms_utils_caps_are_video (const GstCaps * caps)
+kms_utils_caps_is_video (const GstCaps * caps)
 {
   return caps_can_intersect_with_static (caps, &static_video_caps);
 }
 
 gboolean
-kms_utils_caps_are_raw (const GstCaps * caps)
+kms_utils_caps_is_data (const GstCaps * caps)
+{
+  return caps_can_intersect_with_static (caps, &static_data_caps);
+}
+
+gboolean
+kms_utils_caps_is_rtp (const GstCaps * caps)
 {
   gboolean ret;
-  GstCaps *raw_caps = gst_static_caps_get (&static_raw_caps);
+  GstCaps *raw_caps = gst_static_caps_get (&static_rtp_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
 
@@ -162,10 +170,10 @@ kms_utils_caps_are_raw (const GstCaps * caps)
 }
 
 gboolean
-kms_utils_caps_are_rtp (const GstCaps * caps)
+kms_utils_caps_is_raw (const GstCaps * caps)
 {
   gboolean ret;
-  GstCaps *raw_caps = gst_static_caps_get (&static_rtp_caps);
+  GstCaps *raw_caps = gst_static_caps_get (&static_raw_caps);
 
   ret = gst_caps_is_always_compatible (caps, raw_caps);
 
@@ -179,7 +187,7 @@ kms_utils_caps_are_rtp (const GstCaps * caps)
 GstElement *
 kms_utils_create_convert_for_caps (const GstCaps * caps)
 {
-  if (kms_utils_caps_are_audio (caps)) {
+  if (kms_utils_caps_is_audio (caps)) {
     return gst_element_factory_make ("audioconvert", NULL);
   } else {
     return gst_element_factory_make ("videoconvert", NULL);
@@ -189,7 +197,7 @@ kms_utils_create_convert_for_caps (const GstCaps * caps)
 GstElement *
 kms_utils_create_mediator_element (const GstCaps * caps)
 {
-  if (kms_utils_caps_are_audio (caps)) {
+  if (kms_utils_caps_is_audio (caps)) {
     return gst_element_factory_make ("audioresample", NULL);
   } else {
     return gst_element_factory_make ("videoscale", NULL);
@@ -201,7 +209,7 @@ kms_utils_create_rate_for_caps (const GstCaps * caps)
 {
   GstElement *rate = NULL;
 
-  if (kms_utils_caps_are_video (caps)) {
+  if (kms_utils_caps_is_video (caps)) {
     rate = gst_element_factory_make ("videorate", NULL);
     g_object_set (G_OBJECT (rate), "average-period", GST_MSECOND * 200,
         "skip-to-first", TRUE, "drop-only", TRUE, NULL);
