@@ -940,9 +940,10 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     return GST_PAD_PROBE_OK;
   }
 
-  GST_TRACE_OBJECT (pad, "Event: %" GST_PTR_FORMAT, event);
-
   self = KMS_AGNOSTIC_BIN2 (user_data);
+
+  GST_TRACE_OBJECT (pad, "Self: %s, event: %" GST_PTR_FORMAT,
+      GST_ELEMENT_NAME (self), event);
 
   gst_event_parse_caps (event, &new_caps);
 
@@ -956,8 +957,6 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   self->priv->input_caps = gst_caps_copy (new_caps);
   KMS_AGNOSTIC_BIN2_UNLOCK (self);
 
-  GST_TRACE_OBJECT (self, "New caps event: %" GST_PTR_FORMAT, event);
-
   if (current_caps != NULL) {
     GstStructure *st;
 
@@ -970,11 +969,14 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     gst_structure_remove_fields (st, "width", "height", "framerate",
         "streamheader", "codec_data", NULL);
 
-    if (!gst_caps_can_intersect (new_caps, current_caps) &&
-        !kms_utils_caps_is_raw (current_caps)
+    if (!gst_caps_can_intersect (new_caps, current_caps)
+        && !kms_utils_caps_is_raw (current_caps)
         && !kms_utils_caps_is_raw (new_caps)) {
-      GST_DEBUG_OBJECT (self, "Caps differ caps: %" GST_PTR_FORMAT, new_caps);
+      GST_DEBUG_OBJECT (self, "Set new caps: %" GST_PTR_FORMAT, new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "No need to set new caps");
     }
 
     gst_caps_unref (current_caps);
@@ -1321,13 +1323,12 @@ check_ret_error (GstPad * pad, GstFlowReturn ret)
     case GST_FLOW_NOT_NEGOTIATED:
     case GST_FLOW_NOT_LINKED:
       // TODO: We should notify this as an error to remote client
-      GST_WARNING_OBJECT (pad, "Ignoring flow returned %s",
+      GST_WARNING_OBJECT (pad, "Ignoring flow status: %s",
           gst_flow_get_name (ret));
       ret = GST_FLOW_OK;
       break;
-
     default:
-      GST_WARNING_OBJECT (pad, "Flow returned %s", gst_flow_get_name (ret));
+      GST_WARNING_OBJECT (pad, "Flow status: %s", gst_flow_get_name (ret));
       break;
   }
 
