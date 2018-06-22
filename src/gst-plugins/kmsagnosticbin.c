@@ -85,6 +85,7 @@ struct _KmsAgnosticBin2Private
   GRecMutex thread_mutex;
 
   GstElement *input_tee;
+  GstElement *input_fakesink;
   GstCaps *input_caps;
   GstBin *input_bin;
   GstCaps *input_bin_src_caps;
@@ -1319,7 +1320,45 @@ check_ret_error (GstPad * pad, GstFlowReturn ret)
     case GST_FLOW_OK:
     case GST_FLOW_FLUSHING:
       break;
-    case GST_FLOW_ERROR:
+    case GST_FLOW_ERROR: {
+
+      KmsAgnosticBin2 *self =
+          KMS_AGNOSTIC_BIN2 (gst_pad_get_parent_element (pad));
+
+      gchar *fakesink_message;
+      g_object_get (self->priv->input_fakesink, "last-message",
+          &fakesink_message, NULL);
+      GST_FIXME_OBJECT (pad, "Handling flow error, fakesink message: %s",
+          fakesink_message);
+      g_free (fakesink_message);
+
+      GST_FIXME_OBJECT (pad, "REPLACE FAKESINK");
+      GstElement *fakesink = self->priv->input_fakesink;
+      kms_utils_bin_remove (GST_BIN (self), fakesink);
+      fakesink = kms_utils_element_factory_make ("fakesink", "agnosticbin_");
+      self->priv->input_fakesink = fakesink;
+      g_object_set (fakesink, "async", FALSE, "sync", FALSE,
+          "silent", FALSE,
+          NULL);
+
+      gst_bin_add (GST_BIN (self), fakesink);
+      gst_element_sync_state_with_parent (fakesink);
+      gst_element_link (self->priv->input_tee, fakesink);
+
+      // fakesink setup
+      GstPad *sink = gst_element_get_static_pad (fakesink, "sink");
+      gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+          kms_agnostic_bin2_sink_caps_probe, self, NULL);
+      g_object_unref (sink);
+
+      GST_FIXME_OBJECT (pad, "RECONFIGURE INPUT TREEBIN");
+      kms_agnostic_bin2_configure_input (self, self->priv->input_caps);
+
+      // TODO: We should notify this as an error to remote client
+      GST_FIXME_OBJECT (pad, "Ignoring flow error");
+      ret = GST_FLOW_OK;
+      break;
+    }
     case GST_FLOW_NOT_NEGOTIATED:
     case GST_FLOW_NOT_LINKED:
       // TODO: We should notify this as an error to remote client
@@ -1368,9 +1407,12 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 
   tee = kms_utils_element_factory_make ("tee", "agnosticbin_");
   self->priv->input_tee = tee;
-  fakesink = gst_element_factory_make ("fakesink", NULL);
 
-  g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
+  fakesink = kms_utils_element_factory_make ("fakesink", "agnosticbin_");
+  self->priv->input_fakesink = fakesink;
+  g_object_set (fakesink, "async", FALSE, "sync", FALSE,
+      "silent", FALSE, // FIXME used to print log in check_ret_error()
+      NULL);
 
   gst_bin_add_many (GST_BIN (self), tee, fakesink, NULL);
   gst_element_link_many (tee, fakesink, NULL);
