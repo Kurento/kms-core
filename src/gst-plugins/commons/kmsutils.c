@@ -107,6 +107,35 @@ gst_element_sync_state_with_parent_target_state (GstElement * element)
   return TRUE;
 }
 
+/* ---- GstBin ---- */
+
+void
+kms_utils_bin_remove (GstBin * bin, GstElement * element)
+{
+  GST_DEBUG ("Remove %" GST_PTR_FORMAT " from %" GST_PTR_FORMAT, element, bin);
+
+  if (!gst_element_set_locked_state (element, TRUE)) {
+    GST_ERROR ("Cannot lock element %" GST_PTR_FORMAT, element);
+  }
+
+  gst_element_set_state (element, GST_STATE_NULL);
+
+  // gst_bin_remove() unlinks all pads and unrefs the object
+  gst_bin_remove (bin, element);
+}
+
+/* ---- GstElement ---- */
+
+GstElement* kms_utils_element_factory_make (const gchar *factoryname,
+    const gchar *name_prefix)
+{
+  GstElement* element = gst_element_factory_make (factoryname, NULL);
+  gchar *old_name = GST_ELEMENT_NAME (element);
+  GST_ELEMENT_NAME (element) = g_strconcat (name_prefix, old_name, NULL);
+  g_free (old_name);
+  return element;
+}
+
 /* Caps begin */
 
 static GstStaticCaps static_audio_caps =
