@@ -479,7 +479,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
   rate = kms_utils_create_rate_for_caps (caps);
   convert = kms_utils_create_convert_for_caps (caps);
   mediator = kms_utils_create_mediator_element (caps);
-  queue = gst_element_factory_make ("queue", NULL);
+  queue = kms_utils_element_factory_make ("queue", "enctreebin_");
   g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
 
   if (rate) {
@@ -501,7 +501,7 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
     GstCaps *filter_caps = gst_caps_from_string ("video/x-raw,format=I420");
     GstPad *sink;
 
-    capsfilter = gst_element_factory_make ("capsfilter", NULL);
+    capsfilter = kms_utils_element_factory_make ("capsfilter", "enctreebin_");
     sink = gst_element_get_static_pad (capsfilter, "sink");
     gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         check_caps_probe, NULL, NULL);

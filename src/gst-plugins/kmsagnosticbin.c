@@ -414,7 +414,7 @@ static void
 kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement * tee, GstCaps * caps)
 {
-  GstElement *queue = gst_element_factory_make ("queue", NULL);
+  GstElement *queue = kms_utils_element_factory_make ("queue", "agnosticbin_");
   GstPad *target;
   GstProxyPad *proxy;
 
@@ -1365,7 +1365,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
 
   self->priv = KMS_AGNOSTIC_BIN2_GET_PRIVATE (self);
 
-  tee = gst_element_factory_make ("tee", NULL);
+  tee = kms_utils_element_factory_make ("tee", "agnosticbin_");
   self->priv->input_tee = tee;
   fakesink = gst_element_factory_make ("fakesink", NULL);
 
