@@ -101,6 +101,8 @@ struct _KmsAgnosticBin2Private
 
   GstStructure *codec_config;
   gboolean bitrate_unlimited;
+
+  gboolean transcoding_enabled;
 };
 
 enum
@@ -718,15 +720,24 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
     GST_LOG_OBJECT (self, "Created TreeBin: %" GST_PTR_FORMAT, bin);
 
-    g_signal_emit (GST_BIN (self),
-        kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, TRUE, type);
-    GST_INFO_OBJECT (self, "TRANSCODING is ACTIVE for this media");
-  } else {
-    GST_INFO_OBJECT (self, "Bin found! Connection doesn't require transcoding");
+    if (!self->priv->transcoding_enabled) {
+      // Only signal "transcoding enabled" once
+      g_signal_emit (GST_BIN (self),
+          kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, TRUE, type);
+      GST_INFO_OBJECT (self, "TRANSCODING is ACTIVE for this media");
+      self->priv->transcoding_enabled = TRUE;
+    }
+  }
+  else {
+    GST_DEBUG_OBJECT (self, "TreeBin found! Reuse it");
 
-    g_signal_emit (GST_BIN (self),
-        kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
-    GST_INFO_OBJECT (self, "TRANSCODING is INACTIVE for this media");
+    if (!self->priv->transcoding_enabled) {
+      // Only signal "transcoding disabled" if we didn't really create a
+      // previous EncTreeBin
+      g_signal_emit (GST_BIN (self),
+          kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
+      GST_INFO_OBJECT (self, "TRANSCODING is INACTIVE for this media");
+    }
   }
 
   return bin;
@@ -1450,6 +1461,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->min_bitrate = MIN_BITRATE_DEFAULT;
   self->priv->max_bitrate = MAX_BITRATE_DEFAULT;
   self->priv->bitrate_unlimited = FALSE;
+  self->priv->transcoding_enabled = FALSE;
 }
 
 gboolean
