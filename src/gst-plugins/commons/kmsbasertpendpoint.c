@@ -271,8 +271,8 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define DEFAULT_RTCP_REMB    FALSE
 #define DEFAULT_TARGET_BITRATE    0
 #define MIN_VIDEO_RECV_BW_DEFAULT 0
-#define MIN_VIDEO_SEND_BW_DEFAULT 100
-#define MAX_VIDEO_SEND_BW_DEFAULT 500
+#define MIN_VIDEO_SEND_BW_DEFAULT 100  // kbps
+#define MAX_VIDEO_SEND_BW_DEFAULT 500  // kbps
 
 enum
 {
