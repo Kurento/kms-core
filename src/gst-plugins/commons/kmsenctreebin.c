@@ -289,7 +289,7 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
     return;
   }
 
-  GST_DEBUG_OBJECT (self->priv->enc, "Setting encoding bitrate to: %d",
+  GST_DEBUG_OBJECT (self->priv->enc, "Set target encoding bitrate: %d bps",
       target_bitrate);
 
   switch (self->priv->enc_type) {
@@ -299,8 +299,6 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "target-bitrate", &last_br, NULL);
       if (last_br / 1000 != target_bitrate / 1000) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "target-bitrate", target_bitrate, NULL);
       }
       break;
@@ -311,8 +309,6 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
       if (last_br != new_br) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
       break;
@@ -323,13 +319,11 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
 
       g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
       if (last_br / 1000 != new_br / 1000) {
-        GST_DEBUG_OBJECT (self->priv->enc, "Set bitrate: %" G_GUINT32_FORMAT,
-            target_bitrate);
         g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
     }
     default:
-      GST_DEBUG ("Not setting bitrate, encoder not supported");
+      GST_DEBUG ("Skip setting bitrate, encoder not supported");
       break;
   }
 }
