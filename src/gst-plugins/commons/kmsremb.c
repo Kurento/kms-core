@@ -693,12 +693,13 @@ send_remb_event (KmsRembRemote * rm, guint bitrate, guint ssrc)
     br = MIN (br, max);
   }
 
+  // Custom "bitrate" upstream event that tells the encoder to set a new br
   GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-      "'on-feedback-rtcp' send upstream event"
-      ", bitrate: %" G_GUINT32_FORMAT
+      "'on-feedback-rtcp' send bitrate event"
       ", ssrc: %" G_GUINT32_FORMAT
-      ", range [%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT "]"
-      ", event bitrate: %" G_GUINT32_FORMAT, bitrate, ssrc, min, max, br);
+      ", target br: %" G_GUINT32_FORMAT
+      ", valid range: [%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT "]"
+      ", new br: %" G_GUINT32_FORMAT, ssrc, bitrate, min, max, br);
 
   event = kms_utils_remb_event_upstream_new (br, ssrc);
   gst_pad_push_event (rm->pad_event, event);
