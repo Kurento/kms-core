@@ -212,6 +212,8 @@ kms_base_rtp_session_e2e_latency_cb (GstPad * pad, KmsMediaType type,
     stat = (StreamE2EAvgStat *) value;
     stat->avg = KMS_STATS_CALCULATE_LATENCY_AVG (t, stat->avg);
   }
+
+  g_free (name);
 }
 
 static void
