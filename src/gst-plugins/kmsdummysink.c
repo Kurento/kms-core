@@ -294,6 +294,7 @@ kms_dummy_sink_release_requested_sink_pad (KmsElement * obj, GstPad * pad)
 
   kms_element_remove_sink_by_type_full (obj, dummy->type, dummy->description);
   g_hash_table_remove (self->priv->sinks, padname);
+  g_free (padname);
 
   return TRUE;
 }
