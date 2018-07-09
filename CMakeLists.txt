@@ -36,6 +36,9 @@ if(HAS_WARNING_DATE_TIME)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=date-time")
 endif()
 
+# Development
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-function")
+
 # Decide between std::regex or boost::regex
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX_FLAGS})
