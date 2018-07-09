@@ -433,6 +433,7 @@ MediaSet::unref (const std::string &sessionId,
     }
 
     childrenMap.erase (mediaObject->getId() );
+    reverseSessionMap.erase (mediaObject->getId() );
   }
 
   auto eventIt = eventHandler.find (sessionId);
