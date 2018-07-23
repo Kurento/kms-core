@@ -1,8 +1,49 @@
 {
-  "license": "ALv2",
-  "homepage": "http://www.kurento.com",
-  "author": "Kurento <info@kurento.com> (http://kurento.org)",
+  "keywords": [
+    "kurento",
+    "mcu",
+    "sfu",
+    "rpc",
+    "mediaserver",
+    "pipe",
+    "audio",
+    "video",
+    "media",
+    "recording",
+    "stream",
+    "streaming",
+    "videoconference",
+    "broadcast",
+    "multicast",
+    "client",
+    "server",
+    "browser",
+    "chrome",
+    "edge",
+    "firefox",
+    "safari",
+    "webrtc",
+    "datachannel",
+    "sdp",
+    "ice",
+    "stun",
+    "turn",
+    "h264",
+    "h.264",
+    "opus",
+    "vp8",
+    "rtp",
+    "srtp",
+    "rtsp"
+  ],
+  "homepage": "https://www.kurento.org",
+  "license": "Apache-2.0",
+  "author": "Kurento <openvidu@gmail.com> (https://www.kurento.org)",
+  "contributors": [
+    "Kurento Community <kurento@googlegroups.com> (https://www.kurento.org)"
+  ],
   "bugs": {
+    "url": "https://github.com/Kurento/bugtracker/issues",
     "email": "kurento@googlegroups.com"
   }
 }
