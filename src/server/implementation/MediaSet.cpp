@@ -128,7 +128,7 @@ void MediaSet::doGarbageCollection ()
       sessionInUse[it.first] = false;
       lock.unlock();
     } else {
-      GST_WARNING ("Session timeout: %s", it.first.c_str() );
+      GST_WARNING ("Remove inactive session: %s", it.first.c_str() );
       unrefSession (it.first);
     }
   }
@@ -165,8 +165,8 @@ MediaSet::~MediaSet ()
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  if (!objectsMap.empty() ) {
-    GST_DEBUG ("Still %zu object/s alive", objectsMap.size() );
+  if (objectsMap.size() > 1) {
+    GST_WARNING ("Still %zu object/s alive", objectsMap.size());
   }
 
   terminated = true;

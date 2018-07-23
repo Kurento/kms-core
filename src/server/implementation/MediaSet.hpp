@@ -111,19 +111,49 @@ private:
 
   std::shared_ptr <ServerManagerImpl> serverManager;
 
-  std::map<std::string, std::weak_ptr <MediaObjectImpl>> objectsMap;
+  std::map<
+      std::string,
+      std::weak_ptr<MediaObjectImpl>
+  > objectsMap;
 
-  std::map<std::string, std::map <std::string, std::shared_ptr <MediaObjectImpl>>>
-  childrenMap;
+  std::map<
+      std::string,  // Parent Object ID
+      std::map<
+          std::string,  // Child Object ID
+          std::shared_ptr<MediaObjectImpl>
+      >
+  > childrenMap;
 
-  std::map<std::string, std::map <std::string, std::shared_ptr<MediaObjectImpl>>>
-  sessionMap;
+  std::map<
+      std::string,  // Session ID
+      std::map<
+          std::string,  // Object ID
+          std::shared_ptr<MediaObjectImpl>
+      >
+  > sessionMap;
 
-  std::map<std::string, bool> sessionInUse;
-  std::map<std::string, std::map<std::string, std::map<std::string, std::shared_ptr<EventHandler>>>>
-  eventHandler;
+  std::map<
+      std::string,  // Object ID
+      std::unordered_set<
+          std::string  // Session ID
+      >
+  > reverseSessionMap;
 
-  std::map<std::string, std::unordered_set<std::string>> reverseSessionMap;
+  std::map<
+      std::string,  // Session ID
+      bool
+  > sessionInUse;
+
+  std::map<
+      std::string,  // Session ID
+      std::map<
+          std::string,  // Object ID
+          std::map<
+              std::string,  // Subscription ID
+              std::shared_ptr<EventHandler>
+          >
+      >
+  > eventHandler;
 
   std::shared_ptr<WorkerPool> workers;
 
