@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - All: Apply multiple fixes suggested by *clang-tidy*.
-- Add 'a=setup' to SDP Offers (Kurento/bugtracker#241).
+- [#241](https://github.com/Kurento/bugtracker/issues/241) (Add 'a=setup' to SDP Offers).
 
 ## [6.7.1] - 2018-03-21
 
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.7.0] - 2018-01-24
 
 ### Changed
-- CMake: Compile and link as Position Independent Code ('-fPIC').
+- CMake: Compile and link as Position Independent Code (``fPIC``).
 - Add more verbose logging in some areas that required it.
 - Debian: Align all version numbers of KMS-related modules.
 - Debian: Remove version numbers from package names.
@@ -35,17 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Reset stats after RTP source gets reconnected. The RTP sources assume a starting point of 0, so KMS must also adjust its own status after a reconnection.
-- Fix [#197](https://github.com/Kurento/bugtracker/issues/197) (Composite Hub making audio choppy) with [#9](https://github.com/Kurento/kms-core/pull/9) (fix composite: kmsenctreebin.c use max-size-time instead of max-size-buffers), by @ruddell (Jon Ruddell).
+- [#197](https://github.com/Kurento/bugtracker/issues/197) (Composite Hub making audio choppy) with [PR#9](https://github.com/Kurento/kms-core/pull/9) (kmsenctreebin.c use max-size-time instead of max-size-buffers), by [@ruddell](https://github.com/ruddell) (Jon Ruddell).
 
 ## [6.6.3] - 2017-08-10
 
 ### Changed
-- Prevent frames from building up in the buffer if the CPU falls behind, by @kc7bfi (David Robison).
+- [PR#7](https://github.com/Kurento/kms-core/pull/7) (Prevent frames from building up in the buffer if the CPU falls behind), by [@kc7bfi](https://github.com/kc7bfi) (David Robison).
 
 ## [6.6.2] - 2017-07-24
 
 ### Added
-- REMB: Add "COMEDIA"/automatic port discovery. [Documentation](http://doc-kurento.readthedocs.io/en/latest/features/nat_traversal.html#rtp-without-ice).
+- REMB: Add "COMEDIA"/automatic port discovery. [Documentation](https://doc-kurento.readthedocs.io/en/latest/features/nat_traversal.html#rtp-without-ice).
 - REMB: Enable for RTP connections. Previously, it would only work for WebRTC.
 
 ### Changed
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Bugfix: Out of bound access on SDP medias.
-- Use format macros to fix compiler errors on 32bit systems, by @fancycode (Joachim Bauch).
+- [PR#5](https://github.com/Kurento/kms-core/pull/5) (Use format macros to fix compiler errors on 32bit systems), by [@fancycode](https://github.com/fancycode) (Joachim Bauch).
 - When a non incremental PTS is discovered in an input stream, the internal DTS gets updated with the new PTS value.
 
 ## [6.6.1] - 2016-09-30
