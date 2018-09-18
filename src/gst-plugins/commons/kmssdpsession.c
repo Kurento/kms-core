@@ -199,7 +199,7 @@ kms_sdp_session_get_local_sdp (KmsSdpSession * self)
 {
   GstSDPMessage *sdp = NULL;
 
-  GST_DEBUG_OBJECT (self, "Get local SDP");
+  GST_LOG_OBJECT (self, "Get local SDP");
 
   if (self->local_sdp != NULL) {
     gst_sdp_message_copy (self->local_sdp, &sdp);
@@ -213,7 +213,7 @@ kms_sdp_session_get_remote_sdp (KmsSdpSession * self)
 {
   GstSDPMessage *sdp = NULL;
 
-  GST_DEBUG_OBJECT (self, "Get remote SDP");
+  GST_LOG_OBJECT (self, "Get remote SDP");
 
   if (self->remote_sdp != NULL) {
     gst_sdp_message_copy (self->remote_sdp, &sdp);
@@ -249,7 +249,7 @@ kms_sdp_session_finalize (GObject * object)
 {
   KmsSdpSession *self = KMS_SDP_SESSION (object);
 
-  GST_DEBUG_OBJECT (self, "finalize");
+  GST_LOG_OBJECT (self, "finalize");
 
   if (self->local_sdp != NULL) {
     gst_sdp_message_free (self->local_sdp);
