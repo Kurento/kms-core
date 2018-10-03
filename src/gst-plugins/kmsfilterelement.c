@@ -141,6 +141,12 @@ kms_filter_element_set_filter (KmsFilterElement * self, GstElement * filter)
   }
 
   sink = gst_element_get_static_pad (filter, "sink");
+
+  if (sink == NULL) {
+    // Provides compatibility with 'textoverlay'
+    sink = gst_element_get_static_pad (filter, "video_sink");
+  }
+
   src = gst_element_get_static_pad (filter, "src");
 
   if (sink == NULL || src == NULL) {
