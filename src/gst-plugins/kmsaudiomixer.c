@@ -830,7 +830,8 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
 
   g_object_set (tee, "allow-not-linked", TRUE, NULL);
   g_object_set (fakesink, "sync", FALSE, "async", FALSE, NULL);
-  g_object_set (adder, "latency", LATENCY * GST_MSECOND, NULL);
+  g_object_set (adder, "latency", LATENCY * GST_MSECOND, "start-time-selection",
+    1, NULL);
 
   g_object_set_qdata_full (G_OBJECT (adder), key_sink_pad_name_quark (),
       g_strdup (padname), g_free);
