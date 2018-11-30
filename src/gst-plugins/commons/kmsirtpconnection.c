@@ -23,7 +23,7 @@ enum
   LAST_SIGNAL
 };
 
-#define DEFAULT_MIN_PORT 1
+#define DEFAULT_MIN_PORT 1024
 #define DEFAULT_MAX_PORT G_MAXUINT16
 
 static guint kms_i_rtp_connection_signals[LAST_SIGNAL] = { 0 };
