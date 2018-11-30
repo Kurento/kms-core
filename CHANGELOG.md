@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.8.0] - 2018-09-26
 
 ### Added
-- Hub, HubPort: Add support for DATA streams
+- Hub, HubPort: Add support for DATA streams.
+- GStreamerFilter now can set the inner element's properties "on the fly" during runtime.
 
 ### Changed
 - Use kms_utils_element_factory_make() for better element names in debug graphs
