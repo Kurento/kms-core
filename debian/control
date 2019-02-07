@@ -1,70 +1,60 @@
 Source: kms-core
-Maintainer: Kurento <kurento@googlegroups.com>
 Priority: optional
+Maintainer: Kurento <kurento@googlegroups.com>
 Build-Depends: debhelper (>= 9),
  cmake,
- pkg-config,
- uuid-dev,
+ gstreamer1.5-libav,
+ gstreamer1.5-plugins-bad,
+ gstreamer1.5-plugins-base,
+ gstreamer1.5-plugins-good,
+ gstreamer1.5-plugins-ugly,
+ kms-cmake-utils (>= 6.7.0),
+ kms-jsonrpc-dev (>= 6.7.0),
+ kurento-module-creator (>= 6.7.0),
  libboost-filesystem-dev,
- libboost-regex-dev,
  libboost-system-dev,
  libboost-test-dev,
- libglib2.0-dev (>= 2.46),
  libglibmm-2.4-dev,
+ libgstreamer-plugins-base1.5-dev,
+ libgstreamer1.5-dev,
  libsigc++-2.0-dev,
  libvpx-dev,
- libxml2-utils,
- libgstreamer-plugins-base1.5-dev (>= 1.7.1~0),
- libgstreamer1.5-dev (>= 1.7.1~0),
- gstreamer1.5-libav,
- gstreamer1.5-plugins-bad (>= 1.7.1~0),
- gstreamer1.5-plugins-base (>= 1.7.1~0),
- gstreamer1.5-plugins-good (>= 1.7.1~0),
- gstreamer1.5-plugins-ugly (>= 1.7.1~0),
- kurento-module-creator (>= 6.7.0),
- kms-cmake-utils (>= 6.7.0),
- kms-jsonrpc-dev (>= 6.7.0)
+ uuid-dev
 Standards-Version: 4.0.0
-Homepage: www.kurento.org
-Vcs-Browser: https://github.com/Kurento/kms-core
 Vcs-Git: https://github.com/Kurento/kms-core.git
+Vcs-Browser: https://github.com/Kurento/kms-core
+Homepage: https://www.kurento.org
 
 Package: kms-core
 Architecture: any
 Section: libs
-Depends: ${shlibs:Depends},
- ${misc:Depends},
- libglib2.0-0 (>= 2.46),
- gstreamer1.5-libav,
- gstreamer1.5-plugins-bad (>= 1.7.1~0),
- gstreamer1.5-plugins-base (>= 1.7.1~0),
- gstreamer1.5-plugins-good (>= 1.7.1~0),
- gstreamer1.5-plugins-ugly (>= 1.7.1~0),
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ gstreamer1.5-plugins-base,
  kms-jsonrpc (>= 6.7.0)
 Breaks: kms-core-6.0
 Replaces: kms-core-6.0
 Description: Kurento Core module
- Kurento Core module - Binary libraries
+ Kurento Core module - Binary libraries.
 
 Package: kms-core-dev
 Architecture: any
 Section: libdevel
 Depends: kms-core (= ${binary:Version}),
+ kms-cmake-utils (>= 6.7.0),
+ kms-jsonrpc-dev (>= 6.7.0),
+ kurento-module-creator (>= 6.7.0),
  libboost-filesystem-dev,
- libboost-regex-dev,
  libboost-system-dev,
  libboost-test-dev,
  libglibmm-2.4-dev,
+ libgstreamer1.5-dev,
  libsigc++-2.0-dev,
- libgstreamer-plugins-base1.5-dev (>= 1.5.0~0),
- libgstreamer1.5-dev (>= 1.5.0~0),
- kurento-module-creator (>= 6.7.0),
- kms-cmake-utils (>= 6.7.0),
- kms-jsonrpc-dev (>= 6.7.0)
+ libvpx-dev,
+ uuid-dev
 Breaks: kms-core-6.0-dev
 Replaces: kms-core-6.0-dev
 Description: Kurento Core module
- Kurento Core module - Development files
+ Kurento Core module - Development files.
 
 Package: kms-core-dbg
 Architecture: any
@@ -73,4 +63,4 @@ Depends: kms-core (= ${binary:Version})
 Breaks: kms-core-6.0-dbg
 Replaces: kms-core-6.0-dbg
 Description: Kurento Core module
- Kurento Core module - Debugging symbols
+ Kurento Core module - Debugging symbols.
