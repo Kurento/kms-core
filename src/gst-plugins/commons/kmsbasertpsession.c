@@ -854,6 +854,6 @@ kms_base_rtp_session_class_init (KmsBaseRtpSessionClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsBaseRtpSessionClass, connection_state_changed), NULL,
-      NULL, __kms_core_marshal_VOID__STRING_ENUM, G_TYPE_NONE, 1,
+      NULL, g_cclosure_marshal_VOID__ENUM, G_TYPE_NONE, 1,
       KMS_TYPE_CONNECTION_STATE);
 }

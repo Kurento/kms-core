@@ -38,7 +38,7 @@ struct GF {
   ~GF();
 };
 
-BOOST_GLOBAL_FIXTURE (GF)
+BOOST_GLOBAL_FIXTURE (GF);
 
 GF::GF()
 {

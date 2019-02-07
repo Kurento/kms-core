@@ -125,9 +125,9 @@ public:
     } catch (boost::property_tree::ptree_bad_path &e) {
       /* This case is expected, the config does not have the requested key */
     } catch (KurentoException &e) {
-      GST_WARNING ("Posible error deserializing %s from config", key.c_str() );
+      GST_WARNING ("Error deserializing '%s' from config: %s", key.c_str(), e.what());
     } catch (std::exception &e) {
-      GST_WARNING ("Unknown error getting '%s' from config", key.c_str() );
+      GST_WARNING ("Error getting '%s' from config: %s", key.c_str(), e.what());
     }
 
     return defaultValue;

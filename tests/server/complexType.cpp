@@ -24,6 +24,7 @@
 #include <Fraction.hpp>
 #include <gst/gst.h>
 #include <MediaSet.hpp>
+#include <iostream>
 
 using namespace kurento;
 
@@ -32,7 +33,7 @@ struct GF {
   ~GF();
 };
 
-BOOST_GLOBAL_FIXTURE (GF)
+BOOST_GLOBAL_FIXTURE (GF);
 
 GF::GF() = default;
 

@@ -41,7 +41,7 @@ struct InitTests {
   ~InitTests();
 };
 
-BOOST_GLOBAL_FIXTURE (InitTests)
+BOOST_GLOBAL_FIXTURE (InitTests);
 
 InitTests::InitTests()
 {

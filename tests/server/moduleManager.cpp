@@ -26,6 +26,7 @@
 #include <MediaSet.hpp>
 
 #include <config.h>
+#include <iostream>
 
 using namespace kurento;
 
@@ -34,7 +35,7 @@ struct GF {
   ~GF();
 };
 
-BOOST_GLOBAL_FIXTURE (GF)
+BOOST_GLOBAL_FIXTURE (GF);
 
 GF::GF() = default;
 

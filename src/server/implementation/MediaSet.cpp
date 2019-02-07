@@ -33,7 +33,7 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaSet"
 
-const int MEDIASET_THREADS_DEFAULT = 1;
+const int MEDIASET_THREADS_DEFAULT = 10;
 
 namespace kurento
 {

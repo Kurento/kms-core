@@ -102,7 +102,7 @@ struct _KmsAgnosticBin2Private
   GstStructure *codec_config;
   gboolean bitrate_unlimited;
 
-  gboolean transcoding_enabled;
+  gboolean transcoding_emitted;
 };
 
 enum
@@ -702,43 +702,55 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
 {
   GstBin *bin;
   KmsMediaType type;
+  gchar* media_type = NULL;
 
   if (kms_utils_caps_is_audio (caps)) {
     type = KMS_MEDIA_TYPE_AUDIO;
+    media_type = g_strdup ("audio");
   }
   else {
     type = KMS_MEDIA_TYPE_VIDEO;
+    media_type = g_strdup ("video");
   }
 
-  GST_DEBUG_OBJECT (self, "Find TreeBin with output caps: %" GST_PTR_FORMAT, caps);
+  GST_DEBUG_OBJECT (self, "Find TreeBin, output caps: %" GST_PTR_FORMAT, caps);
 
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
   if (bin == NULL) {
-    GST_DEBUG_OBJECT (self, "TreeBin not found! Connection requires transcoding");
+    GST_DEBUG_OBJECT (self, "TreeBin not found! Transcoding required for %s",
+        media_type);
 
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
     GST_LOG_OBJECT (self, "Created TreeBin: %" GST_PTR_FORMAT, bin);
 
-    if (!self->priv->transcoding_enabled) {
-      // Only signal "transcoding enabled" once
+    if (!self->priv->transcoding_emitted) {
+      self->priv->transcoding_emitted = TRUE;
       g_signal_emit (GST_BIN (self),
           kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, TRUE, type);
-      GST_INFO_OBJECT (self, "TRANSCODING is ACTIVE for this media");
-      self->priv->transcoding_enabled = TRUE;
+      GST_INFO_OBJECT (self, "TRANSCODING ACTIVE for %s", media_type);
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Suppressed - TRANSCODING ACTIVE for %s",
+          media_type);
     }
   }
   else {
-    GST_DEBUG_OBJECT (self, "TreeBin found! Reuse it");
+    GST_DEBUG_OBJECT (self, "TreeBin found! Reuse it for %s", media_type);
 
-    if (!self->priv->transcoding_enabled) {
-      // Only signal "transcoding disabled" if we didn't really create a
-      // previous EncTreeBin
+    if (!self->priv->transcoding_emitted) {
+      self->priv->transcoding_emitted = TRUE;
       g_signal_emit (GST_BIN (self),
           kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
-      GST_INFO_OBJECT (self, "TRANSCODING is INACTIVE for this media");
+      GST_INFO_OBJECT (self, "TRANSCODING INACTIVE for %s", media_type);
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Suppressed - TRANSCODING INACTIVE for %s",
+          media_type);
     }
   }
+
+  g_free (media_type);
 
   return bin;
 }
@@ -1461,7 +1473,7 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->min_bitrate = MIN_BITRATE_DEFAULT;
   self->priv->max_bitrate = MAX_BITRATE_DEFAULT;
   self->priv->bitrate_unlimited = FALSE;
-  self->priv->transcoding_enabled = FALSE;
+  self->priv->transcoding_emitted = FALSE;
 }
 
 gboolean

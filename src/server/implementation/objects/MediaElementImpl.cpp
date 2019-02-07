@@ -523,6 +523,7 @@ MediaElementImpl::onMediaTranscodingStateChange (gboolean isTranscoding,
                                        state, binName, padTypeToMediaType (type));
     signalMediaTranscodingStateChange (event);
   } catch (std::bad_weak_ptr &e) {
+    GST_WARNING_OBJECT (element, "Cannot emit event: MediaTranscodingStateChange");
   }
 }
 
