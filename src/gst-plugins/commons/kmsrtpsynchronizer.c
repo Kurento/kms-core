@@ -18,6 +18,8 @@
 #include "kmsrtpsynchronizer.h"
 #include <glib/gstdio.h>
 
+#include <sys/stat.h>  // 'ACCESSPERMS' is not POSIX, requires GNU extensions in GCC
+
 #define GST_DEFAULT_NAME "rtpsynchronizer"
 GST_DEBUG_CATEGORY_STATIC (kms_rtp_synchronizer_debug_category);
 #define GST_CAT_DEFAULT kms_rtp_synchronizer_debug_category
@@ -148,7 +150,7 @@ kms_rtp_synchronizer_init_stats_file (KmsRtpSynchronizer * self,
       g_strdup_printf ("%s/%s_%s.csv", stats_files_dir, date_str, stats_name);
   g_free (date_str);
 
-  if (g_mkdir_with_parents (stats_files_dir, 0777) < 0) {
+  if (g_mkdir_with_parents (stats_files_dir, ACCESSPERMS) < 0) {
     GST_ERROR_OBJECT (self,
         "Cannot create directory for stats: %s", stats_files_dir);
     goto end;
