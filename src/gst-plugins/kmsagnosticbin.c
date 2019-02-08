@@ -713,7 +713,7 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     media_type = g_strdup ("video");
   }
 
-  GST_DEBUG_OBJECT (self, "Find TreeBin, output caps: %" GST_PTR_FORMAT, caps);
+  GST_DEBUG_OBJECT (self, "Find TreeBin with wanted caps: %" GST_PTR_FORMAT, caps);
 
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
@@ -736,7 +736,7 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     }
   }
   else {
-    GST_DEBUG_OBJECT (self, "TreeBin found! Reuse it for %s", media_type);
+    GST_DEBUG_OBJECT (self, "TreeBin found! Use it for %s", media_type);
 
     if (!self->priv->transcoding_emitted) {
       self->priv->transcoding_emitted = TRUE;
@@ -773,7 +773,7 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
 
   pad_caps = gst_pad_query_caps (pad, NULL);
   if (pad_caps != NULL) {
-    GST_INFO_OBJECT (self, "Current output caps: %" GST_PTR_FORMAT, pad_caps);
+    GST_INFO_OBJECT (self, "Upstream provided caps: %" GST_PTR_FORMAT, pad_caps);
     gst_caps_unref (pad_caps);
   }
 
@@ -782,7 +782,7 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
     goto end;
   }
 
-  GST_INFO_OBJECT (self, "Downstream input caps: %" GST_PTR_FORMAT, peer_caps);
+  GST_INFO_OBJECT (self, "Downstream wanted caps: %" GST_PTR_FORMAT, peer_caps);
 
   bin = kms_agnostic_bin2_find_or_create_bin_for_caps (self, peer_caps);
 
