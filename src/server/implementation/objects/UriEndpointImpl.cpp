@@ -83,9 +83,8 @@ void UriEndpointImpl::checkUri ()
   //Check if uri is an absolute or relative path.
   if (! (gst_uri_is_valid (this->absolute_uri.c_str () ) ) ) {
     std::string path;
-
-    path = getConfigValue <std::string, UriEndpoint> (DEFAULT_PATH,
-           DEFAULT_PATH_VALUE);
+    getConfigValue <std::string, UriEndpoint> (&path, DEFAULT_PATH,
+        DEFAULT_PATH_VALUE);
 
     this->absolute_uri = path + "/" + this->uri;
   }

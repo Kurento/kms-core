@@ -94,20 +94,14 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
                        (ConnectionState::DISCONNECTED);
   connStateChangedHandlerId = 0;
 
-  try {
-    guint minPort = getConfigValue<guint, BaseRtpEndpoint> (PARAM_MIN_PORT);
-
+  guint minPort;
+  if (getConfigValue<guint, BaseRtpEndpoint> (&minPort, PARAM_MIN_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MIN_PORT, minPort, NULL);
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* Expected when configuration is not set */
   }
 
-  try {
-    guint maxPort = getConfigValue <guint, BaseRtpEndpoint> (PARAM_MAX_PORT);
-
+  guint maxPort;
+  if (getConfigValue <guint, BaseRtpEndpoint> (&maxPort, PARAM_MAX_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* Expected when configuration is not set */
   }
 }
 

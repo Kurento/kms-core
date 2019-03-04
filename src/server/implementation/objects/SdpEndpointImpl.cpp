@@ -112,7 +112,6 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   SessionEndpointImpl (config, parent, factoryName)
 {
   GArray *audio_codecs, *video_codecs;
-  guint audio_medias, video_medias;
 
   audio_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
   video_codecs = g_array_new (FALSE, TRUE, sizeof (GValue) );
@@ -121,33 +120,30 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
 
-  audio_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_AUDIO_MEDIAS, 1);
-  video_medias = getConfigValue <guint, SdpEndpoint> (PARAM_NUM_VIDEO_MEDIAS, 1);
+  guint audio_medias;
+  getConfigValue <guint, SdpEndpoint> (&audio_medias, PARAM_NUM_AUDIO_MEDIAS, 1);
 
-  try {
-    std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
-        <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
-        (PARAM_AUDIO_CODECS);
+  guint video_medias;
+  getConfigValue <guint, SdpEndpoint> (&video_medias, PARAM_NUM_VIDEO_MEDIAS, 1);
 
-    for (std::shared_ptr<CodecConfiguration> conf : list) {
+  std::vector<std::shared_ptr<CodecConfiguration>> acodec_list;
+  getConfigValue <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
+      (&acodec_list, PARAM_AUDIO_CODECS);
 
+  for (std::shared_ptr<CodecConfiguration> conf : acodec_list) {
+    if (!conf->getName().empty()) {
       append_codec_to_array (audio_codecs, conf->getName().c_str() );
     }
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* When key is missing we assume an empty array */
   }
 
-  try {
-    std::vector<std::shared_ptr<CodecConfiguration>> list = getConfigValue
-        <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
-        (PARAM_VIDEO_CODECS);
+  std::vector<std::shared_ptr<CodecConfiguration>> vcodec_list;
+  getConfigValue <std::vector<std::shared_ptr<CodecConfiguration>>, SdpEndpoint>
+      (&vcodec_list, PARAM_VIDEO_CODECS);
 
-    for (std::shared_ptr<CodecConfiguration> conf : list) {
-
+  for (std::shared_ptr<CodecConfiguration> conf : vcodec_list) {
+    if (!conf->getName().empty()) {
       append_codec_to_array (video_codecs, conf->getName().c_str() );
     }
-  } catch (boost::property_tree::ptree_bad_path &e) {
-    /* When key is missing we assume an empty array */
   }
 
   g_object_set (element, "num-audio-medias", audio_medias, "audio-codecs",

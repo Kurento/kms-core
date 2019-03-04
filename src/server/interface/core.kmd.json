@@ -1812,8 +1812,9 @@
       "properties": [
         {
           "name": "name",
-          "doc": "Name of the codec defined as <encoding name>/<clock rate>[/<encoding parameters>]",
-          "type": "String"
+          "doc": "Name of the codec. Must follow this format: <encoding name>/<clock rate>[/<encoding parameters>]",
+          "type": "String",
+          "optional": true
         },
         {
           "name": "properties",
