@@ -36,7 +36,9 @@
 #include "ElementStats.hpp"
 #include "kmsstats.h"
 #include <SignalHandler.hpp>
+
 #include <memory>
+#include <random>
 
 #define GST_CAT_DEFAULT kurento_media_element_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -284,6 +286,25 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   return;
 }
 
+/* https://stackoverflow.com/questions/21237905/how-do-i-generate-thread-safe-uniform-random-numbers/21238187#21238187
+ * > Distributions are extremely cheap (they will be completely inlined by the
+ * optimiser so that the only remaining overhead is the actual random number
+ * rescaling). Don't be afraid to regenerate them as often as you need.
+ *
+ * The actual random number generator, on the other hand, is a heavy-weight
+ * object carrying a lot of state and requiring quite some time to be
+ * constructed, so that should only be initialised once per thread (or even
+ * across threads, but then you'd need to synchronise access which is more
+ * costly in the long run).
+ */
+static std::chrono::milliseconds
+millisRand ()
+{
+    static thread_local std::mt19937_64 generator;
+    std::uniform_int_distribution<int> distribution (1, 100);
+    return std::chrono::milliseconds (distribution (generator));
+}
+
 void
 _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 {
@@ -294,7 +315,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
 
   do {
     if (retry) {
-      GST_DEBUG_OBJECT (pad, "Retriying connection");
+      GST_DEBUG_OBJECT (pad, "Retrying connection");
     }
 
     if (GST_PAD_IS_SRC (pad) ) {
@@ -302,7 +323,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
           std::defer_lock);
       std::shared_ptr<MediaType> type;
 
-      retry = !lock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
+      retry = !lock.try_lock_for (millisRand ());
 
       if (retry) {
         continue;
@@ -333,7 +354,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
               it->getSink()->sourcesMutex,
               std::defer_lock);
 
-            retry = !sinkLock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
+            retry = !sinkLock.try_lock_for (millisRand ());
 
             if (retry) {
               continue;
@@ -350,7 +371,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
           std::defer_lock);
       std::shared_ptr<MediaType> type;
 
-      retry = !lock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
+      retry = !lock.try_lock_for (millisRand ());
 
       if (retry) {
         continue;
@@ -380,7 +401,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
             std::unique_lock<std::recursive_timed_mutex> sourceLock (source->sinksMutex,
                 std::defer_lock);
 
-            retry = !sourceLock.try_lock_for (std::chrono::milliseconds {self->dist (self->rnd) });
+            retry = !sourceLock.try_lock_for (millisRand ());
 
             if (retry) {
               continue;
@@ -642,7 +663,7 @@ void MediaElementImpl::disconnectAll ()
     std::unique_lock<std::recursive_timed_mutex> sinkLock (sinksMutex,
         std::defer_lock);
 
-    if (!sinkLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
+    if (!sinkLock.try_lock_for (millisRand ())) {
       GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
       continue;
     }
@@ -653,7 +674,7 @@ void MediaElementImpl::disconnectAll ()
       std::unique_lock<std::recursive_timed_mutex> sinkLock (sinkImpl->sourcesMutex,
           std::defer_lock);
 
-      if (sinkLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
+      if (sinkLock.try_lock_for (millisRand ())) {
         disconnect (connData->getSink (), connData->getType (),
                     connData->getSourceDescription (),
                     connData->getSinkDescription () );
@@ -669,7 +690,7 @@ void MediaElementImpl::disconnectAll ()
     std::unique_lock<std::recursive_timed_mutex> sourceLock (sourcesMutex,
         std::defer_lock);
 
-    if (!sourceLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
+    if (!sourceLock.try_lock_for (millisRand ())) {
       GST_DEBUG_OBJECT (getGstreamerElement(), "Retry disconnect all");
       continue;
     }
@@ -681,7 +702,7 @@ void MediaElementImpl::disconnectAll ()
       std::unique_lock<std::recursive_timed_mutex> sourceLock (sourceImpl->sinksMutex,
           std::defer_lock);
 
-      if (sourceLock.try_lock_for (std::chrono::milliseconds {dist (rnd) }) ) {
+      if (sourceLock.try_lock_for (millisRand ())) {
         connData->getSource ()->disconnect (connData->getSink (),
                                             connData->getType (),
                                             connData->getSourceDescription (),

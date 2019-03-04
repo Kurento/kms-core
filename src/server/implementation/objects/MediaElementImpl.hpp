@@ -25,7 +25,6 @@
 #include <gst/gst.h>
 #include <mutex>
 #include <set>
-#include <random>
 #include "MediaFlowOutStateChange.hpp"
 #include "MediaFlowInStateChange.hpp"
 #include "MediaTranscodingStateChange.hpp"
@@ -186,9 +185,6 @@ private:
   std::map < std::shared_ptr <MediaType>, std::map < std::string,
       std::set<std::shared_ptr<ElementConnectionDataInternal> >> , MediaTypeCmp >
       sinks;
-
-  std::mt19937_64 rnd {std::random_device{}() };
-  std::uniform_int_distribution<> dist {1, 100};
 
   gulong padAddedHandlerId = 0;
   gulong mediaFlowOutHandler = 0;
