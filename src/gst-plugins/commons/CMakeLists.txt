@@ -7,6 +7,9 @@ set(KMS_SDP_UTILS_HEADERS
 )
 
 add_library(sdputils ${KMS_SDP_UTILS_SOURCES} ${KMS_SDP_UTILS_HEADERS})
+if(SANITIZERS_ENABLED)
+  add_sanitizers(sdputils)
+endif()
 
 set_property(TARGET sdputils
   PROPERTY INCLUDE_DIRECTORIES
@@ -40,6 +43,9 @@ install(
 )
 
 add_library(kmsrefstruct kmsrefstruct.c kmsrefstruct.h)
+if(SANITIZERS_ENABLED)
+  add_sanitizers(kmsrefstruct)
+endif()
 
 set_property(TARGET kmsrefstruct
   PROPERTY INCLUDE_DIRECTORIES
@@ -63,6 +69,9 @@ set(KMS_UTILS
 )
 
 add_library(kmsutils ${KMS_UTILS})
+if(SANITIZERS_ENABLED)
+  add_sanitizers(kmsutils)
+endif()
 
 set_property(TARGET kmsutils
   PROPERTY INCLUDE_DIRECTORIES
@@ -167,6 +176,9 @@ add_glib_enumtypes(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-enumtypes KM
 add_glib_marshal(KMS_COMMONS_SOURCES KMS_COMMONS_HEADERS kms-core-marshal __kms_core_marshal)
 
 add_library(kmsgstcommons SHARED ${KMS_COMMONS_SOURCES} ${KMS_COMMONS_HEADERS})
+if(SANITIZERS_ENABLED)
+  add_sanitizers(kmsgstcommons)
+endif()
 
 set_property(TARGET kmsgstcommons
   PROPERTY INCLUDE_DIRECTORIES

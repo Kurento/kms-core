@@ -4,6 +4,9 @@ set(VP8PARSE_SOURCES
 )
 
 add_library(vp8parse MODULE ${VP8PARSE_SOURCES})
+if(SANITIZERS_ENABLED)
+  add_sanitizers(vp8parse)
+endif()
 
 set_property (TARGET vp8parse
   PROPERTY INCLUDE_DIRECTORIES

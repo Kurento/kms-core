@@ -459,6 +459,9 @@ function (generate_kurento_libraries)
     ${INTERFACE_GENERATED_SOURCES}
     ${INTERFACE_GENERATED_HEADERS}
   )
+  if(SANITIZERS_ENABLED)
+    add_sanitizers(${VALUE_CODE_IMPLEMENTATION_LIB}interface)
+  endif()
 
   target_link_libraries (${VALUE_CODE_IMPLEMENTATION_LIB}interface
     ${${VALUE_CODE_IMPLEMENTATION_LIB_UPPER}_DEPENDENCIES_LIBRARIES}
@@ -565,6 +568,9 @@ function (generate_kurento_libraries)
     ${SERVER_INTERNAL_GENERATED_SOURCES}
     ${SERVER_INTERNAL_GENERATED_HEADERS}
   )
+  if(SANITIZERS_ENABLED)
+    add_sanitizers(${VALUE_CODE_IMPLEMENTATION_LIB}impl)
+  endif()
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}impl
     ${VALUE_CODE_IMPLEMENTATION_LIB}interface
@@ -684,6 +690,9 @@ function (generate_kurento_libraries)
     ${CMAKE_CURRENT_BINARY_DIR}/module_generation_time.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${VALUE_NAME}.kmd.json
   )
+  if(SANITIZERS_ENABLED)
+    add_sanitizers(${VALUE_CODE_IMPLEMENTATION_LIB}module)
+  endif()
 
   add_dependencies(${VALUE_CODE_IMPLEMENTATION_LIB}module
     ${VALUE_CODE_IMPLEMENTATION_LIB}impl

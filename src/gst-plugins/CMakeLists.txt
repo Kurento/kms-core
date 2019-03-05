@@ -21,6 +21,9 @@ set(KMS_CORE_SOURCES
 )
 
 add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
+if(SANITIZERS_ENABLED)
+  add_sanitizers(${LIBRARY_NAME}plugins)
+endif()
 
 add_dependencies(${LIBRARY_NAME}plugins kmsgstcommons)
 
