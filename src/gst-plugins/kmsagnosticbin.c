@@ -488,12 +488,10 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
 
   if (current_caps == NULL) {
     current_caps = gst_pad_get_allowed_caps (tee_sink);
-    GST_DEBUG_OBJECT (tree_bin, "... Allowed caps are: %" GST_PTR_FORMAT,
-        current_caps);
-  } else {
-    GST_DEBUG_OBJECT (tree_bin, "... Current caps are: %" GST_PTR_FORMAT,
-        current_caps);
   }
+
+  GST_DEBUG_OBJECT (tree_bin, "TreeBin '%" GST_PTR_FORMAT "' caps: %"
+      GST_PTR_FORMAT, tree_bin, current_caps);
 
   if (current_caps != NULL) {
     //TODO: Remove this when problem in negotiation with features will be
