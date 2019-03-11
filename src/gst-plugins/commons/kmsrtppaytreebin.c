@@ -61,7 +61,7 @@ create_payloader_for_caps (const GstCaps * caps)
     pspec =
         g_object_class_find_property (G_OBJECT_GET_CLASS (payloader),
         "config-interval");
-    if (pspec != NULL && G_PARAM_SPEC_VALUE_TYPE (pspec) == G_TYPE_UINT) {
+    if (pspec != NULL && G_PARAM_SPEC_VALUE_TYPE (pspec) == G_TYPE_INT) {
       g_object_set (payloader, "config-interval", 1, NULL);
     }
 
