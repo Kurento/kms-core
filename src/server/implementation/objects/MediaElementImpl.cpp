@@ -37,6 +37,7 @@
 #include "kmsstats.h"
 #include <SignalHandler.hpp>
 
+#include <chrono>
 #include <memory>
 #include <random>
 
@@ -1229,7 +1230,12 @@ std::map <std::string, std::shared_ptr<Stats>>
 
   g_signal_emit_by_name (getGstreamerElement(), "stats", selector, &stats);
 
-  fillStatsReport(statsReport, stats, time(nullptr));
+  const auto epoch = std::chrono::high_resolution_clock::now ()
+      .time_since_epoch ();
+  const int64_t timestampMillis =
+      std::chrono::duration_cast<std::chrono::milliseconds> (epoch).count ();
+
+  fillStatsReport(statsReport, stats, time(nullptr), timestampMillis);
 
   gst_structure_free (stats);
 
@@ -1333,7 +1339,8 @@ setDeprecatedProperties (std::shared_ptr<ElementStats> eStats)
 void
 MediaElementImpl::fillStatsReport (std::map
                                    <std::string, std::shared_ptr<Stats>>
-                                   &report, const GstStructure *stats, double timestamp)
+                                   &report, const GstStructure *stats,
+                                   double timestamp, int64_t timestampMillis)
 {
   std::shared_ptr<Stats> elementStats;
   GstStructure *latencies;
@@ -1372,7 +1379,7 @@ MediaElementImpl::fillStatsReport (std::map
   } else {
     elementStats = std::make_shared <ElementStats> (getId (),
                    std::make_shared <StatsType> (StatsType::element), timestamp,
-                   0.0, 0.0, inputLatencies);
+                   timestampMillis, 0.0, 0.0, inputLatencies);
     report[getId ()] = elementStats;
   }
 

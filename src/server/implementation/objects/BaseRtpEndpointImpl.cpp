@@ -411,7 +411,7 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   }
 
   return std::make_shared <RTCInboundRTPStreamStats> ("",
-         std::make_shared <StatsType> (StatsType::inboundrtp), 0.0, "",
+         std::make_shared <StatsType> (StatsType::inboundrtp), 0.0, 0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb,
          packetLost, (float) fractionLost, packetsReceived, bytesReceived,
          jitterSec);
@@ -449,7 +449,7 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   }
 
   return std::make_shared <RTCOutboundRTPStreamStats> ("",
-         std::make_shared <StatsType> (StatsType::outboundrtp), 0.0, "",
+         std::make_shared <StatsType> (StatsType::outboundrtp), 0.0, 0, "",
          "", false, "", "", "", firCount, pliCount, 0, 0, remb, packetLost,
          (float) fractionLost, packetsSent, bytesSent, (float) bitRate,
          roundTripTime);
@@ -491,7 +491,8 @@ createRTCRTPStreamStats (guint nackSent, guint nackRecv,
 
 static void
 collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
-                          &statsReport, double timestamp, const GstStructure *stats)
+                          &statsReport, double timestamp,
+                          int64_t timestampMillis, const GstStructure *stats)
 {
   guint nackSent, nackRecv;
   gint i, n;
@@ -530,6 +531,7 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
                                         gst_value_get_structure (value) );
 
     rtcStats->setTimestamp (timestamp);
+    rtcStats->setTimestampMillis (timestampMillis);
 
     statsReport[rtcStats->getId ()] = rtcStats;
   }
@@ -537,7 +539,8 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
 
 static void
 collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
-                 &statsReport, double timestamp, const GstStructure *stats)
+                 &statsReport, double timestamp, int64_t timestampMillis,
+                 const GstStructure *stats)
 {
   gint i, n;
 
@@ -566,7 +569,7 @@ collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
       continue;
     }
 
-    collectRTCRTPStreamStats (statsReport, timestamp,
+    collectRTCRTPStreamStats (statsReport, timestamp, timestampMillis,
                               gst_value_get_structure (value) );
   }
 }
@@ -590,7 +593,7 @@ void
 BaseRtpEndpointImpl::collectEndpointStats (std::map
     <std::string, std::shared_ptr<Stats>>
     &statsReport, std::string id, const GstStructure *stats,
-    double timestamp)
+    double timestamp, int64_t timestampMillis)
 {
   std::shared_ptr<Stats> endpointStats;
   GstStructure *e2e_stats;
@@ -606,7 +609,7 @@ BaseRtpEndpointImpl::collectEndpointStats (std::map
 
   endpointStats = std::make_shared <EndpointStats> (id,
                   std::make_shared <StatsType> (StatsType::endpoint), timestamp,
-                  0.0, 0.0, inputStats, 0.0, 0.0, e2eStats);
+                  timestampMillis, 0.0, 0.0, inputStats, 0.0, 0.0, e2eStats);
 
   setDeprecatedProperties (std::dynamic_pointer_cast <EndpointStats>
                            (endpointStats) );
@@ -617,23 +620,24 @@ BaseRtpEndpointImpl::collectEndpointStats (std::map
 void
 BaseRtpEndpointImpl::fillStatsReport (std::map
                                       <std::string, std::shared_ptr<Stats>>
-                                      &report, const GstStructure *stats, double timestamp)
+                                      &report, const GstStructure *stats,
+                                      double timestamp, int64_t timestampMillis)
 {
   const GstStructure *e_stats, *rtc_stats;
 
   e_stats = kms_utils_get_structure_by_name (stats, KMS_MEDIA_ELEMENT_FIELD);
 
   if (e_stats != nullptr) {
-    collectEndpointStats (report, getId (), e_stats, timestamp);
+    collectEndpointStats (report, getId (), e_stats, timestamp, timestampMillis);
   }
 
   rtc_stats = kms_utils_get_structure_by_name (stats, KMS_RTC_STATISTICS_FIELD);
 
   if (rtc_stats != nullptr) {
-    collectRTCStats (report, timestamp, rtc_stats );
+    collectRTCStats (report, timestamp, timestampMillis, rtc_stats );
   }
 
-  SdpEndpointImpl::fillStatsReport (report, stats, timestamp);
+  SdpEndpointImpl::fillStatsReport (report, stats, timestamp, timestampMillis);
 }
 
 BaseRtpEndpointImpl::StaticConstructor BaseRtpEndpointImpl::staticConstructor;

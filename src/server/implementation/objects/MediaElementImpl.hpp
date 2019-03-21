@@ -169,7 +169,8 @@ protected:
   void collectLatencyStats (std::vector<std::shared_ptr<MediaLatencyStat>>
                             &latencyStats, const GstStructure *stats);
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
-                                &report, const GstStructure *stats, double timestamp);
+                                &report, const GstStructure *stats,
+                                double timestamp, int64_t timestampMillis);
 
   virtual void prepareSinkConnection (std::shared_ptr<MediaElement> src,
                                       std::shared_ptr<MediaType> mediaType,
