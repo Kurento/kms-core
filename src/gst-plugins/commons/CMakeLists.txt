@@ -13,17 +13,17 @@ endif()
 
 set_property(TARGET sdputils
   PROPERTY INCLUDE_DIRECTORIES
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-base-1.5_INCLUDE_DIRS}
-    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-base-1.0_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.0_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.0_INCLUDE_DIRS}
 )
 
 target_link_libraries(sdputils
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-sdp-1.5_LIBRARIES}
-  ${gstreamer-pbutils-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
 )
 
 set_target_properties(sdputils PROPERTIES
@@ -49,11 +49,11 @@ endif()
 
 set_property(TARGET kmsrefstruct
   PROPERTY INCLUDE_DIRECTORIES
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 
 target_link_libraries(kmsrefstruct
-  ${gstreamer-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
 )
 
 set_target_properties(kmsrefstruct PROPERTIES PUBLIC_HEADER kmsrefstruct.h)
@@ -75,22 +75,22 @@ endif()
 
 set_property(TARGET kmsutils
   PROPERTY INCLUDE_DIRECTORIES
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-base-1.5_INCLUDE_DIRS}
-    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
-    ${gstreamer-video-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-base-1.0_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.0_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.0_INCLUDE_DIRS}
+    ${gstreamer-video-1.0_INCLUDE_DIRS}
     ${uuid_INCLUDE_DIRS}
 )
 
 set_target_properties(kmsutils PROPERTIES PUBLIC_HEADER kmsutils.h)
 
 target_link_libraries(kmsutils
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-sdp-1.5_LIBRARIES}
-  ${gstreamer-pbutils-1.5_LIBRARIES}
-  ${gstreamer-video-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
+  ${gstreamer-video-1.0_LIBRARIES}
   ${uuid_LIBRARIES}
 )
 
@@ -185,11 +185,11 @@ set_property(TARGET kmsgstcommons
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/../../..
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-base-1.5_INCLUDE_DIRS}
-    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
-    ${gstreamer-rtp-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-base-1.0_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.0_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.0_INCLUDE_DIRS}
+    ${gstreamer-rtp-1.0_INCLUDE_DIRS}
 )
 
 target_link_libraries(kmsgstcommons
@@ -197,11 +197,11 @@ target_link_libraries(kmsgstcommons
   sdputils
   kmsrefstruct
   kmssdpagent
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-sdp-1.5_LIBRARIES}
-  ${gstreamer-pbutils-1.5_LIBRARIES}
-  ${gstreamer-rtp-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
+  ${gstreamer-rtp-1.0_LIBRARIES}
 )
 
 set_target_properties(kmsgstcommons PROPERTIES PUBLIC_HEADER "${KMS_COMMONS_HEADERS}")
@@ -220,7 +220,7 @@ set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix "\${prefix}")
 set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
 set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
-set(requires "gstreamer-1.5 gstreamer-base-1.5 gstreamer-sdp-1.5 gstreamer-pbutils-1.5")
+set(requires "gstreamer-1.0 gstreamer-base-1.0 gstreamer-sdp-1.0 gstreamer-pbutils-1.0")
 
 configure_file(kmsgstcommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc @ONLY)
 
@@ -234,10 +234,10 @@ foreach(HEADER ${KMS_COMMONS_HEADERS})
 endforeach()
 
 set(REQUIRED_LIBS
-  "gstreamer-1.5 ${GST_REQUIRED}"
-  "gstreamer-base-1.5 ${GST_REQUIRED}"
-  "gstreamer-sdp-1.5 ${GST_REQUIRED}"
-  "gstreamer-pbutils-1.5 ${GST_REQUIRED}"
+  "gstreamer-1.0 ${GST_REQUIRED}"
+  "gstreamer-base-1.0 ${GST_REQUIRED}"
+  "gstreamer-sdp-1.0 ${GST_REQUIRED}"
+  "gstreamer-pbutils-1.0 ${GST_REQUIRED}"
 )
 
 configure_file(FindKmsGstCommons.cmake.in ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake @ONLY)

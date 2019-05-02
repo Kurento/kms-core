@@ -22,17 +22,17 @@ set(ALL_TESTS
 foreach(test ${ALL_TESTS})
   add_test_program(test_${test} ${test}.c)
 
-  add_dependencies(test_${test} ${LIBRARY_NAME}plugins)
+  add_dependencies(test_${test} ${LIBRARY_NAME})
 
   target_include_directories(test_${test} PRIVATE
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-check-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-check-1.0_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}/../../../
   )
 
   target_link_libraries(test_${test}
-    ${gstreamer-1.5_LIBRARIES}
-    ${gstreamer-check-1.5_LIBRARIES}
+    ${gstreamer-1.0_LIBRARIES}
+    ${gstreamer-check-1.0_LIBRARIES}
   )
 
 endforeach(test)
@@ -40,16 +40,16 @@ endforeach(test)
 #SDP Tests
 add_test_program(test_sdp_agent sdp_agent.c)
 target_include_directories(test_sdp_agent PRIVATE
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-check-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-check-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/sdpagent
   ${CMAKE_CURRENT_BINARY_DIR}/../../../
 )
 
 target_link_libraries(test_sdp_agent
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-check-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-check-1.0_LIBRARIES}
   kmsgstcommons
   kmssdpagent
   sdputils
@@ -58,29 +58,29 @@ target_link_libraries(test_sdp_agent
 # metadata
 add_test_program(test_metadata metadata.c)
 target_include_directories(test_metadata PRIVATE
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-check-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-check-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/
   ${CMAKE_CURRENT_BINARY_DIR}/../../../
 )
 
 target_link_libraries(test_metadata
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-check-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-check-1.0_LIBRARIES}
   kmsgstcommons
 )
 
 #lists
 add_test_program(test_lists lists.c)
 target_include_directories(test_lists PRIVATE
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-check-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-check-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/gst-plugins/commons/
 )
 
 target_link_libraries(test_lists
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-check-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-check-1.0_LIBRARIES}
   kmsgstcommons
 )
 

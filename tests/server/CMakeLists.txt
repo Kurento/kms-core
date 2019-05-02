@@ -23,7 +23,7 @@ set_property(TARGET test_module_manager
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_module_manager
   ${LIBRARY_NAME}impl
@@ -45,7 +45,7 @@ set_property(TARGET test_media_set
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_set
   ${LIBRARY_NAME}impl
@@ -53,7 +53,7 @@ target_link_libraries(test_media_set
 )
 
 add_test_program(test_media_element mediaElement.cpp)
-add_dependencies(test_media_element kmscoreplugins)
+add_dependencies(test_media_element kmscore)
 set_property(TARGET test_media_element
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -65,7 +65,7 @@ set_property(TARGET test_media_element
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_element
@@ -76,7 +76,7 @@ target_link_libraries(test_media_element
 )
 
 add_test_program(test_rtp_endpoint_cpp rtpEndpoint.cpp)
-add_dependencies(test_rtp_endpoint_cpp kmscoreplugins)
+add_dependencies(test_rtp_endpoint_cpp kmscore)
 set_property(TARGET test_rtp_endpoint_cpp
   PROPERTY INCLUDE_DIRECTORIES
   ${KmsJsonRpc_INCLUDE_DIRS}
@@ -88,7 +88,7 @@ set_property(TARGET test_rtp_endpoint_cpp
   ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
   ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
   ${glibmm-2.4_INCLUDE_DIRS}
-  ${gstreamer-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_rtp_endpoint_cpp
@@ -98,7 +98,7 @@ target_link_libraries(test_rtp_endpoint_cpp
 )
 
 add_test_program(test_sdp_endpoint sdpEndpoint.cpp)
-add_dependencies(test_sdp_endpoint kmscoreplugins)
+add_dependencies(test_sdp_endpoint kmscore)
 set_property(TARGET test_sdp_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -110,7 +110,7 @@ set_property(TARGET test_sdp_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_sdp_endpoint
@@ -120,7 +120,7 @@ target_link_libraries(test_sdp_endpoint
 )
 
 add_test_program(test_media_object mediaObject.cpp)
-add_dependencies(test_media_object kmscoreplugins)
+add_dependencies(test_media_object kmscore)
 set_property(TARGET test_media_object
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -132,7 +132,7 @@ set_property(TARGET test_media_object
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_media_object
@@ -142,7 +142,7 @@ target_link_libraries(test_media_object
 )
 
 add_test_program(test_complex_type complexType.cpp)
-add_dependencies(test_complex_type kmscoreplugins)
+add_dependencies(test_complex_type kmscore)
 set_property(TARGET test_complex_type
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -153,7 +153,7 @@ set_property(TARGET test_complex_type
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_complex_type
@@ -163,7 +163,7 @@ target_link_libraries(test_complex_type
 )
 
 add_test_program(test_uri_endpoint uriEndpoint.cpp)
-add_dependencies(test_uri_endpoint kmscoreplugins)
+add_dependencies(test_uri_endpoint kmscore)
 set_property(TARGET test_uri_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
@@ -175,7 +175,7 @@ set_property(TARGET test_uri_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${glibmm-2.4_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(test_uri_endpoint

@@ -3,11 +3,11 @@ Priority: optional
 Maintainer: Kurento <kurento@googlegroups.com>
 Build-Depends: debhelper (>= 9),
  cmake,
- gstreamer1.5-libav,
- gstreamer1.5-plugins-bad,
- gstreamer1.5-plugins-base,
- gstreamer1.5-plugins-good,
- gstreamer1.5-plugins-ugly,
+ gstreamer1.0-libav,
+ gstreamer1.0-plugins-bad,
+ gstreamer1.0-plugins-base,
+ gstreamer1.0-plugins-good,
+ gstreamer1.0-plugins-ugly,
  kms-cmake-utils (>= 6.7.0),
  kms-jsonrpc-dev (>= 6.7.0),
  kurento-module-creator (>= 6.7.0),
@@ -15,8 +15,8 @@ Build-Depends: debhelper (>= 9),
  libboost-system-dev,
  libboost-test-dev,
  libglibmm-2.4-dev,
- libgstreamer-plugins-base1.5-dev,
- libgstreamer1.5-dev,
+ libgstreamer-plugins-base1.0-dev,
+ libgstreamer1.0-dev,
  libsigc++-2.0-dev,
  libvpx-dev,
  uuid-dev
@@ -29,7 +29,7 @@ Package: kms-core
 Architecture: any
 Section: libs
 Depends: ${shlibs:Depends}, ${misc:Depends},
- gstreamer1.5-plugins-base,
+ gstreamer1.0-plugins-base,
  kms-jsonrpc (>= 6.7.0)
 Breaks: kms-core-6.0
 Replaces: kms-core-6.0
@@ -47,7 +47,7 @@ Depends: kms-core (= ${binary:Version}),
  libboost-system-dev,
  libboost-test-dev,
  libglibmm-2.4-dev,
- libgstreamer1.5-dev,
+ libgstreamer1.0-dev,
  libsigc++-2.0-dev,
  libvpx-dev,
  uuid-dev

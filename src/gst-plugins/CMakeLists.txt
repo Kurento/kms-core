@@ -20,34 +20,34 @@ set(KMS_CORE_SOURCES
   kmsdummyuri.c kmsdummyuri.h
 )
 
-add_library(${LIBRARY_NAME}plugins MODULE ${KMS_CORE_SOURCES})
+add_library(${LIBRARY_NAME} MODULE ${KMS_CORE_SOURCES})
 if(SANITIZERS_ENABLED)
-  add_sanitizers(${LIBRARY_NAME}plugins)
+  add_sanitizers(${LIBRARY_NAME})
 endif()
 
-add_dependencies(${LIBRARY_NAME}plugins kmsgstcommons)
+add_dependencies(${LIBRARY_NAME} kmsgstcommons)
 
-set_property (TARGET ${LIBRARY_NAME}plugins
+set_property (TARGET ${LIBRARY_NAME}
   PROPERTY INCLUDE_DIRECTORIES
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-base-1.5_INCLUDE_DIRS}
-    ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-    ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-base-1.0_INCLUDE_DIRS}
+    ${gstreamer-sdp-1.0_INCLUDE_DIRS}
+    ${gstreamer-pbutils-1.0_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}/../../
     ${CMAKE_CURRENT_BINARY_DIR}/commons/
     ${CMAKE_CURRENT_SOURCE_DIR}/commons/
 )
 
-target_link_libraries(${LIBRARY_NAME}plugins
+target_link_libraries(${LIBRARY_NAME}
   kmsgstcommons
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-sdp-1.5_LIBRARIES}
-  ${gstreamer-pbutils-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
 )
 
 install(
-  TARGETS ${LIBRARY_NAME}plugins
+  TARGETS ${LIBRARY_NAME}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_GST_PLUGINS_DIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

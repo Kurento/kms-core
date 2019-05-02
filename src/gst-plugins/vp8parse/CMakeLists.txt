@@ -11,17 +11,17 @@ endif()
 set_property (TARGET vp8parse
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../../../
-    ${gstreamer-1.5_INCLUDE_DIRS}
-    ${gstreamer-base-1.5_INCLUDE_DIRS}
-    ${gstreamer-video-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-base-1.0_INCLUDE_DIRS}
+    ${gstreamer-video-1.0_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${VPX_INCLUDE_DIRS}
   )
 
 target_link_libraries(vp8parse
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-video-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-video-1.0_LIBRARIES}
   ${VPX_LIBRARIES}
 )
 

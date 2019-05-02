@@ -1,7 +1,7 @@
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../../src/gst-plugins
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-video-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-video-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

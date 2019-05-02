@@ -81,10 +81,10 @@ set_property (TARGET kmssdpagent
   ${CMAKE_CURRENT_BINARY_DIR}/../../../../
   ${CMAKE_CURRENT_SOURCE_DIR}/../
   ${CMAKE_CURRENT_SOURCE_DIR}/../../
-  ${gstreamer-1.5_INCLUDE_DIRS}
-  ${gstreamer-base-1.5_INCLUDE_DIRS}
-  ${gstreamer-sdp-1.5_INCLUDE_DIRS}
-  ${gstreamer-pbutils-1.5_INCLUDE_DIRS}
+  ${gstreamer-1.0_INCLUDE_DIRS}
+  ${gstreamer-base-1.0_INCLUDE_DIRS}
+  ${gstreamer-sdp-1.0_INCLUDE_DIRS}
+  ${gstreamer-pbutils-1.0_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -92,10 +92,10 @@ set_property (TARGET kmssdpagent
 set(SDP_AGENT_INCLUDE_PREFIX "${INCLUDE_PREFIX}/sdpagent")
 
 target_link_libraries(kmssdpagent
-  ${gstreamer-1.5_LIBRARIES}
-  ${gstreamer-base-1.5_LIBRARIES}
-  ${gstreamer-sdp-1.5_LIBRARIES}
-  ${gstreamer-pbutils-1.5_LIBRARIES}
+  ${gstreamer-1.0_LIBRARIES}
+  ${gstreamer-base-1.0_LIBRARIES}
+  ${gstreamer-sdp-1.0_LIBRARIES}
+  ${gstreamer-pbutils-1.0_LIBRARIES}
   kmsutils
   sdputils
   kmsrefstruct
