@@ -68,7 +68,7 @@ public:
   GstElement *getGstreamerElement()
   {
     return element;
-  };
+  }
 
   virtual std::map <std::string, std::shared_ptr<Stats>> getStats () override;
   virtual std::map <std::string, std::shared_ptr<Stats>> getStats (
