@@ -3377,6 +3377,11 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->max_video_send_bw = MAX_VIDEO_SEND_BW_DEFAULT;
 
   self->priv->rtpbin = gst_element_factory_make ("rtpbin", NULL);
+  g_assert (self->priv->rtpbin);
+  if (!self->priv->rtpbin) {
+    GST_ERROR_OBJECT (self, "RTP plugin not available: rtpbin");
+    return;
+  }
 
   g_signal_connect (self->priv->rtpbin, "request-pt-map",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_request_pt_map), self);
