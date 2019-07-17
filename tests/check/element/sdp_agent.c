@@ -421,8 +421,13 @@ GST_START_TEST (sdp_agent_test_sctp_negotiation)
       fail_if (media->port == 0);
     }
 
-    /* This negotiation should only have 5 attributes */
-    fail_if (gst_sdp_media_attributes_len (media) != 5);
+    /* This answer should only have 3 attributes:
+     *
+     *     a=sctpmap:5000 webrtc-datachannel 1024
+     *     a=mid:application0
+     *     a=setup:actpass
+     */
+    fail_if (gst_sdp_media_attributes_len (media) != 3);
   }
 
   gst_sdp_message_free (answer);
