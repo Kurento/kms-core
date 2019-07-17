@@ -38,10 +38,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSdpSctpMediaHandler, kms_sdp_sctp_media_handler,
 #define SDP_MEDIA_UDP_PROTO_INFO "UDP/"
 #define SDP_MEDIA_UDP_DTLS_SCTP_PROTO SDP_MEDIA_UDP_PROTO_INFO SDP_MEDIA_DTLS_SCTP_PROTO
 
-#define SDP_MEDIA_SCTP_FMT "webrtc-datachannel"
 #define SDP_MEDIA_SCTP_PORT "5000"      // The default SCTP stream identifier
-#define SDP_MEDIA_SCTPMAP_ATTR "sctpmap"
-#define SDP_MEDIA_SCTP_PORT_ATTR "sctp-port"
 
 /* suggested value by draft-ietf-mmusic-sctp-sdp */
 //#define DEFAULT_STREAMS_N 16
@@ -97,7 +94,7 @@ kms_sdp_sctp_media_handler_create_offer (KmsSdpMediaHandler * handler,
 
   if (gst_sdp_media_new (&m) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Cannot to create '%s' media", media);
+        "Cannot create '%s' media", media);
     goto error;
   }
 
@@ -253,9 +250,8 @@ error:
   return NULL;
 }
 
-static gboolean
-kms_sdp_sctp_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
-    const gchar * protocol)
+gboolean
+kms_sdp_sctp_media_handler_manage_protocol (const gchar * protocol)
 {
   GRegex *regex;
   gboolean ret;
@@ -269,6 +265,13 @@ kms_sdp_sctp_media_handler_manage_protocol (KmsSdpMediaHandler * handler,
   g_regex_unref (regex);
 
   return ret;
+}
+
+static gboolean
+kms_sdp_sctp_media_handler_manage_protocol_impl (KmsSdpMediaHandler * handler,
+    const gchar * protocol)
+{
+  return kms_sdp_sctp_media_handler_manage_protocol (protocol);
 }
 
 struct intersect_data
@@ -345,7 +348,7 @@ kms_sdp_sctp_media_handler_init_offer (KmsSdpMediaHandler * handler,
   if (gst_sdp_media_set_proto (offer, SDP_MEDIA_UDP_DTLS_SCTP_PROTO)
       != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-        "Cannot set '%s' protocol", SDP_MEDIA_DTLS_SCTP_PROTO);
+        "Cannot set '%s' protocol", SDP_MEDIA_UDP_DTLS_SCTP_PROTO);
     ret = FALSE;
     goto end;
   }
@@ -488,7 +491,8 @@ kms_sdp_sctp_media_handler_class_init (KmsSdpSctpMediaHandlerClass * klass)
   handler_class->create_offer = kms_sdp_sctp_media_handler_create_offer;
   handler_class->create_answer = kms_sdp_sctp_media_handler_create_answer;
 
-  handler_class->manage_protocol = kms_sdp_sctp_media_handler_manage_protocol;
+  handler_class->manage_protocol =
+      kms_sdp_sctp_media_handler_manage_protocol_impl;
 
   handler_class->can_insert_attribute =
       kms_sdp_sctp_media_handler_can_insert_attribute;
