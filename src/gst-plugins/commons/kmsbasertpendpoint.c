@@ -1636,6 +1636,8 @@ complement_caps_with_fmtp_attrs (GstCaps * caps, const gchar * fmtp_attr)
 
   if (attrs[0] == NULL) {
     goto end;
+  } else if (strlen (fmtp_attr) == strlen (attrs[0])) {
+    goto end;
   }
 
   params = g_strndup (fmtp_attr + strlen (attrs[0]) + 1,
@@ -1650,7 +1652,7 @@ complement_caps_with_fmtp_attrs (GstCaps * caps, const gchar * fmtp_attr)
     gint index;
 
     index = index_of (vars[i], '=');
-    if (index < 0) {
+    if ((index < 0) || (strlen (vars[i]) == 0) || (strlen (vars[i]) <= index)) {
       /* Skip, not key=value attribute */
       continue;
     }
