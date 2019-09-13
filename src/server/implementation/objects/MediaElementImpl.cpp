@@ -136,7 +136,7 @@ public:
   {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast &) {
       GST_WARNING ("Bad cast for source element");
       return std::shared_ptr<MediaElementImpl> ();
     }
@@ -146,7 +146,7 @@ public:
   {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast &) {
       GST_WARNING ("Bad cast for source element");
       return std::shared_ptr<MediaElementImpl> ();
     }
@@ -364,7 +364,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
             self->performConnection (it);
           }
         }
-      } catch (std::out_of_range) {
+      } catch (std::out_of_range &) {
 
       }
     } else {
@@ -411,7 +411,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
             source->performConnection (sourceData);
           }
         }
-      } catch (std::out_of_range) {
+      } catch (std::out_of_range &) {
 
       }
     }
@@ -727,7 +727,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it2 : it.second) {
       try {
         ret.push_back (it2.second->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
       }
     }
   }
@@ -746,11 +746,11 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it : sources.at (mediaType) ) {
       try {
         ret.push_back (it.second->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
 
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -766,9 +766,9 @@ std::vector<std::shared_ptr<ElementConnectionData>>
 
   try {
     ret.push_back (sources.at (mediaType).at (description)->toInterface() );
-  } catch (KurentoException) {
+  } catch (KurentoException &) {
 
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -786,7 +786,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
       for (auto it3 : it2.second) {
         try {
           ret.push_back (it3->toInterface() );
-        } catch (KurentoException) {
+        } catch (KurentoException &) {
 
         }
       }
@@ -808,12 +808,12 @@ std::vector<std::shared_ptr<ElementConnectionData>>
       for (auto it3 : it.second) {
         try {
           ret.push_back (it3->toInterface() );
-        } catch (KurentoException) {
+        } catch (KurentoException &) {
 
         }
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -831,11 +831,11 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it : sinks.at (mediaType).at (description) ) {
       try {
         ret.push_back (it->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
 
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -1048,7 +1048,7 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
     g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
                            connectionData->getSourcePadName (), &ret, NULL);
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 

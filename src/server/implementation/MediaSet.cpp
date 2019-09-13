@@ -457,7 +457,7 @@ MediaSet::unref (const std::string &sessionId,
 
   try {
     object = getMediaObject (mediaObjectRef);
-  } catch (KurentoException e) {
+  } catch (KurentoException &e) {
     return;
   }
 
@@ -679,7 +679,7 @@ std::list<std::shared_ptr<MediaObjectImpl>>
     for (auto it : childrenMap.at (obj->getId() ) ) {
       ret.push_back (it.second);
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
     GST_DEBUG ("Object %s has not children", obj->getId().c_str() );
   }
 
