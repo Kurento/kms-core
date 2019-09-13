@@ -249,9 +249,10 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   GstElement *parent = self->element;
   gint err_code = 0;
   gchar *err_msg = NULL;
+  std::string errorMessage;
 
   if (!gst_object_has_as_ancestor (msg->src, GST_OBJECT (parent))) {
-    return;
+    goto finish;
   }
 
   if (err != NULL) {
@@ -267,7 +268,7 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
       "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
 
-  std::string errorMessage (err_msg);
+  errorMessage.assign (err_msg);
   if (dbg_info) {
     errorMessage += " (" + std::string (dbg_info) + ")";
   }
@@ -281,6 +282,7 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   } catch (std::bad_weak_ptr &e) {
   }
 
+finish:
   g_error_free (err);
   g_free (dbg_info);
 
