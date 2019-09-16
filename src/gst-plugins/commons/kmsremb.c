@@ -483,6 +483,7 @@ kms_remb_local_on_sending_rtcp (GObject *rtpsession,
   // Update the REMB bitrate estimations
   if (!kms_remb_local_update (self)) {
     GST_LOG_OBJECT (rtpsession, "Not sending: Stats not updated");
+    gst_rtcp_packet_remove (&packet);
     goto end;
   }
 
