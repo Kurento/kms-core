@@ -120,10 +120,10 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
 
-  guint audio_medias;
+  guint audio_medias = 0;
   getConfigValue <guint, SdpEndpoint> (&audio_medias, PARAM_NUM_AUDIO_MEDIAS, 1);
 
-  guint video_medias;
+  guint video_medias = 0;
   getConfigValue <guint, SdpEndpoint> (&video_medias, PARAM_NUM_VIDEO_MEDIAS, 1);
 
   std::vector<std::shared_ptr<CodecConfiguration>> acodec_list;

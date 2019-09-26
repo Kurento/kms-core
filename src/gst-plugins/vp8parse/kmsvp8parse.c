@@ -162,9 +162,9 @@ static GstFlowReturn
 kms_vp8_parse_handle_frame (GstBaseParse * parse, GstBaseParseFrame * frame,
     gint * skipsize)
 {
-  vpx_codec_stream_info_t stream_info;
-  vpx_codec_err_t status;
-  GstMapInfo minfo;
+  vpx_codec_stream_info_t stream_info = {0};
+  vpx_codec_err_t status = {0};
+  GstMapInfo minfo = {0};
   gboolean update_caps = FALSE;
   KmsVp8Parse *self = KMS_VP8_PARSE (parse);
 
@@ -178,7 +178,6 @@ kms_vp8_parse_handle_frame (GstBaseParse * parse, GstBaseParseFrame * frame,
           GST_BUFFER_DTS_IS_VALID (frame->buffer)) && !self->priv->started)
     gst_base_parse_set_has_timing_info (parse, TRUE);
 
-  memset (&stream_info, 0, sizeof (stream_info));
   stream_info.sz = sizeof (stream_info);
 
   status = vpx_codec_peek_stream_info (&vpx_codec_vp8_dx_algo,

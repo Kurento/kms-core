@@ -212,7 +212,7 @@ kms_list_foreach (KmsList * list, GHFunc func, gpointer user_data)
 static KmsListNode *
 kms_list_get_node (KmsList * list, gpointer key)
 {
-  GSList *l = list->l;
+  GSList *l = NULL;
 
   if (list->key_equal_func == NULL) {
     return NULL;

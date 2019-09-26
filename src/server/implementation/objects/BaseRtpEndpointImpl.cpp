@@ -94,12 +94,12 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
                        (ConnectionState::DISCONNECTED);
   connStateChangedHandlerId = 0;
 
-  guint minPort;
+  guint minPort = 0;
   if (getConfigValue<guint, BaseRtpEndpoint> (&minPort, PARAM_MIN_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MIN_PORT, minPort, NULL);
   }
 
-  guint maxPort;
+  guint maxPort = 0;
   if (getConfigValue <guint, BaseRtpEndpoint> (&maxPort, PARAM_MAX_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
   }
