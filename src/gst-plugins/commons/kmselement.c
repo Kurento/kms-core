@@ -57,20 +57,20 @@ G_DEFINE_TYPE_WITH_CODE (KmsElement, kms_element,
 #define KMS_IS_EMPTY_DESCRIPTION(description) \
   (g_strcmp0((description), KMS_EMPTY_STRING) == 0)
 #define KMS_IS_VALID_PAD_DESCRIPTION(description) \
-  (description != NULL && !KMS_IS_EMPTY_DESCRIPTION(description))
+  ((description) != NULL && !KMS_IS_EMPTY_DESCRIPTION(description))
 #define KMS_FORMAT_PAD_DESCRIPTION(description) \
-  (KMS_IS_VALID_PAD_DESCRIPTION(description)) ? description : \
+  (KMS_IS_VALID_PAD_DESCRIPTION(description)) ? (description) : \
   KMS_ELEMENT_DEFAULT_PAD_DESCRIPTION
 
 #define KMS_ELEMENT_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), KMS_TYPE_ELEMENT, KmsElementPrivate))
 
 #define KMS_ELEMENT_SYNC_LOCK(obj) (                      \
-  g_mutex_lock (&(((KmsElement *)obj)->priv->sync_lock))  \
+  g_mutex_lock (&(((KmsElement *)(obj))->priv->sync_lock))  \
 )
 
 #define KMS_ELEMENT_SYNC_UNLOCK(obj) (                      \
-  g_mutex_unlock (&(((KmsElement *)obj)->priv->sync_lock))  \
+  g_mutex_unlock (&(((KmsElement *)(obj))->priv->sync_lock))  \
 )
 
 #define KMS_SET_OBJECT_PROPERTY_SAFELY(obj,name,val) ({      \

@@ -69,7 +69,7 @@ do { \
   fail_func (kms_rtp_synchronizer_process_rtp_buffer (sync, __buf, NULL)); \
   GST_DEBUG ("PTS out: %" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS (__buf))); \
   GST_DEBUG ("PTS exp: %" GST_TIME_FORMAT, GST_TIME_ARGS(expected_out_pts)); \
-  fail_unless (GST_BUFFER_PTS (__buf) == expected_out_pts); \
+  fail_unless (GST_BUFFER_PTS (__buf) == (expected_out_pts)); \
   gst_buffer_unref (__buf); \
 } while (0)
 

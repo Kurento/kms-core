@@ -88,7 +88,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
   gint __pos;                 \
   gchar *__c;                 \
   __c = strchr (str, chr);    \
-  __pos = (gint)(__c - str);  \
+  __pos = (gint)(__c - (str));  \
   __pos;                      \
 })
 

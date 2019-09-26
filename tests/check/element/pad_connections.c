@@ -70,9 +70,9 @@ typedef struct _KmsConnectData
 } KmsConnectData;
 
 #define CONNECT_DATA_LOCK(data) \
-  (g_rec_mutex_lock (&data->mutex))
+  (g_rec_mutex_lock (&(data)->mutex))
 #define CONNECT_DATA_UNLOCK(data) \
-  (g_rec_mutex_unlock (&data->mutex))
+  (g_rec_mutex_unlock (&(data)->mutex))
 
 static void
 kms_connect_data_destroy (KmsConnectData * data)
