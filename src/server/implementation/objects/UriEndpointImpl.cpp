@@ -212,6 +212,8 @@ UriEndpointImpl::stateChanged (guint new_state)
 
   UriEndpointStateChanged event (shared_from_this(),
                                  UriEndpointStateChanged::getName(), state);
+
+  std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
   signalUriEndpointStateChanged (event);
 }
 

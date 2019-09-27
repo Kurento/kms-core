@@ -173,6 +173,8 @@ protected:
 
   const boost::property_tree::ptree &config;
 
+  std::recursive_mutex sigcMutex;
+
 private:
 
   std::string initialId;

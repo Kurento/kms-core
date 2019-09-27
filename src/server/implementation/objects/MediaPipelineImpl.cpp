@@ -81,6 +81,7 @@ MediaPipelineImpl::processBusMessage (GstMessage *msg)
     Error error (shared_from_this(), errorMessage, code,
                  "UNEXPECTED_PIPELINE_ERROR");
 
+    std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
     signalError (error);
   } catch (std::bad_weak_ptr &e) {
   }
