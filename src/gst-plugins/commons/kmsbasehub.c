@@ -53,9 +53,9 @@ GST_DEBUG_CATEGORY_STATIC (kms_base_hub_debug_category);
 #define AUDIO_SRC_PAD_PREFIX "audio_src_"
 #define VIDEO_SRC_PAD_PREFIX "video_src_"
 #define DATA_SRC_PAD_PREFIX "data_src_"
-#define LENGTH_AUDIO_SRC_PAD_PREFIX 10  // sizeof("audio_src_")
-#define LENGTH_VIDEO_SRC_PAD_PREFIX 10  // sizeof("video_src_")
-#define LENGTH_DATA_SRC_PAD_PREFIX 9  // sizeof("data_src_")
+#define LENGTH_AUDIO_SRC_PAD_PREFIX (sizeof(AUDIO_SRC_PAD_PREFIX) - 1)
+#define LENGTH_VIDEO_SRC_PAD_PREFIX (sizeof(VIDEO_SRC_PAD_PREFIX) - 1)
+#define LENGTH_DATA_SRC_PAD_PREFIX (sizeof(DATA_SRC_PAD_PREFIX) - 1)
 #define AUDIO_SRC_PAD_NAME AUDIO_SRC_PAD_PREFIX "%u"
 #define VIDEO_SRC_PAD_NAME VIDEO_SRC_PAD_PREFIX "%u"
 #define DATA_SRC_PAD_NAME DATA_SRC_PAD_PREFIX "%u"
