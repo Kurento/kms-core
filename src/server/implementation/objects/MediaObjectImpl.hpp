@@ -165,6 +165,16 @@ protected:
     return true;
   }
 
+  template <class T>
+  void sigcSignalEmit (const sigc::signal<void, T> &sigcSignal,
+      const RaiseBase &event)
+  {
+    std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
+    sigcSignal.emit (dynamic_cast <const T&> (event));
+  }
+
+  std::recursive_mutex sigcMutex;
+
   /*
    * This method is intented to perform initialization actions that require
    * a call to shared_from_this ()
