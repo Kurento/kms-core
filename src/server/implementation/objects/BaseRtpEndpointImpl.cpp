@@ -143,8 +143,7 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
     MediaStateChanged event (shared_from_this(),
                              MediaStateChanged::getName (), old_state, current_media_state);
 
-    std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
-    this->signalMediaStateChanged (event);
+    sigcSignalEmit(signalMediaStateChanged, event);
   }
 }
 
@@ -175,8 +174,7 @@ BaseRtpEndpointImpl::updateConnectionState (gchar *sessId, guint new_state)
     ConnectionStateChanged event (shared_from_this(),
                                   ConnectionStateChanged::getName (), old_state, current_conn_state);
 
-    std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
-    signalConnectionStateChanged (event);
+    sigcSignalEmit(signalConnectionStateChanged, event);
   }
 }
 
