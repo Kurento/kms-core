@@ -139,11 +139,15 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
   }
 
   if (old_state->getValue() != current_media_state->getValue() ) {
-    /* Emit state change signal */
-    MediaStateChanged event (shared_from_this(),
-                             MediaStateChanged::getName (), old_state, current_media_state);
-
-    sigcSignalEmit(signalMediaStateChanged, event);
+    try {
+      MediaStateChanged event (shared_from_this (),
+          MediaStateChanged::getName (), old_state, current_media_state);
+      sigcSignalEmit(signalMediaStateChanged, event);
+    } catch (const std::bad_weak_ptr &e) {
+      // shared_from_this()
+      GST_ERROR ("BUG creating %s: %s", MediaStateChanged::getName ().c_str (),
+          e.what ());
+    }
   }
 }
 
@@ -170,11 +174,15 @@ BaseRtpEndpointImpl::updateConnectionState (gchar *sessId, guint new_state)
   }
 
   if (old_state->getValue() != current_conn_state->getValue() ) {
-    /* Emit state change signal */
-    ConnectionStateChanged event (shared_from_this(),
-                                  ConnectionStateChanged::getName (), old_state, current_conn_state);
-
-    sigcSignalEmit(signalConnectionStateChanged, event);
+    try {
+      ConnectionStateChanged event (shared_from_this(),
+          ConnectionStateChanged::getName (), old_state, current_conn_state);
+      sigcSignalEmit(signalConnectionStateChanged, event);
+    } catch (const std::bad_weak_ptr &e) {
+      // shared_from_this()
+      GST_ERROR ("BUG creating %s: %s",
+          ConnectionStateChanged::getName ().c_str (), e.what ());
+    }
   }
 }
 

@@ -170,7 +170,12 @@ protected:
       const RaiseBase &event)
   {
     std::unique_lock<std::recursive_mutex> sigcLock (sigcMutex);
-    sigcSignal.emit (dynamic_cast <const T&> (event));
+    try {
+      sigcSignal.emit (dynamic_cast <const T&> (event));
+    } catch (const std::bad_cast &e) {
+      // dynamic_cast()
+      GST_ERROR ("BUG emitting signal: %s", e.what ());
+    }
   }
 
   std::recursive_mutex sigcMutex;
