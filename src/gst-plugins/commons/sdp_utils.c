@@ -263,6 +263,7 @@ sdp_utils_media_config_set_direction (GstSDPMedia * media,
 }
 
 /**
+ * format: A Payload Type number, from the media PT list
  * Returns : a string or NULL if any.
  */
 const gchar *
@@ -303,6 +304,9 @@ sdp_utils_sdp_media_get_rtpmap (const GstSDPMedia * media, const gchar * format)
   return rtpmap;
 }
 
+/**
+ * format: A Payload Type number, from the media PT list
+ */
 const gchar *
 sdp_utils_sdp_media_get_fmtp (const GstSDPMedia * media, const gchar * format)
 {
@@ -314,14 +318,24 @@ sdp_utils_sdp_media_get_fmtp (const GstSDPMedia * media, const gchar * format)
 
     attr_val = gst_sdp_media_get_attribute_val_n (media, FMTP, i);
 
+    // Example:
+    // format == "102"
+    // attr_val == "102 level-asymmetry-allowed=1;packetization-mode=1; profile-level-id=42001f"
+
     if (attr_val == NULL) {
       return NULL;
     }
 
     attrs = g_strsplit (attr_val, " ", 0);
 
+    // attrs[0] == "102"
+    // attrs[1] == "level-asymmetry-allowed=1;packetization-mode=1;"
+    // attrs[2] == "profile-level-id=42001f"
+    // attrs[3] == NULL
+
     if (attrs[0] == NULL) {
-      GST_ERROR ("No payload found in fmtp attribute");
+      GST_WARNING ("No payload found for fmtp attribute 'a=%s:%s'", FMTP,
+          format);
       g_strfreev (attrs);
       continue;
     }
