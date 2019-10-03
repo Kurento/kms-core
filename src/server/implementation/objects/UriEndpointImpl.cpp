@@ -39,7 +39,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoUriEndpointImpl"
 
 #define DEFAULT_PATH "defaultPath"
-#define DEFAULT_PATH_VALUE "file:///var/kurento"
+#define DEFAULT_PATH_VALUE "file:///var/lib/kurento"
 
 namespace kurento
 {

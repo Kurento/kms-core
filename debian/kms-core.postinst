@@ -1,8 +1,50 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-DIRECTORY=/var/kurento
+# NOTE: Code here must match with
+# kurento-media-server/debian/kurento-media-server.postinst
 
-if [ ! -d "$DIRECTORY" ]; then
-  mkdir /var/kurento
-  chmod 777 /var/kurento
+
+
+# Shell setup
+# -----------
+
+# Bash options for strict error checking
+set -o errexit -o errtrace -o pipefail -o nounset
+
+# Trace all commands
+set -o xtrace
+
+
+
+# Settings
+# --------
+
+HOME_DIR="/var/lib/kurento"
+
+
+
+# Create the kurento user
+# -----------------------
+
+if ! id kurento >/dev/null 2>&1; then
+    useradd --home-dir "$HOME_DIR" --system kurento
+fi
+
+
+
+# Create the kurento home directory
+# ---------------------------------
+
+mkdir -p "$HOME_DIR"
+chown -R kurento "$HOME_DIR"
+chmod 777 "$HOME_DIR"
+
+# FIXME+DEPRECATED: Old home dir was "/var/kurento"
+# keep it as a symlink to avoid breaking user's setups,
+# but delete this code once releasing next major version of Kurento
+HOME_DIR_OLD="/var/kurento"
+if [ -d "$HOME_DIR_OLD" -a ! -L "$HOME_DIR_OLD" ]; then
+    mv "$HOME_DIR_OLD"/* "$HOME_DIR_OLD"/.* "$HOME_DIR"/ 2>/dev/null || true
+    rmdir "$HOME_DIR_OLD"
+    ln -s -T "$HOME_DIR" "$HOME_DIR_OLD"
 fi

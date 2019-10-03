@@ -27,6 +27,8 @@
 #include <MediaSet.hpp>
 #include <ModuleManager.hpp>
 
+#define DEFAULT_PATH_VALUE "file:///var/lib/kurento"
+
 using namespace kurento;
 
 std::string mediaPipelineId;
@@ -101,7 +103,7 @@ BOOST_AUTO_TEST_CASE (check_regular_uri)
       Json::Value() )->getId();
 
   config.add ("modules.kurento.UriEndpoint.configPath", "../../../tests" );
-  config.add ("modules.kurento.UriEndpoint.defaultPath", "file:///var/kurento/");
+  config.add ("modules.kurento.UriEndpoint.defaultPath", DEFAULT_PATH_VALUE);
 
   std::shared_ptr <UriEndpointImpl> uriEndpoint = generateUriEndpoint (
         mediaPipelineId, first_uri);
@@ -122,7 +124,7 @@ BOOST_AUTO_TEST_CASE (check_media_element_uri)
 {
   std::string uri;
   std::string first_uri = "file.webm";
-  std::string expected_uri = "file:///var/kurento/file.webm";
+  std::string expected_uri = DEFAULT_PATH_VALUE"/file.webm";
   char *uri_value;
 
   mediaPipelineId =
@@ -131,7 +133,7 @@ BOOST_AUTO_TEST_CASE (check_media_element_uri)
       Json::Value() )->getId();
 
   config.add ("modules.kurento.UriEndpoint.configPath", "../../../tests" );
-  config.add ("modules.kurento.UriEndpoint.defaultPath", "file:///var/kurento/");
+  config.add ("modules.kurento.UriEndpoint.defaultPath", DEFAULT_PATH_VALUE"/");
 
   std::shared_ptr <UriEndpointImpl> uriEndpoint = generateUriEndpoint (
         mediaPipelineId, first_uri);
@@ -169,7 +171,7 @@ BOOST_AUTO_TEST_CASE (check_uri_with_escaped_slashes)
       Json::Value() )->getId();
 
   config.add ("modules.kurento.UriEndpoint.configPath", "../../../tests" );
-  config.add ("modules.kurento.UriEndpoint.defaultPath", "file:///var/kurento/");
+  config.add ("modules.kurento.UriEndpoint.defaultPath", DEFAULT_PATH_VALUE"/");
 
   std::shared_ptr <UriEndpointImpl> uriEndpoint = generateUriEndpoint (
         mediaPipelineId, first_uri);
