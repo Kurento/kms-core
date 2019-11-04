@@ -28,11 +28,16 @@
 
 #include <thread> // sleep_for()
 
+#include <fstream> // std::ifstream
+#include <unistd.h> // sysconf(), _SC_PAGESIZE
+
 #define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoServerManagerImpl"
 
 #define METADATA "metadata"
+
+#define STATM_FILE_PATH "/proc/self/statm"
 
 namespace kurento
 {
@@ -119,36 +124,33 @@ ServerManagerImpl::getUsedCpu (int interval)
   return cpuPercentEnd (&cpustat);
 }
 
-static int64_t
-get_int64 (std::string &str, char sep, int nToken)
-{
-  size_t start = str.find_first_not_of (sep), end;
-  int count = 0;
-
-  while (start != std::string::npos) {
-    end = str.find (sep, start);
-
-    if (count++ == nToken) {
-      str[end] = '\0';
-      return atol (&str.c_str() [start]);
-    }
-
-    start = str.find_first_not_of (sep, end);
-  }
-
-  return 0;
-}
-
 int64_t
 ServerManagerImpl::getUsedMemory()
 {
-  std::string stat;
-  std::ifstream stat_file ("/proc/self/stat");
+  std::ifstream statm (STATM_FILE_PATH);
 
-  std::getline (stat_file, stat);
-  stat_file.close();
+  if (!statm.is_open()) {
+    GST_WARNING ("Opening stats file: %s", STATM_FILE_PATH);
+    return 0;
+  }
 
-  return get_int64 (stat, ' ', 22) / 1024;
+  // size       (1) total program size (VmSize, in pages)
+  long int size_pages;
+  statm >> size_pages;
+
+  // resident   (2) resident set size (VmRSS, in pages)
+  long int resident_pages;
+  statm >> resident_pages;
+
+  if (statm.fail()) {
+    GST_WARNING ("Parsing stats file: %s", STATM_FILE_PATH);
+    return 0;
+  }
+
+  const long int pagesize_bytes = sysconf(_SC_PAGESIZE);
+  const long int resident_kbytes = resident_pages * pagesize_bytes / 1024;
+
+  return (int64_t)resident_kbytes;
 }
 
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;
