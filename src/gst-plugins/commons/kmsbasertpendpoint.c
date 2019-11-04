@@ -1051,14 +1051,13 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
                         rlrs->ssrc);
     return;
   }
-  else {
-    KmsSdpSession *base_sess = KMS_SDP_SESSION (sess);
-    guint id = base_sess->id;
-    gchar *id_str = base_sess->id_str;
-    guint32 remote_video_ssrc = sess->remote_video_ssrc;
-    GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
-                        id, id_str, remote_video_ssrc);
-  }
+
+  KmsSdpSession *base_sess = KMS_SDP_SESSION (sess);
+  guint id = base_sess->id;
+  gchar *id_str = base_sess->id_str;
+  guint32 remote_video_ssrc = sess->remote_video_ssrc;
+  GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
+                      id, id_str, remote_video_ssrc);
 
   GObject *rtpsession = kms_base_rtp_endpoint_get_internal_session (
       KMS_BASE_RTP_ENDPOINT(self), VIDEO_RTP_SESSION);
@@ -1068,7 +1067,8 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
 
   // Decrease minimum interval between RTCP packets,
   // for better reaction times in case of bad network
-  GST_INFO_OBJECT (self, "REMB: Set RTCP min interval to 500ms");
+  GST_INFO_OBJECT (self, "REMB: Set RTCP min interval to %d ms",
+      RTCP_MIN_INTERVAL);
   g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 

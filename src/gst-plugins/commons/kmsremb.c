@@ -175,7 +175,7 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
 
     if (!is_validated || !is_sender) {
       GST_TRACE_OBJECT (self->rtpsess,
-          "Ignore uninteresting RTPSource, SSRC: %u", ssrc);
+          "Ignore uninteresting RTPSource SSRC: %u", ssrc);
       continue;
     }
 
@@ -186,7 +186,7 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
     }
 
     GST_LOG_OBJECT (self->rtpsess,
-        "SSRC match! RTPSource: %u", ssrc);
+        "SSRC match! RTPSource & SDP: %u", ssrc);
 
     // Property RTPSource::stats, doc: GStreamer/rtpsource.c
     GstStructure *s;
@@ -218,7 +218,7 @@ kms_rl_remote_session_get_sessions_info (KmsRlRemoteSession * self,
     // To account for this case, our own counters must be also reset.
     if (self->last_packets_received > packets_received) {
       GST_INFO_OBJECT (self->rtpsess,
-        "RTP stats restarted due to long gap in RTP sequence numbers");
+        "RTP stats restarted due to gap in RTP sequence numbers");
       self->last_octets_received = 0;
       self->last_packets_received = 0;
       self->last_packets_received_expected = 0;
@@ -441,9 +441,9 @@ add_ssrcs (KmsRlRemoteSession * rlrs, AddSsrcsData * data)
   data->remb_packet->ssrcs[data->remb_packet->n_ssrcs] = rlrs->ssrc;
   data->remb_packet->n_ssrcs++;
 
-  GST_DEBUG_OBJECT (rb->rtpsess, "Send REMB"
-      ", bitrate: %" G_GUINT32_FORMAT ", SSRC: %" G_GUINT32_FORMAT,
-      data->remb_packet->bitrate, rlrs->ssrc);
+  // Local bitrate estimation
+  GST_DEBUG_OBJECT (rb->rtpsess, "Send REMB, SSRC: %u, bitrate: %u",
+      rlrs->ssrc, data->remb_packet->bitrate);
 
   kms_remb_base_update_stats (rb, rlrs->ssrc, data->remb_packet->bitrate);
 }
@@ -461,33 +461,33 @@ kms_remb_local_on_sending_rtcp (GObject *rtpsession,
   guint packet_ssrc;
   AddSsrcsData data;
 
-  GST_LOG_OBJECT (rtpsession, "Signal 'on-sending-rtcp'");
+  GST_LOG_OBJECT (rtpsession, "Signal \"RTPSession::on-sending-rtcp\" ...");
 
   current_time = kms_utils_get_time_nsecs ();
   elapsed = current_time - self->last_sent_time;
   if (self->last_sent_time != 0 && (elapsed < REMB_MAX_INTERVAL * GST_MSECOND)) {
-    GST_LOG_OBJECT (rtpsession, "Not sending: Interval < %u ms", REMB_MAX_INTERVAL);
+    GST_LOG_OBJECT (rtpsession, "... Not sending: Interval < %u ms", REMB_MAX_INTERVAL);
     return ret;
   }
 
   if (!gst_rtcp_buffer_map (buffer, GST_MAP_READWRITE, &rtcp)) {
-    GST_WARNING_OBJECT (rtpsession, "Cannot map RTCP buffer");
+    GST_WARNING_OBJECT (rtpsession, "... Cannot map RTCP buffer");
     return ret;
   }
 
   if (!gst_rtcp_buffer_add_packet (&rtcp, GST_RTCP_TYPE_PSFB, &packet)) {
-    GST_WARNING_OBJECT (rtpsession, "Cannot add RTCP packet");
+    GST_WARNING_OBJECT (rtpsession, "... Cannot add RTCP packet");
     goto end;
   }
 
   // Update the REMB bitrate estimations
   if (!kms_remb_local_update (self)) {
-    GST_LOG_OBJECT (rtpsession, "Not sending: Stats not updated");
+    GST_LOG_OBJECT (rtpsession, "... Not sending: Stats not updated");
     gst_rtcp_packet_remove (&packet);
     goto end;
   }
 
-  const guint32 old_bitrate = self->remb_sent;
+  //const guint32 old_bitrate = self->remb_sent;
   guint32 new_bitrate = self->remb;
 
   if (self->event_manager != NULL) {
@@ -507,15 +507,7 @@ kms_remb_local_on_sending_rtcp (GObject *rtpsession,
 
   new_bitrate = MAX (new_bitrate, REMB_MIN);
 
-  if (old_bitrate != new_bitrate) {
-    GST_DEBUG_OBJECT (rtpsession,
-        "Send REMB: New local bitrate estimation: %u", new_bitrate);
-    self->remb_sent = new_bitrate;
-  }
-  else {
-    GST_DEBUG_OBJECT (rtpsession,
-        "Send REMB: Old local bitrate estimation: %u", new_bitrate);
-  }
+  self->remb_sent = new_bitrate;
 
   remb_packet.bitrate = new_bitrate;
   remb_packet.n_ssrcs = 0;
@@ -696,11 +688,11 @@ send_remb_event (KmsRembRemote * rm, guint bitrate, guint ssrc)
 
   // Custom "bitrate" upstream event that tells the encoder to set a new br
   GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-      "'on-feedback-rtcp' send bitrate event"
+      "[on-feedback-rtcp] send bitrate event upstream"
       ", ssrc: %" G_GUINT32_FORMAT
-      ", target br: %" G_GUINT32_FORMAT
-      ", valid range: [%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT "]"
-      ", new br: %" G_GUINT32_FORMAT, ssrc, bitrate, min, max, br);
+      ", requested br: %" G_GUINT32_FORMAT
+      ", range: [%" G_GUINT32_FORMAT ", %" G_GUINT32_FORMAT "]"
+      ", applied: %" G_GUINT32_FORMAT, ssrc, bitrate, min, max, br);
 
   event = kms_utils_remb_event_upstream_new (br, ssrc);
   gst_pad_push_event (rm->pad_event, event);
@@ -716,7 +708,7 @@ send_remb_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     return GST_PAD_PROBE_OK;
   };
 
-  send_remb_event (rm, rm->remb_on_connect, rm->local_ssrc);
+  send_remb_event (rm, (guint)rm->remb_on_connect, rm->local_ssrc);
 
   return GST_PAD_PROBE_REMOVE;
 }
@@ -737,25 +729,30 @@ kms_remb_remote_update (KmsRembRemote * rm,
         " An inconsistent management could take place", remb_packet->n_ssrcs);
   }
 
+  // New remote bitrate estimation
+  // We should restrict our output bitrate to this value
   GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-      "Recv REMB: New remote bitrate estimation: %u (restrict output REMB)",
+      "Recv REMB, SSRC: %u, bitrate: %u", remb_packet->ssrcs[0],
       remb_packet->bitrate);
 
   br_send = remb_packet->bitrate;
+
   if (!rm->probed) {
-    if ((remb_packet->bitrate < rm->remb_on_connect)
+    if ((remb_packet->bitrate < (guint)rm->remb_on_connect)
         && (remb_packet->bitrate >= rm->remb)) {
-      br_send = rm->remb_on_connect;
+      br_send = (guint)rm->remb_on_connect;
       rm->remb = remb_packet->bitrate;
       GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-          "Not probed yet! Use 'remb_on_connect': %u (restrict output REMB)",
-          br_send);
+          "Recv REMB, not probed yet! Use 'rembOnConnect'");
     } else {
       rm->probed = TRUE;
     }
   }
 
+  GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
+      "Recv REMB, applied bitrate: %u", br_send);
   send_remb_event (rm, br_send, remb_packet->ssrcs[0]);
+
   rm->remb = remb_packet->bitrate;
 }
 
@@ -822,9 +819,9 @@ kms_remb_remote_on_feedback_rtcp (GObject *rtpsession,
     guint type, guint fbtype, guint sender_ssrc, guint media_ssrc,
     GstBuffer *fci)
 {
-  GST_LOG_OBJECT (rtpsession, "Signal 'on-feedback-rtcp'");
   if (type == GST_RTCP_TYPE_PSFB
       && fbtype == GST_RTCP_PSFB_TYPE_AFB) {
+    GST_LOG_OBJECT (rtpsession, "Signal \"RTPSession::on-feedback-rtcp\"");
     process_psfb_afb (rtpsession, sender_ssrc, fci);
   }
 }
