@@ -15,14 +15,18 @@
  *
  */
 
-#include <gst/gst.h>
 #include "ServerInfo.hpp"
 #include "MediaPipelineImpl.hpp"
 #include "ServerManagerImpl.hpp"
+#include "process-tools/linux-process.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <MediaSet.hpp>
+
 #include <boost/property_tree/json_parser.hpp>
+#include <gst/gst.h>
+
+#include <thread> // sleep_for()
 
 #define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -98,6 +102,21 @@ std::string ServerManagerImpl::getKmd (const std::string &moduleName)
 
   throw KurentoException (SERVER_MANAGER_ERROR_KMD_NOT_FOUND,
                           "Requested kmd module doesn't exist");
+}
+
+int
+ServerManagerImpl::getCpuCount ()
+{
+  return (int)cpuCount ();
+}
+
+float
+ServerManagerImpl::getUsedCpu (int interval)
+{
+  struct ::cpustat_t cpustat;
+  cpuPercentBegin (&cpustat);
+  std::this_thread::sleep_for (std::chrono::milliseconds (interval));
+  return cpuPercentEnd (&cpustat);
 }
 
 static int64_t

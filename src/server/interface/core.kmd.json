@@ -252,6 +252,60 @@ Exists silently with no error if tag is not defined.
           }
         },
         {
+          "name": "getCpuCount",
+          "doc": "Number of CPU cores that the media server can use.
+<p>
+  Linux processes can be configured to use only a subset of the cores that are
+  available in the system, via the process affinity settings
+  (<strong>sched_setaffinity(2)</strong>). With this method it is possible to
+  know the number of cores that the media server can use in the machine where it
+  is running.
+</p>
+<p>
+  For example, it's possible to limit the core affinity inside a Docker
+  container by running with a command such as
+  <em>docker run --cpuset-cpus='0,1'</em>.
+</p>
+<p>
+  Note that the return value represents the number of
+  <em>logical</em> processing units available, i.e. CPU cores including
+  Hyper-Threading.
+</p>
+          ",
+          "params": [],
+          "return": {
+            "doc": "Number of CPU cores available for the media server.",
+            "type": "int"
+          }
+        },
+        {
+          "name": "getUsedCpu",
+          "doc": "Average CPU usage of the server.
+<p>
+  This method measures the average CPU usage of the media server during the
+  requested interval. Normally you will want to choose an interval between 1000
+  and 10000 ms.
+</p>
+<p>
+  The returned value represents the global system CPU usage of the media server,
+  as an average across all processing units (CPU cores).
+</p>
+          ",
+          "params": [
+            {
+              "name": "interval",
+              "doc": "Time to measure the average CPU usage, in milliseconds.",
+              "type": "int",
+              "optional": false,
+              "defaultValue": 1000
+            }
+          ],
+          "return": {
+            "doc": "CPU usage %.",
+            "type": "float"
+          }
+        },
+        {
           "name": "getUsedMemory",
           "doc": "Returns the amount of memory that the server is using, in KiB",
           "params": [],
