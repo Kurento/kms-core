@@ -70,14 +70,11 @@ public:
 
   virtual std::string getMetadata () override;
 
-<<<<<<< ff3c07be9ebfd768ffa06a56e1add6a2a7452f81
   virtual int getCpuCount () override;
 
   virtual float getUsedCpu (int interval) override;
 
-=======
   // Used memory, in KiB
->>>>>>> Provide resident (RSS) memory instead of virtual (VSZ) for statistics
   virtual int64_t getUsedMemory() override;
 
   /* Next methods are automatically implemented by code generator */

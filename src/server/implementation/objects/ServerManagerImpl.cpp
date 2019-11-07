@@ -28,16 +28,12 @@
 
 #include <thread> // sleep_for()
 
-#include <fstream> // std::ifstream
-#include <unistd.h> // sysconf(), _SC_PAGESIZE
-
 #define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoServerManagerImpl"
 
 #define METADATA "metadata"
 
-#define STATM_FILE_PATH "/proc/self/statm"
 
 namespace kurento
 {
@@ -127,30 +123,7 @@ ServerManagerImpl::getUsedCpu (int interval)
 int64_t
 ServerManagerImpl::getUsedMemory()
 {
-  std::ifstream statm (STATM_FILE_PATH);
-
-  if (!statm.is_open()) {
-    GST_WARNING ("Opening stats file: %s", STATM_FILE_PATH);
-    return 0;
-  }
-
-  // size       (1) total program size (VmSize, in pages)
-  long int size_pages;
-  statm >> size_pages;
-
-  // resident   (2) resident set size (VmRSS, in pages)
-  long int resident_pages;
-  statm >> resident_pages;
-
-  if (statm.fail()) {
-    GST_WARNING ("Parsing stats file: %s", STATM_FILE_PATH);
-    return 0;
-  }
-
-  const long int pagesize_bytes = sysconf(_SC_PAGESIZE);
-  const long int resident_kbytes = resident_pages * pagesize_bytes / 1024;
-
-  return (int64_t)resident_kbytes;
+  return (int64_t) memoryUse ();
 }
 
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;
