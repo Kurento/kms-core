@@ -47,4 +47,11 @@ void cpuPercentBegin (struct cpustat_t *cpustat);
  */
 float cpuPercentEnd (const struct cpustat_t *cpustat);
 
+
+/**
+ * Memory used by this process, in KiB.
+ * This counts the Resident Set Size (RSS).
+ */
+long int memoryUse ();
+
 #endif /* _KMS_PROCESS_TOOLS_H_ */

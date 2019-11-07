@@ -21,14 +21,15 @@
 #include <sstream>
 #include <string>
 
-//#include <limits.h>
-//#include <stdlib.h>
 #include <sched.h>
 #include <unistd.h> // sysconf()
 
 #define STAT_PATH "/proc/stat"
+
 #define SELF_STAT_PATH "/proc/self/stat"
 #define SELF_STAT_UTIME_FIELD 14
+
+#define SELF_STATM_FILE_PATH "/proc/self/statm"
 
 // ----------------------------------------------------------------------------
 
@@ -81,13 +82,13 @@ processTicks ()
     stat >> unused;
   }
 
-  // (14) utime  %lu
+  // (14) utime %lu
   // Amount of time that this process has been scheduled in user mode,
   // measured in clock ticks
   long unsigned utimeTicks;
   stat >> utimeTicks;
 
-  // (15) stime  %lu
+  // (15) stime %lu
   // Amount of time that this process has been scheduled in kernel mode,
   // measured in clock ticks
   long unsigned stimeTicks;
@@ -164,6 +165,34 @@ float cpuPercentEnd (const struct cpustat_t *cpustat)
 
   // https://github.com/hishamhm/htop/blob/402e46bb82964366746b86d77eb5afa69c279539/linux/LinuxProcessList.c#L832
   return 100.0f * processTicksInc / systemTicksInc;
+}
+
+// ----------------------------------------------------------------------------
+
+long int memoryUse ()
+{
+  std::ifstream statm (SELF_STATM_FILE_PATH);
+
+  if (!statm) {
+    return 0;
+  }
+
+  // (1) size - total program size (VmSize, in pages)
+  long int size_pages;
+  statm >> size_pages;
+
+  // (2) resident - resident set size (VmRSS, in pages)
+  long int resident_pages;
+  statm >> resident_pages;
+
+  if (!statm) {
+    return 0;
+  }
+
+  const long int pagesize_bytes = sysconf(_SC_PAGESIZE);
+  const long int resident_kbytes = resident_pages * pagesize_bytes / 1024;
+
+  return resident_kbytes;
 }
 
 // ----------------------------------------------------------------------------
