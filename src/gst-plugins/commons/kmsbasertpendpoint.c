@@ -1036,7 +1036,6 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
     KmsBaseRtpSession *sess)
 {
   GstPad *pad;
-  int max_recv_bw;
 
   if (self->priv->rl != NULL) {
     /* TODO: support more than one media with REMB */
@@ -1072,6 +1071,7 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
   g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
+  guint max_recv_bw;
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
       kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
@@ -2368,9 +2368,9 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       self->priv->target_bitrate = g_value_get_int (value);
       break;
     case PROP_MIN_VIDEO_RECV_BW:{
-      int max_recv_bw;
       guint v = g_value_get_uint (value);
 
+      guint max_recv_bw;
       g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
 
       if (max_recv_bw != 0 && v > max_recv_bw) {
