@@ -64,6 +64,9 @@ public:
   virtual std::shared_ptr<RembParams> getRembParams ();
   virtual void setRembParams (std::shared_ptr<RembParams> rembParams);
 
+  virtual int getMtu ();
+  virtual void setMtu (int mtu);
+
   sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
   sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
 

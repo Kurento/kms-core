@@ -49,9 +49,11 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define PARAM_MIN_PORT "minPort"
 #define PARAM_MAX_PORT "maxPort"
+#define PARAM_MTU "mtu"
 
 #define PROP_MIN_PORT "min-port"
 #define PROP_MAX_PORT "max-port"
+#define PROP_MTU "mtu"
 
 /* Fixed point conversion macros */
 #define FRIC        65536.                  /* 2^16 as a double */
@@ -102,6 +104,14 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
   guint maxPort = 0;
   if (getConfigValue <guint, BaseRtpEndpoint> (&maxPort, PARAM_MAX_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
+  }
+
+  guint mtu;
+  if (getConfigValue <guint, BaseRtpEndpoint> (&mtu, PARAM_MTU)) {
+    GST_INFO ("Predefined RTP MTU: %u", mtu);
+    g_object_set (G_OBJECT (element), PROP_MTU, mtu, NULL);
+  } else {
+    GST_INFO ("No predefined RTP MTU found in config; using default");
   }
 }
 
@@ -377,6 +387,23 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 
   g_object_set (G_OBJECT (element), REMB_PARAMS, params, NULL);
   gst_structure_free (params);
+}
+
+int
+BaseRtpEndpointImpl::getMtu ()
+{
+  int mtu;
+
+  g_object_get (G_OBJECT (element), PROP_MTU, &mtu, NULL);
+
+  return mtu;
+}
+
+void
+BaseRtpEndpointImpl::setMtu (int mtu)
+{
+  GST_INFO ("Set MTU for RTP: %d", mtu);
+  g_object_set (G_OBJECT (element), PROP_MTU, mtu, NULL);
 }
 
 /******************/
