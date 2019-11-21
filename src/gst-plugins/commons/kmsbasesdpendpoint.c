@@ -45,7 +45,7 @@ static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
     self, KmsSdpSession * sess);
 
 #define USE_IPV6_DEFAULT FALSE
-#define MAX_VIDEO_RECV_BW_DEFAULT 500
+#define MAX_VIDEO_RECV_BW_DEFAULT 0
 #define MAX_AUDIO_RECV_BW_DEFAULT 0
 
 #define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
