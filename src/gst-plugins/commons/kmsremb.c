@@ -23,8 +23,8 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "kmsremb"
 
-#define REMB_MIN 30000          /* bps */
-#define REMB_MAX 2000000        /* bps */
+#define REMB_MIN   30000 // bps
+#define REMB_MAX 2000000 // bps
 
 #define KMS_REMB_REMOTE "kms-remb-remote"
 G_DEFINE_QUARK (KMS_REMB_REMOTE, kms_remb_remote);
@@ -743,14 +743,12 @@ kms_remb_remote_update (KmsRembRemote * rm,
       br_send = (guint)rm->remb_on_connect;
       rm->remb = remb_packet->bitrate;
       GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-          "Recv REMB, not probed yet! Use 'rembOnConnect'");
+          "Recv REMB, not probed yet! Use 'rembOnConnect': %u", br_send);
     } else {
       rm->probed = TRUE;
     }
   }
 
-  GST_DEBUG_OBJECT (KMS_REMB_BASE (rm)->rtpsess,
-      "Recv REMB, applied bitrate: %u", br_send);
   send_remb_event (rm, br_send, remb_packet->ssrcs[0]);
 
   rm->remb = remb_packet->bitrate;
