@@ -15,14 +15,18 @@
  *
  */
 
-#include <gst/gst.h>
 #include "ServerInfo.hpp"
 #include "MediaPipelineImpl.hpp"
 #include "ServerManagerImpl.hpp"
+#include "process-tools/linux-process.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <MediaSet.hpp>
+
 #include <boost/property_tree/json_parser.hpp>
+#include <gst/gst.h>
+
+#include <thread> // sleep_for()
 
 #define GST_CAT_DEFAULT kurento_server_manager_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -100,36 +104,25 @@ std::string ServerManagerImpl::getKmd (const std::string &moduleName)
                           "Requested kmd module doesn't exist");
 }
 
-static int64_t
-get_int64 (std::string &str, char sep, int nToken)
+int
+ServerManagerImpl::getCpuCount ()
 {
-  size_t start = str.find_first_not_of (sep), end;
-  int count = 0;
+  return (int)cpuCount ();
+}
 
-  while (start != std::string::npos) {
-    end = str.find (sep, start);
-
-    if (count++ == nToken) {
-      str[end] = '\0';
-      return atol (&str.c_str() [start]);
-    }
-
-    start = str.find_first_not_of (sep, end);
-  }
-
-  return 0;
+float
+ServerManagerImpl::getUsedCpu (int interval)
+{
+  struct ::cpustat_t cpustat;
+  cpuPercentBegin (&cpustat);
+  std::this_thread::sleep_for (std::chrono::milliseconds (interval));
+  return cpuPercentEnd (&cpustat);
 }
 
 int64_t
 ServerManagerImpl::getUsedMemory()
 {
-  std::string stat;
-  std::ifstream stat_file ("/proc/self/stat");
-
-  std::getline (stat_file, stat);
-  stat_file.close();
-
-  return get_int64 (stat, ' ', 22) / 1024;
+  return (int64_t) memoryUse ();
 }
 
 ServerManagerImpl::StaticConstructor ServerManagerImpl::staticConstructor;

@@ -47,11 +47,9 @@ G_BEGIN_DECLS
 )
 
 #define AUDIO_MIXER_BIN_SINK_PAD_PREFIX  "sink_"
-
+#define LENGTH_AUDIO_MIXER_BIN_SINK_PAD_PREFIX (sizeof(AUDIO_MIXER_BIN_SINK_PAD_PREFIX) - 1)
 #define AUDIO_MIXER_BIN_SINK_PAD AUDIO_MIXER_BIN_SINK_PAD_PREFIX "%u"
 #define AUDIO_MIXER_BIN_SRC_PAD "src"
-
-#define LENGTH_AUDIO_MIXER_BIN_SINK_PAD_PREFIX 5  /* sizeof("sink_") */
 
 typedef struct _KmsAudioMixerBin KmsAudioMixerBin;
 typedef struct _KmsAudioMixerBinClass KmsAudioMixerBinClass;

@@ -43,7 +43,7 @@ public:
   GstElement *getGstreamerElement()
   {
     return element;
-  };
+  }
 
   virtual std::string getGstreamerDot ();
   virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>

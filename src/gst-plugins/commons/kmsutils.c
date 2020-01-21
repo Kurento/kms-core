@@ -945,7 +945,8 @@ remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     return GST_PAD_PROBE_OK;
   }
 
-  GST_TRACE_OBJECT (pad, "REMB: 'on-feedback-rtcp' received upstream event"
+  GST_DEBUG_OBJECT (pad,
+      "REMB [on-feedback-rtcp] received downstream bitrate event"
       ", SSRC: %" G_GUINT32_FORMAT
       ", bitrate: %" G_GUINT32_FORMAT, ssrc, bitrate);
 

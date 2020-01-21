@@ -49,9 +49,11 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define PARAM_MIN_PORT "minPort"
 #define PARAM_MAX_PORT "maxPort"
+#define PARAM_MTU "mtu"
 
 #define PROP_MIN_PORT "min-port"
 #define PROP_MAX_PORT "max-port"
+#define PROP_MTU "mtu"
 
 /* Fixed point conversion macros */
 #define FRIC        65536.                  /* 2^16 as a double */
@@ -94,14 +96,22 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
                        (ConnectionState::DISCONNECTED);
   connStateChangedHandlerId = 0;
 
-  guint minPort;
+  guint minPort = 0;
   if (getConfigValue<guint, BaseRtpEndpoint> (&minPort, PARAM_MIN_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MIN_PORT, minPort, NULL);
   }
 
-  guint maxPort;
+  guint maxPort = 0;
   if (getConfigValue <guint, BaseRtpEndpoint> (&maxPort, PARAM_MAX_PORT)) {
     g_object_set (getGstreamerElement (), PROP_MAX_PORT, maxPort, NULL);
+  }
+
+  guint mtu;
+  if (getConfigValue <guint, BaseRtpEndpoint> (&mtu, PARAM_MTU)) {
+    GST_INFO ("Predefined RTP MTU: %u", mtu);
+    g_object_set (G_OBJECT (element), PROP_MTU, mtu, NULL);
+  } else {
+    GST_INFO ("No predefined RTP MTU found in config; using default");
   }
 }
 
@@ -139,11 +149,15 @@ BaseRtpEndpointImpl::updateMediaState (guint new_state)
   }
 
   if (old_state->getValue() != current_media_state->getValue() ) {
-    /* Emit state change signal */
-    MediaStateChanged event (shared_from_this(),
-                             MediaStateChanged::getName (), old_state, current_media_state);
-
-    this->signalMediaStateChanged (event);
+    try {
+      MediaStateChanged event (shared_from_this (),
+          MediaStateChanged::getName (), old_state, current_media_state);
+      sigcSignalEmit(signalMediaStateChanged, event);
+    } catch (const std::bad_weak_ptr &e) {
+      // shared_from_this()
+      GST_ERROR ("BUG creating %s: %s", MediaStateChanged::getName ().c_str (),
+          e.what ());
+    }
   }
 }
 
@@ -170,11 +184,15 @@ BaseRtpEndpointImpl::updateConnectionState (gchar *sessId, guint new_state)
   }
 
   if (old_state->getValue() != current_conn_state->getValue() ) {
-    /* Emit state change signal */
-    ConnectionStateChanged event (shared_from_this(),
-                                  ConnectionStateChanged::getName (), old_state, current_conn_state);
-
-    this->signalConnectionStateChanged (event);
+    try {
+      ConnectionStateChanged event (shared_from_this(),
+          ConnectionStateChanged::getName (), old_state, current_conn_state);
+      sigcSignalEmit(signalConnectionStateChanged, event);
+    } catch (const std::bad_weak_ptr &e) {
+      // shared_from_this()
+      GST_ERROR ("BUG creating %s: %s",
+          ConnectionStateChanged::getName ().c_str (), e.what ());
+    }
   }
 }
 
@@ -369,6 +387,23 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 
   g_object_set (G_OBJECT (element), REMB_PARAMS, params, NULL);
   gst_structure_free (params);
+}
+
+int
+BaseRtpEndpointImpl::getMtu ()
+{
+  int mtu;
+
+  g_object_get (G_OBJECT (element), PROP_MTU, &mtu, NULL);
+
+  return mtu;
+}
+
+void
+BaseRtpEndpointImpl::setMtu (int mtu)
+{
+  GST_INFO ("Set MTU for RTP: %d", mtu);
+  g_object_set (G_OBJECT (element), PROP_MTU, mtu, NULL);
 }
 
 /******************/

@@ -63,7 +63,7 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
   }
 
   if (gst_sdp_message_copy (offer, &self->local_sdp) != GST_SDP_OK) {
-    GST_ERROR_OBJECT (self, "Generating SDP Offer: %s", err->message);
+    GST_ERROR_OBJECT (self, "Generating SDP Offer: gst_sdp_message_copy");
     goto error;
   }
 

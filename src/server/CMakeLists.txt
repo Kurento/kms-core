@@ -16,6 +16,7 @@ set(KMS_CORE_IMPL_SOURCES
   implementation/UUIDGenerator.cpp
   implementation/RegisterParent.cpp
   implementation/DotGraph.cpp
+  implementation/process-tools/linux-process.cpp
 )
 
 set(KMS_CORE_IMPL_HEADERS
@@ -29,6 +30,7 @@ set(KMS_CORE_IMPL_HEADERS
   implementation/RegisterParent.hpp
   implementation/DotGraph.hpp
   implementation/SignalHandler.hpp
+  implementation/process-tools/linux-process.hpp
 )
 
 include(CodeGenerator)

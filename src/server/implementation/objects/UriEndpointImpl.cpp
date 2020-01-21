@@ -39,7 +39,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoUriEndpointImpl"
 
 #define DEFAULT_PATH "defaultPath"
-#define DEFAULT_PATH_VALUE "file:///var/kurento"
+#define DEFAULT_PATH_VALUE "file:///var/lib/kurento"
 
 namespace kurento
 {
@@ -210,9 +210,15 @@ UriEndpointImpl::stateChanged (guint new_state)
 {
   state = wrap_c_state ( (KmsUriEndpointState) new_state);
 
-  UriEndpointStateChanged event (shared_from_this(),
-                                 UriEndpointStateChanged::getName(), state);
-  signalUriEndpointStateChanged (event);
+  try {
+    UriEndpointStateChanged event (shared_from_this (),
+        UriEndpointStateChanged::getName (), state);
+    sigcSignalEmit(signalUriEndpointStateChanged, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        UriEndpointStateChanged::getName ().c_str (), e.what ());
+  }
 }
 
 UriEndpointImpl::StaticConstructor UriEndpointImpl::staticConstructor;

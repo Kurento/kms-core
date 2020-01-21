@@ -136,7 +136,7 @@ public:
   {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast &) {
       GST_WARNING ("Bad cast for source element");
       return std::shared_ptr<MediaElementImpl> ();
     }
@@ -146,7 +146,7 @@ public:
   {
     try {
       return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast &) {
       GST_WARNING ("Bad cast for source element");
       return std::shared_ptr<MediaElementImpl> ();
     }
@@ -249,9 +249,10 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   GstElement *parent = self->element;
   gint err_code = 0;
   gchar *err_msg = NULL;
+  std::string errorMessage;
 
   if (!gst_object_has_as_ancestor (msg->src, GST_OBJECT (parent))) {
-    return;
+    goto finish;
   }
 
   if (err != NULL) {
@@ -267,7 +268,7 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
       "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
 
-  std::string errorMessage (err_msg);
+  errorMessage.assign (err_msg);
   if (dbg_info) {
     errorMessage += " (" + std::string (dbg_info) + ")";
   }
@@ -281,6 +282,7 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
   } catch (std::bad_weak_ptr &e) {
   }
 
+finish:
   g_error_free (err);
   g_free (dbg_info);
 
@@ -364,7 +366,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
             self->performConnection (it);
           }
         }
-      } catch (std::out_of_range) {
+      } catch (std::out_of_range &) {
 
       }
     } else {
@@ -411,7 +413,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
             source->performConnection (sourceData);
           }
         }
-      } catch (std::out_of_range) {
+      } catch (std::out_of_range &) {
 
       }
     }
@@ -474,11 +476,14 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
   mediaFlowOutStates[key] = state;
 
   try {
-    MediaFlowOutStateChange event (shared_from_this(),
-                                   MediaFlowOutStateChange::getName (),
-                                   state, padName, padTypeToMediaType (type));
-    signalMediaFlowOutStateChange (event);
-  } catch (std::bad_weak_ptr &e) {
+    MediaFlowOutStateChange event (shared_from_this (),
+        MediaFlowOutStateChange::getName (), state, padName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaFlowOutStateChange, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaFlowOutStateChange::getName ().c_str (), e.what ());
   }
 }
 
@@ -506,11 +511,14 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
   mediaFlowInStates[key] = state;
 
   try {
-    MediaFlowInStateChange event (shared_from_this(),
-                                  MediaFlowInStateChange::getName (),
-                                  state, padName, padTypeToMediaType (type));
-    signalMediaFlowInStateChange (event);
-  } catch (std::bad_weak_ptr &e) {
+    MediaFlowInStateChange event (shared_from_this (),
+        MediaFlowInStateChange::getName (), state, padName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaFlowInStateChange, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaFlowInStateChange::getName ().c_str (), e.what ());
   }
 }
 
@@ -540,12 +548,20 @@ MediaElementImpl::onMediaTranscodingStateChange (gboolean isTranscoding,
   mediaTranscodingStates[key] = state;
 
   try {
-    MediaTranscodingStateChange event (shared_from_this(),
-                                       MediaTranscodingStateChange::getName (),
-                                       state, binName, padTypeToMediaType (type));
-    signalMediaTranscodingStateChange (event);
+
   } catch (std::bad_weak_ptr &e) {
     GST_WARNING_OBJECT (element, "Cannot emit event: MediaTranscodingStateChange");
+  }
+
+  try {
+    MediaTranscodingStateChange event (shared_from_this (),
+        MediaTranscodingStateChange::getName (), state, binName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaTranscodingStateChange, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaTranscodingStateChange::getName ().c_str (), e.what ());
   }
 }
 
@@ -606,7 +622,7 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
   pipe->addElement (element);
 
   //read default configuration for output bitrate
-  int bitrate;
+  int bitrate = 0;
   if (getConfigValue<int, MediaElement> (&bitrate, "outputBitrate")) {
     GST_DEBUG ("Output bitrate configured to %d bps", bitrate);
     g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
@@ -660,7 +676,7 @@ MediaElementImpl::release ()
 
 void MediaElementImpl::disconnectAll ()
 {
-  while (!getSinkConnections().empty() ) {
+  while (!MediaElementImpl::getSinkConnections().empty() ) {
     std::unique_lock<std::recursive_timed_mutex> sinkLock (sinksMutex,
         std::defer_lock);
 
@@ -669,16 +685,23 @@ void MediaElementImpl::disconnectAll ()
       continue;
     }
 
-    for (std::shared_ptr<ElementConnectionData> connData : getSinkConnections() ) {
+    for (std::shared_ptr<ElementConnectionData> connData :
+         MediaElementImpl::getSinkConnections() ) {
       auto sinkImpl = std::dynamic_pointer_cast <MediaElementImpl>
                       (connData->getSink () );
       std::unique_lock<std::recursive_timed_mutex> sinkLock (sinkImpl->sourcesMutex,
           std::defer_lock);
 
       if (sinkLock.try_lock_for (millisRand ())) {
-        disconnect (connData->getSink (), connData->getType (),
-                    connData->getSourceDescription (),
-                    connData->getSinkDescription () );
+        // WARNING: This called the virtual method 'disconnect()', but:
+        // 1. Virtual methods shouldn't be called from constructors or destructors.
+        // 2. There is no other override of 'disconnect()'.
+        // So to solve (1), we're calling here the same-class implementation of
+        // the method. If new overrides are added in the future, then this
+        // will need to be reviewed.
+        MediaElementImpl::disconnect (connData->getSink (),
+            connData->getType (), connData->getSourceDescription (),
+            connData->getSinkDescription () );
       }
       else {
         GST_DEBUG_OBJECT (sinkImpl->getGstreamerElement(),
@@ -687,7 +710,7 @@ void MediaElementImpl::disconnectAll ()
     }
   }
 
-  while (!getSourceConnections().empty() ) {
+  while (!MediaElementImpl::getSourceConnections().empty() ) {
     std::unique_lock<std::recursive_timed_mutex> sourceLock (sourcesMutex,
         std::defer_lock);
 
@@ -697,7 +720,7 @@ void MediaElementImpl::disconnectAll ()
     }
 
     for (std::shared_ptr<ElementConnectionData> connData :
-         getSourceConnections() ) {
+         MediaElementImpl::getSourceConnections() ) {
       auto sourceImpl = std::dynamic_pointer_cast <MediaElementImpl>
                         (connData->getSource () );
       std::unique_lock<std::recursive_timed_mutex> sourceLock (sourceImpl->sinksMutex,
@@ -727,7 +750,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it2 : it.second) {
       try {
         ret.push_back (it2.second->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
       }
     }
   }
@@ -746,11 +769,11 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it : sources.at (mediaType) ) {
       try {
         ret.push_back (it.second->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
 
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -766,9 +789,9 @@ std::vector<std::shared_ptr<ElementConnectionData>>
 
   try {
     ret.push_back (sources.at (mediaType).at (description)->toInterface() );
-  } catch (KurentoException) {
+  } catch (KurentoException &) {
 
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -786,7 +809,7 @@ std::vector<std::shared_ptr<ElementConnectionData>>
       for (auto it3 : it2.second) {
         try {
           ret.push_back (it3->toInterface() );
-        } catch (KurentoException) {
+        } catch (KurentoException &) {
 
         }
       }
@@ -808,12 +831,12 @@ std::vector<std::shared_ptr<ElementConnectionData>>
       for (auto it3 : it.second) {
         try {
           ret.push_back (it3->toInterface() );
-        } catch (KurentoException) {
+        } catch (KurentoException &) {
 
         }
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -831,11 +854,11 @@ std::vector<std::shared_ptr<ElementConnectionData>>
     for (auto it : sinks.at (mediaType).at (description) ) {
       try {
         ret.push_back (it->toInterface() );
-      } catch (KurentoException) {
+      } catch (KurentoException &) {
 
       }
     }
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
@@ -935,11 +958,16 @@ void MediaElementImpl::connect (std::shared_ptr<MediaElement> sink,
   sinkLock.unlock();
   lock.unlock ();
 
-  ElementConnected elementConnected (shared_from_this(),
-                                     ElementConnected::getName (),
-                                     sink, mediaType, sourceMediaDescription,
-                                     sinkMediaDescription);
-  signalElementConnected (elementConnected);
+  try {
+    ElementConnected event (shared_from_this (),
+        ElementConnected::getName (), sink, mediaType, sourceMediaDescription,
+        sinkMediaDescription);
+    sigcSignalEmit(signalElementConnected, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s", ElementConnected::getName ().c_str (),
+        e.what ());
+  }
 }
 
 void
@@ -1048,18 +1076,23 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
     g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
                            connectionData->getSourcePadName (), &ret, NULL);
-  } catch (std::out_of_range) {
+  } catch (std::out_of_range &) {
 
   }
 
   sinkLock.unlock();
   lock.unlock ();
 
-  ElementDisconnected elementDisconnected (shared_from_this(),
-      ElementDisconnected::getName (),
-      sink, mediaType, sourceMediaDescription,
-      sinkMediaDescription);
-  signalElementDisconnected (elementDisconnected);
+  try {
+    ElementDisconnected event (shared_from_this (),
+        ElementDisconnected::getName (), sink, mediaType,
+        sourceMediaDescription, sinkMediaDescription);
+    sigcSignalEmit(signalElementDisconnected, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s", ElementDisconnected::getName ().c_str (),
+        e.what ());
+  }
 }
 
 void MediaElementImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)

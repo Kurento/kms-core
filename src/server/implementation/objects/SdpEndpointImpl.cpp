@@ -120,10 +120,10 @@ SdpEndpointImpl::SdpEndpointImpl (const boost::property_tree::ptree &config,
   //   g_signal_connect (element, "media-start", G_CALLBACK (media_start_cb), this);
   //   g_signal_connect (element, "media-stop", G_CALLBACK (media_stop_cb), this);
 
-  guint audio_medias;
+  guint audio_medias = 0;
   getConfigValue <guint, SdpEndpoint> (&audio_medias, PARAM_NUM_AUDIO_MEDIAS, 1);
 
-  guint video_medias;
+  guint video_medias = 0;
   getConfigValue <guint, SdpEndpoint> (&video_medias, PARAM_NUM_VIDEO_MEDIAS, 1);
 
   std::vector<std::shared_ptr<CodecConfiguration>> acodec_list;
@@ -245,8 +245,15 @@ std::string SdpEndpointImpl::processOffer (const std::string &offer)
   sdp_to_str (offerSdpStr, result);
   gst_sdp_message_free (result);
 
-  MediaSessionStarted event (shared_from_this(), MediaSessionStarted::getName() );
-  signalMediaSessionStarted (event);
+  try {
+    MediaSessionStarted event (shared_from_this (),
+        MediaSessionStarted::getName ());
+    sigcSignalEmit(signalMediaSessionStarted, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s", MediaSessionStarted::getName ().c_str (),
+        e.what ());
+  }
 
   return offerSdpStr;
 }
@@ -286,8 +293,15 @@ std::string SdpEndpointImpl::processAnswer (const std::string &answer)
                             "Error processing answer");
   }
 
-  MediaSessionStarted event (shared_from_this(), MediaSessionStarted::getName() );
-  signalMediaSessionStarted (event);
+  try {
+    MediaSessionStarted event (shared_from_this (),
+        MediaSessionStarted::getName());
+    sigcSignalEmit(signalMediaSessionStarted, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s", MediaSessionStarted::getName ().c_str (),
+        e.what ());
+  }
 
   return getLocalSessionDescriptor ();
 }

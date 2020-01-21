@@ -27,26 +27,51 @@
   "remoteClasses": [
     {
       "name": "MediaObject",
-      "doc": "<p>Base interface used to manage capabilities common to all Kurento elements. This includes both: :rom:cls:`MediaElement` and :rom:cls:`MediaPipeline`</p>
-      <h4>Properties</h4>
-      <ul>
-        <li><b>id</b>: unique identifier assigned to this <code>MediaObject</code> at instantiation time. :rom:cls:`MediaPipeline` IDs are generated with a GUID followed by suffix <code>_kurento.MediaPipeline</code>. :rom:cls:`MediaElement` IDs are also a GUID with suffix <code>_kurento.elemenType</code> and prefixed by parent's ID.
-          <blockquote>
-          <dl>
-            <dt><i>MediaPipeline ID example</i></dt>
-            <dd><code>907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline</code></dd>
-            <dt><i>MediaElement ID example</i></dt> <dd><code>907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline/403da25a-805b-4cf1-8c55-f190588e6c9b_kurento.WebRtcEndpoint</code></dd>
-          </dl>
-          </blockquote>
-        </li>
-        <li><b>name</b>: free text intended to provide a friendly name for this <code>MediaObject</code>. Its default value is the same as the ID.</li>
-        <li><b>tags</b>: key-value pairs intended for applications to associate metadata to this <code>MediaObject</code> instance.</li>
-      </ul>
-      <p>
-      <h4>Events</h4>
-      <ul>
-        <li>`ErrorEvent`: reports asynchronous error events. It is recommended to always subscribe a listener to this event, as regular error from the pipeline will be notified through it, instead of through an exception when invoking a method.</li>
-      </ul>
+      "doc": "Base interface used to manage capabilities common to all Kurento elements.
+<h4>Properties</h4>
+<ul>
+  <li>
+    <b>id</b>: unique identifier assigned to this <code>MediaObject</code> at
+    instantiation time. :rom:cls:`MediaPipeline` IDs are generated with a GUID
+    followed by suffix <code>_kurento.MediaPipeline</code>.
+    :rom:cls:`MediaElement` IDs are also a GUID with suffix
+    <code>_kurento.{ElementType}</code> and prefixed by parent's ID.
+    <blockquote>
+      <dl>
+        <dt><i>MediaPipeline ID example</i></dt>
+        <dd>
+          <code>
+            907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline
+          </code>
+        </dd>
+        <dt><i>MediaElement ID example</i></dt>
+        <dd>
+          <code>
+            907cac3a-809a-4bbe-a93e-ae7e944c5cae_kurento.MediaPipeline/403da25a-805b-4cf1-8c55-f190588e6c9b_kurento.WebRtcEndpoint
+          </code>
+        </dd>
+      </dl>
+    </blockquote>
+  </li>
+  <li>
+    <b>name</b>: free text intended to provide a friendly name for this
+    <code>MediaObject</code>. Its default value is the same as the ID.
+  </li>
+  <li>
+    <b>tags</b>: key-value pairs intended for applications to associate metadata
+    to this <code>MediaObject</code> instance.
+  </li>
+</ul>
+<p></p>
+<h4>Events</h4>
+<ul>
+  <li>
+    <b>ErrorEvent</b>: reports asynchronous error events. It is recommended to
+    always subscribe a listener to this event, as regular error from the
+    pipeline will be notified through it, instead of through an exception when
+    invoking a method.
+  </li>
+</ul>
       ",
       "abstract": true,
       "properties": [
@@ -58,36 +83,56 @@
         },
         {
           "name": "parent",
-          "doc": "parent of this <code>MediaObject</code>. The parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, so this property will be null.",
+          "doc": "Parent of this <code>MediaObject</code>.
+<p>
+  The parent of a :rom:cls:`Hub` or a :rom:cls:`MediaElement` is its
+  :rom:cls:`MediaPipeline`. A :rom:cls:`MediaPipeline` has no parent, so this
+  property will be null.
+</p>
+          ",
           "type": "MediaObject",
           "final": true
         },
         {
           "name": "id",
-          "doc": "unique identifier of this <code>MediaObject</code>. It's a synthetic identifier composed by a GUID and <code>MediaObject</code> type. The ID is prefixed with the parent ID when the object has parent: <i>ID_parent/ID_media-object</i>.",
+          "doc": "Unique identifier of this <code>MediaObject</code>.
+<p>
+  It's a synthetic identifier composed by a GUID and
+  <code>MediaObject</code> type. The ID is prefixed with the parent ID when the
+  object has parent: <i>ID_parent/ID_media-object</i>.
+</p>
+          ",
           "type": "String",
           "final": true
         },
         {
           "name": "childs",
-          "doc": "@deprecated\n (Use children instead) children of this <code>MediaObject</code>.",
+          "doc": "Children of this <code>MediaObject</code>.
+@deprecated Use children instead.
+          ",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "children",
-          "doc": "children of this <code>MediaObject</code>.",
+          "doc": "Children of this <code>MediaObject</code>.",
           "type": "MediaObject[]",
           "readOnly": true
         },
         {
           "name": "name",
-          "doc": "this <code>MediaObject</code>'s name. This is just a comodity to simplify developers' life debugging, it is not used internally for indexing nor idenfiying the objects. By default, it's the object's ID.",
+          "doc": "This <code>MediaObject</code>'s name.
+<p>
+  This is just sugar to simplify developers' life debugging, it is not used
+  internally for indexing nor identifying the objects. By default, it's the
+  object's ID.
+</p>
+          ",
           "type": "String"
         },
         {
           "name": "sendTagsInEvents",
-          "doc": "flag activating or deactivating sending the element's tags in fired events.",
+          "doc": "Flag activating or deactivating sending the element's tags in fired events.",
           "type": "boolean",
           "defaultValue": false
         },
@@ -101,7 +146,9 @@
       "methods": [
         {
           "name": "addTag",
-          "doc": "Adds a new tag to this <code>MediaObject</code>. If the tag is already present, it changes the value.",
+          "doc": "Adds a new tag to this <code>MediaObject</code>.
+If the tag is already present, it changes the value.
+          ",
           "params": [
             {
               "name": "key",
@@ -117,7 +164,9 @@
         },
         {
           "name": "removeTag",
-          "doc": "Removes an existing tag. Exists silently with no error if tag is not defined.",
+          "doc": "Removes an existing tag.
+Exists silently with no error if tag is not defined.
+          ",
           "params": [
             {
               "name": "key",
@@ -198,16 +247,70 @@
             }
           ],
           "return": {
-            "doc": "The kmd file",
+            "doc": "The kmd file.",
             "type": "String"
           }
         },
         {
-          "name": "getUsedMemory",
-          "doc": "Returns the amount of memory that the server is using in KiB",
+          "name": "getCpuCount",
+          "doc": "Number of CPU cores that the media server can use.
+<p>
+  Linux processes can be configured to use only a subset of the cores that are
+  available in the system, via the process affinity settings
+  (<strong>sched_setaffinity(2)</strong>). With this method it is possible to
+  know the number of cores that the media server can use in the machine where it
+  is running.
+</p>
+<p>
+  For example, it's possible to limit the core affinity inside a Docker
+  container by running with a command such as
+  <em>docker run --cpuset-cpus='0,1'</em>.
+</p>
+<p>
+  Note that the return value represents the number of
+  <em>logical</em> processing units available, i.e. CPU cores including
+  Hyper-Threading.
+</p>
+          ",
           "params": [],
           "return": {
-            "doc": "The amount of KiB of memory being used",
+            "doc": "Number of CPU cores available for the media server.",
+            "type": "int"
+          }
+        },
+        {
+          "name": "getUsedCpu",
+          "doc": "Average CPU usage of the server.
+<p>
+  This method measures the average CPU usage of the media server during the
+  requested interval. Normally you will want to choose an interval between 1000
+  and 10000 ms.
+</p>
+<p>
+  The returned value represents the global system CPU usage of the media server,
+  as an average across all processing units (CPU cores).
+</p>
+          ",
+          "params": [
+            {
+              "name": "interval",
+              "doc": "Time to measure the average CPU usage, in milliseconds.",
+              "type": "int",
+              "optional": false,
+              "defaultValue": 1000
+            }
+          ],
+          "return": {
+            "doc": "CPU usage %.",
+            "type": "float"
+          }
+        },
+        {
+          "name": "getUsedMemory",
+          "doc": "Returns the amount of memory that the server is using, in KiB",
+          "params": [],
+          "return": {
+            "doc": "Used memory, in KiB.",
             "type": "int64"
           }
         }
@@ -230,7 +333,9 @@
     {
       "name": "Hub",
       "extends": "MediaObject",
-      "doc": "A Hub is a routing :rom:cls:`MediaObject`. It connects several :rom:cls:`endpoints <Endpoint>` together",
+      "doc": "A Hub is a routing :rom:cls:`MediaObject`.
+It connects several :rom:cls:`endpoints <Endpoint>` together
+      ",
       "abstract": true,
       "methods": [
         {
@@ -245,7 +350,7 @@
             }
           ],
           "return": {
-            "doc": "The dot graph",
+            "doc": "The dot graph.",
             "type": "String"
           }
         }
@@ -255,13 +360,29 @@
       "name": "Filter",
       "abstract": true,
       "extends": "MediaElement",
-      "doc": "Base interface for all filters. This is a certain type of :rom:cls:`MediaElement`, that processes media injected through its sinks, and delivers the outcome through its sources."
+      "doc": "Base interface for all filters.
+<p>
+  This is a certain type of :rom:cls:`MediaElement`, that processes media
+  injected through its sinks, and delivers the outcome through its sources.
+</p>
+      "
     },
     {
       "name": "Endpoint",
       "abstract": true,
       "extends": "MediaElement",
-      "doc": "Base interface for all end points. An Endpoint is a :rom:cls:`MediaElement`\nthat allow :term:`KMS` to interchange media contents with external systems,\nsupporting different transport protocols and mechanisms, such as :term:`RTP`,\n:term:`WebRTC`, :term:`HTTP`, ``file:/`` URLs... An ``Endpoint`` may\ncontain both sources and sinks for different media types, to provide\nbidirectional communication."
+      "doc": "Base interface for all end points.
+<p>
+  An Endpoint is a :rom:cls:`MediaElement` that allow :term:`KMS` to interchange
+  media contents with external systems, supporting different transport protocols
+  and mechanisms, such as :term:`RTP`, :term:`WebRTC`, :term:`HTTP`, ``file://``
+  URLs, etc.
+</p>
+<p>
+  An ``Endpoint`` may contain both sources and sinks for different media types,
+  to provide bidirectional communication.
+</p>
+      "
     },
     {
       "name": "HubPort",
@@ -297,7 +418,9 @@
       "name": "UriEndpoint",
       "abstract": true,
       "extends": "Endpoint",
-      "doc": "Interface for endpoints the require a URI to work. An example of this, would be a :rom:cls:`PlayerEndpoint` whose URI property could be used to locate a file to stream",
+      "doc": "Interface for endpoints the require a URI to work.
+An example of this, would be a :rom:cls:`PlayerEndpoint` whose URI property could be used to locate a file to stream.
+      ",
       "properties": [
         {
           "name": "uri",
@@ -331,7 +454,9 @@
     {
       "name": "MediaPipeline",
       "extends": "MediaObject",
-      "doc": "A pipeline is a container for a collection of :rom:cls:`MediaElements<MediaElement>` and :rom:cls:`MediaMixers<MediaMixer>`. It offers the methods needed to control the creation and connection of elements inside a certain pipeline.",
+      "doc": "A pipeline is a container for a collection of :rom:cls:`MediaElements<MediaElement>` and :rom:cls:`MediaMixers<MediaMixer>`.
+It offers the methods needed to control the creation and connection of elements inside a certain pipeline.
+      ",
       "constructor": {
         "doc": "Create a :rom:cls:`MediaPipeline`",
         "params": [
@@ -358,7 +483,7 @@
             }
           ],
           "return": {
-            "doc": "The dot graph",
+            "doc": "The dot graph.",
             "type": "String"
           }
         }
@@ -368,38 +493,70 @@
       "name": "SdpEndpoint",
       "abstract": true,
       "extends": "SessionEndpoint",
-      "doc": "This interface is implemented by Endpoints that require an SDP negotiation for the setup of a networked media session with remote peers. The API provides the following functionality:
-      <ul>
-        <li>Generate SDP offers.</li>
-        <li>Process SDP offers.</li>
-        <li>Configure SDP related params.</li>
-      </ul>
+      "doc": "Interface implemented by Endpoints that require an SDP negotiation for the setup
+of a networked media session with remote peers.
+<p>The API provides the following functionality:</p>
+<ul>
+  <li>Generate SDP offers.</li>
+  <li>Process SDP offers.</li>
+  <li>Configure SDP related params.</li>
+</ul>
       ",
       "properties": [
         {
-          "name": "maxVideoRecvBandwidth",
-          "doc": " Maximum bandwidth for video reception, in kbps. The default value is 500. A value of 0 sets this as unconstrained. .. note:: This has to be set before the SDP is generated.",
+          "name": "maxAudioRecvBandwidth",
+          "doc": "Maximum bitrate expected for the received audio stream.
+<p>
+  This is used to put a limit on the bitrate that the remote peer will send to
+  this endpoint. The net effect of setting this parameter is that
+  <i>when Kurento generates an SDP Offer</i>, an 'Application Specific' (AS)
+  maximum bandwidth attribute will be added to the SDP media section:
+  <code>b=AS:{value}</code>.
+</p>
+<p>Note: This parameter has to be set before the SDP is generated.</p>
+<ul>
+  <li>Unit: kbps (kilobits per second).</li>
+  <li>Default: 0.</li>
+  <li>0 = unconstrained.</li>
+</ul>
+          ",
           "type": "int"
         },
         {
-          "name": "maxAudioRecvBandwidth",
-          "doc": " Maximum bandwidth for audio reception, in kbps. The default value is 500. A value of 0 sets this as leaves this unconstrained. .. note:: This has to be set before the SDP is generated.",
+          "name": "maxVideoRecvBandwidth",
+          "doc": "Maximum bitrate expected for the received video stream.
+<p>
+  This is used to put a limit on the bitrate that the remote peer will send to
+  this endpoint. The net effect of setting this parameter is that
+  <i>when Kurento generates an SDP Offer</i>, an 'Application Specific' (AS)
+  maximum bandwidth attribute will be added to the SDP media section:
+  <code>b=AS:{value}</code>.
+</p>
+<p>Note: This parameter has to be set before the SDP is generated.</p>
+<ul>
+  <li>Unit: kbps (kilobits per second).</li>
+  <li>Default: 0.</li>
+  <li>0 = unconstrained.</li>
+</ul>
+          ",
           "type": "int"
         }
       ],
       "methods": [
         {
           "name": "generateOffer",
-          "doc": " Generates an SDP offer with  media capabilities of the Endpoint.
-          Exceptions
-          <ul>
-            <li>
-              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
-            </li>
-            <li>
-              SDP_END_POINT_GENERATE_OFFER_ERROR if the generated offer is empty. This is most likely due to an internal error.
-            </li>
-          </ul>",
+          "doc": "Generates an SDP offer with media capabilities of the Endpoint.
+Throws:
+<ul>
+  <li>
+    SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+  </li>
+  <li>
+    SDP_END_POINT_GENERATE_OFFER_ERROR if the generated offer is empty. This is
+    most likely due to an internal error.
+  </li>
+</ul>
+          ",
           "params": [],
           "return": {
             "doc": "The SDP offer.",
@@ -408,19 +565,24 @@
         },
         {
           "name": "processOffer",
-          "doc": " Processes SDP offer of the remote peer, and generates an SDP answer based on the endpoint's capabilities. If no matching capabilities are found, the SDP will contain no codecs.
-          Exceptions
-          <ul>
-            <li>
-              SDP_PARSE_ERROR If the offer is empty or has errors.
-            </li>
-            <li>
-              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
-            </li>
-            <li>
-              SDP_END_POINT_PROCESS_OFFER_ERROR if the generated offer is empty. This is most likely due to an internal error.
-            </li>
-          </ul>",
+          "doc": "Processes SDP offer of the remote peer, and generates an SDP answer based on the endpoint's capabilities.
+<p>
+  If no matching capabilities are found, the SDP will contain no codecs.
+</p>
+Throws:
+<ul>
+  <li>
+    SDP_PARSE_ERROR If the offer is empty or has errors.
+  </li>
+  <li>
+    SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+  </li>
+  <li>
+    SDP_END_POINT_PROCESS_OFFER_ERROR if the generated offer is empty. This is
+    most likely due to an internal error.
+  </li>
+</ul>
+          ",
           "params": [
             {
               "name": "offer",
@@ -429,28 +591,31 @@
             }
           ],
           "return": {
-            "doc": "The chosen configuration from the ones stated in the SDP offer",
+            "doc": "The chosen configuration from the ones stated in the SDP offer.",
             "type": "String"
           }
         },
         {
           "name": "processAnswer",
-          "doc": " Generates an SDP offer with  media capabilities of the Endpoint.
-          Exceptions
-          <ul>
-            <li>
-              SDP_PARSE_ERROR If the offer is empty or has errors.
-            </li>
-            <li>
-              SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
-            </li>
-            <li>
-              SDP_END_POINT_PROCESS_ANSWER_ERROR if the result of processing the answer is an empty string. This is most likely due to an internal error.
-            </li>
-            <li>
-              SDP_END_POINT_NOT_OFFER_GENERATED If the method is invoked before the generateOffer method.
-            </li>
-          </ul>",
+          "doc": "Generates an SDP offer with media capabilities of the Endpoint.
+Throws:
+<ul>
+  <li>
+    SDP_PARSE_ERROR If the offer is empty or has errors.
+  </li>
+  <li>
+    SDP_END_POINT_ALREADY_NEGOTIATED If the endpoint is already negotiated.
+  </li>
+  <li>
+    SDP_END_POINT_PROCESS_ANSWER_ERROR if the result of processing the answer is
+    an empty string. This is most likely due to an internal error.
+  </li>
+  <li>
+    SDP_END_POINT_NOT_OFFER_GENERATED If the method is invoked before the
+    generateOffer method.
+  </li>
+</ul>
+          ",
           "params": [
             {
               "name": "answer",
@@ -465,30 +630,33 @@
         },
         {
           "name": "getLocalSessionDescriptor",
-          "doc": "This method returns the local SDP. The output depends on the negotiation stage:
-          <ul>
-            <li>
-              No offer has been generated: returns null.
-            </li>
-            <li>
-              Offer has been generated: return the SDP offer.
-            </li>
-            <li>
-              Offer has been generated and answer processed: retruns the agreed SDP.
-            </li>
-          </ul>",
+          "doc": "Returns the local SDP.
+<ul>
+  <li>
+    No offer has been generated: returns null.
+  </li>
+  <li>
+    Offer has been generated: returns the SDP offer.
+  </li>
+  <li>
+    Offer has been generated and answer processed: returns the agreed SDP.
+  </li>
+</ul>
+          ",
           "params": [],
           "return": {
-            "doc": "The last agreed SessionSpec",
+            "doc": "The last agreed SessionSpec.",
             "type": "String"
           }
         },
         {
           "name": "getRemoteSessionDescriptor",
-          "doc": "This method returns the remote SDP. If the negotiation process is not complete, it will return NULL.",
+          "doc": "This method returns the remote SDP.
+If the negotiation process is not complete, it will return NULL.
+          ",
           "params": [],
           "return": {
-            "doc": "The last agreed User Agent session description",
+            "doc": "The last agreed User Agent session description.",
             "type": "String"
           }
         }
@@ -498,85 +666,247 @@
       "name": "BaseRtpEndpoint",
       "abstract": true,
       "extends": "SdpEndpoint",
-      "doc": "This class extends from the SdpEndpoint, and handles RTP communications. All endpoints that rely on this network protocol, like the RTPEndpoint or the WebRtcEndpoint, inherit from this. The endpoint provides information about the connection state and the media state. These can be consulted at any time through the mediaState and the connectionState properties. It is also possible subscribe to events fired when these properties change.
-      <ul style='list-style-type:circle'>
-        <li>
-          ConnectionStateChangedEvent: This event is raised when the connection between two peers changes. It can have two values
-          <ul>
-            <li>CONNECTED</li>
-            <li>DISCONNECTED</li>
-          </ul>
-        </li>
-        <li>
-          MediaStateChangedEvent: Based on RTCP packet flow, this event provides more reliable information about the state of media flow. Since RTCP packets are not flowing at a constant rate (minimizing a browser with an RTCPeerConnection might affect this interval, for instance), there is a guard period of about 5s. This traduces in a period where there might be no media flowing, but the event hasn't been fired yet. Nevertheless, this is the most reliable and useful way of knowing what the state of media exchange is. Possible values are:
-          <ul>
-            <li>CONNECTED: There is an RTCP packet flow between peers.</li>
-            <li>DISCONNECTED: No RTCP packets have been received, or at least 5s have passed since the last packet arrived.</li>
-          </ul>
-        </li>
-      </ul>
-      Part of the bandwidth control of the video component of the media session is done here. The values of the properties described are in kbps.
-      <ul style='list-style-type:circle'>
-        <li>
-          Input bandwidth control mechanism: Configuration interval used to inform remote peer the range of bitrates that can be pushed into this BaseRtpEndpoint object.
-          <ul>
-            <li>
-              setMinVideoRecvBandwidth: sets min bitrate limits expected for the received video stream. This value is set to limit the lower value of REMB packages, if supported by the implementing class.
-            </li>
-          </ul>
-          Max values are announced in the SDP, while min values are set to limit the lower value of REMB packages. It follows that min values will only have effect in peers that support this control mechanism, such as Chrome.
-        </li>
-        <li>
-          Output bandwidth control mechanism: Configuration interval used to control bitrate of the output video stream sent to remote peer. It is important to keep in mind that pushed bitrate depends on network and remote peer capabilities. Remote peers can also announce bandwidth limitation in their SDPs (through the b=<modifier>:<value> tag).   Kurento will always enforce bitrate limitations specified by the remote peer over internal configurations.
-          <ul>
-            <li>
-              setMinVideoSendBandwidth: sets the minimum bitrate for video to be sent to remote peer. 0 is considered unconstrained.
-            </li>
-            <li>
-              setMaxVideoSendBandwidth: sets maximum bitrate limits for video sent to remote peer. 0 is considered unconstrained.
-            </li>
-          </ul>
-        </li>
-      </ul>
-      All bandwidth control parameters must be changed before the SDP negotiation takes place, and can't be changed afterwards.
-      </p>
+      "doc": "Handles RTP communications.
+<p>
+  All endpoints that rely on the RTP protocol, like the
+  <strong>RtpEndpoint</strong> or the <strong>WebRtcEndpoint</strong>, inherit
+  from this class. The endpoint provides information about the connection state
+  and the media state, which can be consulted at any time through the
+  :rom:attr:`mediaState` and the :rom:attr:`connectionState` properties. It is
+  also possible subscribe to events fired when these properties change.
+</p>
+<ul>
+  <li>
+    ConnectionStateChangedEvent: This event is raised when the connection
+    between two peers changes. It can have two values:
+    <ul>
+      <li>CONNECTED</li>
+      <li>DISCONNECTED</li>
+    </ul>
+  </li>
+  <li>
+    MediaStateChangedEvent: Based on RTCP packet flow, this event provides more
+    reliable information about the state of media flow. Since RTCP packets are
+    not flowing at a constant rate (minimizing a browser with an
+    RTCPeerConnection might affect this interval, for instance), there is a
+    guard period of about 5s. This traduces in a period where there might be no
+    media flowing, but the event hasn't been fired yet. Nevertheless, this is
+    the most reliable and useful way of knowing what the state of media exchange
+    is. Possible values are:
+    <ul>
+      <li>CONNECTED: There is an RTCP packet flow between peers.</li>
+      <li>
+        DISCONNECTED: No RTCP packets have been received, or at least 5s have
+        passed since the last packet arrived.
+      </li>
+    </ul>
+  </li>
+</ul>
+<p>
+  Part of the bandwidth control of the video component of the media session is
+  done here:
+</p>
+<ul>
+  <li>
+    Input bandwidth: Configuration value used to inform remote peers about the
+    bitrate that can be pushed into this endpoint.
+    <ul>
+      <li>
+        <strong>{get,set}MinVideoRecvBandwidth</strong>: Minimum bitrate
+        requested on the received video stream.
+      </li>
+      <li>
+        <strong>{get,set}Max{Audio,Video}RecvBandwidth</strong>: Maximum bitrate
+        expected for the received stream.
+      </li>
+    </ul>
+  </li>
+  <li>
+    Output bandwidth: Configuration values used to control bitrate of the output
+    video stream sent to remote peers. It is important to keep in mind that
+    pushed bitrate depends on network and remote peer capabilities. Remote peers
+    can also announce bandwidth limitation in their SDPs (through the
+    <code>b={modifier}:{value}</code> tag). Kurento will always enforce bitrate
+    limitations specified by the remote peer over internal configurations.
+    <ul>
+      <li>
+        <strong>{get,set}MinVideoSendBandwidth</strong>: Minimum video bitrate
+        sent to remote peer.
+      </li>
+      <li>
+        <strong>{get,set}MaxVideoSendBandwidth</strong>: Maximum video bitrate
+        sent to remote peer.
+      </li>
+      <li>
+        <strong>RembParams.rembOnConnect</strong>: Initial local REMB bandwidth
+        estimation that gets propagated when a new endpoint is connected.
+      </li>
+    </ul>
+  </li>
+</ul>
+<p>
+  <strong>
+    All bandwidth control parameters must be changed before the SDP negotiation
+    takes place, and can't be changed afterwards.
+  </strong>
+</p>
       ",
       "properties": [
         {
           "name": "minVideoRecvBandwidth",
-          "doc": "Minimum bandwidth announced for video reception, in kbps. The default and absolute minimum value is 30 kbps, even if a lower value is set.",
+          "doc": "Minimum bitrate requested on the received video stream.
+<p>
+  This is used to set a minimum value of local REMB during bandwidth estimation,
+  if supported by the implementing class. The REMB estimation will then be sent
+  to remote peers, requesting them to send at least the indicated video bitrate.
+  It follows that min values will only have effect in remote peers that support
+  this congestion control mechanism, such as Chrome.
+</p>
+<ul>
+  <li>Unit: kbps (kilobits per second).</li>
+  <li>Default: 0.</li>
+  <li>
+    Note: The absolute minimum REMB value is 30 kbps, even if a lower value is
+    set here.
+  </li>
+</ul>
+          ",
           "type": "int"
         },
         {
           "name": "minVideoSendBandwidth",
-          "doc": "Minimum bandwidth for video transmission, in kbps. The default value is 100 kbps. 0 is considered unconstrained.",
+          "doc": "Minimum video bitrate sent to remote peer.
+<p>
+  With this parameter you can control the minimum video quality that will be
+  sent when reacting to bad network conditions. Setting this parameter to a low
+  value permits the video quality to drop when the network conditions get worse.
+</p>
+<p>
+  This parameter provides a way to override the bitrate requested by remote REMB
+  bandwidth estimations: the bitrate sent will be always equal or greater than
+  this parameter, even if the remote peer requests even lower bitrates.
+</p>
+<p>
+  Note that if you set this parameter too high (trying to avoid bad video
+  quality altogether), you would be limiting the adaptation ability of the
+  congestion control algorithm, and your stream might be unable to ever recover
+  from adverse network conditions.
+</p>
+<ul>
+  <li>Unit: kbps (kilobits per second).</li>
+  <li>Default: 100.</li>
+  <li>
+    0 = unconstrained: the video bitrate will drop as needed, even to the
+    lowest possible quality, which might make the video completely blurry and
+    pixelated.
+  </li>
+</ul>
+          ",
           "type": "int"
         },
         {
           "name": "maxVideoSendBandwidth",
-          "doc": "Maximum bandwidth for video transmission, in kbps. The default value is 500 kbps. 0 is considered unconstrained.",
+          "doc": "Maximum video bitrate sent to remote peer.
+<p>
+  With this parameter you can control the maximum video quality that will be
+  sent when reacting to good network conditions. Setting this parameter to a
+  high value permits the video quality to raise when the network conditions get
+  better.
+</p>
+<p>
+  This parameter provides a way to limit the bitrate requested by remote REMB
+  bandwidth estimations: the bitrate sent will be always equal or less than
+  this parameter, even if the remote peer requests higher bitrates.
+</p>
+<p>
+  Note that the default value of <strong>500 kbps</strong> is a VERY
+  conservative one, and leads to a low maximum video quality. Most applications
+  will probably want to increase this parameter to higher values such as 2000 (2
+  mbps) or even 10000 (10 mbps).
+</p>
+<p>
+  The REMB congestion control algorithm works by gradually increasing the output
+  video bitrate, until the available bandwidth is fully used or the maximum send
+  bitrate has been reached. This is a slow, progressive change, which starts at
+  300 kbps by default. You can change the default starting point of REMB
+  estimations, by setting <code>RembParams.rembOnConnect</code>.
+</p>
+<ul>
+  <li>Unit: kbps (kilobits per second).</li>
+  <li>Default: 500.</li>
+  <li>
+    0 = unconstrained: the video bitrate will grow until all the available
+    network bandwidth is used by the stream.<br />
+    Note that this might have a bad effect if more than one stream is running
+    (as all of them would try to raise the video bitrate indefinitely, until the
+    network gets saturated).
+  </li>
+</ul>
+          ",
           "type": "int"
         },
         {
           "name": "mediaState",
-          "doc": "Media flow state. Possible values are
-          <ul>
-            <li>CONNECTED: There is an RTCP flow.</li>
-            <li>DISCONNECTED: No RTCP packets have been received for at least 5 sec.</li>
-          </ul>
+          "doc": "Media flow state.
+<ul>
+  <li>CONNECTED: There is an RTCP flow.</li>
+  <li>DISCONNECTED: No RTCP packets have been received for at least 5 sec.</li>
+</ul>
           ",
           "type": "MediaState",
           "readOnly": true
         },
         {
           "name": "connectionState",
-          "doc": "Connection state. Possible values are
-          <ul>
-            <li>CONNECTED</li>
-            <li>DISCONNECTED</li>
-          </ul>",
+          "doc": "Connection state.
+<ul>
+  <li>CONNECTED</li>
+  <li>DISCONNECTED</li>
+</ul>
+          ",
           "type": "ConnectionState",
           "readOnly": true
+        },
+        {
+          "name": "mtu",
+          "doc": "Maximum Transmission Unit (MTU) used for RTP.
+<p>
+  This setting affects the maximum size that will be used by RTP payloads. You
+  can change it from the default, if you think that a different value would be
+  beneficial for the typical network settings of your application.
+</p>
+<p>
+  The default value is 1200 Bytes. This is the same as in <b>libwebrtc</b> (from
+  webrtc.org), as used by
+  <a
+    href='https://dxr.mozilla.org/mozilla-central/rev/b5c5ba07d3dbd0d07b66fa42a103f4df2c27d3a2/media/webrtc/trunk/webrtc/media/engine/constants.cc#16'
+    >Firefox</a
+  >
+  or
+  <a
+    href='https://codesearch.chromium.org/chromium/src/third_party/webrtc/media/engine/constants.cc?l=15&rcl=6dd488b2e55125644263e4837f1abd950d5e410d'
+    >Chrome</a
+  >
+  . You can read more about this value in
+  <a
+    href='https://groups.google.com/d/topic/discuss-webrtc/gH5ysR3SoZI/discussion'
+    >Why RTP max packet size is 1200 in WebRTC?</a
+  >
+  .
+</p>
+<p>
+  <b>WARNING</b>: Change this value ONLY if you really know what you are doing
+  and you have strong reasons to do so. Do NOT change this parameter just
+  because it <i>seems</i> to work better for some reduced scope tests. The
+  default value is a consensus chosen by people who have deep knowledge about
+  network optimization.
+</p>
+<ul>
+  <li>Unit: Bytes.</li>
+  <li>Default: 1200.</li>
+</ul>
+          ",
+          "type": "int"
         },
         {
           "name": "rembParams",
@@ -595,18 +925,48 @@
       "name": "MediaElement",
       "abstract": true,
       "extends": "MediaObject",
-      "doc": "<p>This is the basic building block of the media server, that can be interconnected inside a pipeline. A :rom:cls:`MediaElement` is a module that encapsulates a specific media capability, and that is able to exchange media with other :rom:cls:`MediaElement`s through an internal element called pad.
-      </p>
-      <p>
-      A pad can be defined as an input or output interface. Input pads are called sinks, and it's where the media elements receive media from other media elements. Output interfaces are called sources, and it's the pad used by the media element to feed media to other media elements. There can be only one sink pad per media element. On the other hand, the number of source pads is unconstrained. This means that a certain media element can receive media only from one element at a time, while it can send media to many others. Pads are created on demand, when the connect method is invoked. When two media elements are connected, one media pad is created for each type of media connected. For example, if you connect AUDIO and VIDEO between two media elements, each one will need to create two new pads: one for AUDIO and one for VIDEO.
-      </p>
-      <p>
-      When media elements are connected, it can be the case that the encoding required in both input and output pads is not the same, and thus it needs to be transcoded. This is something that is handled transparently by the MediaElement internals, but such transcoding has a toll in the form of a higher CPU load, so connecting MediaElements that need media encoded in different formats is something to consider as a high load operation. The event `MediaTranscodingStateChange` allows to inform the client application of whether media transcoding is being enabled or not inside any MediaElement object.
-      </p>",
+      "doc": "The basic building block of the media server, that can be interconnected inside a pipeline.
+<p>
+  A :rom:cls:`MediaElement` is a module that encapsulates a specific media
+  capability, and that is able to exchange media with other MediaElements
+  through an internal element called <b>pad</b>.
+</p>
+<p>
+  A pad can be defined as an input or output interface. Input pads are called
+  sinks, and it's where the media elements receive media from other media
+  elements. Output interfaces are called sources, and it's the pad used by the
+  media element to feed media to other media elements. There can be only one
+  sink pad per media element. On the other hand, the number of source pads is
+  unconstrained. This means that a certain media element can receive media only
+  from one element at a time, while it can send media to many others. Pads are
+  created on demand, when the connect method is invoked. When two media elements
+  are connected, one media pad is created for each type of media connected. For
+  example, if you connect AUDIO and VIDEO between two media elements, each one
+  will need to create two new pads: one for AUDIO and one for VIDEO.
+</p>
+<p>
+  When media elements are connected, it can be the case that the encoding
+  required in both input and output pads is not the same, and thus it needs to
+  be transcoded. This is something that is handled transparently by the
+  MediaElement internals, but such transcoding has a toll in the form of a
+  higher CPU load, so connecting MediaElements that need media encoded in
+  different formats is something to consider as a high load operation. The event
+  `MediaTranscodingStateChange` allows to inform the client application of
+  whether media transcoding is being enabled or not inside any MediaElement
+  object.
+</p>
+      ",
       "methods": [
         {
           "name": "getSourceConnections",
-          "doc": "Gets information about the sink pads of this media element. Since sink pads are the interface through which a media element gets it's media, whatever is connected to an element's sink pad is formally a source of media. Media can be filtered by type, or by the description given to the pad though which both elements are connected.",
+          "doc": "Gets information about the sink pads of this media element.
+<p>
+  Since sink pads are the interface through which a media element gets it's
+  media, whatever is connected to an element's sink pad is formally a source of
+  media. Media can be filtered by type, or by the description given to the pad
+  though which both elements are connected.
+</p>
+          ",
           "params": [
             {
               "name": "mediaType",
@@ -628,7 +988,14 @@
         },
         {
           "name": "getSinkConnections",
-          "doc": "Gets information about the source pads of this media element. Since source pads connect to other media element's sinks, this is formally the sink of media from the element's perspective. Media can be filtered by type, or by the description given to the pad though which both elements are connected.",
+          "doc": "Gets information about the source pads of this media element.
+<p>
+  Since source pads connect to other media element's sinks, this is formally the
+  sink of media from the element's perspective. Media can be filtered by type,
+  or by the description given to the pad though which both elements are
+  connected.
+</p>
+          ",
           "params": [
             {
               "name": "mediaType",
@@ -650,17 +1017,33 @@
         },
         {
           "name": "connect",
-          "doc": "<p>Connects two elements, with the media flowing from left to right: the elements that invokes the connect wil be the source of media, creating one sink pad for each type of media connected. The element given as parameter to the method will be the sink, and it will create one sink pad per media type connected.
-          </p>
-          <p>
-          If otherwise not specified, all types of media are connected by default (AUDIO, VIDEO and DATA). It is recommended to connect the specific types of media if not all of them will be used. For this purpose, the connect method can be invoked more than once on the same two elements, but with different media types.
-          </p>
-          <p>
-          The connection is unidirectional. If a bidirectional connection is desired, the position of the media elements must be inverted. For instance, webrtc1.connect(webrtc2) is connecting webrtc1 as source of webrtc2. In order to create a WebRTC one-2one conversation, the user would need to especify the connection on the other direction with webrtc2.connect(webrtc1).
-          </p>
-          <p>
-          Even though one media element can have one sink pad per type of media, only one media element can be connected to another at a given time. If a media element is connected to another, the former will become the source of the sink media element, regardles whether there was another element connected or not.
-          </p>
+          "doc": "Connects two elements, with the media flowing from left to right.
+<p>
+  The element that invokes the connect will be the source of media, creating one
+  sink pad for each type of media connected. The element given as parameter to
+  the method will be the sink, and it will create one sink pad per media type
+  connected.
+</p>
+<p>
+  If otherwise not specified, all types of media are connected by default
+  (AUDIO, VIDEO and DATA). It is recommended to connect the specific types of
+  media if not all of them will be used. For this purpose, the connect method
+  can be invoked more than once on the same two elements, but with different
+  media types.
+</p>
+<p>
+  The connection is unidirectional. If a bidirectional connection is desired,
+  the position of the media elements must be inverted. For instance,
+  webrtc1.connect(webrtc2) is connecting webrtc1 as source of webrtc2. In order
+  to create a WebRTC one-2one conversation, the user would need to specify the
+  connection on the other direction with webrtc2.connect(webrtc1).
+</p>
+<p>
+  Even though one media element can have one sink pad per type of media, only
+  one media element can be connected to another at a given time. If a media
+  element is connected to another, the former will become the source of the sink
+  media element, regardless whether there was another element connected or not.
+</p>
           ",
           "params": [
             {
@@ -719,7 +1102,12 @@
         },
         {
           "name": "setAudioFormat",
-          "doc": "Sets the type of data for the audio stream. MediaElements that do not support configuration of audio capabilities will throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception.",
+          "doc": "Sets the type of data for the audio stream.
+<p>
+  MediaElements that do not support configuration of audio capabilities will
+  throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception.
+</p>
+          ",
           "params": [
             {
               "name": "caps",
@@ -730,7 +1118,12 @@
         },
         {
           "name": "setVideoFormat",
-          "doc": "Sets the type of data for the video stream. MediaElements that do not support configuration of video capabilities will throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception",
+          "doc": "Sets the type of data for the video stream.
+<p>
+  MediaElements that do not support configuration of video capabilities will
+  throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception
+</p>
+          ",
           "params": [
             {
               "name": "caps",
@@ -741,16 +1134,17 @@
         },
         {
           "name": "getGstreamerDot",
-          "doc": "This method returns a .dot file describing the topology of the media element. The element can be queried for certain type of data
-          <ul>
-            <li>SHOW_ALL: default value</li>
-            <li>SHOW_CAPS_DETAILS</li>
-            <li>SHOW_FULL_PARAMS</li>
-            <li>SHOW_MEDIA_TYPE</li>
-            <li>SHOW_NON_DEFAULT_PARAMS</li>
-            <li>SHOW_STATES</li>
-            <li>SHOW_VERBOSE</li>
-          </ul>
+          "doc": "Return a .dot file describing the topology of the media element.
+<p>The element can be queried for certain type of data:</p>
+<ul>
+  <li>SHOW_ALL: default value</li>
+  <li>SHOW_CAPS_DETAILS</li>
+  <li>SHOW_FULL_PARAMS</li>
+  <li>SHOW_MEDIA_TYPE</li>
+  <li>SHOW_NON_DEFAULT_PARAMS</li>
+  <li>SHOW_STATES</li>
+  <li>SHOW_VERBOSE</li>
+</ul>
           ",
           "params": [
             {
@@ -761,7 +1155,7 @@
             }
           ],
           "return": {
-            "doc": "The dot graph",
+            "doc": "The dot graph.",
             "type": "String"
           }
         },
@@ -810,7 +1204,7 @@
             }
           ],
           "return" : {
-            "doc": "TRUE if there is media, FALSE in other case",
+            "doc": "TRUE if there is media, FALSE in other case.",
             "type": "boolean"
           }
         },
@@ -832,7 +1226,7 @@
             }
           ],
           "return" : {
-            "doc": "TRUE if there is media, FALSE in other case",
+            "doc": "TRUE if there is media, FALSE in other case.",
             "type": "boolean"
           }
         },
@@ -863,22 +1257,35 @@
       "properties": [
         {
           "name": "minOuputBitrate",
-          "doc": "@deprecated\nDeprecated due to a typo. Use minOutputBitrate instead of this function. Minimum video bandwidth for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
+          "doc": "Minimum video bandwidth for transcoding.
+@deprecated Deprecated due to a typo. Use :rom:meth:`minOutputBitrate` instead of this function.",
           "type": "int"
         },
         {
           "name": "minOutputBitrate",
-          "doc": "Minimum video bitrate for transcoding.\n  Unit: bps(bits per second).\n  Default value: 0",
+          "doc": "Minimum video bitrate for transcoding.
+<ul>
+  <li>Unit: bps (bits per second).</li>
+  <li>Default: 0.</li>
+</ul>
+          ",
           "type": "int"
         },
         {
           "name": "maxOuputBitrate",
-          "doc": "@deprecated\nDeprecated due to a typo. Use maxOutputBitrate instead of this function. Maximum video bandwidth for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "doc": "Maximum video bandwidth for transcoding.
+@deprecated Deprecated due to a typo. Use :rom:meth:`maxOutputBitrate` instead of this function.",
           "type": "int"
         },
         {
           "name": "maxOutputBitrate",
-          "doc": "Maximum video bitrate for transcoding. 0 = unlimited.\n  Unit: bps(bits per second).\n  Default value: MAXINT",
+          "doc": "Maximum video bitrate for transcoding.
+<ul>
+  <li>Unit: bps (bits per second).</li>
+  <li>Default: MAXINT.</li>
+  <li>0 = unlimited.</li>
+</ul>
+          ",
           "type": "int"
         }
       ],
@@ -1884,7 +2291,28 @@
         },
         {
           "name": "rembOnConnect",
-          "doc": "REMB propagated upstream when video sending is started in a new connected endpoint.\n  Unit: bps(bits per second)",
+          "doc": "Initial local REMB bandwidth estimation that gets propagated when a new endpoint is connected.
+<p>
+  The REMB congestion control algorithm works by gradually increasing the output
+  video bitrate, until the available bandwidth is fully used or the maximum send
+  bitrate has been reached. This is a slow, progressive change, which starts at
+  300 kbps by default. You can change the default starting point of REMB
+  estimations, by setting this parameter.
+</p>
+<p>
+  <b>WARNING</b>: If you set this parameter to a high value that is
+  <i>higher than the network capacity</i>, then all endpoints will start already
+  in a congested state, providing very bad video quality until the congestion
+  control algorithm is able to recover from the situation. Network congestion is
+  very unpredictable, so be careful when changing this parameter; for most use
+  cases it is safer to just start with a low initial value and allow the REMB
+  algorithm to raise until the optimum bitrate is reached.
+</p>
+<ul>
+  <li>Unit: bps (bits per second).</li>
+  <li>Default: 300000 (300 kbps).</li>
+</ul>
+          ",
           "type": "int",
           "optional":true,
           "defaultValue": 300000

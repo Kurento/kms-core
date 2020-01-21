@@ -70,6 +70,11 @@ public:
 
   virtual std::string getMetadata () override;
 
+  virtual int getCpuCount () override;
+
+  virtual float getUsedCpu (int interval) override;
+
+  // Used memory, in KiB
   virtual int64_t getUsedMemory() override;
 
   /* Next methods are automatically implemented by code generator */
@@ -98,7 +103,6 @@ private:
   };
 
   static StaticConstructor staticConstructor;
-
 };
 
 } /* kurento */

@@ -22,6 +22,10 @@
 
 #include "kmssdpmediahandler.h"
 
+#define SDP_MEDIA_SCTP_FMT "webrtc-datachannel"
+#define SDP_MEDIA_SCTPMAP_ATTR "sctpmap"
+#define SDP_MEDIA_SCTP_PORT_ATTR "sctp-port"
+
 G_BEGIN_DECLS
 
 #define KMS_TYPE_SDP_SCTP_MEDIA_HANDLER \
@@ -73,6 +77,8 @@ struct _KmsSdpSctpMediaHandlerClass
 GType kms_sdp_sctp_media_handler_get_type ();
 
 KmsSdpSctpMediaHandler * kms_sdp_sctp_media_handler_new ();
+
+gboolean kms_sdp_sctp_media_handler_manage_protocol (const gchar * protocol);
 
 G_END_DECLS
 

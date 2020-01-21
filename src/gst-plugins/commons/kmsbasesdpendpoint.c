@@ -45,7 +45,7 @@ static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
     self, KmsSdpSession * sess);
 
 #define USE_IPV6_DEFAULT FALSE
-#define MAX_VIDEO_RECV_BW_DEFAULT 500
+#define MAX_VIDEO_RECV_BW_DEFAULT 0
 #define MAX_AUDIO_RECV_BW_DEFAULT 0
 
 #define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
@@ -433,7 +433,6 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
 {
   GError *err = NULL;
   gint gid;
-  int i;
 
   gid = -1;
   if (self->priv->bundle) {
@@ -446,7 +445,7 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
     }
   }
 
-  for (i = 0; i < self->priv->num_audio_medias; i++) {
+  for (guint i = 0; i < self->priv->num_audio_medias; i++) {
     if (!kms_base_sdp_endpoint_add_handler (self, sess, "audio", gid,
             self->priv->max_audio_recv_bw)) {
       return FALSE;
@@ -454,7 +453,7 @@ kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint * self,
     self->priv->audio_handlers++;
   }
 
-  for (i = 0; i < self->priv->num_video_medias; i++) {
+  for (guint i = 0; i < self->priv->num_video_medias; i++) {
     if (!kms_base_sdp_endpoint_add_handler (self, sess, "video", gid,
             self->priv->max_video_recv_bw)) {
       return FALSE;

@@ -85,10 +85,10 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define PICTURE_ID_15_BIT 2
 
 #define index_of(str,chr) ({  \
-  gint __pos;                 \
+  gintptr __pos;              \
   gchar *__c;                 \
   __c = strchr (str, chr);    \
-  __pos = (gint)(__c - str);  \
+  __pos = __c - (str);        \
   __pos;                      \
 })
 
@@ -238,6 +238,9 @@ struct _KmsBaseRtpEndpointPrivate
   guint min_port;
   guint max_port;
 
+  /* RTP settings */
+  guint mtu;
+
   /* RTP statistics */
   KmsBaseRTPStats stats;
 
@@ -273,6 +276,7 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define MIN_VIDEO_RECV_BW_DEFAULT 0
 #define MIN_VIDEO_SEND_BW_DEFAULT 100  // kbps
 #define MAX_VIDEO_SEND_BW_DEFAULT 500  // kbps
+#define DEFAULT_MTU 1200 // Bytes
 
 enum
 {
@@ -290,6 +294,7 @@ enum
   PROP_MAX_PORT,
   PROP_SUPPORT_FEC,
   PROP_OFFER_DIR,
+  PROP_MTU,
   PROP_LAST
 };
 
@@ -1036,7 +1041,6 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
     KmsBaseRtpSession *sess)
 {
   GstPad *pad;
-  int max_recv_bw;
 
   if (self->priv->rl != NULL) {
     /* TODO: support more than one media with REMB */
@@ -1051,14 +1055,13 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
                         rlrs->ssrc);
     return;
   }
-  else {
-    KmsSdpSession *base_sess = KMS_SDP_SESSION (sess);
-    guint id = base_sess->id;
-    gchar *id_str = base_sess->id_str;
-    guint32 remote_video_ssrc = sess->remote_video_ssrc;
-    GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
-                        id, id_str, remote_video_ssrc);
-  }
+
+  KmsSdpSession *base_sess = KMS_SDP_SESSION (sess);
+  guint id = base_sess->id;
+  gchar *id_str = base_sess->id_str;
+  guint32 remote_video_ssrc = sess->remote_video_ssrc;
+  GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
+                      id, id_str, remote_video_ssrc);
 
   GObject *rtpsession = kms_base_rtp_endpoint_get_internal_session (
       KMS_BASE_RTP_ENDPOINT(self), VIDEO_RTP_SESSION);
@@ -1068,10 +1071,12 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
 
   // Decrease minimum interval between RTCP packets,
   // for better reaction times in case of bad network
-  GST_INFO_OBJECT (self, "REMB: Set RTCP min interval to 500ms");
+  GST_INFO_OBJECT (self, "REMB: Set RTCP min interval to %d ms",
+      RTCP_MIN_INTERVAL);
   g_object_set (rtpsession, "rtcp-min-interval",
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
+  guint max_recv_bw;
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
       kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
@@ -1180,7 +1185,8 @@ kms_base_rtp_endpoint_get_caps_from_rtpmap (const gchar * media,
 }
 
 static GstElement *
-kms_base_rtp_endpoint_get_payloader_for_caps (GstCaps * caps)
+kms_base_rtp_endpoint_get_payloader_for_caps (KmsBaseRtpEndpoint * self,
+    GstCaps * caps)
 {
   GstElementFactory *factory;
   GstElement *payloader = NULL;
@@ -1229,6 +1235,11 @@ kms_base_rtp_endpoint_get_payloader_for_caps (GstCaps * caps)
     /* Set picture id so that remote peer can determine continuity if there */
     /* are lost FEC packets and if it has to NACK them */
     g_object_set (payloader, "picture-id-mode", PICTURE_ID_15_BIT, NULL);
+  }
+
+  pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (payloader), "mtu");
+  if (pspec != NULL && G_PARAM_SPEC_VALUE_TYPE (pspec) == G_TYPE_UINT) {
+    g_object_set (payloader, "mtu", self->priv->mtu, NULL);
   }
 
 end:
@@ -1454,7 +1465,7 @@ kms_base_rtp_endpoint_set_media_payloader (KmsBaseRtpEndpoint * self,
 
   GST_DEBUG_OBJECT (self, "Found caps: %" GST_PTR_FORMAT, caps);
 
-  payloader = kms_base_rtp_endpoint_get_payloader_for_caps (caps);
+  payloader = kms_base_rtp_endpoint_get_payloader_for_caps (self, caps);
   gst_caps_unref (caps);
 
   if (payloader == NULL) {
@@ -1630,33 +1641,54 @@ static void
 complement_caps_with_fmtp_attrs (GstCaps * caps, const gchar * fmtp_attr)
 {
   gchar **attrs, **vars, *params;
-  guint i;
+
+  // Example:
+  // SDP line  == "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1; profile-level-id=42001f"
+  // fmtp_attr == "102 level-asymmetry-allowed=1;packetization-mode=1; profile-level-id=42001f"
 
   attrs = g_strsplit (fmtp_attr, " ", 0);
 
-  if (attrs[0] == NULL) {
+  // attrs[0] == "102"
+  // attrs[1] == "level-asymmetry-allowed=1;packetization-mode=1;"
+  // attrs[2] == "profile-level-id=42001f"
+  // attrs[3] == NULL
+
+  if (attrs[0] == NULL || attrs[1] == NULL) {
     goto end;
   }
 
-  params = g_strndup (fmtp_attr + strlen (attrs[0]) + 1,
-      strlen (fmtp_attr) - strlen (attrs[0]) - 1);
+  const gchar *fmtp_attr_params = fmtp_attr + strlen (attrs[0]) + 1;
 
+  params = g_strdup (fmtp_attr_params);
   str_remove_white_spaces (params);
+
+  // params == "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f"
 
   vars = g_strsplit (params, ";", 0);
 
-  for (i = 0; vars[i] != NULL; i++) {
-    gchar *key, *value;
-    gint index;
+  // vars[0] == "level-asymmetry-allowed=1"
+  // vars[1] == "packetization-mode=1"
+  // vars[2] == "profile-level-id=42001f"
+  // vars[3] == NULL
 
-    index = index_of (vars[i], '=');
-    if (index < 0) {
-      /* Skip, not key=value attribute */
+  for (int i = 0; vars[i] != NULL; ++i) {
+    if (strlen (vars[i]) == 0) {
+      // vars[i] == ""
       continue;
     }
 
-    key = g_strndup (vars[i], index);
-    value = g_strndup (vars[i] + index + 1, strlen (vars[i]) - index - 1);
+    const gintptr index_ptr = index_of (vars[i], '=');
+    if (index_ptr < 0) {
+      // vars[i] == "onlykey"
+      // Skip, not a "key=value" attribute
+      continue;
+    }
+
+    const gsize index = (gsize)index_ptr;
+
+    gchar *key = g_strndup (vars[i], index);
+    gchar *value = g_strndup (vars[i] + index + 1,
+        strlen (vars[i]) - index - 1);
 
     gst_caps_set_simple (caps, key, G_TYPE_STRING, value, NULL);
 
@@ -2347,9 +2379,9 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       self->priv->target_bitrate = g_value_get_int (value);
       break;
     case PROP_MIN_VIDEO_RECV_BW:{
-      int max_recv_bw;
       guint v = g_value_get_uint (value);
 
+      guint max_recv_bw;
       g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
 
       if (max_recv_bw != 0 && v > max_recv_bw) {
@@ -2425,6 +2457,9 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       self->priv->max_port = v;
       break;
     }
+    case PROP_MTU:
+      self->priv->mtu = g_value_get_uint (value);
+      break;
     case PROP_OFFER_DIR:
       self->priv->offer_dir = g_value_get_enum (value);
       break;
@@ -2490,6 +2525,9 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_MAX_PORT:
       g_value_set_uint (value, self->priv->max_port);
+      break;
+    case PROP_MTU:
+      g_value_set_uint (value, self->priv->mtu);
       break;
     case PROP_SUPPORT_FEC:
       g_value_set_boolean (value, self->priv->support_fec);
@@ -2942,6 +2980,13 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Maximum port number to be used",
           "Maximum port number to be used",
           0, G_MAXUINT16, DEFAULT_MAX_PORT,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_MTU,
+      g_param_spec_uint ("mtu",
+          "RTP MTU",
+          "Maximum Transmission Unit (MTU) used for RTP",
+          0, G_MAXUINT, DEFAULT_MTU,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_SUPPORT_FEC,
@@ -3422,6 +3467,8 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
 
   self->priv->min_port = DEFAULT_MIN_PORT;
   self->priv->max_port = DEFAULT_MAX_PORT;
+
+  self->priv->mtu = DEFAULT_MTU;
 
   self->priv->offer_dir = DEFAULT_OFFER_DIR;
 }
