@@ -47,6 +47,8 @@ typedef enum
   X264,
   OPENH264,
   OPUS,
+  VAAPIH264,
+  VAAPIVP8,
   UNSUPPORTED
 } EncoderType;
 
@@ -77,6 +79,10 @@ kms_enc_tree_bin_get_name_from_type (EncoderType enc_type)
       return "openh264";
     case OPUS:
       return "opus";
+    case VAAPIH264:
+      return "vaapih264";
+    case VAAPIVP8:
+      return "vaapivp8";
     case UNSUPPORTED:
     default:
       return NULL;
@@ -183,6 +189,17 @@ configure_encoder (GstElement * encoder, EncoderType type, gint target_bitrate,
           "perfect-timestamp", TRUE, NULL);
       break;
     }
+    case VAAPIH264:
+    case VAAPIVP8:
+    {
+      /* *INDENT-OFF* */
+      g_object_set(G_OBJECT(encoder),
+                   "bitrate", target_bitrate / 1000,
+                   "rate-control", /* cbr */ 2,
+                   NULL);
+      /* *INDENT-ON* */
+      break;
+    }
     default:
       GST_DEBUG ("Codec %" GST_PTR_FORMAT
           " not configured because it is not supported", encoder);
@@ -207,6 +224,10 @@ kms_enc_tree_bin_set_encoder_type (KmsEncTreeBin * self)
     self->priv->enc_type = OPENH264;
   } else if (g_str_has_prefix (name, "opusenc")) {
     self->priv->enc_type = OPUS;
+  } else if (g_str_has_prefix (name, "vaapiencodeh264")) {
+    self->priv->enc_type = VAAPIH264;
+  } else if (g_str_has_prefix (name, "vaapiencodevp8")) {
+    self->priv->enc_type = VAAPIVP8;
   } else {
     self->priv->enc_type = UNSUPPORTED;
   }
@@ -225,6 +246,7 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
       gst_element_factory_list_get_elements (GST_ELEMENT_FACTORY_TYPE_ENCODER,
       GST_RANK_NONE);
 
+#if 0
   /* HACK: Augment the openh264 rank */
   for (l = encoder_list; l != NULL; l = l->next) {
     encoder_factory = GST_ELEMENT_FACTORY (l->data);
@@ -235,6 +257,7 @@ kms_enc_tree_bin_create_encoder_for_caps (KmsEncTreeBin * self,
       break;
     }
   }
+#endif
 
   encoder_factory = NULL;
   filtered_list =
@@ -322,6 +345,17 @@ kms_enc_tree_bin_set_target_bitrate (KmsEncTreeBin * self)
         g_object_set (self->priv->enc, "bitrate", new_br, NULL);
       }
     }
+    case VAAPIH264:
+    case VAAPIVP8:
+    {
+      guint last_br, new_br = target_bitrate / 1000;
+
+      g_object_get (self->priv->enc, "bitrate", &last_br, NULL);
+      if (last_br != new_br) {
+        g_object_set (self->priv->enc, "bitrate", new_br, NULL);
+      }
+      break;
+    }
     default:
       GST_DEBUG ("Skip setting bitrate, encoder not supported");
       break;
@@ -387,7 +421,7 @@ tag_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 /*
  * FIXME: This is a hack to make x264 work.
  *
- * We have notice that x264 doesn't work if width or height is odd,
+ * We have noticed that x264 doesn't work if width or height is odd,
  * so we force a rescale increasing one pixel that dimension
  * when we detect this situation.
  */
