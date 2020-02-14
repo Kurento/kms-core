@@ -244,23 +244,6 @@ void BaseRtpEndpointImpl::setMaxVideoSendBandwidth (int maxVideoSendBandwidth)
 std::shared_ptr<MediaState>
 BaseRtpEndpointImpl::getMediaState ()
 {
-  current_media_state = std::make_shared <MediaState> (MediaState::DISCONNECTED);
-
-  for (auto &mediaFlowInState : mediaFlowInStates) {
-    if (mediaFlowInState.second->getValue() == MediaFlowState::FLOWING) {
-      current_media_state = std::make_shared <MediaState> (MediaState::CONNECTED);
-      goto end;
-    }
-  }
-
-  for (auto &mediaFlowOutState : mediaFlowOutStates) {
-    if (mediaFlowOutState.second->getValue() == MediaFlowState::FLOWING) {
-      current_media_state = std::make_shared <MediaState> (MediaState::CONNECTED);
-      goto end;
-    }
-  }
-
-end:
   return current_media_state;
 }
 
