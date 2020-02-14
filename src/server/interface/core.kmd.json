@@ -677,33 +677,76 @@ If the negotiation process is not complete, it will return NULL.
 </p>
 <ul>
   <li>
-    ConnectionStateChangedEvent: This event is raised when the connection
-    between two peers changes. It can have two values:
+    <strong>ConnectionStateChangedEvent</strong>: This event is raised when the
+    connection between two peers changes. It can have two values:
     <ul>
       <li>CONNECTED</li>
       <li>DISCONNECTED</li>
     </ul>
   </li>
   <li>
-    MediaStateChangedEvent: Based on RTCP packet flow, this event provides more
-    reliable information about the state of media flow. Since RTCP packets are
-    not flowing at a constant rate (minimizing a browser with an
-    RTCPeerConnection might affect this interval, for instance), there is a
-    guard period of about 5s. This traduces in a period where there might be no
-    media flowing, but the event hasn't been fired yet. Nevertheless, this is
-    the most reliable and useful way of knowing what the state of media exchange
-    is. Possible values are:
+    <strong>MediaStateChangedEvent</strong>: This event provides information
+    about the state of the underlying RTP session.
+    <p>
+      The standard definition of RTP (<a
+        href='https://tools.ietf.org/html/rfc3550'
+        target='_blank'
+        >RFC 3550</a
+      >) describes a session as active whenever there is a maintained flow of
+      RTCP control packets, regardless of whether there is actual media flowing
+      through RTP data packets or not. The reasoning behind this is that, at any
+      given moment, a participant of an RTP session might temporarily stop
+      sending RTP data packets, but this wouldn't necessarily mean that the RTP
+      session as a whole is finished; it maybe just means that the participant
+      has some temporary issues but it will soon resume sending data. For this
+      reason, that an RTP session has really finished is something that is
+      considered only by the prolonged absence of RTCP control packets between
+      participants.
+    </p>
+    <p>
+      Since RTCP packets do not flow at a constant rate (for instance,
+      minimizing a browser window with a WebRTC's
+      <code>RTCPeerConnection</code> object might affect the sending interval),
+      it is not possible to immediately detect their absence and assume that the
+      RTP session has finished. Instead, there is a guard period of
+      approximately <strong>5 seconds</strong> of missing RTCP packets before
+      considering that the underlying RTP session is effectively finished, thus
+      triggering a <code>MediaStateChangedEvent = DISCONNECTED</code> event.
+    </p>
+    <p>
+      In other words, there is always a period during which there might be no
+      media flowing, but this event hasn't been fired yet. Nevertheless, this is
+      the most reliable and useful way of knowing what is the long-term, steady
+      state of RTP media exchange.
+    </p>
+    <p>
+      The <code>ConnectionStateChangedEvent</code> comes in contrast with more
+      instantaneous events such as MediaElement's
+      :rom:attr:`MediaFlowInStateChange` and
+      :rom:attr:`MediaFlowOutStateChange`, which are triggered almost
+      immediately after the RTP data packets stop flowing between RTP session
+      participants. This makes the <em>MediaFlow</em> events a good way to
+      know if participants are suffering from short-term intermittent
+      connectivity issues, but they are not enough to know if the connectivity
+      issues are just spurious network hiccups or are part of a more long-term
+      disconnection problem.
+    </p>
+    <p>
+      Possible values are:
+    </p>
     <ul>
       <li>CONNECTED: There is an RTCP packet flow between peers.</li>
       <li>
-        DISCONNECTED: No RTCP packets have been received, or at least 5s have
-        passed since the last packet arrived.
+        DISCONNECTED: Either no RTCP packets have been received yet, or the
+        remote peer has ended the RTP session with a <code>BYE</code> message,
+        or at least 5 seconds have elapsed since the last RTCP packet was
+        received.
       </li>
     </ul>
   </li>
 </ul>
 <p>
-  Part of the bandwidth control of the video component of the media session is
+  Part of the bandwidth control for the video component of the media session is
   done here:
 </p>
 <ul>

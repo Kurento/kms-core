@@ -3438,18 +3438,19 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_new_ssrc), self);
   g_signal_connect (self->priv->rtpbin, "on-ssrc-sdes",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_sdes), self);
+
+  // Signals that affect the MediaState property
   g_signal_connect (self->priv->rtpbin, "on-bye-ssrc",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_ssrc), self);
   g_signal_connect (self->priv->rtpbin, "on-bye-timeout",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_bye_timeout), self);
-  g_signal_connect (self->priv->rtpbin, "new-jitterbuffer",
-      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer), self);
-
   g_signal_connect (self->priv->rtpbin, "on-timeout",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_timeout), self);
-
   g_signal_connect (self->priv->rtpbin, "on-ssrc-active",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_on_ssrc_active), self);
+
+  g_signal_connect (self->priv->rtpbin, "new-jitterbuffer",
+      G_CALLBACK (kms_base_rtp_endpoint_rtpbin_new_jitterbuffer), self);
 
   g_signal_connect (self->priv->rtpbin, "request-aux-receiver",
       G_CALLBACK (kms_base_rtp_endpoint_rtpbin_request_aux_receiver), self);
