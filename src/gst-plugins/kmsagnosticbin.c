@@ -976,7 +976,7 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   gst_event_parse_caps (event, &new_caps);
 
   if (new_caps == NULL) {
-    GST_ERROR_OBJECT (self, "Unexpected NULL caps");
+    GST_ERROR_OBJECT (self, "Unexpected NULL input caps");
     return GST_PAD_PROBE_OK;
   }
 
@@ -988,7 +988,8 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   if (current_caps != NULL) {
     GstStructure *st;
 
-    GST_DEBUG_OBJECT (self, "Current caps: %" GST_PTR_FORMAT, current_caps);
+    GST_DEBUG_OBJECT (self, "Current input caps: %" GST_PTR_FORMAT,
+        current_caps);
 
     st = gst_caps_get_structure (current_caps, 0);
     // Remove famerate, width, height, streamheader that make unecessary
@@ -1000,16 +1001,17 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     if (!gst_caps_can_intersect (new_caps, current_caps)
         && !kms_utils_caps_is_raw (current_caps)
         && !kms_utils_caps_is_raw (new_caps)) {
-      GST_DEBUG_OBJECT (self, "Set new caps: %" GST_PTR_FORMAT, new_caps);
+      GST_DEBUG_OBJECT (self, "Set new input caps: %" GST_PTR_FORMAT, new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
     }
     else {
-      GST_DEBUG_OBJECT (self, "No need to set new caps");
+      // REVIEW: Why no need when old or new caps are RAW?
+      GST_DEBUG_OBJECT (self, "No need to set new input caps");
     }
 
     gst_caps_unref (current_caps);
   } else {
-    GST_DEBUG_OBJECT (self, "No previous caps, starting");
+    GST_DEBUG_OBJECT (self, "No previous input caps, starting");
     kms_agnostic_bin2_configure_input (self, new_caps);
   }
 
