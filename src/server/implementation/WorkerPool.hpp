@@ -18,9 +18,11 @@
 #ifndef __WORKERPOOL_HPP__
 #define __WORKERPOOL_HPP__
 
-#include <mutex>
-#include <thread>
-#include <boost/asio.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/thread/thread.hpp>
+
+#include <chrono>
 
 namespace kurento
 {
@@ -28,42 +30,52 @@ namespace kurento
 class WorkerPool
 {
 public:
-  WorkerPool (int threads);
-  ~WorkerPool();
+  /*
+   * With `threads_count == 0`, it will automatically adapt to the number of
+   * CPU cores that are available in the current environment.
+   */
+  WorkerPool (size_t threads_count = 0);
+  ~WorkerPool ();
 
   template <typename CompletionHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE (CompletionHandler, void () )
+  BOOST_ASIO_INITFN_RESULT_TYPE (CompletionHandler, void ())
   post (BOOST_ASIO_MOVE_ARG (CompletionHandler) handler)
   {
-    setWatcher();
-    return io_service->post (handler);
+    // `io_service::post()` assigns new tasks to the thread pool
+    return io_service.post (handler);
   }
 
 private:
-  void setWatcher();
-  void checkWorkers();
+  // Boost Asio tools for handling a thread pool
+  boost::asio::io_service io_service; // Boost Asio task runner
+  boost::thread_group io_threadpool;
 
-  boost::shared_ptr< boost::asio::io_service > io_service;
-  std::shared_ptr< boost::asio::io_service::work > work;
-  std::vector<std::thread> workers;
+  /*
+   * Keeping an instance of `io_service::work` tells `io_service` to keep
+   * running its internal loop, even after all tasks have been serviced.
+   *
+   * Think of it as a loop condition check:
+   *
+   *     while (!stopped && "work instance exists") {
+   *         process_tasks()
+   *     }
+   */
+  boost::asio::io_service::work io_work;
 
-  boost::shared_ptr< boost::asio::io_service > watcher_service;
-  std::shared_ptr< boost::asio::io_service::work > watcher_work;
-  std::thread watcher;
-
-  std::mutex mutex;
-
-  bool terminated = false;
+  // Thread pool health check
+  void checkThreads ();
+  boost::asio::steady_timer check_timer;
+  std::chrono::steady_clock::time_point check_time_last;
 
   class StaticConstructor
   {
   public:
-    StaticConstructor();
+    StaticConstructor ();
   };
 
   static StaticConstructor staticConstructor;
 };
 
-} // kurento
+} // namespace kurento
 
 #endif /* __WORKERPOOL_HPP__ */

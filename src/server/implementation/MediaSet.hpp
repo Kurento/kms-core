@@ -155,7 +155,7 @@ private:
       >
   > eventHandler;
 
-  std::shared_ptr<WorkerPool> workers;
+  WorkerPool workers;
 
   static std::chrono::seconds collectorInterval;
 

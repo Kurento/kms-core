@@ -33,8 +33,6 @@
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoMediaSet"
 
-const int MEDIASET_THREADS_DEFAULT = 10;
-
 namespace kurento
 {
 
@@ -134,15 +132,12 @@ void MediaSet::doGarbageCollection ()
   }
 }
 
-MediaSet::MediaSet()
+MediaSet::MediaSet () : workers {}
 {
   terminated = false;
 
-  workers = std::make_shared<WorkerPool>(MEDIASET_THREADS_DEFAULT);
-
   thread = std::thread ( [&] () {
     std::unique_lock <std::recursive_mutex> lock (recMutex);
-
 
     while (!terminated && waitCond.wait_for (lock,
            collectorInterval) == std::cv_status::timeout) {
@@ -176,8 +171,6 @@ MediaSet::~MediaSet ()
 
   lock.unlock();
 
-  workers.reset();
-
   if (std::this_thread::get_id() != thread.get_id() ) {
     try {
       thread.join();
@@ -200,8 +193,8 @@ MediaSet::post (std::function<void (void) > f)
 {
   std::unique_lock <std::recursive_mutex> lock (recMutex);
 
-  if (!terminated && workers) {
-    workers->post (f);
+  if (!terminated) {
+    workers.post (f);
   } else {
     lock.unlock();
     f();
