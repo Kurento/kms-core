@@ -1,8 +1,10 @@
-kms-core (6.13.1-0kurento1) UNRELEASED; urgency=medium
+kms-core (6.13.2-0kurento1) UNRELEASED; urgency=medium
 
   * UNRELEASED
+  * debian minor: use "adduser" instead of "useradd"
+  * debian/postinst: register new home dir with usermod
 
- -- Juan Navarro <juan.navarro@gmx.es>  Thu, 19 Dec 2019 19:17:37 +0100
+ -- Juan Navarro <juan.navarro@gmx.es>  Wed, 22 Apr 2020 19:44:10 +0200
 
 kms-core (6.13.0-0kurento1) testing; urgency=medium
 
