@@ -493,7 +493,7 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
   GST_DEBUG_OBJECT (tree_bin, "TreeBin '%" GST_PTR_FORMAT "' caps: %"
       GST_PTR_FORMAT, tree_bin, current_caps);
 
-  if (current_caps != NULL) {
+  if (current_caps != NULL && gst_caps_get_size (current_caps) > 0) {
     //TODO: Remove this when problem in negotiation with features will be
     //resolved
     GstCaps *caps_without_features = gst_caps_make_writable (current_caps);
