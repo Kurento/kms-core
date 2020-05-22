@@ -132,12 +132,12 @@ kms_rtp_synchronizer_init_stats_file (KmsRtpSynchronizer * self,
   gchar *date_str;
 
   if (stats_name == NULL) {
-    GST_INFO_OBJECT (self, "No name for stats file");
+    GST_DEBUG_OBJECT (self, "No name for stats file");
     return;
   }
 
   if (stats_files_dir == NULL) {
-    GST_INFO_OBJECT (self, "No path for stats; enable with env variable: '%s'",
+    GST_DEBUG_OBJECT (self, "No path for stats; enable with env variable: '%s'",
         KMS_RTP_SYNC_STATS_PATH_ENV_VAR);
     return;
   }
@@ -161,7 +161,7 @@ kms_rtp_synchronizer_init_stats_file (KmsRtpSynchronizer * self,
   if (self->priv->stats_file == NULL) {
     GST_ERROR_OBJECT (self, "Cannot open file for stats: %s", stats_file_name);
   } else {
-    GST_INFO_OBJECT (self, "File for stats: %s", stats_file_name);
+    GST_DEBUG_OBJECT (self, "File for stats: %s", stats_file_name);
     g_fprintf (self->priv->stats_file,
         "ENTRY_TS,THREAD,SSRC,CLOCK_RATE,PTS_ORIG,PTS,DTS,EXT_RTP,SR_NTP_NS,SR_EXT_RTP\n");
   }

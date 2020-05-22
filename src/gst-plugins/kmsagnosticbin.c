@@ -214,7 +214,7 @@ remove_on_unlinked_blocked (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
     return GST_PAD_PROBE_REMOVE;
   }
 
-  GST_LOG_OBJECT (pad, "Unlinking pad");
+  GST_TRACE_OBJECT (pad, "Unlinking pad");
 
   GST_OBJECT_LOCK (pad);
   if (g_object_get_qdata (G_OBJECT (pad), unlinking_data_quark ())) {
@@ -350,7 +350,7 @@ link_element_to_tee (GstElement * tee, GstElement * element)
 static GstPadProbeReturn
 remove_target_pad_block (GstPad * pad, GstPadProbeInfo * info, gpointer gp)
 {
-  GST_LOG_OBJECT (pad, "Drop");
+  GST_TRACE_OBJECT (pad, "Drop");
   return GST_PAD_PROBE_DROP;
 }
 
@@ -362,7 +362,7 @@ remove_target_pad (GstPad * pad)
   // from the tee
   GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
 
-  GST_LOG_OBJECT (pad, "Removing target pad");
+  GST_TRACE_OBJECT (pad, "Removing target pad");
 
   if (target == NULL) {
     return;
@@ -483,14 +483,14 @@ check_bin (KmsTreeBin * tree_bin, const GstCaps * caps)
   GstPad *tee_sink = gst_element_get_static_pad (output_tee, "sink");
   GstCaps *current_caps = kms_tree_bin_get_input_caps (tree_bin);
 
-  GST_DEBUG_OBJECT (tree_bin,
+  GST_LOG_OBJECT (tree_bin,
       "Check compatibility for bin: %" GST_PTR_FORMAT " ...", tree_bin);
 
   if (current_caps == NULL) {
     current_caps = gst_pad_get_allowed_caps (tee_sink);
   }
 
-  GST_DEBUG_OBJECT (tree_bin, "TreeBin '%" GST_PTR_FORMAT "' caps: %"
+  GST_LOG_OBJECT (tree_bin, "TreeBin '%" GST_PTR_FORMAT "' caps: %"
       GST_PTR_FORMAT, tree_bin, current_caps);
 
   if (current_caps != NULL && gst_caps_get_size (current_caps) > 0) {
@@ -600,7 +600,7 @@ kms_agnostic_bin2_get_or_create_dec_bin (KmsAgnosticBin2 * self, GstCaps * caps)
   if (raw_caps != NULL) {
     GstBin *dec_bin;
 
-    GST_DEBUG ("Raw caps: %" GST_PTR_FORMAT, raw_caps);
+    GST_LOG ("Raw caps: %" GST_PTR_FORMAT, raw_caps);
     dec_bin = kms_agnostic_bin2_find_bin_for_caps (self, raw_caps);
 
     if (dec_bin == NULL) {
@@ -711,16 +711,16 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
     media_type = g_strdup ("video");
   }
 
-  GST_DEBUG_OBJECT (self, "Find TreeBin with wanted caps: %" GST_PTR_FORMAT, caps);
+  GST_LOG_OBJECT (self, "Find TreeBin with wanted caps: %" GST_PTR_FORMAT, caps);
 
   bin = kms_agnostic_bin2_find_bin_for_caps (self, caps);
 
   if (bin == NULL) {
-    GST_DEBUG_OBJECT (self, "TreeBin not found! Transcoding required for %s",
+    GST_LOG_OBJECT (self, "TreeBin not found! Transcoding required for %s",
         media_type);
 
     bin = kms_agnostic_bin2_create_bin_for_caps (self, caps);
-    GST_LOG_OBJECT (self, "Created TreeBin: %" GST_PTR_FORMAT, bin);
+    GST_TRACE_OBJECT (self, "Created TreeBin: %" GST_PTR_FORMAT, bin);
 
     if (!self->priv->transcoding_emitted) {
       self->priv->transcoding_emitted = TRUE;
@@ -729,21 +729,21 @@ kms_agnostic_bin2_find_or_create_bin_for_caps (KmsAgnosticBin2 * self,
       GST_INFO_OBJECT (self, "TRANSCODING ACTIVE for %s", media_type);
     }
     else {
-      GST_DEBUG_OBJECT (self, "Suppressed - TRANSCODING ACTIVE for %s",
+      GST_LOG_OBJECT (self, "Suppressed - TRANSCODING ACTIVE for %s",
           media_type);
     }
   }
   else {
-    GST_DEBUG_OBJECT (self, "TreeBin found! Use it for %s", media_type);
+    GST_LOG_OBJECT (self, "TreeBin found! Use it for %s", media_type);
 
     if (!self->priv->transcoding_emitted) {
       self->priv->transcoding_emitted = TRUE;
       g_signal_emit (GST_BIN (self),
           kms_agnostic_bin2_signals[SIGNAL_MEDIA_TRANSCODING], 0, FALSE, type);
-      GST_INFO_OBJECT (self, "TRANSCODING INACTIVE for %s", media_type);
+      GST_DEBUG_OBJECT (self, "TRANSCODING INACTIVE for %s", media_type);
     }
     else {
-      GST_DEBUG_OBJECT (self, "Suppressed - TRANSCODING INACTIVE for %s",
+      GST_LOG_OBJECT (self, "Suppressed - TRANSCODING INACTIVE for %s",
           media_type);
     }
   }
@@ -766,12 +766,12 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
   GstCaps *pad_caps, *peer_caps;
   GstBin *bin;
 
-  GST_LOG_OBJECT (self, "Linking: %" GST_PTR_FORMAT
+  GST_TRACE_OBJECT (self, "Linking: %" GST_PTR_FORMAT
       " to %" GST_PTR_FORMAT, pad, peer);
 
   pad_caps = gst_pad_query_caps (pad, NULL);
   if (pad_caps != NULL) {
-    GST_INFO_OBJECT (self, "Upstream provided caps: %" GST_PTR_FORMAT, pad_caps);
+    GST_DEBUG_OBJECT (self, "Upstream provided caps: %" GST_PTR_FORMAT, pad_caps);
     gst_caps_unref (pad_caps);
   }
 
@@ -780,7 +780,7 @@ kms_agnostic_bin2_link_pad (KmsAgnosticBin2 * self, GstPad * pad, GstPad * peer)
     goto end;
   }
 
-  GST_INFO_OBJECT (self, "Downstream wanted caps: %" GST_PTR_FORMAT, peer_caps);
+  GST_DEBUG_OBJECT (self, "Downstream wanted caps: %" GST_PTR_FORMAT, peer_caps);
 
   bin = kms_agnostic_bin2_find_or_create_bin_for_caps (self, peer_caps);
 
@@ -819,7 +819,7 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
     return FALSE;
   }
 
-  GST_LOG_OBJECT (self, "Processing pad: %" GST_PTR_FORMAT, pad);
+  GST_TRACE_OBJECT (self, "Processing pad: %" GST_PTR_FORMAT, pad);
 
   if (pad == NULL) {
     return FALSE;
@@ -840,7 +840,7 @@ kms_agnostic_bin2_process_pad (KmsAgnosticBin2 * self, GstPad * pad)
         gst_caps_unref (caps);
 
         if (accepted) {
-          GST_LOG_OBJECT (self, "No need to reconfigure pad %" GST_PTR_FORMAT,
+          GST_TRACE_OBJECT (self, "No need to reconfigure pad %" GST_PTR_FORMAT,
               pad);
           g_object_unref (target);
           g_object_unref (peer);
@@ -882,7 +882,7 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
     return GST_PAD_PROBE_OK;
   }
 
-  GST_LOG_OBJECT (self, "Event in parser pad: %" GST_PTR_FORMAT, event);
+  GST_TRACE_OBJECT (self, "Event in parser pad: %" GST_PTR_FORMAT, event);
 
   if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
     return GST_PAD_PROBE_OK;
@@ -896,7 +896,7 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
   }
 
   gst_event_parse_caps (event, &current_caps);
-  GST_INFO_OBJECT (self, "Set input caps: %" GST_PTR_FORMAT, current_caps);
+  GST_DEBUG_OBJECT (self, "Set input caps: %" GST_PTR_FORMAT, current_caps);
   self->priv->input_bin_src_caps = gst_caps_copy (current_caps);
   kms_agnostic_bin2_insert_bin (self, GST_BIN (bin));
 
@@ -911,7 +911,7 @@ input_bin_src_caps_probe (GstPad * pad, GstPadProbeInfo * info, gpointer bin)
 static void
 remove_bin (gpointer key, gpointer value, gpointer agnosticbin)
 {
-  GST_LOG_OBJECT (agnosticbin, "Removing %" GST_PTR_FORMAT, value);
+  GST_TRACE_OBJECT (agnosticbin, "Removing %" GST_PTR_FORMAT, value);
   gst_bin_remove (GST_BIN (agnosticbin), value);
   gst_element_set_state (value, GST_STATE_NULL);
 }
@@ -948,7 +948,7 @@ kms_agnostic_bin2_configure_input (KmsAgnosticBin2 * self, const GstCaps * caps)
 
   self->priv->started = FALSE;
 
-  GST_LOG_OBJECT (self, "Removing old treebins");
+  GST_TRACE_OBJECT (self, "Removing old treebins");
   g_hash_table_foreach (self->priv->bins, remove_bin, self);
   g_hash_table_remove_all (self->priv->bins);
 
@@ -970,7 +970,7 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
 
   self = KMS_AGNOSTIC_BIN2 (user_data);
 
-  GST_LOG_OBJECT (pad, "Self: %s, event: %" GST_PTR_FORMAT,
+  GST_TRACE_OBJECT (pad, "Self: %s, event: %" GST_PTR_FORMAT,
       GST_ELEMENT_NAME (self), event);
 
   gst_event_parse_caps (event, &new_caps);
@@ -988,7 +988,7 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
   if (current_caps != NULL) {
     GstStructure *st;
 
-    GST_DEBUG_OBJECT (self, "Current input caps: %" GST_PTR_FORMAT,
+    GST_LOG_OBJECT (self, "Current input caps: %" GST_PTR_FORMAT,
         current_caps);
 
     st = gst_caps_get_structure (current_caps, 0);
@@ -1001,17 +1001,17 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     if (!gst_caps_can_intersect (new_caps, current_caps)
         && !kms_utils_caps_is_raw (current_caps)
         && !kms_utils_caps_is_raw (new_caps)) {
-      GST_DEBUG_OBJECT (self, "Set new input caps: %" GST_PTR_FORMAT, new_caps);
+      GST_LOG_OBJECT (self, "Set new input caps: %" GST_PTR_FORMAT, new_caps);
       kms_agnostic_bin2_configure_input (self, new_caps);
     }
     else {
       // REVIEW: Why no need when old or new caps are RAW?
-      GST_DEBUG_OBJECT (self, "No need to set new input caps");
+      GST_LOG_OBJECT (self, "No need to set new input caps");
     }
 
     gst_caps_unref (current_caps);
   } else {
-    GST_DEBUG_OBJECT (self, "No previous input caps, starting");
+    GST_LOG_OBJECT (self, "No previous input caps, starting");
     kms_agnostic_bin2_configure_input (self, new_caps);
   }
 
@@ -1036,7 +1036,7 @@ kms_agnostic_bin2_src_reconfigure_probe (GstPad * pad, GstPadProbeInfo * info,
     if (GST_EVENT_TYPE (event) == GST_EVENT_RECONFIGURE) {
       KmsAgnosticBin2 *self = user_data;
 
-      GST_DEBUG_OBJECT (pad, "Received reconfigure event");
+      GST_LOG_OBJECT (pad, "Received reconfigure event");
 
       KMS_AGNOSTIC_BIN2_LOCK (self);
       GST_OBJECT_FLAG_SET (pad, KMS_AGNOSTIC_PAD_STARTED);
@@ -1054,7 +1054,7 @@ static void
 kms_agnostic_bin2_src_unlinked (GstPad * pad, GstPad * peer,
     KmsAgnosticBin2 * self)
 {
-  GST_LOG_OBJECT (pad, "Unlinked");
+  GST_TRACE_OBJECT (pad, "Unlinked");
   KMS_AGNOSTIC_BIN2_LOCK (self);
   GST_OBJECT_FLAG_UNSET (pad, KMS_AGNOSTIC_PAD_STARTED);
   remove_target_pad (pad);
@@ -1181,7 +1181,7 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
       }
 
       self->priv->min_bitrate = v;
-      GST_DEBUG_OBJECT (self, "min_bitrate configured %d",
+      GST_LOG_OBJECT (self, "min_bitrate configured %d",
           self->priv->min_bitrate);
       kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
@@ -1203,7 +1203,7 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
         GST_WARNING_OBJECT (self, "Setting max-bitrate less than min-bitrate");
       }
       self->priv->max_bitrate = v;
-      GST_DEBUG_OBJECT (self, "max_bitrate configured %d", self->priv->max_bitrate);
+      GST_LOG_OBJECT (self, "max_bitrate configured %d", self->priv->max_bitrate);
       kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;

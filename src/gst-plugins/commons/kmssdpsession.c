@@ -67,7 +67,7 @@ kms_sdp_session_generate_offer (KmsSdpSession * self)
     goto error;
   }
 
-  GST_INFO_OBJECT (self, "Generated SDP Offer:\n%s",
+  GST_DEBUG_OBJECT (self, "Generated SDP Offer:\n%s",
       (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
   sdp_str = NULL;
@@ -91,7 +91,7 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   GError *err = NULL;
   gchar *sdp_str = NULL;
 
-  GST_INFO_OBJECT (self, "Process SDP Offer:\n%s",
+  GST_DEBUG_OBJECT (self, "Process SDP Offer:\n%s",
       (sdp_str = gst_sdp_message_as_text (offer)));
   g_free (sdp_str);
   sdp_str = NULL;
@@ -136,7 +136,7 @@ kms_sdp_session_process_offer (KmsSdpSession * self, GstSDPMessage * offer)
   }
   gst_sdp_message_copy (self->local_sdp, &self->neg_sdp);
 
-  GST_INFO_OBJECT (self, "Generated SDP Answer:\n%s",
+  GST_DEBUG_OBJECT (self, "Generated SDP Answer:\n%s",
       (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
   sdp_str = NULL;
@@ -160,7 +160,7 @@ kms_sdp_session_process_answer (KmsSdpSession * self, GstSDPMessage * answer)
   GError *err = NULL;
   gchar *sdp_str = NULL;
 
-  GST_INFO_OBJECT (self, "Process SDP Answer:\n%s",
+  GST_DEBUG_OBJECT (self, "Process SDP Answer:\n%s",
       (sdp_str = gst_sdp_message_as_text (answer)));
   g_free (sdp_str);
   sdp_str = NULL;

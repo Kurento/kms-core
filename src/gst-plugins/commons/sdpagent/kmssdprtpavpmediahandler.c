@@ -1245,7 +1245,7 @@ kms_sdp_rtp_avp_media_handler_add_codec (KmsSdpRtpAvpMediaHandler * self,
     return -1;
   }
 
-  GST_INFO_OBJECT (self, "Add format support, media: %s, codec: %s",
+  GST_DEBUG_OBJECT (self, "Add format support, media: %s, codec: %s",
       media, name);
 
   rtpmap = kms_sdp_rtp_map_create_for_codec (self, name, error);

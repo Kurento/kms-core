@@ -111,7 +111,7 @@ BaseRtpEndpointImpl::BaseRtpEndpointImpl (const boost::property_tree::ptree
     GST_INFO ("Predefined RTP MTU: %u", mtu);
     g_object_set (G_OBJECT (element), PROP_MTU, mtu, NULL);
   } else {
-    GST_INFO ("No predefined RTP MTU found in config; using default");
+    GST_DEBUG ("No predefined RTP MTU found in config; using default");
   }
 }
 
