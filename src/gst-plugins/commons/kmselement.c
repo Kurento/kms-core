@@ -1573,17 +1573,12 @@ kms_element_remove_target_pad (KmsElement * self, GstPad * pad)
 }
 
 static gboolean
-kms_element_release_requested_pad_action (KmsElement * self,
-    const gchar * pad_name)
+kms_element_release_requested_pad_action (KmsElement *self, GstPad *pad)
 {
-  GValue item = G_VALUE_INIT;
-  gboolean done = FALSE;
-  gboolean released;
-  GstIterator *it;
-  GstPad *pad;
+  gboolean released = FALSE;
 
   KMS_ELEMENT_LOCK (self);
-  released = g_hash_table_remove (self->priv->pendingpads, pad_name);
+  released = g_hash_table_remove (self->priv->pendingpads, GST_PAD_NAME (pad));
   KMS_ELEMENT_UNLOCK (self);
 
   if (released) {
@@ -1592,49 +1587,20 @@ kms_element_release_requested_pad_action (KmsElement * self,
   }
 
   /* Pad is not in the pending list so it may have been already created */
-  it = gst_element_iterate_pads (GST_ELEMENT (self));
-
-  while (!done) {
-    switch (gst_iterator_next (it, &item)) {
-      case GST_ITERATOR_OK:{
-        gchar *name;
-
-        pad = g_value_get_object (&item);
-        name = GST_OBJECT_NAME (pad);
-
-        if ((released = g_strcmp0 (name, pad_name) == 0)) {
-          switch (gst_pad_get_direction (pad)) {
-            case GST_PAD_SRC:
-              kms_element_remove_target_pad (self, pad);
-              kms_element_release_pad (GST_ELEMENT (self), pad);
-              done = TRUE;
-              break;
-            case GST_PAD_SINK:
-              /* Dynamic sink pads are managed by subclasses */
-              done = released =
-                  KMS_ELEMENT_GET_CLASS (self)->release_requested_sink_pad
-                  (self, pad);
-              break;
-            default:
-              GST_WARNING_OBJECT (self, "Unknown direction %" GST_PTR_FORMAT,
-                  pad);
-          }
-        }
-
-        g_value_reset (&item);
-        break;
-      }
-      case GST_ITERATOR_RESYNC:
-        gst_iterator_resync (it);
-        break;
-      case GST_ITERATOR_ERROR:
-      case GST_ITERATOR_DONE:
-        done = TRUE;
-        break;
-    }
+  switch (gst_pad_get_direction (pad)) {
+  case GST_PAD_SRC:
+    kms_element_remove_target_pad (self, pad);
+    kms_element_release_pad (GST_ELEMENT (self), pad);
+    released = TRUE;
+    break;
+  case GST_PAD_SINK:
+    /* Dynamic sink pads are managed by subclasses */
+    released =
+        KMS_ELEMENT_GET_CLASS (self)->release_requested_sink_pad (self, pad);
+    break;
+  default:
+    GST_WARNING_OBJECT (self, "Unknown pad direction: %" GST_PTR_FORMAT, pad);
   }
-
-  gst_iterator_free (it);
 
   return released;
 }
@@ -1898,7 +1864,7 @@ kms_element_class_init (KmsElementClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsElementClass, release_requested_pad), NULL, NULL,
-      __kms_core_marshal_BOOLEAN__STRING, G_TYPE_BOOLEAN, 1, G_TYPE_STRING);
+      __kms_core_marshal_BOOLEAN__STRING, G_TYPE_BOOLEAN, 1, GST_TYPE_PAD);
 
   element_signals[STATS] =
       g_signal_new ("stats", G_TYPE_FROM_CLASS (klass),

@@ -80,7 +80,7 @@ struct _KmsElementClass
 
   /* actions */
   gchar * (*request_new_pad) (KmsElement *self, KmsElementPadType type, const gchar *desc, GstPadDirection dir);
-  gboolean (*release_requested_pad) (KmsElement *self, const gchar *pad_name);
+  gboolean (*release_requested_pad) (KmsElement *self, GstPad *pad);
   GstStructure * (*stats) (KmsElement * self, gchar * selector);
 
   /* signals */

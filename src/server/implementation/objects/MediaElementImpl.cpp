@@ -73,6 +73,7 @@ public:
     this->sourceDescription = sourceDescription;
     this->sinkDescription = sinkDescription;
     this->sourcePadName = nullptr;
+    this->sourcePad = nullptr;
     setSinkPadName ();
   }
 
@@ -91,6 +92,7 @@ public:
     this->sourceDescription = data->getSourceDescription();
     this->sinkDescription = data->getSinkDescription();
     this->sourcePadName = nullptr;
+    this->sourcePad = nullptr;
     setSinkPadName ();
   }
 
@@ -127,58 +129,69 @@ public:
     this->sourcePadName = padName;
   }
 
-  const gchar *getSourcePadName ()
-  {
-    return sourcePadName;
-  }
-
-  std::shared_ptr<MediaElementImpl> getSource ()
-  {
-    try {
-      return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
-    } catch (std::bad_cast &) {
-      GST_WARNING ("Bad cast for source element");
-      return std::shared_ptr<MediaElementImpl> ();
-    }
-  }
-
-  std::shared_ptr<MediaElementImpl> getSink ()
-  {
-    try {
-      return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
-    } catch (std::bad_cast &) {
-      GST_WARNING ("Bad cast for source element");
-      return std::shared_ptr<MediaElementImpl> ();
-    }
-  }
-
   std::string getSinkPadName ()
   {
     return sinkPadName;
   }
 
+  const gchar *getSourcePadName ()
+  {
+    return sourcePadName;
+  }
+
+  std::shared_ptr<MediaElement> getSink ()
+  {
+    return sink.lock ();
+  }
+
+  std::shared_ptr<MediaElement> getSource ()
+  {
+    return source.lock ();
+  }
+
+  std::string getSinkDescription ()
+  {
+    return sinkDescription;
+  };
+
+  std::string getSourceDescription ()
+  {
+    return sourceDescription;
+  };
+
   GstPad *getSinkPad ()
   {
-    std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
+    auto sinkLocked = std::dynamic_pointer_cast<MediaElementImpl> (getSink ());
 
     if (!sinkLocked) {
       return nullptr;
     }
 
-    return gst_element_get_static_pad (sinkLocked->getGstreamerElement (),
-                                       getSinkPadName ().c_str() );
+    return gst_element_get_static_pad (
+        sinkLocked->getGstreamerElement (), getSinkPadName ().c_str ());
   }
 
   GstPad *getSourcePad ()
   {
-    std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
+    if (this->sourcePad) {
+      return this->sourcePad;
+    }
 
-    if (!sourceLocked || sourcePadName == nullptr) {
+    if (!this->sourcePadName) {
       return nullptr;
     }
 
-    return gst_element_get_static_pad (sourceLocked->getGstreamerElement (),
-                                       sourcePadName);
+    auto sourceLocked =
+        std::dynamic_pointer_cast<MediaElementImpl> (getSource ());
+
+    if (!sourceLocked) {
+      return nullptr;
+    }
+
+    this->sourcePad = gst_element_get_static_pad (
+        sourceLocked->getGstreamerElement (), sourcePadName);
+
+    return this->sourcePad;
   }
 
   std::shared_ptr<ElementConnectionData> toInterface ()
@@ -205,7 +218,9 @@ private:
   std::string sourceDescription;
   std::string sinkDescription;
   std::string sinkPadName;
+
   gchar *sourcePadName;
+  GstPad *sourcePad;
 };
 
 static KmsElementPadType
@@ -354,7 +369,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
         for (auto it : connections) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
             std::unique_lock<std::recursive_timed_mutex> sinkLock (
-              it->getSink()->sourcesMutex,
+              std::dynamic_pointer_cast <MediaElementImpl> (it->getSink())->sourcesMutex,
               std::defer_lock);
 
             retry = !sinkLock.try_lock_for (millisRand ());
@@ -396,7 +411,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
       try {
         auto sourceData = self->sources.at (type).at (description);
 
-        auto source = sourceData->getSource();
+        auto source = std::dynamic_pointer_cast <MediaElementImpl> (sourceData->getSource());
 
         if (source) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad),
@@ -1008,8 +1023,6 @@ MediaElementImpl::performConnection (std::shared_ptr
              data->getSink()->getName().c_str(),
              data->getSinkPadName ().c_str() );
   }
-
-  g_object_unref (src);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
@@ -1061,21 +1074,23 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
     connectionData = sinkImpl->sources.at (mediaType).at (sinkMediaDescription);
 
-    if (connectionData->toInterface()->getSourceDescription() ==
-        sourceMediaDescription) {
+    if (connectionData->getSourceDescription () == sourceMediaDescription) {
       sinkImpl->sources.at (mediaType).erase (sinkMediaDescription);
     }
 
-    for (auto conn : sinks.at (mediaType).at (sourceMediaDescription) ) {
-      if (conn->toInterface()->getSink() == sink &&
-          conn->toInterface()->getSinkDescription() == sinkMediaDescription) {
+    for (auto conn : sinks.at (mediaType).at (sourceMediaDescription)) {
+      if (conn->getSink () == sink
+          && conn->getSinkDescription () == sinkMediaDescription) {
         sinks.at (mediaType).at (sourceMediaDescription).erase (conn);
         break;
       }
     }
 
-    g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
-                           connectionData->getSourcePadName (), &ret, NULL);
+    GstPad *sourcePad = connectionData->getSourcePad ();
+    if (sourcePad != nullptr) {
+      g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
+          sourcePad, &ret, NULL);
+    }
   } catch (std::out_of_range &) {
 
   }
