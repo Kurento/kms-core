@@ -1590,7 +1590,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     }
     GST_WARNING_OBJECT (agent, "Error creating answer for media '%s %u %s': %s",
         gst_sdp_media_get_media (media), gst_sdp_media_get_port (media),
-        gst_sdp_media_get_proto (media), err_message ? err_message : "");
+        gst_sdp_media_get_proto (media), GST_STR_NULL (err_message));
 
     ret = FALSE;
     goto end;

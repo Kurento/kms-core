@@ -277,11 +277,11 @@ processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
 
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
       "Error code %d: '%s', element: %s, parent: %s", err_code,
-      (err_msg ? err_msg : "(None)"), GST_MESSAGE_SRC_NAME (msg),
+      GST_STR_NULL (err_msg), GST_MESSAGE_SRC_NAME (msg),
       GST_ELEMENT_NAME (parent));
 
   GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
+      "Debugging info: %s", GST_STR_NULL (dbg_info));
 
   errorMessage.assign (err_msg);
   if (dbg_info) {
