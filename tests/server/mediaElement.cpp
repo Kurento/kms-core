@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE (no_common_pipeline)
   try {
     src->connect (sink);
     BOOST_FAIL ("Previous operation should raise an exception");
-  } catch (KurentoException e) {
+  } catch (const KurentoException &e) {
     BOOST_CHECK (e.getCode () == CONNECT_ERROR);
   }
 
