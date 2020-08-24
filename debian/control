@@ -55,6 +55,7 @@ Depends: kms-core (= ${binary:Version}),
  libgstreamer1.5-dev,
  libsigc++-2.0-dev,
  libvpx-dev,
+ libxml2-utils,
  uuid-dev
 Breaks: kms-core-6.0-dev
 Replaces: kms-core-6.0-dev
