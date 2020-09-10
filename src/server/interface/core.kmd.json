@@ -493,9 +493,8 @@ It offers the methods needed to control the creation and connection of elements 
       "name": "SdpEndpoint",
       "abstract": true,
       "extends": "SessionEndpoint",
-      "doc": "Interface implemented by Endpoints that require an SDP negotiation for the setup
-of a networked media session with remote peers.
-<p>The API provides the following functionality:</p>
+      "doc": "Interface implemented by Endpoints that require an SDP Offer/Answer negotiation in order to configure a media session.
+<p>Functionality provided by this API:</p>
 <ul>
   <li>Generate SDP offers.</li>
   <li>Process SDP offers.</li>
@@ -557,7 +556,14 @@ Throws:
   </li>
 </ul>
           ",
-          "params": [],
+          "params": [
+            {
+              "name": "options",
+              "doc": "An <code>OfferOptions</code> providing options requested for the offer.",
+              "type": "OfferOptions",
+              "optional": true
+            }
+          ],
           "return": {
             "doc": "The SDP offer.",
             "type": "String"
@@ -2359,6 +2365,27 @@ If the negotiation process is not complete, it will return NULL.
           "type": "int",
           "optional":true,
           "defaultValue": 300000
+        }
+      ]
+    },
+    {
+      "typeFormat": "REGISTER",
+      "name": "OfferOptions",
+      "doc": "Used to customize the offer created by <code>SdpEndpoint.generateOffer</code>.",
+      "properties": [
+        {
+          "name": "offerToReceiveAudio",
+          "doc": "Whether or not to offer to the remote peer the opportunity to send audio.",
+          "type": "boolean",
+          "optional": true,
+          "defaultValue": true
+        },
+        {
+          "name": "offerToReceiveVideo",
+          "doc": "Whether or not to offer to the remote peer the opportunity to send video.",
+          "type": "boolean",
+          "optional": true,
+          "defaultValue": true
         }
       ]
     }
