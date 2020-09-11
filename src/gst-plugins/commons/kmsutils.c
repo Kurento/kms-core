@@ -1489,6 +1489,16 @@ kms_utils_depayloader_monitor_pts_out (GstElement * depayloader)
   g_object_unref (src_pad);
 }
 
+int
+kms_utils_get_ip_version (const gchar *ip_address)
+{
+  if (g_strstr_len (ip_address, -1, ":") == NULL) {
+    return 4;
+  } else {
+    return 6;
+  }
+}
+
 static void init_debug (void) __attribute__ ((constructor));
 
 static void

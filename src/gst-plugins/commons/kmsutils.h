@@ -115,6 +115,9 @@ void kms_utils_set_pad_query_function_full (GstPad *pad, GstPadQueryFunction que
 
 void kms_utils_depayloader_monitor_pts_out (GstElement * depayloader);
 
+/* Get wether an IP address is IPv4 or IPv6. */
+int kms_utils_get_ip_version (const gchar *ip_address);
+
 /* Type destroying */
 #define KMS_UTILS_DESTROY_H(type) void kms_utils_destroy_##type (type * data);
 KMS_UTILS_DESTROY_H (guint64)
