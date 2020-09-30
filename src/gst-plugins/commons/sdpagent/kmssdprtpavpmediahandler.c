@@ -1256,23 +1256,33 @@ kms_sdp_rtp_avp_media_handler_add_codec (KmsSdpRtpAvpMediaHandler * self,
 
   *fmts = g_slist_append (*fmts, rtpmap);
 
+  // RFC 6184 - RTP Payload Format for H.264 Video.
+  // Add format description to enhace compatibility.
+  // Tested: Firefox 80 requires "profile-level-id=42e01f", which means
+  //         Constrained Baseline profile, Level 3.1.
+  if (strstr (name, "H264") != NULL) {
+    kms_sdp_rtp_avp_media_handler_add_fmtp (self, rtpmap->payload,
+        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+        NULL);
+  }
+
   return rtpmap->payload;
 }
 
-gboolean
+gint
 kms_sdp_rtp_avp_media_handler_add_audio_codec (KmsSdpRtpAvpMediaHandler * self,
     const gchar * name, GError ** error)
 {
   return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_AUDIO_MEDIA, name,
-      error) >= 0;
+      error);
 }
 
-gboolean
+gint
 kms_sdp_rtp_avp_media_handler_add_video_codec (KmsSdpRtpAvpMediaHandler * self,
     const gchar * name, GError ** error)
 {
   return kms_sdp_rtp_avp_media_handler_add_codec (self, SDP_VIDEO_MEDIA, name,
-      error) >= 0;
+      error);
 }
 
 gint kms_sdp_rtp_avp_media_handler_add_generic_audio_payload

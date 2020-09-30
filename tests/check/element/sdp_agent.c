@@ -91,12 +91,12 @@ set_default_codecs (KmsSdpRtpAvpMediaHandler * handler, gchar ** audio_list,
 
   for (i = 0; i < audio_len; i++) {
     fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec (handler,
-            audio_list[i], &err));
+            audio_list[i], &err) >= 0);
   }
 
   for (i = 0; i < video_len; i++) {
     fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
-            video_list[i], &err));
+            video_list[i], &err) >= 0);
   }
 }
 
@@ -2030,7 +2030,7 @@ test_sdp_dynamic_pts (KmsSdpRtpAvpMediaHandler * handler)
 
   /* Try to assign a dynamic pt to an static codec. Expected to fail */
   fail_if (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
-          "H263-1998/90000", &err));
+          "H263-1998/90000", &err) >= 0);
   GST_DEBUG ("Expected error: %s", err->message);
   g_clear_error (&err);
 
@@ -2039,13 +2039,13 @@ test_sdp_dynamic_pts (KmsSdpRtpAvpMediaHandler * handler)
       KMS_I_SDP_PAYLOAD_MANAGER (ptmanager), &err);
 
   fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
-          "VP8/90000", &err));
+          "VP8/90000", &err) >= 0);
   fail_unless (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
-          "MP4V-ES/90000", &err));
+          "MP4V-ES/90000", &err) >= 0);
 
   /* Try to add and already added codec. Expected to fail */
   fail_if (kms_sdp_rtp_avp_media_handler_add_video_codec (handler,
-          "VP8/90000", &err));
+          "VP8/90000", &err) >= 0);
   GST_DEBUG ("Expected error: %s", err->message);
   g_clear_error (&err);
 }
@@ -2127,7 +2127,7 @@ check_optional_number_of_channels (const gchar * offer, const gchar * codec)
   fail_if (handler == NULL);
 
   fail_unless (kms_sdp_rtp_avp_media_handler_add_audio_codec
-      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), codec, &err));
+      (KMS_SDP_RTP_AVP_MEDIA_HANDLER (handler), codec, &err) >= 0);
 
   id = kms_sdp_agent_add_proto_handler (answerer, "audio", handler, NULL);
   fail_if (id < 0);
