@@ -1784,10 +1784,10 @@ kms_base_rtp_endpoint_rtpbin_request_pt_map (GstElement * rtpbin, guint session,
 
       st = gst_caps_get_structure (caps, 0);
       if (gst_structure_get_int (st, "clock-rate", &clock_rate)) {
-        kms_rtp_synchronizer_add_clock_rate_for_pt (sync, pt, clock_rate, NULL);
+        kms_rtp_synchronizer_set_pt_clock_rate (sync, pt, clock_rate, NULL);
       } else {
         GST_ERROR_OBJECT (self,
-            "Cannot get clockrate from caps: %" GST_PTR_FORMAT, caps);
+            "Cannot get clock rate from caps: %" GST_PTR_FORMAT, caps);
       }
     }
 
@@ -1896,7 +1896,7 @@ kms_base_rtp_endpoint_jitterbuffer_set_latency_probe (GstPad * pad,
   GstElement *jitterbuffer = GST_PAD_PARENT (pad);
   gint latency = GPOINTER_TO_INT (user_data);
 
-  GST_INFO_OBJECT (jitterbuffer, "Setting latency to: %d", latency);
+  GST_INFO_OBJECT (jitterbuffer, "Setting latency to %d ms", latency);
   g_object_set (jitterbuffer, "latency", latency, NULL);
 
   GST_INFO_OBJECT (jitterbuffer, "Jitterbuffer latency set; remove probe");
@@ -1926,7 +1926,7 @@ kms_base_rtp_endpoint_sync_rtp_it (GstBuffer ** buffer, guint idx,
     KmsRtpSynchronizer * sync)
 {
   *buffer = gst_buffer_make_writable (*buffer);
-  kms_rtp_synchronizer_process_rtp_buffer (sync, *buffer, NULL);
+  kms_rtp_synchronizer_process_rtp_buffer_writable (sync, *buffer, NULL);
 
   return TRUE;
 }
@@ -1939,7 +1939,7 @@ kms_base_rtp_endpoint_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info,
     GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     buffer = gst_buffer_make_writable (buffer);
-    kms_rtp_synchronizer_process_rtp_buffer (sync, buffer, NULL);
+    kms_rtp_synchronizer_process_rtp_buffer_writable (sync, buffer, NULL);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   }
   else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {

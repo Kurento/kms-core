@@ -53,22 +53,24 @@ struct _KmsRtpSynchronizerPrivate
   gint32 pt;
   gint32 clock_rate;
 
+  // Base time, initialized from the first RTCP Sender Report.
   gboolean base_initiated;
+  gboolean base_initiated_logged;
   GstClockTime base_ntp_time;
   GstClockTime base_sync_time;
 
-  guint64 rtp_ext_ts; // Extended timestamp: robust against input wraparound
-  guint64 last_sr_rtp_ext_ts;
-  GstClockTime last_sr_ntp_time;
-
-  /* Interpolate PTSs */
+  // Base time used for interpolation while the first RTCP SR arrives.
   gboolean base_interpolate_initiated;
   GstClockTime base_interpolate_ext_ts;
-  GstClockTime base_interpolate_time;
+  GstClockTime base_interpolate_pts;
+
+  GstClockTime rtp_ext_ts; // Extended timestamp: robust against input wraparound
+  GstClockTime last_rtcp_ext_ts;
+  GstClockTime last_rtcp_ntp_time;
 
   /* Feeded sorted case */
-  guint64 fs_last_rtp_ext_ts;
-  GstClockTime fs_last_pts_time;
+  GstClockTime fs_last_rtp_ext_ts;
+  GstClockTime fs_last_pts;
 
   /* Stats recording */
   FILE *stats_file;
@@ -116,11 +118,18 @@ kms_rtp_synchronizer_init (KmsRtpSynchronizer * self)
   g_rec_mutex_init (&self->priv->mutex);
   g_mutex_init (&self->priv->stats_mutex);
 
-  // 'gst_rtp_buffer_ext_timestamp()' requires an initial value of -1
-  self->priv->rtp_ext_ts = (guint64)-1;  // == G_MAXUINT64
-  self->priv->fs_last_rtp_ext_ts = (guint64)-1;
+  self->priv->base_ntp_time = GST_CLOCK_TIME_NONE;
+  self->priv->base_sync_time = GST_CLOCK_TIME_NONE;
 
-  self->priv->fs_last_pts_time = GST_CLOCK_TIME_NONE;
+  self->priv->rtp_ext_ts = GST_CLOCK_TIME_NONE;
+  self->priv->last_rtcp_ext_ts = GST_CLOCK_TIME_NONE;
+  self->priv->last_rtcp_ntp_time = GST_CLOCK_TIME_NONE;
+
+  self->priv->base_interpolate_ext_ts = GST_CLOCK_TIME_NONE;
+  self->priv->base_interpolate_pts = GST_CLOCK_TIME_NONE;
+
+  self->priv->fs_last_rtp_ext_ts = GST_CLOCK_TIME_NONE;
+  self->priv->fs_last_pts = GST_CLOCK_TIME_NONE;
 }
 
 static void
@@ -184,7 +193,7 @@ kms_rtp_synchronizer_new (gboolean feeded_sorted, const gchar * stats_name)
 }
 
 gboolean
-kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
+kms_rtp_synchronizer_set_pt_clock_rate (KmsRtpSynchronizer * self,
     gint32 pt, gint32 clock_rate, GError ** error)
 {
   gboolean ret = FALSE;
@@ -227,43 +236,55 @@ static void
 kms_rtp_synchronizer_process_rtcp_packet (KmsRtpSynchronizer * self,
     GstRTCPPacket * packet, GstClockTime current_time)
 {
-  guint32 ssrc, rtp_ts;
-  guint64 ntp_ts;
-  GstClockTime ntp_time;
-
   const GstRTCPType type = gst_rtcp_packet_get_type (packet);
   if (type != GST_RTCP_TYPE_SR) {
     GST_DEBUG_OBJECT (self, "Ignore RTCP packet, type: %d", type);
     return;
   }
 
-  gst_rtcp_packet_sr_get_sender_info (packet, &ssrc, &ntp_ts, &rtp_ts,
+  guint32 rtcp_ssrc, rtcp_ts;
+  GstClockTime ntp_ts;
+  gst_rtcp_packet_sr_get_sender_info (packet, &rtcp_ssrc, &ntp_ts, &rtcp_ts,
       NULL, NULL);
 
-  // NTP field of SR is in NTP Timestamp Format: 32.32 unsigned fixed point
-  // RTP field of SR is a timestamp in clock rate units
-  // See RFC 3550: https://tools.ietf.org/html/rfc3550
-  // Convert the NTP timestamp from 32.32 to time in nanoseconds
-  ntp_time = gst_util_uint64_scale (ntp_ts, GST_SECOND, (1LL << 32));
+  /*
+  The NTP field in an RTCP Sender Report is a 64-bit unsigned fixed-point number
+  with the integer part in the first 32 bits and the fractional part in the last
+  32 bits.
+  Ref: RFC3550 section 4. Byte Order, Alignment, and Time Format.
+
+  The RTP timestamp in the RTCP Sender Report is 32 bits and corresponds to the
+  same time as the NTP timestamp, but in the same units and with the same random
+  offset as the RTP timestamps in RTP packets (measured in clock-rate units).
+  Ref: RFC3550 section 6.4.1 SR: Sender Report RTCP Packet
+  */
+
+  // Convert the NTP timestamp to a GstClockTime (nanoseconds).
+  const GstClockTime ntp_time = gst_util_uint64_scale (ntp_ts, GST_SECOND, (1LL << 32));
 
   GST_DEBUG_OBJECT (self, "Process RTCP Sender Report"
       ", SSRC: %u, RTP ts: %u"
       ", NTP time: %" GST_TIME_FORMAT ", current time: %" GST_TIME_FORMAT,
-      ssrc, rtp_ts, GST_TIME_ARGS (ntp_time), GST_TIME_ARGS (current_time));
+      rtcp_ssrc, rtcp_ts, GST_TIME_ARGS (ntp_time), GST_TIME_ARGS (current_time));
 
   KMS_RTP_SYNCHRONIZER_LOCK (self);
 
   if (!self->priv->base_initiated) {
-    GST_DEBUG_OBJECT (self, "RTCP SR received: stop interpolating PTS");
+    GST_DEBUG_OBJECT (self, "RTCP Sender Report received: stop interpolating PTS");
+    self->priv->base_initiated = TRUE;
     self->priv->base_ntp_time = ntp_time;
     self->priv->base_sync_time = current_time;
-    self->priv->base_initiated = TRUE;
   }
 
-  self->priv->last_sr_rtp_ext_ts =
-      gst_rtp_buffer_ext_timestamp (&self->priv->rtp_ext_ts, rtp_ts);
+  // FIXME: WRONG? RFC3550 section 6.4.1 SR: Sender Report RTCP Packet, says:
+  // (About the RTP timestamp from the RTCP SR)
+  //   Note that in most cases this timestamp will not be equal to the RTP
+  //   timestamp in any adjacent data packet.
+  // Does this mean that rtp_ext_ts SHOULD NOT be updated from rtcp_ts?
+  self->priv->last_rtcp_ext_ts =
+      gst_rtp_buffer_ext_timestamp (&self->priv->rtp_ext_ts, rtcp_ts);
 
-  self->priv->last_sr_ntp_time = ntp_time;
+  self->priv->last_rtcp_ntp_time = ntp_time;
 
   KMS_RTP_SYNCHRONIZER_UNLOCK (self);
 }
@@ -369,7 +390,7 @@ kms_rtp_synchronizer_rtp_diff (KmsRtpSynchronizer * self,
 static void
 kms_rtp_synchronizer_write_stats (KmsRtpSynchronizer * self, guint32 ssrc,
     guint32 clock_rate, guint64 pts_orig, guint64 pts, guint64 dts,
-    guint64 rtp_ext_ts, guint64 last_sr_ntp_ns_time, guint64 last_sr_rtp_ext_ts)
+    guint64 rtp_ext_ts, guint64 last_rtcp_ntp_time, guint64 last_rtcp_ext_ts)
 {
   if (self->priv->stats_file == NULL) {
     return;
@@ -381,7 +402,7 @@ kms_rtp_synchronizer_write_stats (KmsRtpSynchronizer * self, guint32 ssrc,
       G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT ",%"
       G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT ",%" G_GUINT64_FORMAT "\n",
       g_get_real_time (), g_thread_self (), ssrc, clock_rate, pts_orig,
-      pts, dts, rtp_ext_ts, last_sr_ntp_ns_time, last_sr_rtp_ext_ts);
+      pts, dts, rtp_ext_ts, last_rtcp_ntp_time, last_rtcp_ext_ts);
   g_mutex_unlock (&self->priv->stats_mutex);
 }
 
@@ -390,20 +411,17 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     GstRTPBuffer * rtp_buffer, GError ** error)
 {
   GstBuffer *buffer = rtp_buffer->buffer;
-  guint64 pts_orig, rtp_ext_ts, last_sr_rtp_ext_ts, last_sr_ntp_time_ns;
-  guint64 diff_ntp_time_ns;
-  guint32 ssrc, rtp_ts;
-  gint32 clock_rate;
-  guint16 rtp_seq;
   guint8 pt;
   gboolean ret = TRUE;
 
   KMS_RTP_SYNCHRONIZER_LOCK (self);
 
-  ssrc = gst_rtp_buffer_get_ssrc (rtp_buffer);
-  rtp_seq = gst_rtp_buffer_get_seq (rtp_buffer);
+  const guint32 ssrc = gst_rtp_buffer_get_ssrc (rtp_buffer);
 
-  GST_LOG_OBJECT (self, "RTP SSRC: %u, Seq: %u", ssrc, rtp_seq);
+  {
+    // const guint16 rtp_seq = gst_rtp_buffer_get_seq (rtp_buffer);
+    // GST_LOG_OBJECT (self, "RTP SSRC: %u, Seq: %u", ssrc, rtp_seq);
+  }
 
   if (self->priv->ssrc == 0) {
     self->priv->ssrc = ssrc;
@@ -430,7 +448,7 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
           g_strdup_printf ("Unknown PT: %u, expected: %u", pt, self->priv->pt);
     } else {
       msg =
-          g_strdup_printf ("Invalid clock-rate: %d", self->priv->clock_rate);
+          g_strdup_printf ("Invalid clock rate: %d", self->priv->clock_rate);
     }
 
     GST_ERROR_OBJECT (self, "%s", msg);
@@ -443,76 +461,74 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     return FALSE;
   }
 
-  pts_orig = GST_BUFFER_PTS (buffer);
-  rtp_ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
-  gst_rtp_buffer_ext_timestamp (&self->priv->rtp_ext_ts, rtp_ts);
+  const GstClockTime pts_orig = GST_BUFFER_PTS (buffer);
+
+  const guint32 rtp_ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
+  const GstClockTime rtp_ext_ts =
+      gst_rtp_buffer_ext_timestamp (&self->priv->rtp_ext_ts, rtp_ts);
 
   if (self->priv->feeded_sorted) {
-    if (self->priv->fs_last_rtp_ext_ts != (guint64) -1
-        && self->priv->rtp_ext_ts < self->priv->fs_last_rtp_ext_ts) {
-      guint16 seq = gst_rtp_buffer_get_seq (rtp_buffer);
-      gchar *msg =
-          g_strdup_printf
-          ("Received an unsorted RTP buffer when expecting sorted (ssrc: %"
-          G_GUINT32_FORMAT ", seq: %" G_GUINT16_FORMAT ", ts: %"
-          G_GUINT32_FORMAT ", ext_ts: %" G_GUINT64_FORMAT
-          "). Moving to unsorted mode",
-          ssrc, seq, rtp_ts, self->priv->rtp_ext_ts);
+    if (GST_CLOCK_TIME_IS_VALID (self->priv->fs_last_rtp_ext_ts)
+        && rtp_ext_ts < self->priv->fs_last_rtp_ext_ts) {
+      const guint16 seq = gst_rtp_buffer_get_seq (rtp_buffer);
+      gchar *msg = g_strdup_printf (
+          "Received an unsorted RTP buffer when expecting sorted (ssrc: %" G_GUINT32_FORMAT
+          ", seq: %" G_GUINT16_FORMAT ", ts: %" G_GUINT32_FORMAT
+          ", ext_ts: %" G_GUINT64_FORMAT "), moving to unsorted mode",
+          ssrc, seq, rtp_ts, rtp_ext_ts);
 
       GST_WARNING_OBJECT (self, "%s", msg);
-      g_set_error_literal (error, KMS_RTP_SYNC_ERROR, KMS_RTP_SYNC_INVALID_DATA,
-          msg);
+      g_set_error_literal (
+          error, KMS_RTP_SYNC_ERROR, KMS_RTP_SYNC_INVALID_DATA, msg);
       g_free (msg);
 
       self->priv->feeded_sorted = FALSE;
       ret = FALSE;
-    }
-    else if (self->priv->rtp_ext_ts == self->priv->fs_last_rtp_ext_ts) {
-      if (GST_CLOCK_TIME_IS_VALID (self->priv->fs_last_pts_time)) {
-        GST_BUFFER_PTS (buffer) = self->priv->fs_last_pts_time;
+    } else if (rtp_ext_ts == self->priv->fs_last_rtp_ext_ts) {
+      if (GST_CLOCK_TIME_IS_VALID (self->priv->fs_last_pts)) {
+        GST_BUFFER_PTS (buffer) = self->priv->fs_last_pts;
       }
       goto end;
     }
   }
 
   if (!self->priv->base_initiated) {
-    GST_DEBUG_OBJECT (self, "RTCP SR not received yet: interpolate PTS"
-        ", SSRC: %u, PT: %u", ssrc, pt);
+    if (!self->priv->base_initiated_logged) {
+      GST_DEBUG_OBJECT (self,
+          "RTCP Sender Report not received yet: interpolate PTS (SSRC: %u, PT: %u)",
+          ssrc, pt);
+      self->priv->base_initiated_logged = TRUE;
+    }
 
     if (!self->priv->base_interpolate_initiated) {
-      self->priv->base_interpolate_ext_ts = self->priv->rtp_ext_ts;
-      self->priv->base_interpolate_time = GST_BUFFER_PTS (buffer);
+      self->priv->base_interpolate_ext_ts = rtp_ext_ts;
+      self->priv->base_interpolate_pts = GST_BUFFER_PTS (buffer);
       self->priv->base_interpolate_initiated = TRUE;
-    }
-    else {
-      GST_BUFFER_PTS (buffer) = self->priv->base_interpolate_time;
+    } else {
+      GST_BUFFER_PTS (buffer) = self->priv->base_interpolate_pts;
       kms_rtp_synchronizer_rtp_diff (self, rtp_buffer, self->priv->clock_rate,
           self->priv->base_interpolate_ext_ts);
     }
-  }
-  else {
-    gboolean wrapped_down, wrapped_up;
-
-    wrapped_down = wrapped_up = FALSE;
-
+  } else {
     GST_BUFFER_PTS (buffer) = self->priv->base_sync_time;
 
-    if (self->priv->last_sr_ntp_time > self->priv->base_ntp_time) {
-      diff_ntp_time_ns =
-          self->priv->last_sr_ntp_time - self->priv->base_ntp_time;
-      wrapped_up = (diff_ntp_time_ns > (G_MAXUINT64 - GST_BUFFER_PTS (buffer)));
-      GST_BUFFER_PTS (buffer) += diff_ntp_time_ns;
+    gboolean wrapped_down = FALSE;
+    gboolean wrapped_up = FALSE;
+
+    if (self->priv->last_rtcp_ntp_time > self->priv->base_ntp_time) {
+      GstClockTimeDiff ntp_time_diff = GST_CLOCK_DIFF(self->priv->base_ntp_time, self->priv->last_rtcp_ntp_time);
+      wrapped_up = (ntp_time_diff > (G_MAXUINT64 - GST_BUFFER_PTS (buffer)));
+      GST_BUFFER_PTS (buffer) += ntp_time_diff;
     }
-    else if (self->priv->last_sr_ntp_time < self->priv->base_ntp_time) {
-      diff_ntp_time_ns =
-          self->priv->base_ntp_time - self->priv->last_sr_ntp_time;
-      wrapped_down = (GST_BUFFER_PTS (buffer) < diff_ntp_time_ns);
-      GST_BUFFER_PTS (buffer) -= diff_ntp_time_ns;
+    else if (self->priv->last_rtcp_ntp_time < self->priv->base_ntp_time) {
+      GstClockTimeDiff ntp_time_diff = GST_CLOCK_DIFF(self->priv->last_rtcp_ntp_time, self->priv->base_ntp_time);
+      wrapped_down = (GST_BUFFER_PTS (buffer) < ntp_time_diff);
+      GST_BUFFER_PTS (buffer) -= ntp_time_diff;
     }
     /* if equals do nothing */
 
     kms_rtp_synchronizer_rtp_diff_full (self, rtp_buffer,
-        self->priv->clock_rate, self->priv->last_sr_rtp_ext_ts, wrapped_down,
+        self->priv->clock_rate, self->priv->last_rtcp_ext_ts, wrapped_down,
         wrapped_up);
   }
 
@@ -520,53 +536,54 @@ kms_rtp_synchronizer_process_rtp_buffer_mapped (KmsRtpSynchronizer * self,
     const GstClockTime pts_current = GST_BUFFER_PTS (buffer);
     GstClockTime pts_fixed = pts_current;
 
-    if (GST_CLOCK_TIME_IS_VALID (self->priv->fs_last_pts_time)
-        && pts_current < self->priv->fs_last_pts_time) {
+    if (GST_CLOCK_TIME_IS_VALID (self->priv->fs_last_pts)
+        && pts_current < self->priv->fs_last_pts) {
 
       guint16 seq = gst_rtp_buffer_get_seq (rtp_buffer);
-      pts_fixed = self->priv->fs_last_pts_time;
+      pts_fixed = self->priv->fs_last_pts;
 
       GST_WARNING_OBJECT (self,
           "[Sorted mode] Fix PTS not increasing monotonically"
           ", SSRC: %" G_GUINT32_FORMAT ", seq: %" G_GUINT16_FORMAT
           ", rtp_ts: %" G_GUINT32_FORMAT ", ext_ts: %" G_GUINT64_FORMAT
-          ", last: %" GST_TIME_FORMAT
-          ", current: %" GST_TIME_FORMAT
+          ", last: %" GST_TIME_FORMAT ", current: %" GST_TIME_FORMAT
           ", fixed = last: %" GST_TIME_FORMAT,
-          ssrc, seq, rtp_ts, self->priv->rtp_ext_ts,
-          GST_TIME_ARGS (self->priv->fs_last_pts_time),
-          GST_TIME_ARGS (pts_current),
+          ssrc, seq, rtp_ts, rtp_ext_ts,
+          GST_TIME_ARGS (self->priv->fs_last_pts), GST_TIME_ARGS (pts_current),
           GST_TIME_ARGS (pts_fixed));
 
       GST_BUFFER_PTS (buffer) = pts_fixed;
     }
 
-    self->priv->fs_last_rtp_ext_ts = self->priv->rtp_ext_ts;
-    self->priv->fs_last_pts_time = pts_fixed;
+    self->priv->fs_last_rtp_ext_ts = rtp_ext_ts;
+    self->priv->fs_last_pts = pts_fixed;
   }
 
 end:
-  clock_rate = self->priv->clock_rate;
-  rtp_ext_ts = self->priv->rtp_ext_ts;
-  last_sr_rtp_ext_ts = self->priv->last_sr_rtp_ext_ts;
-  last_sr_ntp_time_ns = self->priv->last_sr_ntp_time;
+  {
+    const gint32 clock_rate = self->priv->clock_rate;
+    const GstClockTime last_rtcp_ext_ts = self->priv->last_rtcp_ext_ts;
+    const GstClockTime last_rtcp_ntp_time = self->priv->last_rtcp_ntp_time;
 
-  KMS_RTP_SYNCHRONIZER_UNLOCK (self);
+    KMS_RTP_SYNCHRONIZER_UNLOCK (self);
 
-  kms_rtp_synchronizer_write_stats (self, ssrc, clock_rate,
-      pts_orig, GST_BUFFER_PTS (buffer), GST_BUFFER_DTS (buffer), rtp_ext_ts,
-      last_sr_ntp_time_ns, last_sr_rtp_ext_ts);
+    kms_rtp_synchronizer_write_stats (self, ssrc, clock_rate, pts_orig,
+        GST_BUFFER_PTS (buffer), GST_BUFFER_DTS (buffer), rtp_ext_ts,
+        last_rtcp_ntp_time, last_rtcp_ext_ts);
+  }
 
   return ret;
 }
 
 gboolean
-kms_rtp_synchronizer_process_rtp_buffer (KmsRtpSynchronizer * self,
+kms_rtp_synchronizer_process_rtp_buffer_writable (KmsRtpSynchronizer * self,
     GstBuffer * buffer, GError ** error)
 {
   GstRTPBuffer rtp_buffer = GST_RTP_BUFFER_INIT;
   gboolean ret;
 
+  // GstBuffer might be modified (thus why the writable requirement), but the
+  // GstRTPBuffer is not modified at all, so READ mode is enough.
   if (!gst_rtp_buffer_map (buffer, GST_MAP_READ, &rtp_buffer)) {
     const gchar *msg = "Buffer cannot be mapped as RTP";
 
