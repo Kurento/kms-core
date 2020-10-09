@@ -444,7 +444,7 @@ kms_base_rtp_endpoint_add_rtp_hdr_ext_probe (GstPad * pad,
   HdrExtData *data = (HdrExtData *) gp;
 
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     if (data->add_hdr) {
       buffer = gst_buffer_make_writable (buffer);
@@ -452,7 +452,7 @@ kms_base_rtp_endpoint_add_rtp_hdr_ext_probe (GstPad * pad,
     kms_base_rtp_endpoint_add_rtp_hdr_ext (data, buffer);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *bufflist = gst_pad_probe_info_get_buffer_list (info);
 
     if (data->add_hdr) {
       bufflist = gst_buffer_list_make_writable (bufflist);
@@ -1936,14 +1936,14 @@ kms_base_rtp_endpoint_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info,
     KmsRtpSynchronizer * sync)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     buffer = gst_buffer_make_writable (buffer);
     kms_rtp_synchronizer_process_rtp_buffer (sync, buffer, NULL);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   }
   else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     list = gst_buffer_list_make_writable (list);
     gst_buffer_list_foreach (list,
@@ -1983,12 +1983,12 @@ kms_base_rtp_endpoint_sync_rtcp_probe (GstPad * pad, GstPadProbeInfo * info,
     KmsRtpSynchronizer * sync)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     kms_rtp_synchronizer_process_rtcp_buffer (sync, buffer, NULL);
   }
   else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     gst_buffer_list_foreach (list,
         (GstBufferListFunc) kms_base_rtp_endpoint_sync_rtcp_it, sync);

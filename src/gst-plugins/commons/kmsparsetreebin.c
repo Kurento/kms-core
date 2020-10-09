@@ -92,7 +92,7 @@ bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info,
     KmsParseTreeBin * self)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
     GstClockTime timediff = GST_CLOCK_TIME_NONE;
     guint bitrate;
 

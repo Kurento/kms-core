@@ -391,11 +391,12 @@ kms_audio_mixer_bin_remove_stream_group (KmsAudioMixerBin * self, GstPad * pad)
 static GstPadProbeReturn
 event_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
+  GstEvent *event = gst_pad_probe_info_get_event (info);
   RefCounter *refdata;
   ProbeData *data;
   gulong *id;
 
-  if (GST_EVENT_TYPE (GST_PAD_PROBE_INFO_DATA (info)) != GST_EVENT_EOS)
+  if (GST_EVENT_TYPE (event) != GST_EVENT_EOS)
     return GST_PAD_PROBE_OK;
 
   refdata = (RefCounter *) user_data;

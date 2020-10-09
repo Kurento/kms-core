@@ -384,13 +384,13 @@ drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
   gboolean drop = FALSE;
 
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     drop = !buffer_is_keyframe (buffer);
     GST_TRACE_OBJECT (pad, "%s",
         drop ? "Drop buffer" : "Keep buffer (is keyframe)");
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *bufflist = gst_pad_probe_info_get_buffer_list (info);
     gint keyframe_idx = -1;
 
     gst_buffer_list_foreach (bufflist,
@@ -454,7 +454,7 @@ kms_utils_drop_until_keyframe (GstPad * pad, gboolean all_headers)
 static GstPadProbeReturn
 discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+  GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
     if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
@@ -471,7 +471,7 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 static GstPadProbeReturn
 gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+  GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
     GstClockTime timestamp;
@@ -544,7 +544,7 @@ check_last_request_time (GstPad * pad)
 static GstPadProbeReturn
 control_duplicates (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+  GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (gst_video_event_is_force_key_unit (event)) {
     if (check_last_request_time (pad)) {
@@ -700,7 +700,7 @@ pad_blocked_callback (GstPad * pad, GstPadProbeInfo * info, gpointer d)
     return data->drop ? GST_PAD_PROBE_DROP : GST_PAD_PROBE_OK;
   }
 
-  event = GST_PAD_PROBE_INFO_EVENT (info);
+  event = gst_pad_probe_info_get_event (info);
 
   if (!(GST_EVENT_TYPE (event) & GST_EVENT_CUSTOM_BOTH)) {
     goto end;
@@ -1455,14 +1455,14 @@ kms_utils_depayloader_pts_out_probe (GstPad * pad, GstPadProbeInfo * info,
     AdjustPtsData * data)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     buffer = gst_buffer_make_writable (buffer);
     kms_utils_depayloader_adjust_pts_out (data, buffer);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   }
   else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     list = gst_buffer_list_make_writable (list);
     gst_buffer_list_foreach (list,
