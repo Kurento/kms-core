@@ -1151,10 +1151,14 @@ If the negotiation process is not complete, it will return NULL.
         },
         {
           "name": "setAudioFormat",
-          "doc": "Sets the type of data for the audio stream.
+          "doc": "Set the type of data for the audio stream.
 <p>
   MediaElements that do not support configuration of audio capabilities will
   throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception.
+</p>
+<p>
+  NOTE: This method is not implemented yet by the Media Server to do anything
+  useful.
 </p>
           ",
           "params": [
@@ -1167,10 +1171,14 @@ If the negotiation process is not complete, it will return NULL.
         },
         {
           "name": "setVideoFormat",
-          "doc": "Sets the type of data for the video stream.
+          "doc": "Set the type of data for the video stream.
 <p>
   MediaElements that do not support configuration of video capabilities will
   throw a MEDIA_OBJECT_ILLEGAL_PARAM_ERROR exception
+</p>
+<p>
+  NOTE: This method is not implemented yet by the Media Server to do anything
+  useful.
 </p>
           ",
           "params": [
