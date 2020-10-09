@@ -457,10 +457,13 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
-    if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-      GST_WARNING_OBJECT (pad, "Stream discontinuity detected on non-keyframe");
+    if (!buffer_is_keyframe (buffer)) {
+      GST_WARNING_OBJECT (
+          pad, "DISCONTINUITY at non-keyframe; will drop until keyframe");
       kms_utils_drop_until_keyframe (pad, FALSE);
 
+      // The buffer represents a stream discontinuity, so drop it here to avoid
+      // causing artifacts in the downstream decoder.
       return GST_PAD_PROBE_DROP;
     }
   }
@@ -474,14 +477,16 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GstClockTime timestamp;
-    GstClockTime duration;
-    gst_event_parse_gap (event, &timestamp, &duration);
+    GstClockTime gap_pts;
+    GstClockTime gap_duration;
+    gst_event_parse_gap (event, &gap_pts, &gap_duration);
     GST_WARNING_OBJECT (pad,
-        "Stream gap detected, timestamp: %" GST_TIME_FORMAT ", "
-        "duration: %" GST_TIME_FORMAT,
-        GST_TIME_ARGS(timestamp), GST_TIME_ARGS(duration));
+        "GAP of %lu ms at PTS=%" GST_TIME_FORMAT
+        " (packet loss?); will request a new keyframe",
+        GST_TIME_AS_MSECONDS (gap_duration), GST_TIME_ARGS (gap_pts));
     send_force_key_unit_event (pad, FALSE);
+
+    // The GAP event has been handled here, so no need to pass it downstream.
     return GST_PAD_PROBE_DROP;
   }
 
@@ -491,7 +496,7 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 void
 kms_utils_pad_monitor_gaps (GstPad * pad)
 {
-  GST_INFO_OBJECT (pad, "Add probe: Detect stream gaps");
+  GST_INFO_OBJECT (pad, "Add probe: DISCONT buffers and GAP events");
 
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
       discont_detection_probe, NULL, NULL);
