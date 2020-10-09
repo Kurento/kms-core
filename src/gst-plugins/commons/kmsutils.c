@@ -131,7 +131,7 @@ GstElement* kms_utils_element_factory_make (const gchar *factoryname,
 {
   GstElement* element = gst_element_factory_make (factoryname, NULL);
   gchar *old_name = GST_ELEMENT_NAME (element);
-  GST_ELEMENT_NAME (element) = g_strconcat (name_prefix, old_name, NULL);
+  GST_ELEMENT_NAME (element) = g_strconcat (name_prefix, "_", old_name, NULL);
   g_free (old_name);
   return element;
 }

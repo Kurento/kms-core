@@ -72,7 +72,7 @@ create_parser_for_caps (const GstCaps * caps)
   if (parser_factory != NULL) {
     parser = gst_element_factory_create (parser_factory, NULL);
   } else {
-    parser = kms_utils_element_factory_make ("capsfilter", "parsetreebin_");
+    parser = kms_utils_element_factory_make ("capsfilter", "parsetreebin");
   }
 
   gst_plugin_feature_list_free (filtered_list);

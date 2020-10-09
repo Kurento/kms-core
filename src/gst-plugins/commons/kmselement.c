@@ -1773,7 +1773,7 @@ kms_element_collect_media_stats_impl (KmsElement * self, gboolean enable)
 static GstElement *
 kms_element_create_output_element_default (KmsElement * self)
 {
-  return gst_element_factory_make ("agnosticbin", NULL);
+  return kms_utils_element_factory_make ("agnosticbin", GST_ELEMENT_NAME (self));
 }
 
 static void
