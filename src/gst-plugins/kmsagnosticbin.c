@@ -1015,6 +1015,12 @@ kms_agnostic_bin2_sink_caps_probe (GstPad * pad, GstPadProbeInfo * info,
     kms_agnostic_bin2_configure_input (self, new_caps);
   }
 
+  // Monitor video gaps, to halt decoding when an intermediate frame is
+  // missing, and handle the keyframe requests.
+  if (kms_utils_caps_is_video (new_caps)) {
+    kms_utils_pad_monitor_gaps (self->priv->sink);
+  }
+
   return GST_PAD_PROBE_OK;
 }
 
@@ -1453,7 +1459,6 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   gst_pad_set_chain_function (self->priv->sink, kms_agnostic_bin2_sink_chain);
   gst_pad_set_chain_list_function (self->priv->sink,
       kms_agnostic_bin2_sink_chain_list);
-  kms_utils_pad_monitor_gaps (self->priv->sink);
   g_object_unref (templ);
   g_object_unref (target);
 

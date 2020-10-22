@@ -2020,7 +2020,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   KmsRTPSessionStats *rtp_stats;
   KmsSSRCStats *ssrc_stats;
 
-  g_object_set (jitterbuffer, "mode", 4 /* synced */ ,
+  g_object_set (jitterbuffer, "mode", 4 /* synced */, "do-lost", TRUE,
       "latency", JB_INITIAL_LATENCY, NULL);
 
   switch (session) {
@@ -2074,8 +2074,8 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   if (session == VIDEO_RTP_SESSION) {
     gboolean rtcp_nack = kms_base_rtp_endpoint_is_video_rtcp_nack (self);
 
-    g_object_set (jitterbuffer, "do-lost", TRUE,
-        "do-retransmission", rtcp_nack, "rtx-next-seqnum", FALSE, NULL);
+    g_object_set (jitterbuffer, "do-retransmission", rtcp_nack,
+        "rtx-next-seqnum", FALSE, NULL);
   }
 }
 
