@@ -430,9 +430,7 @@ kms_agnostic_bin2_link_to_tee (KmsAgnosticBin2 * self, GstPad * pad,
     GstElement *rate = kms_utils_create_rate_for_caps (caps);
     GstElement *mediator = kms_utils_create_mediator_element (caps);
 
-    if (kms_utils_caps_is_video (caps)) {
-      g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
-    }
+    g_object_set (queue, "leaky", 2, "max-size-time", LEAKY_TIME, NULL);
 
     remove_element_on_unlinked (convert, "src", "sink");
     if (rate) {
