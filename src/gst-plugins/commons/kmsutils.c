@@ -126,13 +126,29 @@ kms_utils_bin_remove (GstBin * bin, GstElement * element)
 
 /* ---- GstElement ---- */
 
-GstElement* kms_utils_element_factory_make (const gchar *factoryname,
-    const gchar *name_prefix)
+GstElement *
+kms_utils_element_factory_make (const gchar *factoryname, const gchar *prefix)
 {
-  GstElement* element = gst_element_factory_make (factoryname, NULL);
-  gchar *old_name = GST_ELEMENT_NAME (element);
-  GST_ELEMENT_NAME (element) = g_strconcat (name_prefix, "_", old_name, NULL);
+  g_return_val_if_fail (factoryname != NULL, NULL);
+
+  gchar *old_name = NULL;
+  gchar *new_name = NULL;
+  GstElement *element = gst_element_factory_make (factoryname, NULL);
+
+  if (prefix == NULL) {
+    goto end;
+  }
+
+  old_name = gst_element_get_name (element);
+  new_name = g_strconcat (prefix, "_", old_name, NULL);
+
+  if (new_name == NULL || !gst_element_set_name (element, new_name)) {
+    goto end;
+  }
+
+end:
   g_free (old_name);
+  g_free (new_name);
   return element;
 }
 

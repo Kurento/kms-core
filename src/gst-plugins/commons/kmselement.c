@@ -1771,9 +1771,13 @@ kms_element_collect_media_stats_impl (KmsElement * self, gboolean enable)
 }
 
 static GstElement *
-kms_element_create_output_element_default (KmsElement * self)
+kms_element_create_output_element_default (KmsElement *self)
 {
-  return kms_utils_element_factory_make ("agnosticbin", GST_ELEMENT_NAME (self));
+  gchar *name = gst_element_get_name (GST_ELEMENT (self));
+  GstElement *element = kms_utils_element_factory_make ("agnosticbin", name);
+
+  g_free (name);
+  return element;
 }
 
 static void
