@@ -252,7 +252,7 @@ kms_recording_profile_create_profile (KmsRecordingProfile profile,
       return kms_recording_profile_create_jpeg_profile ();
     case KMS_RECORDING_PROFILE_KSR:
       return kms_recording_profile_create_ksr_profile (has_audio, has_video);
-  case KMS_RECORDING_PROFILE_FLV:
+    case KMS_RECORDING_PROFILE_FLV:
       return kms_recording_profile_create_flv_profile(has_audio, has_video);
     default:
       GST_WARNING ("Invalid recording profile");
@@ -285,7 +285,7 @@ kms_recording_profile_supports_type (KmsRecordingProfile profile,
       return type == KMS_ELEMENT_PAD_TYPE_AUDIO;
     case KMS_RECORDING_PROFILE_KSR:
       return TRUE;
-  case KMS_RECORDING_PROFILE_FLV:
+    case KMS_RECORDING_PROFILE_FLV:
       return TRUE;
     default:
       return FALSE;
