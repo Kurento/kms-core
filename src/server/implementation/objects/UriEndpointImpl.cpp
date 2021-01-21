@@ -47,22 +47,14 @@ namespace kurento
 void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
 {
   regex re ("//*");
-  gchar *location, *protocol;
+  gchar *protocol;
 
-  location = gst_uri_get_location (uri.c_str () );
-  protocol = gst_uri_get_protocol (uri.c_str () );
-
-  std::string uriWithoutProtocol (location );
-  std::string uriProtocol (protocol );
-
-  g_free (location);
+  protocol = gst_uri_get_protocol (uri.c_str ());
+  const std::string uriProtocol (protocol);
   g_free (protocol);
 
-  // if protocol is file:/// glib only remove the two first slashes and we need
-  // to remove the last one.
-  if (uriWithoutProtocol[0] == '/') {
-    uriWithoutProtocol.erase (0, 1);
-  }
+  const std::regex prefix (uriProtocol + "(:/+)");
+  const std::string uriWithoutProtocol = std::regex_replace (uri, prefix, "");
 
   std::string uriWithoutSlash (regex_replace (uriWithoutProtocol, re,
                                "/") );
