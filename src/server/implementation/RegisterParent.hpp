@@ -21,6 +21,7 @@
 #include <map>
 #include <functional>
 #include <atomic>
+#include <string>
 
 namespace kurento
 {
