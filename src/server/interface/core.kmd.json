@@ -504,7 +504,7 @@ It offers the methods needed to control the creation and connection of elements 
       "properties": [
         {
           "name": "maxAudioRecvBandwidth",
-          "doc": "Maximum bitrate expected for the received audio stream.
+          "doc": "Maximum input bitrate, signaled in SDP Offers to WebRTC and RTP senders.
 <p>
   This is used to put a limit on the bitrate that the remote peer will send to
   this endpoint. The net effect of setting this parameter is that
@@ -516,14 +516,14 @@ It offers the methods needed to control the creation and connection of elements 
 <ul>
   <li>Unit: kbps (kilobits per second).</li>
   <li>Default: 0.</li>
-  <li>0 = unconstrained.</li>
+  <li>0 = unlimited.</li>
 </ul>
           ",
           "type": "int"
         },
         {
           "name": "maxVideoRecvBandwidth",
-          "doc": "Maximum bitrate expected for the received video stream.
+          "doc": "Maximum input bitrate, signaled in SDP Offers to WebRTC and RTP senders.
 <p>
   This is used to put a limit on the bitrate that the remote peer will send to
   this endpoint. The net effect of setting this parameter is that
@@ -535,7 +535,7 @@ It offers the methods needed to control the creation and connection of elements 
 <ul>
   <li>Unit: kbps (kilobits per second).</li>
   <li>Default: 0.</li>
-  <li>0 = unconstrained.</li>
+  <li>0 = unlimited.</li>
 </ul>
           ",
           "type": "int"
@@ -757,34 +757,36 @@ If the negotiation process is not complete, it will return NULL.
 </p>
 <ul>
   <li>
-    Input bandwidth: Configuration value used to inform remote peers about the
-    bitrate that can be pushed into this endpoint.
+    Input bandwidth: Values used to inform remote peers about the bitrate that
+    can be sent to this endpoint.
     <ul>
       <li>
-        <strong>{get,set}MinVideoRecvBandwidth</strong>: Minimum bitrate
-        requested on the received video stream.
+        <strong>MinVideoRecvBandwidth</strong>: Minimum input bitrate, requested
+        from WebRTC senders with REMB (Default: 30 Kbps).
       </li>
       <li>
-        <strong>{get,set}Max{Audio,Video}RecvBandwidth</strong>: Maximum bitrate
-        expected for the received stream.
+        <strong>MaxAudioRecvBandwidth</strong> and
+        <strong>MaxVideoRecvBandwidth</strong>: Maximum input bitrate, signaled
+        in SDP Offers to WebRTC and RTP senders (Default: unlimited).
       </li>
     </ul>
   </li>
   <li>
-    Output bandwidth: Configuration values used to control bitrate of the output
-    video stream sent to remote peers. It is important to keep in mind that
-    pushed bitrate depends on network and remote peer capabilities. Remote peers
-    can also announce bandwidth limitation in their SDPs (through the
-    <code>b={modifier}:{value}</code> tag). Kurento will always enforce bitrate
-    limitations specified by the remote peer over internal configurations.
+    Output bandwidth: Values used to control bitrate of the video streams sent
+    to remote peers. It is important to keep in mind that pushed bitrate depends
+    on network and remote peer capabilities. Remote peers can also announce
+    bandwidth limitation in their SDPs (through the
+    <code>b={modifier}:{value}</code> attribute). Kurento will always enforce
+    bitrate limitations specified by the remote peer over internal
+    configurations.
     <ul>
       <li>
-        <strong>{get,set}MinVideoSendBandwidth</strong>: Minimum video bitrate
-        sent to remote peer.
+        <strong>MinVideoSendBandwidth</strong>: REMB override of minimum bitrate
+        sent to WebRTC receivers (Default: 100 Kbps).
       </li>
       <li>
-        <strong>{get,set}MaxVideoSendBandwidth</strong>: Maximum video bitrate
-        sent to remote peer.
+        <strong>MaxVideoSendBandwidth</strong>: REMB override of maximum bitrate
+        sent to WebRTC receivers (Default: 500 Kbps).
       </li>
       <li>
         <strong>RembParams.rembOnConnect</strong>: Initial local REMB bandwidth
@@ -803,7 +805,7 @@ If the negotiation process is not complete, it will return NULL.
       "properties": [
         {
           "name": "minVideoRecvBandwidth",
-          "doc": "Minimum bitrate requested on the received video stream.
+          "doc": "Minimum input bitrate, requested from WebRTC senders with REMB.
 <p>
   This is used to set a minimum value of local REMB during bandwidth estimation,
   if supported by the implementing class. The REMB estimation will then be sent
@@ -824,7 +826,7 @@ If the negotiation process is not complete, it will return NULL.
         },
         {
           "name": "minVideoSendBandwidth",
-          "doc": "Minimum video bitrate sent to remote peer.
+          "doc": "REMB override of minimum bitrate sent to WebRTC receivers.
 <p>
   With this parameter you can control the minimum video quality that will be
   sent when reacting to bad network conditions. Setting this parameter to a low
@@ -845,8 +847,8 @@ If the negotiation process is not complete, it will return NULL.
   <li>Unit: kbps (kilobits per second).</li>
   <li>Default: 100.</li>
   <li>
-    0 = unconstrained: the video bitrate will drop as needed, even to the
-    lowest possible quality, which might make the video completely blurry and
+    0 = unlimited: the video bitrate will drop as needed, even to the lowest
+    possible quality, which might make the video completely blurry and
     pixelated.
   </li>
 </ul>
@@ -855,7 +857,7 @@ If the negotiation process is not complete, it will return NULL.
         },
         {
           "name": "maxVideoSendBandwidth",
-          "doc": "Maximum video bitrate sent to remote peer.
+          "doc": "REMB override of maximum bitrate sent to WebRTC receivers.
 <p>
   With this parameter you can control the maximum video quality that will be
   sent when reacting to good network conditions. Setting this parameter to a
@@ -864,14 +866,14 @@ If the negotiation process is not complete, it will return NULL.
 </p>
 <p>
   This parameter provides a way to limit the bitrate requested by remote REMB
-  bandwidth estimations: the bitrate sent will be always equal or less than
-  this parameter, even if the remote peer requests higher bitrates.
+  bandwidth estimations: the bitrate sent will be always equal or less than this
+  parameter, even if the remote peer requests higher bitrates.
 </p>
 <p>
   Note that the default value of <strong>500 kbps</strong> is a VERY
   conservative one, and leads to a low maximum video quality. Most applications
-  will probably want to increase this parameter to higher values such as 2000 (2
-  mbps) or even 10000 (10 mbps).
+  will probably want to increase this to higher values such as 2000 kbps (2
+  mbps).
 </p>
 <p>
   The REMB congestion control algorithm works by gradually increasing the output
@@ -884,8 +886,8 @@ If the negotiation process is not complete, it will return NULL.
   <li>Unit: kbps (kilobits per second).</li>
   <li>Default: 500.</li>
   <li>
-    0 = unconstrained: the video bitrate will grow until all the available
-    network bandwidth is used by the stream.<br />
+    0 = unlimited: the video bitrate will grow until all the available network
+    bandwidth is used by the stream.<br />
     Note that this might have a bad effect if more than one stream is running
     (as all of them would try to raise the video bitrate indefinitely, until the
     network gets saturated).
