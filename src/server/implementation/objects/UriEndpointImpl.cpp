@@ -44,27 +44,15 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-void UriEndpointImpl::removeDuplicateSlashes (std::string &uri)
-{
-  regex re ("//*");
-  gchar *protocol;
+/*
+Example URI:
+rtsp://us:er:p@ssword@example.com/test.mp4?user=token/s3/request&uri=umsp://example.com:1234/
 
-  protocol = gst_uri_get_protocol (uri.c_str ());
-  const std::string uriProtocol (protocol);
-  g_free (protocol);
+this should probably be provided by the user like this, with URL-encoding:
+rtsp://us%3Aer:p%40ssword@example.com/test.mp4?user=token%2Fs3%2Frequest&uri=umsp%3A%2F%2Fexample.com%3A1234%2F
 
-  const std::regex prefix (uriProtocol + "(:/+)");
-  const std::string uriWithoutProtocol = std::regex_replace (uri, prefix, "");
-
-  std::string uriWithoutSlash (regex_replace (uriWithoutProtocol, re,
-                               "/") );
-
-  if (uriProtocol == "file") {
-    uri = uriProtocol + ":///" + uriWithoutSlash;
-  } else {
-    uri = uriProtocol + "://" + uriWithoutSlash;
-  }
-}
+TODO: Test with GStreamer >= 1.14 to see how it handles URL-encoded fields.
+*/
 
 void UriEndpointImpl::checkUri ()
 {
@@ -80,8 +68,6 @@ void UriEndpointImpl::checkUri ()
 
     this->absolute_uri = path + "/" + this->uri;
   }
-
-  removeDuplicateSlashes (this->absolute_uri);
 }
 
 void
