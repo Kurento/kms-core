@@ -126,7 +126,7 @@ void MediaSet::doGarbageCollection ()
       sessionInUse[it.first] = false;
       lock.unlock();
     } else {
-      GST_WARNING ("Remove inactive session: %s", it.first.c_str() );
+      GST_WARNING ("Removing inactive session: %s", it.first.c_str() );
       unrefSession (it.first);
     }
   }
