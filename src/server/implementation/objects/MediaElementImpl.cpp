@@ -455,10 +455,51 @@ MediaElementImpl::processBusMessage (GstMessage *msg)
   GST_CAT_LEVEL_LOG (
       GST_CAT_DEFAULT, log_level, element, "%s", message.c_str ());
 
+  // Give names to some of the error types.
   int errorCode = 0;
   std::string errorType = "UNEXPECTED_ELEMENT_ERROR";
   if (err) {
+    gboolean unknown = FALSE;
     errorCode = err->code;
+
+    if (err->domain == GST_RESOURCE_ERROR) {
+      switch (err->code) {
+      case GST_RESOURCE_ERROR_OPEN_READ:
+      case GST_RESOURCE_ERROR_OPEN_WRITE:
+      case GST_RESOURCE_ERROR_OPEN_READ_WRITE:
+        errorType = "RESOURCE_ERROR_OPEN";
+        break;
+      case GST_RESOURCE_ERROR_WRITE:
+        errorType = "RESOURCE_ERROR_WRITE";
+        break;
+      case GST_RESOURCE_ERROR_NO_SPACE_LEFT:
+        errorType = "RESOURCE_ERROR_NO_SPACE_LEFT";
+        break;
+      default:
+        unknown = TRUE;
+        break;
+      }
+    } else if (err->domain == GST_STREAM_ERROR) {
+      switch (err->code) {
+      case GST_STREAM_ERROR_FAILED:
+        errorType = "STREAM_ERROR_FAILED";
+        break;
+      case GST_STREAM_ERROR_DECODE:
+        errorType = "STREAM_ERROR_DECODE";
+        break;
+      default:
+        unknown = TRUE;
+        break;
+      }
+    } else {
+      unknown = TRUE;
+    }
+
+    if (unknown) {
+      GST_DEBUG_OBJECT (element,
+          "Unknown error, domain: '%s', code: %d, message: '%s'",
+          g_quark_to_string (err->domain), err->code, err->message);
+    }
   }
 
   try {
