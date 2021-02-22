@@ -22,7 +22,6 @@
 #include <gst/gst.h>
 #include <DotGraph.hpp>
 #include <GstreamerDotDetails.hpp>
-#include <SignalHandler.hpp>
 #include <memory>
 #include "kmselement.h"
 
@@ -33,85 +32,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
-void
-MediaPipelineImpl::processBusMessage (GstMessage *msg)
-{
-  GstDebugLevel log_level = GST_LEVEL_NONE;
-  GError *err = NULL;
-  gchar *dbg_info = NULL;
-
-  switch (GST_MESSAGE_TYPE (msg)) {
-    case GST_MESSAGE_ERROR:
-      log_level = GST_LEVEL_ERROR;
-      gst_message_parse_error (msg, &err, &dbg_info);
-      break;
-    case GST_MESSAGE_WARNING:
-      log_level = GST_LEVEL_WARNING;
-      gst_message_parse_warning (msg, &err, &dbg_info);
-      break;
-    default:
-      return;
-      break;
-  }
-
-  GstElement *parent = this->pipeline;
-  gint err_code = 0;
-  gchar *err_msg = NULL;
-
-  if (err != NULL) {
-    err_code = err->code;
-    err_msg = err->message;
-  }
-
-  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Error code %d: '%s', element: %s, parent: %s", err_code,
-      GST_STR_NULL (err_msg), GST_MESSAGE_SRC_NAME (msg),
-      GST_ELEMENT_NAME (parent));
-
-  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL, "Debugging info: %s",
-      GST_STR_NULL (dbg_info));
-
-  std::string errorMessage (err_msg);
-  if (dbg_info) {
-    errorMessage += " (" + std::string (dbg_info) + ")";
-  }
-
-  gint code = err_code;
-  try {
-    Error event (shared_from_this (), errorMessage, code,
-        "UNEXPECTED_PIPELINE_ERROR");
-    sigcSignalEmit(signalError, event);
-  } catch (const std::bad_weak_ptr &e) {
-    // shared_from_this()
-    GST_ERROR ("BUG creating %s: %s", Error::getName ().c_str (), e.what ());
-  }
-
-  gchar *dot_name = g_strdup_printf ("%s_bus_%d", GST_DEFAULT_NAME, err_code);
-  GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS (GST_BIN (parent), GST_DEBUG_GRAPH_SHOW_ALL,
-      dot_name);
-  g_free(dot_name);
-
-  g_error_free (err);
-  g_free (dbg_info);
-
-  return;
-}
-
 void MediaPipelineImpl::postConstructor ()
 {
-  GstBus *bus;
-
   MediaObjectImpl::postConstructor ();
-
-  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
-  gst_bus_add_signal_watch (bus);
-  busMessageHandler = register_signal_handler (G_OBJECT (bus), "message",
-                      std::function <void (GstBus *, GstMessage *) > (std::bind (
-                            &MediaPipelineImpl::processBusMessage, this,
-                            std::placeholders::_2) ),
-                      std::dynamic_pointer_cast<MediaPipelineImpl>
-                      (shared_from_this() ) );
-  g_object_unref (bus);
 }
 
 MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
@@ -131,22 +54,12 @@ MediaPipelineImpl::MediaPipelineImpl (const boost::property_tree::ptree &config)
   g_object_unref (clock);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
-
-  busMessageHandler = 0;
 }
 
 MediaPipelineImpl::~MediaPipelineImpl ()
 {
-  GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline) );
-
   gst_element_set_state (pipeline, GST_STATE_NULL);
 
-  if (busMessageHandler > 0) {
-    unregister_signal_handler (bus, busMessageHandler);
-  }
-
-  gst_bus_remove_signal_watch (bus);
-  g_object_unref (bus);
   g_object_unref (pipeline);
 }
 
