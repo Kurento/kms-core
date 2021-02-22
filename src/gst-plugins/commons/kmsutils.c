@@ -496,11 +496,14 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
     GstClockTime gap_pts;
     GstClockTime gap_duration;
     gst_event_parse_gap (event, &gap_pts, &gap_duration);
-    GST_WARNING_OBJECT (pad,
-        "GAP of %lu ms at PTS=%" GST_TIME_FORMAT
-        " (packet loss?); will request a new keyframe",
-        GST_TIME_AS_MSECONDS (gap_duration), GST_TIME_ARGS (gap_pts));
-    send_force_key_unit_event (pad, FALSE);
+
+    if (GST_CLOCK_TIME_IS_VALID(gap_duration) && gap_duration > 0) {
+      GST_WARNING_OBJECT (pad,
+          "GAP of %lu ms at PTS=%" GST_TIME_FORMAT
+          " (packet loss?); will request a new keyframe",
+          GST_TIME_AS_MSECONDS (gap_duration), GST_TIME_ARGS (gap_pts));
+      send_force_key_unit_event (pad, FALSE);
+    }
 
     // The GAP event has been handled here, so no need to pass it downstream.
     return GST_PAD_PROBE_DROP;
