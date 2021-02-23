@@ -33,7 +33,7 @@ Architecture: any
 Section: libs
 Depends: ${shlibs:Depends}, ${misc:Depends},
  gstreamer1.5-plugins-base,
- kms-jsonrpc (>= 6.14.0)
+ kms-jsonrpc (>= 6.15.1)
 Breaks: kms-core-6.0
 Replaces: kms-core-6.0
 Description: Kurento Core module
