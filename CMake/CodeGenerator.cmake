@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 include (GenericFind)
 
-generic_find(LIBNAME KurentoModuleCreator VERSION ^6.0.0 REQUIRED)
+generic_find(LIBNAME KurentoModuleCreator VERSION ^6.16.0 REQUIRED)
 
 include (GNUInstallDirs)
 include (KurentoGitHelpers)
