@@ -985,6 +985,8 @@ kms_utils_remb_event_manager_create (GstPad * pad)
   RembEventManager *manager = g_slice_new0 (RembEventManager);
 
   g_mutex_init (&manager->mutex);
+
+  g_mutex_lock (&manager->mutex);
   manager->remb_hash =
       g_hash_table_new_full (NULL, NULL, NULL, remb_hash_value_destroy);
   manager->pad = g_object_ref (pad);
@@ -992,6 +994,7 @@ kms_utils_remb_event_manager_create (GstPad * pad)
       remb_probe, manager, NULL);
   manager->oldest_remb_time = kms_utils_get_time_nsecs ();
   manager->clear_interval = DEFAULT_CLEAR_INTERVAL;
+  g_mutex_unlock (&manager->mutex);
 
   return manager;
 }
