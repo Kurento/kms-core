@@ -80,7 +80,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsBaseRtpEndpoint, kms_base_rtp_endpoint,
 #define RTCP_FB_NACK_PLI  SDP_MEDIA_RTCP_FB_NACK " " SDP_MEDIA_RTCP_FB_PLI
 
 #define DEFAULT_MIN_PORT 1024
-#define DEFAULT_MAX_PORT G_MAXUINT16
+#define DEFAULT_MAX_PORT 65535
 
 #define PICTURE_ID_15_BIT 2
 
@@ -2972,14 +2972,14 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_uint ("min-port",
           "Minimum port number to be used",
           "Minimum port number to be used",
-          0, G_MAXUINT16, DEFAULT_MIN_PORT,
+          0, 65535, DEFAULT_MIN_PORT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_MAX_PORT,
       g_param_spec_uint ("max-port",
           "Maximum port number to be used",
           "Maximum port number to be used",
-          0, G_MAXUINT16, DEFAULT_MAX_PORT,
+          0, 65535, DEFAULT_MAX_PORT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_MTU,
