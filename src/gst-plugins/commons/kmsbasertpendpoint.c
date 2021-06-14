@@ -2437,9 +2437,15 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       guint v = g_value_get_uint (value);
 
       if (v >= self->priv->max_port) {
-        v = self->priv->max_port - 2;
+        v = self->priv->max_port - 1;
         GST_WARNING_OBJECT (object,
-            "Trying to set min >= max. Setting %" G_GUINT32_FORMAT, v);
+            "Trying to set min-port >= max-port. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      if (v < DEFAULT_MIN_PORT) {
+        v = DEFAULT_MIN_PORT;
+        GST_WARNING_OBJECT (object,
+            "Trying to set min-port < 1024. Setting %" G_GUINT32_FORMAT, v);
       }
 
       self->priv->min_port = v;
@@ -2449,9 +2455,15 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       guint v = g_value_get_uint (value);
 
       if (v <= self->priv->min_port) {
-        v = self->priv->min_port + 2;
+        v = self->priv->min_port + 1;
         GST_WARNING_OBJECT (object,
-            "Trying to set max <= min. Setting %" G_GUINT32_FORMAT, v);
+            "Trying to set max-port <= min-port. Setting %" G_GUINT32_FORMAT, v);
+      }
+
+      if (v > DEFAULT_MAX_PORT) {
+        v = DEFAULT_MAX_PORT;
+        GST_WARNING_OBJECT (object,
+            "Trying to set max-port > 65535. Setting %" G_GUINT32_FORMAT, v);
       }
 
       self->priv->max_port = v;
