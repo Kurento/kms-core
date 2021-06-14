@@ -18,6 +18,7 @@
 #ifndef __WORKERPOOL_HPP__
 #define __WORKERPOOL_HPP__
 
+#include <boost/asio/async_result.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/thread/thread.hpp>
