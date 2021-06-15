@@ -24,6 +24,7 @@ Build-Depends:
  libvpx-dev,
  uuid-dev,
 Standards-Version: 4.5.1
+Rules-Requires-Root: no
 Vcs-Git: https://github.com/Kurento/kms-core.git
 Vcs-Browser: https://github.com/Kurento/kms-core
 Homepage: https://kurento.openvidu.io/
