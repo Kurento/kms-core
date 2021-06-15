@@ -23,7 +23,7 @@ Build-Depends:
  libsigc++-2.0-dev,
  libvpx-dev,
  uuid-dev,
-Standards-Version: 4.0.0
+Standards-Version: 4.5.1
 Vcs-Git: https://github.com/Kurento/kms-core.git
 Vcs-Browser: https://github.com/Kurento/kms-core
 Homepage: https://kurento.openvidu.io/
