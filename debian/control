@@ -55,7 +55,8 @@ Depends: kms-core (= ${binary:Version}),
  libsigc++-2.0-dev,
  libvpx-dev,
  libxml2-utils,
- uuid-dev
+ uuid-dev,
+ ${misc:Depends}
 Breaks: kms-core-6.0-dev
 Replaces: kms-core-6.0-dev
 Description: Kurento Core module
