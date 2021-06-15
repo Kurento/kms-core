@@ -60,12 +60,3 @@ Breaks: kms-core-6.0-dev
 Replaces: kms-core-6.0-dev
 Description: Kurento Core module
  Kurento Core module - Development files.
-
-Package: kms-core-dbg
-Architecture: any
-Section: debug
-Depends: kms-core (= ${binary:Version})
-Breaks: kms-core-6.0-dbg
-Replaces: kms-core-6.0-dbg
-Description: Kurento Core module
- Kurento Core module - Debugging symbols.
