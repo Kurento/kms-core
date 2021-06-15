@@ -1,8 +1,9 @@
 Source: kms-core
 Priority: optional
 Maintainer: Kurento <kurento@googlegroups.com>
-Build-Depends: debhelper-compat (= 13),
+Build-Depends:
  cmake,
+ debhelper-compat (= 13),
  gstreamer1.5-libav,
  gstreamer1.5-plugins-bad,
  gstreamer1.5-plugins-base,
@@ -21,7 +22,7 @@ Build-Depends: debhelper-compat (= 13),
  libgstreamer1.5-dev,
  libsigc++-2.0-dev,
  libvpx-dev,
- uuid-dev
+ uuid-dev,
 Standards-Version: 4.0.0
 Vcs-Git: https://github.com/Kurento/kms-core.git
 Vcs-Browser: https://github.com/Kurento/kms-core
@@ -30,19 +31,24 @@ Homepage: https://kurento.openvidu.io/
 Package: kms-core
 Architecture: any
 Section: libs
-Depends: ${shlibs:Depends}, ${misc:Depends},
+Depends:
  gstreamer1.5-plugins-base,
- kms-jsonrpc (>= 6.18.1)
-Breaks: kms-core-6.0
-Replaces: kms-core-6.0
+ kms-jsonrpc (>= 6.18.1),
+ ${misc:Depends},
+ ${shlibs:Depends},
+Breaks:
+ kms-core-6.0,
+Replaces:
+ kms-core-6.0,
 Description: Kurento Core module
  Kurento Core module - Binary libraries.
 
 Package: kms-core-dev
 Architecture: any
 Section: libdevel
-Depends: kms-core (= ${binary:Version}),
+Depends:
  kms-cmake-utils (>= 6.18.1),
+ kms-core (= ${binary:Version}),
  kms-jsonrpc-dev (>= 6.18.1),
  kurento-module-creator (>= 6.18.1),
  libboost-filesystem-dev,
@@ -56,8 +62,10 @@ Depends: kms-core (= ${binary:Version}),
  libvpx-dev,
  libxml2-utils,
  uuid-dev,
- ${misc:Depends}
-Breaks: kms-core-6.0-dev
-Replaces: kms-core-6.0-dev
+ ${misc:Depends},
+Breaks:
+ kms-core-6.0-dev,
+Replaces:
+ kms-core-6.0-dev,
 Description: Kurento Core module
  Kurento Core module - Development files.

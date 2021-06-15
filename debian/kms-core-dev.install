@@ -3,5 +3,5 @@ usr/include/kurento/commons/sdpagent/*.h
 usr/include/kurento/modules/*/*.hpp
 usr/lib/*/*.so
 usr/lib/*/pkgconfig/*.pc
-usr/share/kurento/modules/*.kmd.json
 usr/share/cmake-*/Modules/*
+usr/share/kurento/modules/*.kmd.json
