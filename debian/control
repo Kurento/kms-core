@@ -1,8 +1,7 @@
 Source: kms-core
 Priority: optional
 Maintainer: Kurento <kurento@googlegroups.com>
-Build-Depends: debhelper-compat (=13),
- build-essential,
+Build-Depends: debhelper-compat (= 13),
  cmake,
  gstreamer1.5-libav,
  gstreamer1.5-plugins-bad,
