@@ -42,7 +42,9 @@ Breaks:
 Replaces:
  kms-core-6.0,
 Description: Core module for use by Kurento
- Kurento Core module - Binary libraries.
+ Core module for use by Kurento.
+ .
+ This package contains the shared library.
 
 Package: kms-core-dev
 Architecture: any
@@ -69,4 +71,6 @@ Breaks:
 Replaces:
  kms-core-6.0-dev,
 Description: Core module dev for Kurento
- Kurento Core module - Development files.
+ Core module for use by Kurento.
+ .
+ This package contains the development files.
