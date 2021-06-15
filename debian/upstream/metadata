@@ -1,3 +1,6 @@
 ---
+Bug-Database: https://github.com/Kurento/bugtracker/issues
+Bug-Submit: https://github.com/Kurento/bugtracker/issues/new
+Changelog: https://github.com/Kurento/kms-core/blob/master/CHANGELOG.md https://github.com/Kurento/kms-core/commits/master
 Repository: https://github.com/Kurento/kms-core.git
 Repository-Browse: https://github.com/Kurento/kms-core
