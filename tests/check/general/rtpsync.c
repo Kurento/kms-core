@@ -66,7 +66,7 @@ do { \
   GstBuffer *__buf; \
   __buf = generate_rtp_buffer_full (gst_time, ssrc, pt, seq_num, rtp_ts); \
   GST_DEBUG ("PTS in:  %" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS (__buf))); \
-  fail_func (kms_rtp_synchronizer_process_rtp_buffer (sync, __buf, NULL)); \
+  fail_func (kms_rtp_synchronizer_process_rtp_buffer_writable (sync, __buf, NULL)); \
   GST_DEBUG ("PTS out: %" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS (__buf))); \
   GST_DEBUG ("PTS exp: %" GST_TIME_FORMAT, GST_TIME_ARGS(expected_out_pts)); \
   fail_unless (GST_BUFFER_PTS (__buf) == (expected_out_pts)); \
@@ -92,15 +92,15 @@ GST_START_TEST (test_sync_add_clock_rate_for_pt)
 
   process_rtp (sync, 100, 0x1, 96, 0, 0, 100, fail_if); /* Video frame 0 */
 
-  fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, -1, NULL));
-  fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 0, NULL));
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_if (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, -1, NULL));
+  fail_if (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 0, NULL));
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 200, 0x1, 96, 0, 0, 0, fail_unless);       /* Video frame 0 */
 
-  fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000, NULL));
-  fail_if (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 8000, NULL));
+  fail_if (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000, NULL));
+  fail_if (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 8000, NULL));
 
   g_object_unref (sync);
 }
@@ -112,7 +112,7 @@ GST_START_TEST (test_sync_one_stream)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
@@ -142,7 +142,7 @@ GST_START_TEST (test_sync_one_stream_rtptime_after_sr_rtptime)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
@@ -173,10 +173,10 @@ GST_START_TEST (test_sync_two_streams)
   const guint32 Vid_clock = 90000;
 
   sync_audio = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_audio, Aud_pt,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync_audio, Aud_pt,
       Aud_clock, NULL));
   sync_video = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_video, Vid_pt,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync_video, Vid_pt,
       Vid_clock, NULL));
 
   const GstClockTime Bad_time = 42 * GST_SECOND; // Simulates a bad PTS input from a stream
@@ -213,7 +213,7 @@ GST_START_TEST (test_sync_avoid_negative_pts)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtcp (sync, 0x1, gst_util_uint64_scale (2 * GST_SECOND, (1LL << 32),
@@ -247,7 +247,7 @@ GST_START_TEST (test_sync_feeded_sorted_but_unsorted)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (TRUE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 100, 0x1, 96, 1, 90000, 100, fail_unless); /* Video frame 1 */
@@ -263,11 +263,11 @@ GST_START_TEST (test_sync_feeded_sorted_rtcp_beetween_same_ts)
   KmsRtpSynchronizer *sync_sorted, *sync_not_sorted;
 
   sync_sorted = kms_rtp_synchronizer_new (TRUE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_sorted, 96,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync_sorted, 96,
           90000, NULL));
 
   sync_not_sorted = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync_not_sorted, 96,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync_not_sorted, 96,
           90000, NULL));
 
   process_rtp (sync_sorted, 0, 0x1, 96, 0, 0, 0, fail_unless);  /* Video frame 0 */
@@ -292,7 +292,7 @@ GST_START_TEST (test_interpolate)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 0, 0x1, 96, 0, 0, 0, fail_unless); /* Video frame 0 */
@@ -316,7 +316,7 @@ GST_START_TEST (test_interpolate_avoid_negative_pts)
   KmsRtpSynchronizer *sync;
 
   sync = kms_rtp_synchronizer_new (FALSE, NULL);
-  fail_unless (kms_rtp_synchronizer_add_clock_rate_for_pt (sync, 96, 90000,
+  fail_unless (kms_rtp_synchronizer_set_pt_clock_rate (sync, 96, 90000,
           NULL));
 
   process_rtp (sync, 0, 0x1, 96, 1, 90000, 0, fail_unless);     /* Video frame 1 */

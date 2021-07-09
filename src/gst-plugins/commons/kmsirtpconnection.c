@@ -24,7 +24,7 @@ enum
 };
 
 #define DEFAULT_MIN_PORT 1024
-#define DEFAULT_MAX_PORT G_MAXUINT16
+#define DEFAULT_MAX_PORT 65535
 
 static guint kms_i_rtp_connection_signals[LAST_SIGNAL] = { 0 };
 
@@ -54,12 +54,12 @@ kms_i_rtp_connection_default_init (KmsIRtpConnectionInterface * iface)
           G_PARAM_READABLE));
 
   g_object_interface_install_property (iface, g_param_spec_uint ("min-port",
-          "Min port", "Minimum port connection should use", 0, G_MAXUINT16,
+          "Min port", "Minimum port connection should use", 0, 65535,
           DEFAULT_MIN_PORT, G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
   g_object_interface_install_property (iface, g_param_spec_uint ("max-port",
-          "Max port", "Maximum port connection should use", 0, DEFAULT_MAX_PORT,
-          G_MAXUINT16, G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+          "Max port", "Maximum port connection should use", 0, 65535,
+          DEFAULT_MAX_PORT, G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 void

@@ -95,7 +95,7 @@ GType kms_rtp_synchronizer_get_type ();
 KmsRtpSynchronizer * kms_rtp_synchronizer_new (gboolean feeded_ordered,
     const gchar * stats_name);
 
-gboolean kms_rtp_synchronizer_add_clock_rate_for_pt (KmsRtpSynchronizer * self,
+gboolean kms_rtp_synchronizer_set_pt_clock_rate (KmsRtpSynchronizer * self,
                                                      gint32 pt,
                                                      gint32 clock_rate,
                                                      GError ** error);
@@ -106,7 +106,7 @@ gboolean kms_rtp_synchronizer_process_rtcp_buffer (KmsRtpSynchronizer * self,
                                                    GError ** error);
 
 // Adjust PTS, using timing info from the RTCP Sender Reports
-gboolean kms_rtp_synchronizer_process_rtp_buffer (KmsRtpSynchronizer * self,
+gboolean kms_rtp_synchronizer_process_rtp_buffer_writable (KmsRtpSynchronizer * self,
                                                   GstBuffer * buffer,
                                                   GError ** error);
 

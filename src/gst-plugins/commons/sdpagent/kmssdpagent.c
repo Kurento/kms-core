@@ -1553,7 +1553,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
 
   if (sdp_handler == NULL) {
     GST_WARNING_OBJECT (agent,
-        "No handler for '%s' media proto '%s' found",
+        "Cannot handle media '%s %s' (multiple m= lines?)",
         gst_sdp_media_get_media (media), gst_sdp_media_get_proto (media));
     sdp_handler = kms_sdp_agent_create_reject_media_handler (agent, media);
   } else if (gst_sdp_media_get_port (media) == 0) {
@@ -1590,7 +1590,7 @@ create_media_answer (const GstSDPMedia * media, struct SdpAnswerData *data)
     }
     GST_WARNING_OBJECT (agent, "Error creating answer for media '%s %u %s': %s",
         gst_sdp_media_get_media (media), gst_sdp_media_get_port (media),
-        gst_sdp_media_get_proto (media), err_message ? err_message : "");
+        gst_sdp_media_get_proto (media), GST_STR_NULL (err_message));
 
     ret = FALSE;
     goto end;
@@ -1618,8 +1618,11 @@ end:
         sdp_handler);
   }
 
-  kms_sdp_agent_fire_on_answer_callback (data->agent,
-      sdp_handler->sdph->handler, answer_media);
+  if (!sdp_handler->unsupported && !sdp_handler->rejected) {
+    // Configure media transport only if it is going to be actually used
+    kms_sdp_agent_fire_on_answer_callback (data->agent,
+        sdp_handler->sdph->handler, answer_media);
+  }
 
   if (gst_sdp_message_add_media (data->answer, answer_media) != GST_SDP_OK) {
     g_set_error_literal (err, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,

@@ -67,16 +67,12 @@ public:
 
 protected:
   virtual void postConstructor ();
+
 private:
-
   GstElement *pipeline;
-
-  gulong busMessageHandler;
 
   std::recursive_mutex recMutex;
   bool latencyStats = false;
-
-  void processBusMessage (GstMessage *msg);
 
   class StaticConstructor
   {

@@ -29,7 +29,8 @@ common_buildflags_set()
 # Development: Add here exceptions to the "Warnings are Errors" rule.
 # Also, DOCUMENT WHY and always remove them as soon as the problem is fixed.
 # For example:
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-function")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-function")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-variable")
 
 # FIXME Disable error when macros __TIME__, __DATE__ or __TIMESTAMP__ are encountered
 include(CheckCXXCompilerFlag)
@@ -38,14 +39,10 @@ if(HAS_WARNING_DATE_TIME)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=date-time")
 endif()
 
-# Development
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-function")
-
 # Decide between std::regex or boost::regex
 include(CheckCXXSourceCompiles)
-set(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX_FLAGS})
-check_cxx_source_compiles(
-"
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS}")
+check_cxx_source_compiles("
   #include <iostream>
   #include <regex>
   int main() {
@@ -53,10 +50,27 @@ check_cxx_source_compiles(
     std::string orig = \"//\";
     std::cout << std::regex_replace(orig, re, \"/\") << std::endl;
     return 0;
-  }
-"
+  }"
   HAS_STD_REGEX_REPLACE
 )
+unset(CMAKE_REQUIRED_FLAGS)
+
+# Detect if pthread_setname is available
+include(CheckCSourceCompiles)
+set(CMAKE_REQUIRED_LIBRARIES pthread)
+check_c_source_compiles("
+  #include <pthread.h>
+  int main() {
+    pthread_setname_np((pthread_t)0, (const char *)0);
+    return 0;
+  }"
+  HAVE_PTHREAD_SETNAME_NP_WITH_TID
+)
+unset(CMAKE_REQUIRED_LIBRARIES)
+if(${HAVE_PTHREAD_SETNAME_NP_WITH_TID})
+  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DHAVE_PTHREAD_SETNAME_NP_WITH_TID")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_PTHREAD_SETNAME_NP_WITH_TID")
+endif()
 
 # Generate file "config.h"
 set(VERSION ${PROJECT_VERSION})
@@ -76,11 +90,11 @@ set(GLIBMM_REQUIRED ^2.37)
 include(GenericFind)
 
 if(${HAS_STD_REGEX_REPLACE})
-  set(BOOST_REQUIRED_COMPONENTS "filesystem system")
-  generic_find(LIBNAME Boost REQUIRED COMPONENTS filesystem system unit_test_framework)
+  set(BOOST_REQUIRED_COMPONENTS "filesystem system thread")
+  generic_find(LIBNAME Boost REQUIRED COMPONENTS filesystem system thread unit_test_framework)
 else()
-  set(BOOST_REQUIRED_COMPONENTS "filesystem system regex")
-  generic_find(LIBNAME Boost REQUIRED COMPONENTS filesystem system regex unit_test_framework)
+  set(BOOST_REQUIRED_COMPONENTS "filesystem regex system thread")
+  generic_find(LIBNAME Boost REQUIRED COMPONENTS filesystem regex system thread unit_test_framework)
 endif()
 
 generic_find(LIBNAME gstreamer-1.0 VERSION ${GST_REQUIRED} REQUIRED)

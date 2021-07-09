@@ -1,15 +1,34 @@
 kms-core (7.0.0-0kurento1) UNRELEASED; urgency=medium
 
-  [ Juan Navarro ]
   * UNRELEASED
 
-  [ Mario Jr ]
-  * First version of GStreamer 1.14 port
+ -- Juan Navarro <juan.navarro@gmx.es>  Wed, 03 Mar 2021 12:26:47 +0100
 
-  [ Juan Navarro ]
-  * debian/control: Add deps needed for building and testing
+kms-core (6.16.0-0kurento1) testing; urgency=medium
 
- -- Juan Navarro <juan.navarro@gmx.es>  Thu, 19 Dec 2019 19:17:37 +0100
+  * Prepare release 6.16.0-0kurento1
+  * Update all dependency versions to 6.15.1
+  * fix dependency versions
+
+ -- Juan Navarro <juan.navarro@gmx.es>  Fri, 26 Feb 2021 12:01:38 +0100
+
+kms-core (6.15.0-0kurento1) testing; urgency=medium
+
+  * Prepare release 6.15.0-0kurento1
+  * debian/postinst: fix dpkg nonconformity errors
+  * debian/control: add missing dependency: libxml2-utils
+  * debian: update versions of Kurento dependencies
+
+ -- Juan Navarro <juan.navarro@gmx.es>  Tue, 03 Nov 2020 18:04:22 +0100
+
+kms-core (6.14.0-0kurento1) testing; urgency=medium
+
+  * Prepare release 6.14.0-0kurento1
+  * debian minor: use "adduser" instead of "useradd"
+  * debian/postinst: register new home dir with usermod
+  * WorkerPool: complete rewrite
+
+ -- Juan Navarro <juan.navarro@gmx.es>  Tue, 16 Jun 2020 17:48:04 +0200
 
 kms-core (6.13.0-0kurento1) testing; urgency=medium
 

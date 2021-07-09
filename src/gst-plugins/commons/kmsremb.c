@@ -702,7 +702,7 @@ static GstPadProbeReturn
 send_remb_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
   KmsRembRemote *rm = user_data;
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+  GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (GST_EVENT_TYPE (event) != GST_EVENT_CAPS) {
     return GST_PAD_PROBE_OK;

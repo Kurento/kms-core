@@ -463,21 +463,17 @@ release_requested_srcpad (GstPad * pad)
 {
   GstElement *dummysrc;
   gboolean success;
-  gchar *padname;
 
   dummysrc = gst_pad_get_parent_element (pad);
   fail_if (dummysrc == NULL);
 
-  padname = gst_pad_get_name (pad);
-
   GST_DEBUG_OBJECT (dummysrc, "Release requested src pad %" GST_PTR_FORMAT,
       pad);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-pad", padname, &success);
+  g_signal_emit_by_name (dummysrc, "release-requested-pad", pad, &success);
   fail_if (!success);
 
   g_object_unref (dummysrc);
-  g_free (padname);
 
   return G_SOURCE_REMOVE;
 }
@@ -553,7 +549,6 @@ pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
 {
   GstElement *dummysrc;
   gboolean success;
-  gchar *padname;
 
   GST_DEBUG_OBJECT (pad, "pad is blocked now");
 
@@ -563,15 +558,13 @@ pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
   dummysrc = gst_pad_get_parent_element (pad);
   fail_if (dummysrc == NULL);
 
-  padname = gst_pad_get_name (pad);
-  GST_DEBUG_OBJECT (dummysrc, "Invoking action release-requested-pad for %s",
-      padname);
+  GST_DEBUG_OBJECT (dummysrc, "Release requested src pad %" GST_PTR_FORMAT,
+      pad);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-pad", padname, &success);
+  g_signal_emit_by_name (dummysrc, "release-requested-pad", pad, &success);
   fail_if (!success);
 
   g_object_unref (dummysrc);
-  g_free (padname);
 
   return GST_PAD_PROBE_OK;
 }
@@ -703,8 +696,7 @@ remove_src_pad (gpointer user_data)
   fail_unless (src);
   dummysrc = gst_pad_get_parent_element (src);
 
-  g_signal_emit_by_name (dummysrc, "release-requested-pad",
-      GST_OBJECT_NAME (src), &success);
+  g_signal_emit_by_name (dummysrc, "release-requested-pad", src, &success);
   fail_unless (success);
 
   g_object_unref (src);
@@ -877,13 +869,10 @@ data_probe_cb (GstPad * pad, GstPadProbeInfo * info, KmsConnectData * data)
       /* Do not accept more data */
       g_object_set (G_OBJECT (data->sink), "data", FALSE, NULL);
     } else {
-      gchar *padname;
       gboolean success;
 
-      padname = gst_pad_get_name (pad);
-
-      g_signal_emit_by_name (data->sink, "release-requested-pad", padname,
-          &success);
+      g_signal_emit_by_name (
+          data->sink, "release-requested-pad", pad, &success);
       fail_if (!success);
     }
   } else {

@@ -196,7 +196,7 @@ BOOST_FIXTURE_TEST_CASE (release_elements, F)
   try {
     MediaSet::getMediaSet()->ref ("session3", passThrough2Id);
     BOOST_FAIL ("This code should not be reached");
-  } catch (KurentoException e) {
+  } catch (const KurentoException &e) {
     BOOST_CHECK (e.getCode() == MEDIA_OBJECT_NOT_FOUND);
   }
 

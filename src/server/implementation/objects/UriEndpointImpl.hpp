@@ -74,7 +74,6 @@ private:
   std::shared_ptr<UriEndpointState> state;
 
   void checkUri ();
-  void removeDuplicateSlashes (std::string &uri);
   void stateChanged (guint new_state);
 
   class StaticConstructor

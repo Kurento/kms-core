@@ -126,13 +126,29 @@ kms_utils_bin_remove (GstBin * bin, GstElement * element)
 
 /* ---- GstElement ---- */
 
-GstElement* kms_utils_element_factory_make (const gchar *factoryname,
-    const gchar *name_prefix)
+GstElement *
+kms_utils_element_factory_make (const gchar *factoryname, const gchar *prefix)
 {
-  GstElement* element = gst_element_factory_make (factoryname, NULL);
-  gchar *old_name = GST_ELEMENT_NAME (element);
-  GST_ELEMENT_NAME (element) = g_strconcat (name_prefix, old_name, NULL);
+  g_return_val_if_fail (factoryname != NULL, NULL);
+
+  gchar *old_name = NULL;
+  gchar *new_name = NULL;
+  GstElement *element = gst_element_factory_make (factoryname, NULL);
+
+  if (prefix == NULL) {
+    goto end;
+  }
+
+  old_name = gst_element_get_name (element);
+  new_name = g_strconcat (prefix, "_", old_name, NULL);
+
+  if (new_name == NULL || !gst_element_set_name (element, new_name)) {
+    goto end;
+  }
+
+end:
   g_free (old_name);
+  g_free (new_name);
   return element;
 }
 
@@ -384,13 +400,13 @@ drop_until_keyframe_probe (GstPad * pad, GstPadProbeInfo * info,
   gboolean drop = FALSE;
 
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     drop = !buffer_is_keyframe (buffer);
     GST_TRACE_OBJECT (pad, "%s",
         drop ? "Drop buffer" : "Keep buffer (is keyframe)");
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *bufflist = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *bufflist = gst_pad_probe_info_get_buffer_list (info);
     gint keyframe_idx = -1;
 
     gst_buffer_list_foreach (bufflist,
@@ -454,13 +470,16 @@ kms_utils_drop_until_keyframe (GstPad * pad, gboolean all_headers)
 static GstPadProbeReturn
 discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+  GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
   if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DISCONT)) {
-    if (GST_BUFFER_FLAG_IS_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-      GST_WARNING_OBJECT (pad, "Stream discontinuity detected on non-keyframe");
+    if (!buffer_is_keyframe (buffer)) {
+      GST_WARNING_OBJECT (
+          pad, "DISCONTINUITY at non-keyframe; will drop until keyframe");
       kms_utils_drop_until_keyframe (pad, FALSE);
 
+      // The buffer represents a stream discontinuity, so drop it here to avoid
+      // causing artifacts in the downstream decoder.
       return GST_PAD_PROBE_DROP;
     }
   }
@@ -471,17 +490,22 @@ discont_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 static GstPadProbeReturn
 gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+  GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_GAP) {
-    GstClockTime timestamp;
-    GstClockTime duration;
-    gst_event_parse_gap (event, &timestamp, &duration);
-    GST_WARNING_OBJECT (pad,
-        "Stream gap detected, timestamp: %" GST_TIME_FORMAT ", "
-        "duration: %" GST_TIME_FORMAT,
-        GST_TIME_ARGS(timestamp), GST_TIME_ARGS(duration));
-    send_force_key_unit_event (pad, FALSE);
+    GstClockTime gap_pts;
+    GstClockTime gap_duration;
+    gst_event_parse_gap (event, &gap_pts, &gap_duration);
+
+    if (GST_CLOCK_TIME_IS_VALID(gap_duration) && gap_duration > 0) {
+      GST_WARNING_OBJECT (pad,
+          "GAP of %lu ms at PTS=%" GST_TIME_FORMAT
+          " (packet loss?); will request a new keyframe",
+          GST_TIME_AS_MSECONDS (gap_duration), GST_TIME_ARGS (gap_pts));
+      send_force_key_unit_event (pad, FALSE);
+    }
+
+    // The GAP event has been handled here, so no need to pass it downstream.
     return GST_PAD_PROBE_DROP;
   }
 
@@ -491,7 +515,7 @@ gap_detection_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 void
 kms_utils_pad_monitor_gaps (GstPad * pad)
 {
-  GST_INFO_OBJECT (pad, "Add probe: Detect stream gaps");
+  GST_INFO_OBJECT (pad, "Add probe: DISCONT buffers and GAP events");
 
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
       discont_detection_probe, NULL, NULL);
@@ -544,7 +568,7 @@ check_last_request_time (GstPad * pad)
 static GstPadProbeReturn
 control_duplicates (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
+  GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (gst_video_event_is_force_key_unit (event)) {
     if (check_last_request_time (pad)) {
@@ -700,7 +724,7 @@ pad_blocked_callback (GstPad * pad, GstPadProbeInfo * info, gpointer d)
     return data->drop ? GST_PAD_PROBE_DROP : GST_PAD_PROBE_OK;
   }
 
-  event = GST_PAD_PROBE_INFO_EVENT (info);
+  event = gst_pad_probe_info_get_event (info);
 
   if (!(GST_EVENT_TYPE (event) & GST_EVENT_CUSTOM_BOTH)) {
     goto end;
@@ -945,7 +969,7 @@ remb_probe (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
     return GST_PAD_PROBE_OK;
   }
 
-  GST_DEBUG_OBJECT (pad,
+  GST_LOG_OBJECT (pad,
       "REMB [on-feedback-rtcp] received downstream bitrate event"
       ", SSRC: %" G_GUINT32_FORMAT
       ", bitrate: %" G_GUINT32_FORMAT, ssrc, bitrate);
@@ -961,6 +985,8 @@ kms_utils_remb_event_manager_create (GstPad * pad)
   RembEventManager *manager = g_slice_new0 (RembEventManager);
 
   g_mutex_init (&manager->mutex);
+
+  g_mutex_lock (&manager->mutex);
   manager->remb_hash =
       g_hash_table_new_full (NULL, NULL, NULL, remb_hash_value_destroy);
   manager->pad = g_object_ref (pad);
@@ -968,6 +994,7 @@ kms_utils_remb_event_manager_create (GstPad * pad)
       remb_probe, manager, NULL);
   manager->oldest_remb_time = kms_utils_get_time_nsecs ();
   manager->clear_interval = DEFAULT_CLEAR_INTERVAL;
+  g_mutex_unlock (&manager->mutex);
 
   return manager;
 }
@@ -1455,14 +1482,14 @@ kms_utils_depayloader_pts_out_probe (GstPad * pad, GstPadProbeInfo * info,
     AdjustPtsData * data)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     buffer = gst_buffer_make_writable (buffer);
     kms_utils_depayloader_adjust_pts_out (data, buffer);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
   }
   else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     list = gst_buffer_list_make_writable (list);
     gst_buffer_list_foreach (list,
@@ -1487,6 +1514,16 @@ kms_utils_depayloader_monitor_pts_out (GstElement * depayloader)
       kms_utils_adjust_pts_data_new (depayloader),
       (GDestroyNotify) kms_utils_adjust_pts_data_destroy);
   g_object_unref (src_pad);
+}
+
+int
+kms_utils_get_ip_version (const gchar *ip_address)
+{
+  if (g_strstr_len (ip_address, -1, ":") == NULL) {
+    return 4;
+  } else {
+    return 6;
+  }
 }
 
 static void init_debug (void) __attribute__ ((constructor));

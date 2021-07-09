@@ -68,6 +68,8 @@ function (execute_code_generator)
     endif()
   endforeach()
 
+  message ("Run command: '${KurentoModuleCreator_EXECUTABLE} ${PARAM_EXEC_PARAMS}'")
+
   execute_process(
     COMMAND ${KurentoModuleCreator_EXECUTABLE} ${PARAM_EXEC_PARAMS}
     OUTPUT_VARIABLE PROCESSOR_OUTPUT

@@ -159,8 +159,6 @@ public:
 
 protected:
   GstElement *element;
-  GstBus *bus;
-  gulong handlerId;
   std::map <std::string, std::shared_ptr <MediaFlowState>> mediaFlowInStates;
   std::map <std::string, std::shared_ptr <MediaFlowState>> mediaFlowOutStates;
   std::map <std::string, std::shared_ptr <MediaTranscodingState>> mediaTranscodingStates;
@@ -191,6 +189,7 @@ private:
   gulong mediaFlowOutHandler = 0;
   gulong mediaFlowInHandler = 0;
   gulong mediaTranscodingHandler = 0;
+  gulong busMessageHandler = 0;
 
   void disconnectAll();
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
@@ -202,6 +201,7 @@ private:
                                KmsElementPadType type);
   void onMediaTranscodingStateChange (gboolean isTranscoding, gchar *binName,
                                       KmsElementPadType type);
+  void processBusMessage (GstMessage *msg);
 
   class StaticConstructor
   {
@@ -210,9 +210,6 @@ private:
   };
 
   static StaticConstructor staticConstructor;
-
-  friend void processBusMessage (GstBus *bus, GstMessage *msg,
-                                 MediaElementImpl *self);
 
   friend void _media_element_pad_added (GstElement *elem, GstPad *pad,
                                         gpointer data);

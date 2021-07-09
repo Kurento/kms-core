@@ -76,7 +76,7 @@ create_parser_for_caps (const GstCaps * caps)
       "rawvideoparse") != 0)) {
     parser = gst_element_factory_create (parser_factory, NULL);
   } else {
-    parser = gst_element_factory_make ("capsfilter", NULL);
+    parser = kms_utils_element_factory_make ("capsfilter", "parsetreebin");
   }
 
   gst_plugin_feature_list_free (filtered_list);
@@ -96,7 +96,7 @@ bitrate_calculation_probe (GstPad * pad, GstPadProbeInfo * info,
     KmsParseTreeBin * self)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
     GstClockTime timediff = GST_CLOCK_TIME_NONE;
     guint bitrate;
 

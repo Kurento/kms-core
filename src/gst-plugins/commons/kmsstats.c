@@ -126,11 +126,11 @@ process_buffer_probe_cb (GstPad * pad, GstPadProbeInfo * info,
     gpointer user_data)
 {
   if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER) {
-    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     process_buffer (buffer, user_data);
   } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
-    GstBufferList *list = GST_PAD_PROBE_INFO_BUFFER_LIST (info);
+    GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     gst_buffer_list_foreach (list, process_buffer_list_cb, user_data);
   }

@@ -71,7 +71,9 @@ kms_i_rtp_session_manager_custom_ssrc_management (KmsIRtpSessionManager * self,
     KmsBaseRtpSession * sess, GstElement * ssrcdemux, guint ssrc, GstPad * pad)
 {
   g_return_val_if_fail (KMS_IS_I_RTP_SESSION_MANAGER (self), FALSE);
-
+  g_return_val_if_fail (KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->
+      custom_ssrc_management, FALSE);
+    
   return
       KMS_I_RTP_SESSION_MANAGER_GET_INTERFACE (self)->custom_ssrc_management
       (self, sess, ssrcdemux, ssrc, pad);

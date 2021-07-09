@@ -103,15 +103,16 @@ G_DEFINE_TYPE_WITH_CODE (KmsAudioMixer, kms_audio_mixer,
 static GstPadProbeReturn
 cb_latency (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
-  if (GST_QUERY_TYPE (GST_PAD_PROBE_INFO_QUERY (info)) != GST_QUERY_LATENCY) {
+  GstQuery *query = gst_pad_probe_info_get_query (info);
+
+  if (GST_QUERY_TYPE (query) != GST_QUERY_LATENCY) {
     return GST_PAD_PROBE_OK;
   }
 
   GST_LOG_OBJECT (pad, "Modifing latency query. New latency %" G_GUINT64_FORMAT,
       (guint64) (LATENCY * GST_MSECOND));
 
-  gst_query_set_latency (GST_PAD_PROBE_INFO_QUERY (info),
-      TRUE, 0, LATENCY * GST_MSECOND);
+  gst_query_set_latency (query, TRUE, 0, LATENCY * GST_MSECOND);
 
   return GST_PAD_PROBE_HANDLED;
 }
@@ -830,7 +831,8 @@ kms_audio_mixer_add_src_pad (KmsAudioMixer * self, const char *padname)
 
   g_object_set (tee, "allow-not-linked", TRUE, NULL);
   g_object_set (fakesink, "sync", FALSE, "async", FALSE, NULL);
-  g_object_set (adder, "latency", LATENCY * GST_MSECOND, NULL);
+  g_object_set (adder, "latency", LATENCY * GST_MSECOND, "start-time-selection",
+    1, NULL);
 
   g_object_set_qdata_full (G_OBJECT (adder), key_sink_pad_name_quark (),
       g_strdup (padname), g_free);

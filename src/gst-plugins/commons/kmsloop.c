@@ -21,7 +21,7 @@
 #include <gst/gst.h>
 #include "kmsloop.h"
 
-#define NAME "loop"
+#define NAME "kmsloop"
 
 GST_DEBUG_CATEGORY_STATIC (kms_loop_debug_category);
 #define GST_CAT_DEFAULT kms_loop_debug_category
@@ -45,8 +45,9 @@ struct _KmsLoopPrivate
   GRecMutex rmutex;
   GMainLoop *loop;
   GMainContext *context;
-  GCond cond;
-  GMutex mutex;
+
+  GCond init_cond;
+  GMutex init_mutex;
   gboolean initialized;
 };
 
@@ -68,7 +69,7 @@ static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
 static gboolean
 quit_main_loop (KmsLoop * self)
 {
-  GST_DEBUG ("Exiting main loop");
+  GST_DEBUG_OBJECT (self, "Quit GMainLoop");
 
   g_main_loop_quit (self->priv->loop);
 
@@ -89,23 +90,29 @@ loop_thread_init (gpointer data)
   loop = g_main_loop_ref (self->priv->loop);
   KMS_LOOP_UNLOCK (self);
 
-  /* unlock main process because context is already initialized */
-  g_mutex_lock (&self->priv->mutex);
-  self->priv->initialized = TRUE;
-  g_cond_signal (&self->priv->cond);
-  g_mutex_unlock (&self->priv->mutex);
-
+  // Set context as owned by this thread.
   if (!g_main_context_acquire (context)) {
-    GST_ERROR ("Can not acquire context");
+    GST_ERROR_OBJECT (self, "Cannot acquire ownership of GMainContext");
     goto end;
   }
 
-  GST_DEBUG ("Running main loop");
+  // Set context as the thread-default main context for this thread.
+  g_main_context_push_thread_default (context);
+
+  // Unlock main thread because context is already initialized.
+  g_mutex_lock (&self->priv->init_mutex);
+  self->priv->initialized = TRUE;
+  g_cond_signal (&self->priv->init_cond);
+  g_mutex_unlock (&self->priv->init_mutex);
+
+  GST_DEBUG_OBJECT (self, "Running GMainLoop on its own thread");
   g_main_loop_run (loop);
+
+  g_main_context_pop_thread_default (context);
   g_main_context_release (context);
 
 end:
-  GST_DEBUG ("Thread finished");
+  GST_DEBUG_OBJECT (self, "GMainLoop thread finished");
   g_main_loop_unref (loop);
   g_main_context_unref (context);
 
@@ -137,7 +144,7 @@ kms_loop_dispose (GObject * obj)
 {
   KmsLoop *self = KMS_LOOP (obj);
 
-  GST_DEBUG_OBJECT (obj, "Dispose");
+  GST_LOG_OBJECT (self, "Dispose");
 
   KMS_LOOP_LOCK (self);
 
@@ -168,7 +175,7 @@ kms_loop_finalize (GObject * obj)
 {
   KmsLoop *self = KMS_LOOP (obj);
 
-  GST_DEBUG_OBJECT (obj, "Finalize");
+  GST_LOG_OBJECT (obj, "Finalize");
 
   if (self->priv->context != NULL) {
     g_main_context_unref (self->priv->context);
@@ -179,8 +186,8 @@ kms_loop_finalize (GObject * obj)
   }
 
   g_rec_mutex_clear (&self->priv->rmutex);
-  g_mutex_clear (&self->priv->mutex);
-  g_cond_clear (&self->priv->cond);
+  g_mutex_clear (&self->priv->init_mutex);
+  g_cond_clear (&self->priv->init_cond);
 
   G_OBJECT_CLASS (kms_loop_parent_class)->finalize (obj);
 }
@@ -196,8 +203,8 @@ kms_loop_class_init (KmsLoopClass * klass)
 
   /* Install properties */
   obj_properties[PROP_CONTEXT] = g_param_spec_boxed ("context",
-      "Main loop context",
-      "Main loop context",
+      "GMainContext polled by the thread's GMainLoop",
+      "GMainContext polled by the thread's GMainLoop",
       G_TYPE_MAIN_CONTEXT, (GParamFlags) (G_PARAM_READABLE));
 
   g_object_class_install_properties (objclass, N_PROPERTIES, obj_properties);
@@ -213,18 +220,18 @@ kms_loop_init (KmsLoop * self)
   self->priv->context = NULL;
   self->priv->loop = NULL;
   g_rec_mutex_init (&self->priv->rmutex);
-  g_cond_init (&self->priv->cond);
-  g_mutex_init (&self->priv->mutex);
+  g_cond_init (&self->priv->init_cond);
+  g_mutex_init (&self->priv->init_mutex);
 
   self->priv->thread = g_thread_new ("KmsLoop", loop_thread_init, self);
 
-  g_mutex_lock (&self->priv->mutex);
-
+  g_mutex_lock (&self->priv->init_mutex);
   while (!self->priv->initialized) {
-    g_cond_wait (&self->priv->cond, &self->priv->mutex);
+    g_cond_wait (&self->priv->init_cond, &self->priv->init_mutex);
   }
+  g_mutex_unlock (&self->priv->init_mutex);
 
-  g_mutex_unlock (&self->priv->mutex);
+  GST_DEBUG_OBJECT (self, "New thread: %p", self->priv->thread);
 }
 
 KmsLoop *

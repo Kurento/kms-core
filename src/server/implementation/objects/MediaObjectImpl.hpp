@@ -96,31 +96,33 @@ public:
   static bool getConfigValue (T *value, const std::string &key,
                               const boost::property_tree::ptree &config)
   {
-    std::stringstream ss;
-    Json::Value val;
-    Json::Reader reader;
-    kurento::JsonSerializer serializer (false);
     boost::property_tree::ptree array;
-
     try {
       auto child = config.get_child (key);
-      array.push_back (std::make_pair ("val", child) );
+      array.push_back (std::make_pair ("val", child));
     } catch (boost::property_tree::ptree_bad_path &) {
       // This case is expected, the requested key doesn't exist in config
-      GST_DEBUG ("Key '%s' not in config", key.c_str());
+      GST_DEBUG ("Key '%s' not found in config", key.c_str ());
       return false;
     }
 
+    std::stringstream ss;
     boost::property_tree::write_json (ss, array);
-    reader.parse (ss.str(), val);
-    serializer.JsonValue = val;
+    GST_DEBUG ("Key '%s' found in config, value: '%s'", key.c_str (),
+        ss.str ().c_str ());
 
-    GST_DEBUG ("getConfigValue key: '%s', value: '%s'", key.c_str(), ss.str().c_str());
+    Json::Reader reader;
+    Json::Value val;
+    reader.parse (ss.str (), val);
+
+    kurento::JsonSerializer serializer (false);
+    serializer.JsonValue = val;
 
     try {
       serializer.Serialize ("val", *value);
-    } catch (KurentoException &e) {
-      GST_WARNING ("Error deserializing '%s' from config: %s", key.c_str(), e.what());
+    } catch (const std::exception &e) {
+      GST_ERROR (
+          "Error deserializing '%s' from config: %s", key.c_str (), e.what ());
       return false;
     }
 

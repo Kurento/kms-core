@@ -73,6 +73,7 @@ public:
     this->sourceDescription = sourceDescription;
     this->sinkDescription = sinkDescription;
     this->sourcePadName = nullptr;
+    this->sourcePad = nullptr;
     setSinkPadName ();
   }
 
@@ -91,6 +92,7 @@ public:
     this->sourceDescription = data->getSourceDescription();
     this->sinkDescription = data->getSinkDescription();
     this->sourcePadName = nullptr;
+    this->sourcePad = nullptr;
     setSinkPadName ();
   }
 
@@ -127,58 +129,69 @@ public:
     this->sourcePadName = padName;
   }
 
-  const gchar *getSourcePadName ()
-  {
-    return sourcePadName;
-  }
-
-  std::shared_ptr<MediaElementImpl> getSource ()
-  {
-    try {
-      return std::dynamic_pointer_cast <MediaElementImpl> (source.lock() );
-    } catch (std::bad_cast &) {
-      GST_WARNING ("Bad cast for source element");
-      return std::shared_ptr<MediaElementImpl> ();
-    }
-  }
-
-  std::shared_ptr<MediaElementImpl> getSink ()
-  {
-    try {
-      return std::dynamic_pointer_cast <MediaElementImpl> (sink.lock() );
-    } catch (std::bad_cast &) {
-      GST_WARNING ("Bad cast for source element");
-      return std::shared_ptr<MediaElementImpl> ();
-    }
-  }
-
   std::string getSinkPadName ()
   {
     return sinkPadName;
   }
 
+  const gchar *getSourcePadName ()
+  {
+    return sourcePadName;
+  }
+
+  std::shared_ptr<MediaElement> getSink ()
+  {
+    return sink.lock ();
+  }
+
+  std::shared_ptr<MediaElement> getSource ()
+  {
+    return source.lock ();
+  }
+
+  std::string getSinkDescription ()
+  {
+    return sinkDescription;
+  };
+
+  std::string getSourceDescription ()
+  {
+    return sourceDescription;
+  };
+
   GstPad *getSinkPad ()
   {
-    std::shared_ptr <MediaElementImpl> sinkLocked = getSink ();
+    auto sinkLocked = std::dynamic_pointer_cast<MediaElementImpl> (getSink ());
 
     if (!sinkLocked) {
       return nullptr;
     }
 
-    return gst_element_get_static_pad (sinkLocked->getGstreamerElement (),
-                                       getSinkPadName ().c_str() );
+    return gst_element_get_static_pad (
+        sinkLocked->getGstreamerElement (), getSinkPadName ().c_str ());
   }
 
   GstPad *getSourcePad ()
   {
-    std::shared_ptr <MediaElementImpl> sourceLocked = getSource ();
+    if (this->sourcePad) {
+      return this->sourcePad;
+    }
 
-    if (!sourceLocked || sourcePadName == nullptr) {
+    if (!this->sourcePadName) {
       return nullptr;
     }
 
-    return gst_element_get_static_pad (sourceLocked->getGstreamerElement (),
-                                       sourcePadName);
+    auto sourceLocked =
+        std::dynamic_pointer_cast<MediaElementImpl> (getSource ());
+
+    if (!sourceLocked) {
+      return nullptr;
+    }
+
+    this->sourcePad = gst_element_get_static_pad (
+        sourceLocked->getGstreamerElement (), sourcePadName);
+
+    return this->sourcePad;
   }
 
   std::shared_ptr<ElementConnectionData> toInterface ()
@@ -205,7 +218,9 @@ private:
   std::string sourceDescription;
   std::string sinkDescription;
   std::string sinkPadName;
+
   gchar *sourcePadName;
+  GstPad *sourcePad;
 };
 
 static KmsElementPadType
@@ -222,71 +237,7 @@ convertMediaType (std::shared_ptr<MediaType> mediaType)
     return KMS_ELEMENT_PAD_TYPE_DATA;
   }
 
-  throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
-}
-
-void
-processBusMessage (GstBus *bus, GstMessage *msg, MediaElementImpl *self)
-{
-  GstDebugLevel log_level = GST_LEVEL_NONE;
-  GError *err = NULL;
-  gchar *dbg_info = NULL;
-
-  switch (GST_MESSAGE_TYPE (msg)) {
-    case GST_MESSAGE_ERROR:
-      log_level = GST_LEVEL_ERROR;
-      gst_message_parse_error (msg, &err, &dbg_info);
-      break;
-    case GST_MESSAGE_WARNING:
-      log_level = GST_LEVEL_WARNING;
-      gst_message_parse_warning (msg, &err, &dbg_info);
-      break;
-    default:
-      return;
-      break;
-  }
-
-  GstElement *parent = self->element;
-  gint err_code = 0;
-  gchar *err_msg = NULL;
-  std::string errorMessage;
-
-  if (!gst_object_has_as_ancestor (msg->src, GST_OBJECT (parent))) {
-    goto finish;
-  }
-
-  if (err != NULL) {
-    err_code = err->code;
-    err_msg = err->message;
-  }
-
-  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Error code %d: '%s', element: %s, parent: %s", err_code,
-      (err_msg ? err_msg : "(None)"), GST_MESSAGE_SRC_NAME (msg),
-      GST_ELEMENT_NAME (parent));
-
-  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, log_level, NULL,
-      "Debugging info: %s", (dbg_info ? dbg_info : "(None)"));
-
-  errorMessage.assign (err_msg);
-  if (dbg_info) {
-    errorMessage += " (" + std::string (dbg_info) + ")";
-  }
-
-  try {
-    gint code = err_code;
-    Error error (self->shared_from_this(), errorMessage, code,
-                 "UNEXPECTED_ELEMENT_ERROR");
-
-    self->signalError (error);
-  } catch (std::bad_weak_ptr &e) {
-  }
-
-finish:
-  g_error_free (err);
-  g_free (dbg_info);
-
-  return;
+  throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Unsupported media type");
 }
 
 /* https://stackoverflow.com/questions/21237905/how-do-i-generate-thread-safe-uniform-random-numbers/21238187#21238187
@@ -354,7 +305,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
         for (auto it : connections) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad), it->getSourcePadName() ) == 0) {
             std::unique_lock<std::recursive_timed_mutex> sinkLock (
-              it->getSink()->sourcesMutex,
+              std::dynamic_pointer_cast <MediaElementImpl> (it->getSink())->sourcesMutex,
               std::defer_lock);
 
             retry = !sinkLock.try_lock_for (millisRand ());
@@ -396,7 +347,7 @@ _media_element_pad_added (GstElement *elem, GstPad *pad, gpointer data)
       try {
         auto sourceData = self->sources.at (type).at (description);
 
-        auto source = sourceData->getSource();
+        auto source = std::dynamic_pointer_cast <MediaElementImpl> (sourceData->getSource());
 
         if (source) {
           if (g_strcmp0 (GST_OBJECT_NAME (pad),
@@ -450,6 +401,119 @@ padTypeToMediaType (KmsElementPadType type)
   }
 
   throw KurentoException (UNSUPPORTED_MEDIA_TYPE, "Usupported media type");
+}
+
+void
+MediaElementImpl::processBusMessage (GstMessage *msg)
+{
+  // Filter by type.
+  const GstMessageType type = GST_MESSAGE_TYPE (msg);
+  if (type != GST_MESSAGE_ERROR && type != GST_MESSAGE_WARNING) {
+    return;
+  }
+
+  // Filter by source. We only care about messages from child elements.
+  if (!gst_object_has_as_ancestor (
+          GST_MESSAGE_SRC (msg), GST_OBJECT (element))) {
+    return;
+  }
+
+  // Parse message by type.
+  GstDebugLevel log_level = GST_LEVEL_NONE;
+  GError *err = NULL;
+  gchar *dbg_info = NULL;
+
+  switch (type) {
+  case GST_MESSAGE_ERROR:
+    log_level = GST_LEVEL_ERROR;
+    gst_message_parse_error (msg, &err, &dbg_info);
+    break;
+  case GST_MESSAGE_WARNING:
+    log_level = GST_LEVEL_WARNING;
+    gst_message_parse_warning (msg, &err, &dbg_info);
+    break;
+  default:
+    return;
+    break;
+  }
+
+  // Build a string with all message info.
+  std::ostringstream oss;
+
+  if (err) {
+    oss << "Error code " << err->code << ": " << GST_STR_NULL (err->message)
+        << ", source: " << GST_MESSAGE_SRC_NAME (msg)
+        << ", element: " << GST_ELEMENT_NAME (element);
+  }
+
+  if (dbg_info) {
+    oss << ", debug info: " << dbg_info;
+  }
+
+  std::string message = oss.str ();
+
+  GST_CAT_LEVEL_LOG (
+      GST_CAT_DEFAULT, log_level, element, "%s", message.c_str ());
+
+  // Give names to some of the error types.
+  int errorCode = 0;
+  std::string errorType = "UNEXPECTED_ELEMENT_ERROR";
+  if (err) {
+    gboolean unknown = FALSE;
+    errorCode = err->code;
+
+    if (err->domain == GST_RESOURCE_ERROR) {
+      switch (err->code) {
+      case GST_RESOURCE_ERROR_OPEN_READ:
+      case GST_RESOURCE_ERROR_OPEN_WRITE:
+      case GST_RESOURCE_ERROR_OPEN_READ_WRITE:
+        errorType = "RESOURCE_ERROR_OPEN";
+        break;
+      case GST_RESOURCE_ERROR_WRITE:
+        errorType = "RESOURCE_ERROR_WRITE";
+        break;
+      case GST_RESOURCE_ERROR_NO_SPACE_LEFT:
+        errorType = "RESOURCE_ERROR_NO_SPACE_LEFT";
+        break;
+      default:
+        unknown = TRUE;
+        break;
+      }
+    } else if (err->domain == GST_STREAM_ERROR) {
+      switch (err->code) {
+      case GST_STREAM_ERROR_FAILED:
+        errorType = "STREAM_ERROR_FAILED";
+        break;
+      case GST_STREAM_ERROR_DECODE:
+        errorType = "STREAM_ERROR_DECODE";
+        break;
+      default:
+        unknown = TRUE;
+        break;
+      }
+    } else {
+      unknown = TRUE;
+    }
+
+    if (unknown) {
+      GST_DEBUG_OBJECT (element,
+          "Unknown error, domain: '%s', code: %d, message: '%s'",
+          g_quark_to_string (err->domain), err->code, err->message);
+    }
+  }
+
+  try {
+    Error event (shared_from_this (), message, errorCode, errorType);
+    sigcSignalEmit (signalError, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s", Error::getName ().c_str (), e.what ());
+  }
+
+  g_error_free (err);
+  g_free (dbg_info);
+
+  return;
 }
 
 void
@@ -570,6 +634,20 @@ MediaElementImpl::postConstructor ()
 {
   MediaObjectImpl::postConstructor ();
 
+  padAddedHandlerId = g_signal_connect (
+      element, "pad_added", G_CALLBACK (_media_element_pad_added), this);
+
+  const auto pipelineImpl =
+      std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline ());
+  GstBus *bus =
+      gst_pipeline_get_bus (GST_PIPELINE (pipelineImpl->getPipeline ()));
+  gst_bus_add_signal_watch (bus);
+  busMessageHandler = register_signal_handler (G_OBJECT (bus), "message",
+      std::function<void (GstBus *, GstMessage *)> (std::bind (
+          &MediaElementImpl::processBusMessage, this, std::placeholders::_2)),
+      std::dynamic_pointer_cast<MediaElementImpl> (shared_from_this ()));
+  g_object_unref (bus);
+
   mediaFlowOutHandler = register_signal_handler (G_OBJECT (element),
                         "flow-out-media",
                         std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
@@ -599,27 +677,16 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
                                     std::shared_ptr<MediaObjectImpl> parent,
                                     const std::string &factoryName) : MediaObjectImpl (config, parent)
 {
-  std::shared_ptr<MediaPipelineImpl> pipe;
-
-  pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
-
   element = gst_element_factory_make(factoryName.c_str(), nullptr);
-
   if (element == nullptr) {
     throw KurentoException (MEDIA_OBJECT_NOT_AVAILABLE,
                             "Cannot create gstreamer element: " + factoryName);
   }
-
-  bus = gst_pipeline_get_bus (GST_PIPELINE (pipe->getPipeline () ) );
-  handlerId = g_signal_connect (bus, "message",
-                                G_CALLBACK (processBusMessage), this);
-
-
-  padAddedHandlerId = g_signal_connect (element, "pad_added",
-                                        G_CALLBACK (_media_element_pad_added), this);
-
   g_object_ref (element);
-  pipe->addElement (element);
+
+  const auto pipelineImpl =
+      std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline ());
+  pipelineImpl->addElement (element);
 
   //read default configuration for output bitrate
   int bitrate = 0;
@@ -628,6 +695,8 @@ MediaElementImpl::MediaElementImpl (const boost::property_tree::ptree &config,
     g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
                   MAX_OUTPUT_BITRATE, bitrate, NULL);
   }
+
+  busMessageHandler = 0;
 }
 
 MediaElementImpl::~MediaElementImpl ()
@@ -654,16 +723,23 @@ MediaElementImpl::~MediaElementImpl ()
 
   disconnectAll();
 
-  pipe = std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline() );
+  const auto pipelineImpl =
+      std::dynamic_pointer_cast<MediaPipelineImpl> (getMediaPipeline ());
+  GstBus *bus =
+      gst_pipeline_get_bus (GST_PIPELINE (pipelineImpl->getPipeline ()));
 
   gst_element_set_locked_state (element, TRUE);
   gst_element_set_state (element, GST_STATE_NULL);
-  gst_bin_remove (GST_BIN ( pipe->getPipeline() ), element);
+  gst_bin_remove (GST_BIN (pipelineImpl->getPipeline ()), element);
 
-  g_object_unref (element);
+  if (busMessageHandler > 0) {
+    unregister_signal_handler (bus, busMessageHandler);
+    busMessageHandler = 0;
+  }
 
-  g_signal_handler_disconnect (bus, handlerId);
+  gst_bus_remove_signal_watch (bus);
   g_object_unref (bus);
+  g_object_unref (element);
 }
 
 void
@@ -1008,8 +1084,6 @@ MediaElementImpl::performConnection (std::shared_ptr
              data->getSink()->getName().c_str(),
              data->getSinkPadName ().c_str() );
   }
-
-  g_object_unref (src);
 }
 
 void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink)
@@ -1061,21 +1135,23 @@ void MediaElementImpl::disconnect (std::shared_ptr<MediaElement> sink,
 
     connectionData = sinkImpl->sources.at (mediaType).at (sinkMediaDescription);
 
-    if (connectionData->toInterface()->getSourceDescription() ==
-        sourceMediaDescription) {
+    if (connectionData->getSourceDescription () == sourceMediaDescription) {
       sinkImpl->sources.at (mediaType).erase (sinkMediaDescription);
     }
 
-    for (auto conn : sinks.at (mediaType).at (sourceMediaDescription) ) {
-      if (conn->toInterface()->getSink() == sink &&
-          conn->toInterface()->getSinkDescription() == sinkMediaDescription) {
+    for (auto conn : sinks.at (mediaType).at (sourceMediaDescription)) {
+      if (conn->getSink () == sink
+          && conn->getSinkDescription () == sinkMediaDescription) {
         sinks.at (mediaType).at (sourceMediaDescription).erase (conn);
         break;
       }
     }
 
-    g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
-                           connectionData->getSourcePadName (), &ret, NULL);
+    GstPad *sourcePad = connectionData->getSourcePad ();
+    if (sourcePad != nullptr) {
+      g_signal_emit_by_name (getGstreamerElement (), "release-requested-pad",
+          sourcePad, &ret, NULL);
+    }
   } catch (std::out_of_range &) {
 
   }

@@ -189,6 +189,16 @@ void SdpEndpointImpl::setMaxAudioRecvBandwidth (int maxAudioRecvBandwidth)
 
 std::string SdpEndpointImpl::generateOffer ()
 {
+  std::shared_ptr<OfferOptions> options = std::make_shared <OfferOptions> ();
+
+  options->setOfferToReceiveAudio(true);
+  options->setOfferToReceiveVideo(true);
+
+  return generateOffer(options);
+}
+
+std::string SdpEndpointImpl::generateOffer (std::shared_ptr<OfferOptions> options)
+{
   GstSDPMessage *offer = nullptr;
   std::string offerStr;
   bool expected = false;
@@ -197,6 +207,16 @@ std::string SdpEndpointImpl::generateOffer ()
     //the endpoint is already negotiated
     throw KurentoException (SDP_END_POINT_ALREADY_NEGOTIATED,
                             "Endpoint already negotiated");
+  }
+
+  if (options->isSetOfferToReceiveAudio ()
+      && !options->getOfferToReceiveAudio ()) {
+    g_object_set (element, "num-audio-medias", 0, NULL);
+  }
+
+  if (options->isSetOfferToReceiveVideo ()
+      && !options->getOfferToReceiveVideo ()) {
+    g_object_set (element, "num-video-medias", 0, NULL);
   }
 
   g_signal_emit_by_name (element, "generate-offer", sessId.c_str (), &offer);

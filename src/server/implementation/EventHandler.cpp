@@ -16,7 +16,7 @@
  */
 
 #include "EventHandler.hpp"
-#include <WorkerPool.hpp>
+#include "WorkerPool.hpp"
 
 namespace kurento
 {
@@ -24,7 +24,8 @@ namespace kurento
 static void
 post_task (std::function <void () > cb)
 {
-  static WorkerPool workers (1);
+  // Use a single thread pool for all EventHandlers
+  static kurento::WorkerPool workers {};
 
   workers.post (cb);
 }
