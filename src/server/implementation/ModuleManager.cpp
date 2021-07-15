@@ -153,19 +153,27 @@ std::list<std::string> split (const std::string &s, char delim)
 }
 
 void
-ModuleManager::loadModules (std::string dirPath)
+ModuleManager::loadModules (std::string dir)
 {
-  GST_DEBUG ("Looking for modules, path: %s", dirPath.c_str() );
-  boost::filesystem::path dir (dirPath);
+  boost::filesystem::path path (dir);
 
-  if (!boost::filesystem::is_directory (dir) ) {
-    GST_INFO ("Skip invalid path: %s", dirPath.c_str() );
+  if (!boost::filesystem::exists (path) ) {
+    GST_INFO ("Skip non-existent path: %s", path.c_str() );
     return;
   }
 
+  path = boost::filesystem::canonical(path);
+
+  if (!boost::filesystem::is_directory (path) ) {
+    GST_INFO ("Skip non-directory path: %s", path.c_str() );
+    return;
+  }
+
+  GST_DEBUG ("Looking for modules in path: %s", path.c_str() );
+
   boost::filesystem::directory_iterator end_itr;
 
-  for ( boost::filesystem::directory_iterator itr ( dir ); itr != end_itr;
+  for ( boost::filesystem::directory_iterator itr ( path ); itr != end_itr;
         ++itr ) {
     if (boost::filesystem::is_regular (*itr) ) {
       boost::filesystem::path extension = itr->path().extension();
@@ -181,14 +189,14 @@ ModuleManager::loadModules (std::string dirPath)
 }
 
 void
-ModuleManager::loadModulesFromDirectories (std::string path)
+ModuleManager::loadModulesFromDirectories (std::string colonSepDirs)
 {
-  std::list <std::string> locations;
+  std::list <std::string> dirs;
 
-  locations = split (path, ':');
+  dirs = split (colonSepDirs, ':');
 
-  for (std::string location : locations) {
-    this->loadModules (location);
+  for (std::string dir : dirs) {
+    this->loadModules (dir);
   }
 
   //try to load modules from the default path
