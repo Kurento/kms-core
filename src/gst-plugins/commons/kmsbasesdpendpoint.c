@@ -48,7 +48,9 @@ static gboolean kms_base_sdp_endpoint_init_sdp_handlers (KmsBaseSdpEndpoint *
 #define MAX_VIDEO_RECV_BW_DEFAULT 0
 #define MAX_AUDIO_RECV_BW_DEFAULT 0
 
-#define GST_VALUE_HOLDS_STRUCTURE(x)            (G_VALUE_HOLDS((x), _gst_structure_type))
+#ifndef GST_VALUE_HOLDS_STRUCTURE
+#define GST_VALUE_HOLDS_STRUCTURE(x) (G_VALUE_HOLDS((x), _gst_structure_type))
+#endif
 
 /* Signals and args */
 enum
