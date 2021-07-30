@@ -308,6 +308,45 @@ kms_base_rtp_session_link_pads (GstPad *src, GstPad *sink)
 }
 
 static void
+on_rtcpdemux_new_ssrc_pad (GstElement *rtcpdemux,
+    guint ssrc,
+    GstPad *pad,
+    KmsBaseRtpSession *self)
+{
+  GST_DEBUG_OBJECT (self, "Local SSRC: %u, pad: %" GST_PTR_FORMAT, ssrc, pad);
+
+  KMS_SDP_SESSION_LOCK (self);
+
+  // Link the new pad with the appropriate sink from GstBin.
+  if (self->local_audio_ssrc == ssrc) {
+    GstPad *sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager,
+        self, self->audio_neg);
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref (sink);
+  } else if (self->local_video_ssrc == ssrc) {
+    GstPad *sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager,
+        self, self->video_neg);
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref (sink);
+  } else {
+    GST_ERROR_OBJECT (self,
+        "Local SSRC %u in RTCP doesn't match any SDP media; DATA WILL BE DROPPED",
+        ssrc);
+
+    // Cannot identify which local media corresponds to the SSRC.
+    // The pad cannot be left without linking, so discard into a fakesink.
+    GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent_target_state (fakesink);
+    GstPad *sink = gst_element_get_static_pad (fakesink, "sink");
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref(sink);
+  }
+
+  KMS_SDP_SESSION_UNLOCK (self);
+}
+
+static void
 rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
     KmsBaseRtpSession * self)
 {
@@ -316,8 +355,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   const GstSDPMedia *media;
   GstPad *src, *sink;
 
-  GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
-      pad, ssrc);
+  GST_DEBUG_OBJECT (self, "Remote SSRC: %u, pad: %" GST_PTR_FORMAT, ssrc, pad);
 
   KMS_SDP_SESSION_LOCK (self);
 
@@ -330,7 +368,9 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   } else {
     if (!kms_i_rtp_session_manager_custom_ssrc_management (self->manager, self,
             ssrcdemux, ssrc, pad)) {
-      GST_ERROR_OBJECT (pad, "SSRC %" G_GUINT32_FORMAT " not matching.", ssrc);
+      GST_ERROR_OBJECT (self,
+          "Remote SSRC %u in RTCP doesn't match any SDP media",
+          ssrc);
     }
     goto end;
   }
@@ -358,8 +398,8 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
   gboolean added;
+  GstElement *rtcpdemux;
   GstElement *ssrcdemux;
-  GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
 
   if (GPOINTER_TO_UINT (g_object_get_qdata (G_OBJECT (conn),
@@ -376,8 +416,12 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
     kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   }
 
-  ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
   rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
+
+  g_signal_connect (rtcpdemux, "new-ssrc-pad",
+      G_CALLBACK (on_rtcpdemux_new_ssrc_pad), self);
+
+  ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
 
   g_object_set_qdata_full (G_OBJECT (ssrcdemux), rtcp_demux_peer_quark (),
       g_object_ref (rtcpdemux), g_object_unref);
@@ -388,6 +432,7 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
   /* RTP */
+
   src = kms_i_rtp_connection_request_rtp_src (conn);
   sink = gst_element_get_static_pad (ssrcdemux, "sink");
   kms_base_rtp_session_link_pads (src, sink);
@@ -395,15 +440,17 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
   g_object_unref (sink);
 
   /* RTCP */
+
   src = kms_i_rtp_connection_request_rtcp_src (conn);
   sink = gst_element_get_static_pad (rtcpdemux, "sink");
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
+
   gst_element_link_pads (rtcpdemux, "rtcp_src", ssrcdemux, "rtcp_sink");
 
-  gst_element_sync_state_with_parent_target_state (ssrcdemux);
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
+  gst_element_sync_state_with_parent_target_state (ssrcdemux);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
@@ -454,29 +501,38 @@ static void
 kms_base_rtp_session_add_gst_rtcp_mux_elements (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
-  /* FIXME: Useful for local and remote ssrcs mapping */
-  GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
+  GstElement *rtcpdemux;
   GstPad *src, *sink;
+
+  rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
+
+  g_signal_connect (rtcpdemux, "new-ssrc-pad",
+      G_CALLBACK (on_rtcpdemux_new_ssrc_pad), self);
 
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   kms_i_rtp_connection_sink_sync_state_with_parent (conn);
   gst_bin_add (GST_BIN (self), rtcpdemux);
 
   /* RTP */
+
   src = kms_i_rtp_connection_request_rtp_src (conn);
-  sink = kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
+  sink =
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
   /* RTCP */
-  src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
-  sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
-  g_object_unref (src);
-  g_object_unref (sink);
 
   src = kms_i_rtp_connection_request_rtcp_src (conn);
   sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  kms_base_rtp_session_link_pads (src, sink);
+  g_object_unref (src);
+  g_object_unref (sink);
+
+  src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
+  sink =
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
