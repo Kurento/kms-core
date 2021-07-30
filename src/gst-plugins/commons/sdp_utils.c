@@ -138,7 +138,7 @@ sdp_utils_media_get_ssrc (const GstSDPMedia * media)
 
   ssrc_str = sdp_media_get_ssrc_str (media);
   if (ssrc_str == NULL) {
-    return 0;
+    return SSRC_INVALID;
   }
 
   ssrc = ssrc_str_to_uint (ssrc_str);
@@ -179,12 +179,12 @@ guint
 sdp_utils_media_get_fid_ssrc (const GstSDPMedia * media, guint pos)
 {
   gchar **ssrcs;
-  guint ssrc = 0;
+  guint ssrc = SSRC_INVALID;
   guint len;
 
   ssrcs = sdp_media_get_fid_ssrcs_str (media);
   if (ssrcs == NULL) {
-    return 0;
+    return SSRC_INVALID;
   }
 
   len = g_strv_length (ssrcs);

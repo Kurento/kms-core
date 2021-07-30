@@ -290,7 +290,7 @@ ssrcs_are_mapped (GstElement * ssrcdemux,
   g_signal_emit_by_name (rtcpdemux, "get-local-rr-ssrc-pair", remote_ssrc,
       &local_ssrc_pair);
 
-  return ((local_ssrc != 0) && (local_ssrc_pair == local_ssrc));
+  return ((local_ssrc != SSRC_INVALID) && (local_ssrc_pair == local_ssrc));
 }
 
 static void
@@ -538,22 +538,35 @@ kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
   guint ssrc;
 
   ssrc = sdp_utils_media_get_fid_ssrc (remote_media, 0);
-  if (ssrc == 0) {
+  if (ssrc == SSRC_INVALID) {
     ssrc = sdp_utils_media_get_ssrc (remote_media);
   }
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
-    self->remote_audio_ssrc = ssrc;
+    if (ssrc != SSRC_INVALID) {
+      GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
+      self->remote_audio_ssrc = ssrc;
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Remote SDP doesn't include audio SSRC");
+    }
+
     if (self->audio_neg != NULL) {
       gst_sdp_media_free (self->audio_neg);
     }
     gst_sdp_media_copy (neg_media, &self->audio_neg);
 
     return AUDIO_RTP_SESSION_STR;
-  } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
-    self->remote_video_ssrc = ssrc;
+  }
+  else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    if (ssrc != SSRC_INVALID) {
+      GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
+      self->remote_video_ssrc = ssrc;
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Remote SDP doesn't include video SSRC");
+    }
+
     if (self->video_neg != NULL) {
       gst_sdp_media_free (self->video_neg);
     }
@@ -813,6 +826,12 @@ kms_base_rtp_session_init (KmsBaseRtpSession * self)
 {
   self->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+
+  self->local_audio_ssrc = SSRC_INVALID;
+  self->remote_audio_ssrc = SSRC_INVALID;
+
+  self->local_video_ssrc = SSRC_INVALID;
+  self->remote_video_ssrc = SSRC_INVALID;
 
   self->stats_enabled = FALSE;
 }
