@@ -501,20 +501,12 @@ static void
 kms_base_rtp_session_add_gst_rtcp_mux_elements (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
-  GstElement *rtcpdemux;
   GstPad *src, *sink;
-
-  rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
-
-  g_signal_connect (rtcpdemux, "new-ssrc-pad",
-      G_CALLBACK (on_rtcpdemux_new_ssrc_pad), self);
 
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   kms_i_rtp_connection_sink_sync_state_with_parent (conn);
-  gst_bin_add (GST_BIN (self), rtcpdemux);
 
   /* RTP */
-
   src = kms_i_rtp_connection_request_rtp_src (conn);
   sink =
       kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
@@ -523,21 +515,13 @@ kms_base_rtp_session_add_gst_rtcp_mux_elements (KmsBaseRtpSession * self,
   g_object_unref (sink);
 
   /* RTCP */
-
   src = kms_i_rtp_connection_request_rtcp_src (conn);
-  sink = gst_element_get_static_pad (rtcpdemux, "sink");
-  kms_base_rtp_session_link_pads (src, sink);
-  g_object_unref (src);
-  g_object_unref (sink);
-
-  src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
   sink =
       kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
-  gst_element_sync_state_with_parent_target_state (rtcpdemux);
   kms_base_rtp_session_link_gst_connection_sink (self, conn, media);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
