@@ -29,9 +29,8 @@ kms_rtcp_psfb_afb_buffer_map (GstBuffer * buffer, GstMapFlags flags,
   g_return_val_if_fail (flags & GST_MAP_READ, FALSE);
 
   rtcp_psfb_afb->buffer = buffer;
-  gst_buffer_map (buffer, &rtcp_psfb_afb->map, flags);
 
-  return TRUE;
+  return gst_buffer_map (buffer, &rtcp_psfb_afb->map, flags);
 }
 
 gboolean
