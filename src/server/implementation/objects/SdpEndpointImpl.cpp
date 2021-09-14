@@ -84,7 +84,15 @@ append_codec_to_array (GArray *array, const char *codec)
   GstStructure *s;
 
   g_value_init (&v, GST_TYPE_STRUCTURE);
+
   s = gst_structure_new_empty (codec);
+  if (s == NULL) {
+    std::string message =
+        std::string () + "Invalid codec name in config: '" + codec + "'";
+    GST_ERROR ("%s", message.c_str ());
+    throw KurentoException (SDP_PARSE_ERROR, message);
+  }
+
   gst_value_set_structure (&v, s);
   gst_structure_free (s);
   g_array_append_val (array, v);
