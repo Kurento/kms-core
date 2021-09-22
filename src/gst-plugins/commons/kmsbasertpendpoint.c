@@ -240,6 +240,8 @@ struct _KmsBaseRtpEndpointPrivate
 
   /* RTP settings */
   guint mtu;
+  gchar *external_ipv4;
+  gchar *external_ipv6;
 
   /* RTP statistics */
   KmsBaseRTPStats stats;
@@ -274,9 +276,11 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define DEFAULT_RTCP_REMB    FALSE
 #define DEFAULT_TARGET_BITRATE    0
 #define MIN_VIDEO_RECV_BW_DEFAULT 0
-#define MIN_VIDEO_SEND_BW_DEFAULT 100  // kbps
-#define MAX_VIDEO_SEND_BW_DEFAULT 500  // kbps
-#define DEFAULT_MTU 1200 // Bytes
+#define MIN_VIDEO_SEND_BW_DEFAULT 100   // kbps
+#define MAX_VIDEO_SEND_BW_DEFAULT 500   // kbps
+#define DEFAULT_MTU 1200        // Bytes
+#define DEFAULT_EXTERNAL_IPV4 NULL
+#define DEFAULT_EXTERNAL_IPV6 NULL
 
 enum
 {
@@ -295,6 +299,8 @@ enum
   PROP_SUPPORT_FEC,
   PROP_OFFER_DIR,
   PROP_MTU,
+  PROP_EXTERNAL_IPV4,
+  PROP_EXTERNAL_IPV6,
   PROP_LAST
 };
 
@@ -1037,8 +1043,8 @@ end:
 }
 
 static void
-kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
-    KmsBaseRtpSession *sess)
+kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint * self,
+    KmsBaseRtpSession * sess)
 {
   GstPad *pad;
 
@@ -1046,13 +1052,15 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
     /* TODO: support more than one media with REMB */
     GST_WARNING_OBJECT (self, "Only support for one media with REMB");
 
-    typedef struct {
+    typedef struct
+    {
       void *p;
       guint ssrc;
-    } Dummy; // Same as KmsRlRemoteSession
+    } Dummy;                    // Same as KmsRlRemoteSession
     Dummy *rlrs = g_slist_nth_data (self->priv->rl->remote_sessions, 0);
+
     GST_WARNING_OBJECT (self, "REMB is already in use for remote video SSRC %u",
-                        rlrs->ssrc);
+        rlrs->ssrc);
     return;
   }
 
@@ -1060,11 +1068,15 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
   guint id = base_sess->id;
   gchar *id_str = base_sess->id_str;
   guint32 remote_video_ssrc = sess->remote_video_ssrc;
-  GST_INFO_OBJECT (self, "Creating REMB for session ID %u (%s) and remote video SSRC %u",
-                      id, id_str, remote_video_ssrc);
 
-  GObject *rtpsession = kms_base_rtp_endpoint_get_internal_session (
-      KMS_BASE_RTP_ENDPOINT(self), VIDEO_RTP_SESSION);
+  GST_INFO_OBJECT (self,
+      "Creating REMB for session ID %u (%s) and remote video SSRC %u", id,
+      id_str, remote_video_ssrc);
+
+  GObject *rtpsession =
+      kms_base_rtp_endpoint_get_internal_session (KMS_BASE_RTP_ENDPOINT (self),
+      VIDEO_RTP_SESSION);
+
   if (rtpsession == NULL) {
     return;
   }
@@ -1077,6 +1089,7 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
       RTCP_MIN_INTERVAL * GST_MSECOND, NULL);
 
   guint max_recv_bw;
+
   g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
   self->priv->rl =
       kms_remb_local_create (rtpsession, self->priv->min_video_recv_bw,
@@ -1084,11 +1097,12 @@ kms_base_rtp_endpoint_create_remb_manager (KmsBaseRtpEndpoint *self,
   kms_remb_local_add_remote_session (self->priv->rl, rtpsession,
       sess->remote_video_ssrc);
 
-  pad = gst_element_get_static_pad (self->priv->rtpbin, VIDEO_RTPBIN_SEND_RTP_SINK);
+  pad =
+      gst_element_get_static_pad (self->priv->rtpbin,
+      VIDEO_RTPBIN_SEND_RTP_SINK);
   self->priv->rm =
-      kms_remb_remote_create (rtpsession,
-      self->priv->video_config->local_ssrc, self->priv->min_video_send_bw,
-      self->priv->max_video_send_bw, pad);
+      kms_remb_remote_create (rtpsession, self->priv->video_config->local_ssrc,
+      self->priv->min_video_send_bw, self->priv->max_video_send_bw, pad);
   g_object_unref (pad);
   g_object_unref (rtpsession);
 
@@ -1110,11 +1124,13 @@ kms_base_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *
   kms_base_rtp_session_start_transport_send (base_rtp_sess, offerer);
 
   guint len = gst_sdp_message_medias_len (sess->neg_sdp);
+
   for (guint i = 0; i < len; i++) {
     const GstSDPMedia *media = gst_sdp_message_get_media (sess->neg_sdp, i);
 
     if (sdp_utils_media_has_remb (media)) {
       const gchar *media_str = gst_sdp_media_get_media (media);
+
       GST_INFO_OBJECT (self, "Media '%s' has REMB", media_str);
       kms_base_rtp_endpoint_create_remb_manager (self, base_rtp_sess);
     }
@@ -1678,13 +1694,14 @@ complement_caps_with_fmtp_attrs (GstCaps * caps, const gchar * fmtp_attr)
     }
 
     const gintptr index_ptr = index_of (vars[i], '=');
+
     if (index_ptr < 0) {
       // vars[i] == "onlykey"
       // Skip, not a "key=value" attribute
       continue;
     }
 
-    const gsize index = (gsize)index_ptr;
+    const gsize index = (gsize) index_ptr;
 
     gchar *key = g_strndup (vars[i], index);
     gchar *value = g_strndup (vars[i] + index + 1,
@@ -1941,8 +1958,7 @@ kms_base_rtp_endpoint_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info,
     buffer = gst_buffer_make_writable (buffer);
     kms_rtp_synchronizer_process_rtp_buffer_writable (sync, buffer, NULL);
     GST_PAD_PROBE_INFO_DATA (info) = buffer;
-  }
-  else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
     GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     list = gst_buffer_list_make_writable (list);
@@ -1986,8 +2002,7 @@ kms_base_rtp_endpoint_sync_rtcp_probe (GstPad * pad, GstPadProbeInfo * info,
     GstBuffer *buffer = gst_pad_probe_info_get_buffer (info);
 
     kms_rtp_synchronizer_process_rtcp_buffer (sync, buffer, NULL);
-  }
-  else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
+  } else if (GST_PAD_PROBE_INFO_TYPE (info) & GST_PAD_PROBE_TYPE_BUFFER_LIST) {
     GstBufferList *list = gst_pad_probe_info_get_buffer_list (info);
 
     gst_buffer_list_foreach (list,
@@ -2020,11 +2035,11 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
   KmsRTPSessionStats *rtp_stats;
   KmsSSRCStats *ssrc_stats;
 
-  g_object_set (jitterbuffer, "mode", 4 /* synced */, "do-lost", TRUE,
+  g_object_set (jitterbuffer, "mode", 4 /* synced */ , "do-lost", TRUE,
       "latency", JB_INITIAL_LATENCY, NULL);
 
   switch (session) {
-    case AUDIO_RTP_SESSION: {
+    case AUDIO_RTP_SESSION:{
       kms_base_rtp_endpoint_jitterbuffer_set_latency (jitterbuffer,
           JB_READY_AUDIO_LATENCY);
 
@@ -2037,7 +2052,7 @@ kms_base_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
 
       break;
     }
-    case VIDEO_RTP_SESSION: {
+    case VIDEO_RTP_SESSION:{
       kms_base_rtp_endpoint_jitterbuffer_set_latency (jitterbuffer,
           JB_READY_VIDEO_LATENCY);
 
@@ -2245,10 +2260,10 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
     const gchar *id;
 
     // FIXME 'g_value_array_get_nth' is deprecated: Use 'GArray' instead
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     val = g_value_array_get_nth (arr, i);
-    #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
     source = g_value_get_object (val);
 
@@ -2317,10 +2332,10 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
   }
 
   // FIXME 'g_value_array_free' is deprecated: Use 'GArray' instead
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   g_value_array_free (arr);
-  #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
   str_session = g_strdup_printf ("session-%u", GPOINTER_TO_UINT (session));
   gst_structure_set (stats, str_session, GST_TYPE_STRUCTURE, session_stats,
@@ -2391,6 +2406,7 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       guint v = g_value_get_uint (value);
 
       guint max_recv_bw;
+
       g_object_get (self, "max-video-recv-bandwidth", &max_recv_bw, NULL);
 
       if (max_recv_bw != 0 && v > max_recv_bw) {
@@ -2448,7 +2464,8 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       if (v >= self->priv->max_port) {
         v = self->priv->max_port - 1;
         GST_WARNING_OBJECT (object,
-            "Trying to set min-port >= max-port. Setting %" G_GUINT32_FORMAT, v);
+            "Trying to set min-port >= max-port. Setting %" G_GUINT32_FORMAT,
+            v);
       }
 
       if (v < DEFAULT_MIN_PORT) {
@@ -2466,7 +2483,8 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
       if (v <= self->priv->min_port) {
         v = self->priv->min_port + 1;
         GST_WARNING_OBJECT (object,
-            "Trying to set max-port <= min-port. Setting %" G_GUINT32_FORMAT, v);
+            "Trying to set max-port <= min-port. Setting %" G_GUINT32_FORMAT,
+            v);
       }
 
       if (v > DEFAULT_MAX_PORT) {
@@ -2480,6 +2498,14 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     }
     case PROP_MTU:
       self->priv->mtu = g_value_get_uint (value);
+      break;
+    case PROP_EXTERNAL_IPV4:
+      g_free (self->priv->external_ipv4);
+      self->priv->external_ipv4 = g_value_dup_string (value);
+      break;
+    case PROP_EXTERNAL_IPV6:
+      g_free (self->priv->external_ipv6);
+      self->priv->external_ipv6 = g_value_dup_string (value);
       break;
     case PROP_OFFER_DIR:
       self->priv->offer_dir = g_value_get_enum (value);
@@ -2549,6 +2575,12 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_MTU:
       g_value_set_uint (value, self->priv->mtu);
+      break;
+    case PROP_EXTERNAL_IPV4:
+      g_value_set_string (value, self->priv->external_ipv4);
+      break;
+    case PROP_EXTERNAL_IPV6:
+      g_value_set_string (value, self->priv->external_ipv6);
       break;
     case PROP_SUPPORT_FEC:
       g_value_set_boolean (value, self->priv->support_fec);
@@ -2882,9 +2914,9 @@ kms_base_rtp_endpoint_constructed (GObject * gobject)
   self->priv->sync_video = kms_rtp_synchronizer_new (TRUE, video_name);
   self->priv->perform_video_sync = TRUE;
 
-  g_free(video_name);
-  g_free(audio_name);
-  g_free(self_name);
+  g_free (video_name);
+  g_free (audio_name);
+  g_free (self_name);
 }
 
 static void
@@ -3009,6 +3041,18 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
           "Maximum Transmission Unit (MTU) used for RTP",
           0, G_MAXUINT, DEFAULT_MTU,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_EXTERNAL_IPV4,
+      g_param_spec_string ("external-ipv4",
+          "externalIPv4",
+          "External (public) IPv4 address of the media server",
+          DEFAULT_EXTERNAL_IPV4, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_EXTERNAL_IPV6,
+      g_param_spec_string ("external-ipv6",
+          "externalIPv6",
+          "External (public) IPv6 address of the media server",
+          DEFAULT_EXTERNAL_IPV6, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_SUPPORT_FEC,
       g_param_spec_boolean ("support-fec", "Forward error correction supported",
@@ -3491,22 +3535,23 @@ kms_base_rtp_endpoint_init (KmsBaseRtpEndpoint * self)
   self->priv->max_port = DEFAULT_MAX_PORT;
 
   self->priv->mtu = DEFAULT_MTU;
+  self->priv->external_ipv4 = DEFAULT_EXTERNAL_IPV4;
+  self->priv->external_ipv6 = DEFAULT_EXTERNAL_IPV6;
 
   self->priv->offer_dir = DEFAULT_OFFER_DIR;
 }
 
 GObject *
-kms_base_rtp_endpoint_get_internal_session (KmsBaseRtpEndpoint *self,
+kms_base_rtp_endpoint_get_internal_session (KmsBaseRtpEndpoint * self,
     guint session_id)
 {
-  GstElement *rtpbin = self->priv->rtpbin; // GstRtpBin*
-  GObject *rtpsession = NULL; // RTPSession* from GstRtpBin->GstRtpSession
+  GstElement *rtpbin = self->priv->rtpbin;      // GstRtpBin*
+  GObject *rtpsession = NULL;   // RTPSession* from GstRtpBin->GstRtpSession
 
   g_signal_emit_by_name (rtpbin, "get-internal-session", session_id,
       &rtpsession);
   if (rtpsession == NULL) {
-    GST_WARNING_OBJECT (self, "GstRtpBin: No RTP session, id: %u",
-        session_id);
+    GST_WARNING_OBJECT (self, "GstRtpBin: No RTP session, id: %u", session_id);
   }
 
   return rtpsession;

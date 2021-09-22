@@ -67,6 +67,12 @@ public:
   virtual int getMtu ();
   virtual void setMtu (int mtu);
 
+  virtual std::string getExternalIPv4 ();
+  virtual void setExternalIPv4 (const std::string &externalIPv4);
+
+  virtual std::string getExternalIPv6 ();
+  virtual void setExternalIPv6 (const std::string &externalIPv6);
+
   sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
   sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
 
