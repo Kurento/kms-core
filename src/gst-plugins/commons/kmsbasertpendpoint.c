@@ -901,7 +901,7 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
     KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  const gchar *media_str = gst_sdp_media_get_media (media);
+  const gchar *media_str = media ? gst_sdp_media_get_media (media) : NULL;
   GstPad *pad;
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
@@ -913,8 +913,15 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
         gst_element_get_request_pad (self->priv->rtpbin,
         VIDEO_RTPBIN_RECV_RTP_SINK);
   } else {
-    GST_ERROR_OBJECT (self, "'%s' not valid", media_str);
-    return NULL;
+    GST_WARNING_OBJECT (self, "Unknown Media RTP will be discarded: '%s'",
+        GST_STR_NULL (media_str));
+
+    GstElement *fakesink =
+        kms_utils_element_factory_make ("fakesink", "basertpendpoint");
+    g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent (fakesink);
+    pad = gst_element_get_static_pad (fakesink, "sink");
   }
 
   return pad;
@@ -967,7 +974,7 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
     KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  const gchar *media_str = gst_sdp_media_get_media (media);
+  const gchar *media_str = media ? gst_sdp_media_get_media (media) : NULL;
   GstPad *pad;
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
@@ -979,8 +986,15 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
         gst_element_get_request_pad (self->priv->rtpbin,
         VIDEO_RTPBIN_RECV_RTCP_SINK);
   } else {
-    GST_ERROR_OBJECT (self, "'%s' not valid", media_str);
-    return NULL;
+    GST_WARNING_OBJECT (self, "Unknown Media RTCP will be discarded: '%s'",
+        GST_STR_NULL (media_str));
+
+    GstElement *fakesink =
+        kms_utils_element_factory_make ("fakesink", "basertpendpoint");
+    g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent (fakesink);
+    pad = gst_element_get_static_pad (fakesink, "sink");
   }
 
   return pad;
