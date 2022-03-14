@@ -366,13 +366,16 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
       || ssrcs_are_mapped (ssrcdemux, self->local_video_ssrc, ssrc)) {
     media = self->video_neg;
   } else {
-    if (!kms_i_rtp_session_manager_custom_ssrc_management (self->manager, self,
+    if (kms_i_rtp_session_manager_custom_ssrc_management (self->manager, self,
             ssrcdemux, ssrc, pad)) {
+      goto end;
+    } else {
       GST_ERROR_OBJECT (self,
-          "Remote SSRC %u in RTCP doesn't match any SDP media",
+          "Remote SSRC %u doesn't match any SDP media; DATA WILL BE DROPPED",
           ssrc);
+
+      media = NULL;
     }
-    goto end;
   }
 
   /* RTP */

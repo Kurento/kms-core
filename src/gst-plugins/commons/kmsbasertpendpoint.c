@@ -901,7 +901,7 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
     KmsBaseRtpSession * sess, const GstSDPMedia * media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  const gchar *media_str = gst_sdp_media_get_media (media);
+  const gchar *media_str = media ? gst_sdp_media_get_media (media) : NULL;
   GstPad *pad;
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
@@ -919,8 +919,15 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
           VIDEO_RTPBIN_RECV_RTP_SINK);
     }
   } else {
-    GST_ERROR_OBJECT (self, "'%s' not valid", media_str);
-    return NULL;
+    GST_WARNING_OBJECT (self, "Discarding all RTP from unknown media: '%s'",
+        GST_STR_NULL (media_str));
+
+    GstElement *fakesink =
+        kms_utils_element_factory_make ("fakesink", "basertpendpoint");
+    g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent (fakesink);
+    pad = gst_element_get_static_pad (fakesink, "sink");
   }
 
   return pad;
@@ -974,7 +981,7 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager *manager,
     const GstSDPMedia *media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
-  const gchar *media_str = gst_sdp_media_get_media (media);
+  const gchar *media_str = media ? gst_sdp_media_get_media (media) : NULL;
 
   gchar *pad_name = NULL;
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
@@ -982,8 +989,15 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager *manager,
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
     pad_name = g_strdup (VIDEO_RTPBIN_RECV_RTCP_SINK);
   } else {
-    GST_ERROR_OBJECT (self, "Invalid media kind: '%s'", media_str);
-    return NULL;
+    GST_WARNING_OBJECT (self, "Discarding all RTCP from unknown media: '%s'",
+        GST_STR_NULL (media_str));
+
+    GstElement *fakesink =
+        kms_utils_element_factory_make ("fakesink", "basertpendpoint");
+    g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent (fakesink);
+    return gst_element_get_static_pad (fakesink, "sink");
   }
 
   GstPad *rtpbin_sink =
@@ -2265,12 +2279,12 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
 
   for (i = 0; i < arr->n_values; i++) {
     GstElement *jitter_buffer;
-    GstStructure *ssrc_stats;
+    GstStructure *source_stats;
     gboolean internal;
     GObject *source;
     GValue *val;
     gchar *name;
-    guint ssrc;
+    guint source_ssrc;
     const gchar *id;
 
     // FIXME 'g_value_array_get_nth' is deprecated: Use 'GArray' instead
@@ -2281,10 +2295,19 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
 
     source = g_value_get_object (val);
 
-    g_object_get (source, "stats", &ssrc_stats, "ssrc", &ssrc, NULL);
-    gst_structure_get (ssrc_stats, "internal", G_TYPE_BOOLEAN, &internal, NULL);
+    // GStreamer RTPSource stats: https://gstreamer.freedesktop.org/documentation/rtpmanager/RTPSource.html#RTPSource:stats
+    // WebRTC Stats: https://www.w3.org/TR/webrtc-stats/
+    //
+    // The combination of "internal" and "is-sender" tells the equivalence with RTCStatsType:
+    // * internal && is-sender: "outbound-rtp".
+    // * internal && !is-sender: "inbound-rtp".
+    // * !internal && is-sender: "remote-outbound-rtp".
+    // * !internal && !is-sender: "remote-inbound-rtp".
 
-    name = g_strdup_printf ("ssrc-%u", ssrc);
+    g_object_get (source, "stats", &source_stats, "ssrc", &source_ssrc, NULL);
+    gst_structure_get (source_stats, "internal", G_TYPE_BOOLEAN, &internal, NULL);
+
+    name = g_strdup_printf ("ssrc-%u", source_ssrc);
 
     if (internal) {
       if (ssrc_id == NULL) {
@@ -2294,13 +2317,13 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
             GPOINTER_TO_UINT (session));
       }
     } else {
-      gst_structure_get (ssrc_stats, "rb-round-trip", G_TYPE_UINT, &rtt,
+      gst_structure_get (source_stats, "rb-round-trip", G_TYPE_UINT, &rtt,
           "rb-fractionlost", G_TYPE_UINT, &f_lost, "rb-packetslost", G_TYPE_INT,
           &p_lost, NULL);
     }
 
     if (filter_rtp_source (rtp_stats->direction, internal)) {
-      gst_structure_free (ssrc_stats);
+      gst_structure_free (source_stats);
       g_free (name);
       continue;
     }
@@ -2315,18 +2338,18 @@ append_rtp_session_stats (gpointer * session, KmsRTPSessionStats * rtp_stats,
       id = kms_utils_get_uuid (source);
     }
 
-    gst_structure_set (ssrc_stats, "id", G_TYPE_STRING, id, NULL);
+    gst_structure_set (source_stats, "id", G_TYPE_STRING, id, NULL);
 
-    jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, ssrc);
+    jitter_buffer = rtp_session_stats_get_jitter_buffer (rtp_stats, source_ssrc);
 
     if (jitter_buffer != NULL) {
-      ssrc_stats_add_jitter_stats (ssrc_stats, jitter_buffer);
+      ssrc_stats_add_jitter_stats (source_stats, jitter_buffer);
     }
 
-    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, ssrc_stats,
+    gst_structure_set (session_stats, name, GST_TYPE_STRUCTURE, source_stats,
         NULL);
 
-    gst_structure_free (ssrc_stats);
+    gst_structure_free (source_stats);
     g_free (name);
   }
 
@@ -2807,20 +2830,20 @@ static GstStructure *
 kms_base_rtp_endpoint_stats (KmsElement * obj, gchar * selector)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (obj);
-  GstStructure *stats, *rtp_stats, *e_stats, *l_stats;
+  GstStructure *stats, *rtc_stats, *e_stats, *l_stats;
 
   /* chain up */
   stats =
       KMS_ELEMENT_CLASS (kms_base_rtp_endpoint_parent_class)->stats (obj,
       selector);
 
-  rtp_stats = gst_structure_new_empty (KMS_RTP_STRUCT_NAME);
-  kms_base_rtp_endpoint_add_rtp_stats (self, rtp_stats, selector);
-  kms_base_rtp_endpoint_append_remb_stats (self, rtp_stats, selector);
+  rtc_stats = gst_structure_new_empty (KMS_RTP_STRUCT_NAME);
+  kms_base_rtp_endpoint_add_rtp_stats (self, rtc_stats, selector);
+  kms_base_rtp_endpoint_append_remb_stats (self, rtc_stats, selector);
 
   gst_structure_set (stats, KMS_RTC_STATISTICS_FIELD, GST_TYPE_STRUCTURE,
-      rtp_stats, NULL);
-  gst_structure_free (rtp_stats);
+      rtc_stats, NULL);
+  gst_structure_free (rtc_stats);
 
   if (!self->priv->stats.enabled) {
     return stats;
