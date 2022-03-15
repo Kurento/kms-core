@@ -314,49 +314,49 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
   if (rembParams->isSetPacketsRecvIntervalTop () ) {
     gst_structure_set (params, "packets-recv-interval-top", G_TYPE_INT,
                        rembParams->getPacketsRecvIntervalTop(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'packets-recv-interval-top' value %d",
+    GST_DEBUG_OBJECT (element, "New 'packetsRecvIntervalTop' value: %d",
                       rembParams->getPacketsRecvIntervalTop() );
   }
 
   if (rembParams->isSetExponentialFactor () ) {
     gst_structure_set (params, "exponential-factor", G_TYPE_FLOAT,
                        rembParams->getExponentialFactor(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'exponential-factor' value %g",
+    GST_DEBUG_OBJECT (element, "New 'exponentialFactor' value: %g",
                       rembParams->getExponentialFactor() );
   }
 
   if (rembParams->isSetLinealFactorMin () ) {
     gst_structure_set (params, "lineal-factor-min", G_TYPE_INT,
                        rembParams->getLinealFactorMin(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'lineal-factor-min' value %d",
+    GST_DEBUG_OBJECT (element, "New 'linealFactorMin' value: %d",
                       rembParams->getLinealFactorMin() );
   }
 
   if (rembParams->isSetLinealFactorGrade () ) {
     gst_structure_set (params, "lineal-factor-grade", G_TYPE_FLOAT,
                        rembParams->getLinealFactorGrade(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'lineal-factor-grade' value %g",
+    GST_DEBUG_OBJECT (element, "New 'linealFactorGrade' value: %g",
                       rembParams->getLinealFactorGrade() );
   }
 
   if (rembParams->isSetDecrementFactor () ) {
     gst_structure_set (params, "decrement-factor", G_TYPE_FLOAT,
                        rembParams->getDecrementFactor(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'decrement-factor' value %g",
+    GST_DEBUG_OBJECT (element, "New 'decrementFactor' value: %g",
                       rembParams->getDecrementFactor() );
   }
 
   if (rembParams->isSetThresholdFactor () ) {
     gst_structure_set (params, "threshold-factor", G_TYPE_FLOAT,
                        rembParams->getThresholdFactor(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'threshold-factor' value %g",
+    GST_DEBUG_OBJECT (element, "New 'thresholdFactor' value: %g",
                       rembParams->getThresholdFactor() );
   }
 
   if (rembParams->isSetUpLosses () ) {
     gst_structure_set (params, "up-losses", G_TYPE_INT,
                        rembParams->getUpLosses(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'up-losses' value %d",
+    GST_DEBUG_OBJECT (element, "New 'upLosses' value: %d",
                       rembParams->getUpLosses() );
   }
 
@@ -366,7 +366,7 @@ BaseRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
   if (rembParams->isSetRembOnConnect () ) {
     gst_structure_set (params, "remb-on-connect", G_TYPE_INT,
                        rembParams->getRembOnConnect(), NULL);
-    GST_DEBUG_OBJECT (element, "New 'remb-on-connect' value %d",
+    GST_DEBUG_OBJECT (element, "New 'rembOnConnect' value: %d",
                       rembParams->getRembOnConnect() );
   }
 
@@ -397,7 +397,10 @@ BaseRtpEndpointImpl::setMtu (int mtu)
 /* RTC statistics */
 /******************/
 static std::shared_ptr<RTCInboundRTPStreamStats>
-createRTCInboundRTPStreamStats (const GstStructure *stats)
+createRTCInboundRTPStreamStats (const GstStructure *source_stats,
+    gchar *id,
+    gchar *ssrc,
+    guint nackCount)
 {
   guint64 bytesReceived, packetsReceived;
   guint jitter, fractionLost, pliCount, firCount, remb;
@@ -409,12 +412,14 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
   bytesReceived = packetsReceived = G_GUINT64_CONSTANT (0);
   jitterSec = 0.0;
 
-  gst_structure_get (stats, "packets-received", G_TYPE_UINT64, &packetsReceived,
+  gst_structure_get (source_stats,
+                     "packets-received", G_TYPE_UINT64, &packetsReceived,
                      "octets-received", G_TYPE_UINT64, &bytesReceived,
                      "sent-rb-packetslost", G_TYPE_INT, &packetLost,
                      "sent-rb-fractionlost", G_TYPE_UINT, &fractionLost,
                      "clock-rate", G_TYPE_INT, &clock_rate,
-                     "jitter", G_TYPE_UINT, &jitter, NULL);
+                     "jitter", G_TYPE_UINT, &jitter,
+                     NULL);
 
   /* jitter is computed in timestamp units. Convert it to seconds */
   if (clock_rate > 0) {
@@ -423,24 +428,26 @@ createRTCInboundRTPStreamStats (const GstStructure *stats)
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
+  if (!gst_structure_get (source_stats, "sent-pli-count", G_TYPE_UINT, &pliCount,
                           "sent-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
-  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+  if (!gst_structure_get (source_stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
     GST_TRACE ("No remb stats collected");
   }
 
-  return std::make_shared <RTCInboundRTPStreamStats> ("",
-         std::make_shared <StatsType> (StatsType::inboundrtp), 0.0, 0, "",
-         "", false, "", "", "", firCount, pliCount, 0, 0, remb,
-         packetLost, (float) fractionLost, packetsReceived, bytesReceived,
-         jitterSec);
+  return std::make_shared<RTCInboundRTPStreamStats> (id,
+      std::make_shared<StatsType> (StatsType::inboundrtp), 0.0, 0, ssrc, "",
+      false, "", "", "", firCount, pliCount, nackCount, 0, remb, packetLost,
+      (float)fractionLost, packetsReceived, bytesReceived, jitterSec);
 }
 
 static std::shared_ptr<RTCOutboundRTPStreamStats>
-createRTCOutboundRTPStreamStats (const GstStructure *stats)
+createRTCOutboundRTPStreamStats (const GstStructure *source_stats,
+    gchar *id,
+    gchar *ssrc,
+    guint nackCount)
 {
   guint64 bytesSent, packetsSent, bitRate;
   guint pliCount, firCount, remb, rtt, fractionLost;
@@ -450,62 +457,61 @@ createRTCOutboundRTPStreamStats (const GstStructure *stats)
   bytesSent = packetsSent = bitRate = G_GUINT64_CONSTANT (0);
   pliCount = firCount = remb = rtt = 0;
 
-  gst_structure_get (stats, "packets-sent", G_TYPE_UINT64, &packetsSent,
-                     "octets-sent", G_TYPE_UINT64, &bytesSent, "bitrate",
-                     G_TYPE_UINT64, &bitRate, "round-trip-time", G_TYPE_UINT,
-                     &rtt, "outbound-fraction-lost", G_TYPE_UINT, &fractionLost,
-                     "outbound-packet-lost", G_TYPE_INT, &packetLost, NULL);
+  gst_structure_get (source_stats,
+                     "packets-sent", G_TYPE_UINT64, &packetsSent,
+                     "octets-sent", G_TYPE_UINT64, &bytesSent,
+                     "bitrate", G_TYPE_UINT64, &bitRate,
+                     "round-trip-time", G_TYPE_UINT, &rtt,
+                     "outbound-fraction-lost", G_TYPE_UINT, &fractionLost,
+                     "outbound-packet-lost", G_TYPE_INT, &packetLost,
+                     NULL);
 
   /* the round-trip time (in NTP Short Format, 16.16 fixed point) */
   roundTripTime = FP2D (rtt);
 
   /* Next fields are only available with PLI and FIR statistics patches so */
   /* hey are prone to fail if these patches are not applied in Gstreamer */
-  if (!gst_structure_get (stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
+  if (!gst_structure_get (source_stats, "recv-pli-count", G_TYPE_UINT, &pliCount,
                           "recv-fir-count", G_TYPE_UINT, &firCount, NULL) ) {
     GST_WARNING ("Current version of gstreamer has neither PLI nor FIR statistics patches applied.");
   }
 
-  if (!gst_structure_get (stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
+  if (!gst_structure_get (source_stats, "remb", G_TYPE_UINT, &remb, NULL) ) {
     GST_TRACE ("No remb stats collected");
   }
 
-  return std::make_shared <RTCOutboundRTPStreamStats> ("",
-         std::make_shared <StatsType> (StatsType::outboundrtp), 0.0, 0, "",
-         "", false, "", "", "", firCount, pliCount, 0, 0, remb, packetLost,
-         (float) fractionLost, packetsSent, bytesSent, (float) bitRate,
-         roundTripTime);
+  return std::make_shared<RTCOutboundRTPStreamStats> (id,
+      std::make_shared<StatsType> (StatsType::outboundrtp), 0.0, 0, ssrc, "",
+      false, "", "", "", firCount, pliCount, nackCount, 0, remb, packetLost,
+      (float)fractionLost, packetsSent, bytesSent, (float)bitRate,
+      roundTripTime);
 }
 
 static std::shared_ptr<RTCRTPStreamStats>
 createRTCRTPStreamStats (guint nackSent, guint nackRecv,
-                         const GstStructure *stats)
+                         const GstStructure *source_stats)
 {
   std::shared_ptr<RTCRTPStreamStats> rtcStats;
-  gboolean isInternal;
-  gchar *ssrcStr, *id;
-  uint ssrc, nackCount;
+  gboolean internal;
+  gchar *id, *ssrc_str;
+  guint ssrc;
 
-  gst_structure_get (stats, "ssrc", G_TYPE_UINT, &ssrc, "internal",
-                     G_TYPE_BOOLEAN, &isInternal, "id", G_TYPE_STRING, &id, NULL);
+  gst_structure_get (source_stats, "ssrc", G_TYPE_UINT, &ssrc, "internal",
+                     G_TYPE_BOOLEAN, &internal, "id", G_TYPE_STRING, &id, NULL);
 
-  ssrcStr = g_strdup_printf ("%u", ssrc);
+  ssrc_str = g_strdup_printf ("%u", ssrc);
 
-  if (isInternal) {
+  if (internal) {
     /* Local SSRC */
-    rtcStats = createRTCOutboundRTPStreamStats (stats);
-    nackCount = nackRecv;
+    rtcStats =
+        createRTCOutboundRTPStreamStats (source_stats, id, ssrc_str, nackRecv);
   } else {
     /* Remote SSRC */
-    rtcStats = createRTCInboundRTPStreamStats (stats);
-    nackCount = nackSent;
+    rtcStats =
+        createRTCInboundRTPStreamStats (source_stats, id, ssrc_str, nackSent);
   }
 
-  rtcStats->setNackCount (nackCount);
-  rtcStats->setSsrc (ssrcStr);
-  rtcStats->setId (id);
-
-  g_free (ssrcStr);
+  g_free (ssrc_str);
   g_free (id);
 
   return rtcStats;
@@ -514,30 +520,31 @@ createRTCRTPStreamStats (guint nackSent, guint nackRecv,
 static void
 collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
                           &statsReport, double timestamp,
-                          int64_t timestampMillis, const GstStructure *stats)
+                          int64_t timestampMillis, const GstStructure *session_stats)
 {
   guint nackSent, nackRecv;
   gint i, n;
 
   nackSent = nackRecv = 0;
 
-  gst_structure_get (stats, "sent-nack-count", G_TYPE_UINT, &nackSent,
+  gst_structure_get (session_stats, "sent-nack-count", G_TYPE_UINT, &nackSent,
                      "recv-nack-count", G_TYPE_UINT, &nackRecv, NULL);
 
-  n = gst_structure_n_fields (stats);
+  n = gst_structure_n_fields (session_stats);
 
   for (i = 0; i < n; i++) {
     std::shared_ptr<RTCStats> rtcStats;
     const GValue *value;
     const gchar *name;
 
-    name = gst_structure_nth_field_name (stats, i);
+    name = gst_structure_nth_field_name (session_stats, i);
 
+    // Check field name as set by kmsbasertpendpoint in `append_rtp_session_stats()`.
     if (!g_str_has_prefix (name, KMS_STATISTIC_FIELD_PREFIX_SSRC) ) {
       continue;
     }
 
-    value = gst_structure_get_value (stats, name);
+    value = gst_structure_get_value (session_stats, name);
 
     if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
       gchar *str_val;
@@ -562,24 +569,25 @@ collectRTCRTPStreamStats (std::map <std::string, std::shared_ptr<Stats>>
 static void
 collectRTCStats (std::map <std::string, std::shared_ptr<Stats>>
                  &statsReport, double timestamp, int64_t timestampMillis,
-                 const GstStructure *stats)
+                 const GstStructure *rtc_stats)
 {
   gint i, n;
 
-  n = gst_structure_n_fields (stats);
+  n = gst_structure_n_fields (rtc_stats);
 
   for (i = 0; i < n; i++) {
     const GValue *value;
     const gchar *name;
 
-    name = gst_structure_nth_field_name (stats, i);
+    name = gst_structure_nth_field_name (rtc_stats, i);
 
+    // Check field name as set by kmsbasertpendpoint in `append_rtp_session_stats()`.
     if (!g_str_has_prefix (name, KMS_STATISTIC_FIELD_PREFIX_SESSION) ) {
       GST_DEBUG ("Ignoring field %s", name);
       continue;
     }
 
-    value = gst_structure_get_value (stats, name);
+    value = gst_structure_get_value (rtc_stats, name);
 
     if (!GST_VALUE_HOLDS_STRUCTURE (value) ) {
       gchar *str_val;
@@ -614,7 +622,7 @@ setDeprecatedProperties (std::shared_ptr<EndpointStats> eStats)
 void
 BaseRtpEndpointImpl::collectEndpointStats (std::map
     <std::string, std::shared_ptr<Stats>>
-    &statsReport, std::string id, const GstStructure *stats,
+    &statsReport, std::string id, const GstStructure *e_stats,
     double timestamp, int64_t timestampMillis)
 {
   std::shared_ptr<Stats> endpointStats;
@@ -623,7 +631,7 @@ BaseRtpEndpointImpl::collectEndpointStats (std::map
   std::vector<std::shared_ptr<MediaLatencyStat>> inputStats;
   std::vector<std::shared_ptr<MediaLatencyStat>> e2eStats;
 
-  if (gst_structure_get (stats, "e2e-latencies", GST_TYPE_STRUCTURE,
+  if (gst_structure_get (e_stats, "e2e-latencies", GST_TYPE_STRUCTURE,
                          &e2e_stats, NULL) ) {
     collectLatencyStats (e2eStats, e2e_stats);
     gst_structure_free (e2e_stats);

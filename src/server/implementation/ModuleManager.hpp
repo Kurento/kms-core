@@ -88,7 +88,7 @@ public:
   ~ModuleManager () {};
 
   int loadModule (std::string modulePath);
-  void loadModulesFromDirectories (std::string dirPath);
+  void loadModulesFromDirectories (std::string colonSepDirs);
   const std::map <std::string, std::shared_ptr <kurento::Factory > >
   getLoadedFactories ();
   std::shared_ptr<kurento::Factory> getFactory (std::string symbolName);
@@ -102,7 +102,7 @@ private:
 
   std::map <std::string, std::shared_ptr <kurento::Factory > > loadedFactories;
   std::map <std::string, std::shared_ptr <ModuleData>> loadedModules;
-  void loadModules (std::string path);
+  void loadModules (std::string paths);
 
 
   class StaticConstructor

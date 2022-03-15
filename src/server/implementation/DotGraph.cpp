@@ -45,7 +45,7 @@ convert_details (std::shared_ptr<GstreamerDotDetails> details)
 
   case GstreamerDotDetails::SHOW_VERBOSE:
   default:
-    return GST_DEBUG_GRAPH_SHOW_VERBOSE;
+    return GST_DEBUG_GRAPH_SHOW_ALL;
   }
 }
 
