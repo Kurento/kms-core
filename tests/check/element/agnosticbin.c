@@ -1076,8 +1076,7 @@ GST_START_TEST (video_dimension_change)
   GstElement *pipeline =
       gst_parse_launch
       ("videotestsrc is-live=true"
-       "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,"
-       "    width=(int)320,height=(int)240"
+       "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,width=(int)320,height=(int)240"
        "  ! agnosticbin ! capsfilter name=vp8caps caps=video/x-vp8"
        "  ! agnosticbin"
        "  ! fakesink name=sink async=true sync=true signal-handoffs=true",
@@ -1125,8 +1124,7 @@ GST_START_TEST (video_dimension_change_force_output)
   GstElement *pipeline =
       gst_parse_launch
       ("videotestsrc is-live=true"
-       "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,"
-       "    width=(int)320,height=(int)240"
+       "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,width=(int)320,height=(int)240"
        "  ! agnosticbin ! capsfilter name=vp8caps caps=video/x-vp8"
        "  ! agnosticbin ! video/x-vp8,width=(int)320,height=(int)240"
        "  ! fakesink name=sink async=true sync=true signal-handoffs=true",
