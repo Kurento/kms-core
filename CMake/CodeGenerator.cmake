@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 
+# Call hierarchy.
+# Top level (called from Kurento modules, like kms-core)
+# |-- generate_code
+# |   |-- generate_kurento_libraries
+# |   |   |-- generate_sources
+# |   |       |-- execute_code_generator
+# |   |-- get_values_from_model
+# |-- get_values_from_model
+#     |-- execute_code_generator
+
 include (GenericFind)
 
 generic_find(LIBNAME KurentoModuleCreator VERSION ^7.0.0 REQUIRED)
@@ -309,6 +319,9 @@ function (generate_kurento_libraries)
 
   set (ONE_VALUE_PARAMS
     SERVER_STUB_DESTINATION
+
+    # Extra requirements added to auto-generated pkg-config files.
+    # Final users of the module will need to have those dependencies installed.
     SERVER_IMPL_LIB_PKGCONFIG_EXTRA_REQUIRES
   )
 
@@ -325,6 +338,9 @@ function (generate_kurento_libraries)
     MODULE_EXTRA_INCLUDE_DIRS
     MODULE_EXTRA_LIBRARIES
     MODULE_CONFIG_FILES_DIRS
+
+    # Extra requirements added to auto-generated CMake files.
+    # Final users of the module will need to have those dependencies installed.
     SERVER_IMPL_LIB_FIND_CMAKE_EXTRA_LIBRARIES
   )
 
