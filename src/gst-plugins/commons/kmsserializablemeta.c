@@ -20,16 +20,13 @@
 GType
 kms_serializable_meta_api_get_type (void)
 {
-  static volatile GType type;
-  static const gchar *tags[] = { NULL };
-
-  if (g_once_init_enter (&type)) {
-    GType _type = gst_meta_api_type_register ("KmsSerializableMetaAPI", tags);
-
-    g_once_init_leave (&type, _type);
+  static GType initialization_value = 0;
+  if (g_once_init_enter (&initialization_value)) {
+    static const gchar *tags[] = {NULL};
+    GType type = gst_meta_api_type_register ("KmsSerializableMetaAPI", tags);
+    g_once_init_leave (&initialization_value, type);
   }
-
-  return type;
+  return initialization_value;
 }
 
 static gboolean
@@ -77,20 +74,15 @@ kms_serializable_meta_free (GstMeta * meta, GstBuffer * buffer)
 const GstMetaInfo *
 kms_serializable_meta_get_info (void)
 {
-  static const GstMetaInfo *meta_info = NULL;
-
-  if (g_once_init_enter (&meta_info)) {
-    const GstMetaInfo *mi = gst_meta_register (KMS_SERIALIZABLE_META_API_TYPE,
-        "KmsSerializableMeta",
-        sizeof (KmsSerializableMeta),
-        kms_serializable_meta_init,
-        kms_serializable_meta_free,
-        kms_serializable_meta_transform);
-
-    g_once_init_leave (&meta_info, mi);
+  static GstMetaInfo *initialization_value = 0;
+  if (g_once_init_enter (&initialization_value)) {
+    GstMetaInfo *meta_info = (GstMetaInfo *)gst_meta_register (
+        KMS_SERIALIZABLE_META_API_TYPE, "KmsSerializableMeta",
+        sizeof (KmsSerializableMeta), kms_serializable_meta_init,
+        kms_serializable_meta_free, kms_serializable_meta_transform);
+    g_once_init_leave (&initialization_value, meta_info);
   }
-
-  return meta_info;
+  return initialization_value;
 }
 
 KmsSerializableMeta *
