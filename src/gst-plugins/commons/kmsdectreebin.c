@@ -79,8 +79,19 @@ create_decoder_for_caps (const GstCaps * caps, const GstCaps * raw_caps)
 
   for (l = filtered_list; l != NULL && decoder_factory == NULL; l = l->next) {
     decoder_factory = GST_ELEMENT_FACTORY (l->data);
-    if (gst_element_factory_get_num_pad_templates (decoder_factory) != 2)
+    if (gst_element_factory_get_num_pad_templates (decoder_factory) != 2) {
       decoder_factory = NULL;
+    }
+
+    // Verify that the factory can actually consume all input caps.
+    // Introduced for GStreamer 1.20.
+    // Avoid selecting vp8alphadecodebin with VP8 streams that don't contain an
+    // alpha channel. For some reason, the alpha decoding factories pass the
+    // filtering done in gst_element_factory_list_filter() for an input that
+    // doesn't contain alpha channel (and later fails decoding for that reason)
+    if (!gst_element_factory_can_sink_all_caps (decoder_factory, caps)) {
+      decoder_factory = NULL;
+    }
   }
 
   if (decoder_factory != NULL) {
@@ -102,6 +113,11 @@ kms_dec_tree_bin_configure (KmsDecTreeBin * self, const GstCaps * caps,
   GstElement *dec, *output_tee;
   GstPad *pad;
   gchar *name;
+
+  GST_DEBUG_OBJECT (self,
+      "Create decoder for caps: %" GST_PTR_FORMAT
+      ", raw_caps: %" GST_PTR_FORMAT,
+      caps, raw_caps);
 
   dec = create_decoder_for_caps (caps, raw_caps);
   if (dec == NULL) {
