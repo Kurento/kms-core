@@ -16,6 +16,7 @@
  */
 
 #include <gst/check/gstcheck.h>
+#include <gst/video/video-event.h>
 #include <gst/gst.h>
 #include <glib.h>
 
@@ -1003,10 +1004,7 @@ vp8_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
   GstEvent *event = gst_pad_probe_info_get_event (info);
 
   if (GST_EVENT_TYPE (event) == GST_EVENT_CUSTOM_UPSTREAM) {
-    const GstStructure *st = gst_event_get_structure (event);
-    gboolean key_frame_requested =
-        g_strcmp0 (gst_structure_get_name (st), "GstForceKeyUnit") == 0;
-    fail_if (key_frame_requested);
+    fail_if (gst_video_event_is_force_key_unit (event));
   }
 
   return GST_PAD_PROBE_OK;
@@ -1018,10 +1016,23 @@ sink_probe (GstPad * pad, GstPadProbeInfo * info, gpointer pipeline)
   GstEvent *event = gst_pad_probe_info_get_event (info);
   static gboolean first = TRUE;
 
+  if (GST_EVENT_TYPE (event) != GST_EVENT_TAG) {
+    const GstStructure *st = gst_event_get_structure (event);
+    GST_DEBUG_OBJECT (pad, "New event (%p), type: %s, name: %s", event,
+        GST_EVENT_TYPE_NAME (event), gst_structure_get_name (st));
+  }
+
   if (GST_EVENT_TYPE (event) == GST_EVENT_CAPS) {
+    GstCaps *caps = NULL;
+    gst_event_parse_caps (event, &caps);
+
     if (first) {
+      GST_DEBUG_OBJECT (pad,
+          "First caps event -> Ignore, caps: %" GST_PTR_FORMAT, caps);
       first = FALSE;
     } else {
+      GST_DEBUG_OBJECT (pad,
+          "Second caps event -> Finish test, caps: %" GST_PTR_FORMAT, caps);
       g_idle_add (quit_main_loop_idle, loop);
     }
   }
@@ -1036,8 +1047,8 @@ fakesink_on_handoff (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
   static guint count = 0;
   ++count;
 
-  if (count > 20) {
-    g_object_set (fakesink, "signal-handoffs", FALSE, NULL);
+  if (count == 20) {
+    GST_DEBUG_OBJECT (pad, "20 buffers handled: change caps resolution");
 
     // Change dimension
     {
@@ -1047,6 +1058,7 @@ fakesink_on_handoff (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
       GstElement *capsfilter;
       GstElement *vp8caps;
 
+      // Fail if a new keyframe is requested from downstream elements.
       vp8caps = gst_bin_get_by_name (GST_BIN (pipeline), "vp8caps");
       if (vp8caps) {
         GstPad *sink = gst_element_get_static_pad (vp8caps, "sink");
@@ -1055,9 +1067,7 @@ fakesink_on_handoff (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
         g_object_unref (vp8caps);
       }
 
-      // This should trigger a GST_EVENT_CAPS on the fakesink element,
-      // which gets catched by sink_probe() and finishes the test.
-      // If that doesn't happen, then the test will timeout and fail.
+      // This triggers a downstream GST_EVENT_CAPS.
       capsfilter = gst_bin_get_by_name (GST_BIN (pipeline), "capsfilter");
       if (capsfilter) {
         g_object_set (capsfilter, "caps", new_caps, NULL);
@@ -1066,21 +1076,39 @@ fakesink_on_handoff (GstElement * fakesink, GstBuffer * buf, GstPad * pad,
 
       gst_caps_unref (new_caps);
     }
+  } else if (count == 40) {
+    GST_DEBUG_OBJECT (pad, "40 buffers handled: check caps resolution");
+
+    GstPad *pad = gst_element_get_static_pad (fakesink, "sink");
+    GstCaps *caps = gst_pad_get_current_caps (pad);
+    const GstStructure *st = gst_caps_get_structure (caps, 0);
+
+    gint width, height;
+    fail_if (!gst_structure_get_int (st, "width", &width));
+    fail_if (!gst_structure_get_int (st, "height", &height));
+    fail_if (width != 320 || height != 240);
+
+    g_idle_add (quit_main_loop_idle, loop);
+
+    gst_caps_unref (caps);
+    gst_object_unref (pad);
   }
 }
 
 GST_START_TEST (video_dimension_change)
 {
   GstElement *fakesink;
-  GstPad *sink;
   GstElement *pipeline =
       gst_parse_launch
       ("videotestsrc is-live=true"
        "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,width=(int)320,height=(int)240"
-       "  ! agnosticbin ! capsfilter name=vp8caps caps=video/x-vp8"
+       "  ! agnosticbin"
+       "  ! capsfilter name=vp8caps caps=video/x-vp8"
        "  ! agnosticbin"
        "  ! fakesink name=sink async=true sync=true signal-handoffs=true",
        NULL);
+  gst_element_set_name(pipeline, __FUNCTION__);
+
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   loop = g_main_loop_new (NULL, TRUE);
@@ -1089,10 +1117,13 @@ GST_START_TEST (video_dimension_change)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
   fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
-  sink = gst_element_get_static_pad (fakesink, "sink");
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, sink_probe,
-      pipeline, NULL);
-  g_object_unref (sink);
+
+  {
+    GstPad *sink = gst_element_get_static_pad (fakesink, "sink");
+    gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, sink_probe,
+        pipeline, NULL);
+    g_object_unref (sink);
+  }
 
   // The "handoff" handler will accept 20 buffers, and then change
   // the resolution at the input caps to 640x480.
@@ -1103,6 +1134,9 @@ GST_START_TEST (video_dimension_change)
   g_object_unref (fakesink);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
 
   mark_point ();
   g_main_loop_run (loop);
@@ -1120,15 +1154,18 @@ GST_END_TEST;
 GST_START_TEST (video_dimension_change_force_output)
 {
   GstElement *fakesink;
-  GstPad *sink;
   GstElement *pipeline =
       gst_parse_launch
       ("videotestsrc is-live=true"
        "  ! capsfilter name=capsfilter caps=video/x-raw,format=(string)I420,width=(int)320,height=(int)240"
-       "  ! agnosticbin ! capsfilter name=vp8caps caps=video/x-vp8"
-       "  ! agnosticbin ! video/x-vp8,width=(int)320,height=(int)240"
+       "  ! agnosticbin"
+       "  ! capsfilter name=vp8caps caps=video/x-vp8"
+       "  ! agnosticbin"
+       "  ! video/x-vp8,width=(int)320,height=(int)240"
        "  ! fakesink name=sink async=true sync=true signal-handoffs=true",
       NULL);
+  gst_element_set_name(pipeline, __FUNCTION__);
+
   GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
 
   loop = g_main_loop_new (NULL, TRUE);
@@ -1137,21 +1174,21 @@ GST_START_TEST (video_dimension_change_force_output)
   g_signal_connect (bus, "message", G_CALLBACK (bus_msg), pipeline);
 
   fakesink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
-  sink = gst_element_get_static_pad (fakesink, "sink");
-  gst_pad_add_probe (sink, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, sink_probe,
-      pipeline, NULL);
-  g_object_unref (sink);
 
   // The "handoff" handler will accept 20 buffers, and then change
   // the resolution at the input caps to 640x480.
   // This should generate a downstream GST_EVENT_CAPS,
   // and the second "agnosticbin" should reject it because it is configured
   // with explicit resolution of 320x240.
+  // Later, sink_probe() will check that the fakesink resolution didn't change.
   g_signal_connect (G_OBJECT (fakesink), "handoff",
       G_CALLBACK (fakesink_on_handoff), NULL);
   g_object_unref (fakesink);
 
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+  mark_point ();
+  g_timeout_add_seconds (10, timeout_check, pipeline);
 
   mark_point ();
   g_main_loop_run (loop);

@@ -26,12 +26,14 @@ foreach(test ${ALL_TESTS})
 
   target_include_directories(test_${test} PRIVATE
     ${gstreamer-1.0_INCLUDE_DIRS}
+    ${gstreamer-video-1.0_INCLUDE_DIRS}
     ${gstreamer-check-1.0_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}/../../../
   )
 
   target_link_libraries(test_${test}
     ${gstreamer-1.0_LIBRARIES}
+    ${gstreamer-video-1.0_LIBRARIES}
     ${gstreamer-check-1.0_LIBRARIES}
   )
 
