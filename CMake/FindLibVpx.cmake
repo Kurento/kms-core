@@ -14,6 +14,6 @@ find_library(VPX_LIBRARIES
 )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(LIBVPX REQUIRED_VARS VPX_INCLUDE_DIRS VPX_LIBRARIES)
+find_package_handle_standard_args(LibVpx REQUIRED_VARS VPX_INCLUDE_DIRS VPX_LIBRARIES)
 
 mark_as_advanced(VPX_INCLUDE_DIRS VPX_LIBRARIES)
