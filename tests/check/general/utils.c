@@ -249,7 +249,10 @@ GST_END_TEST;
 GST_START_TEST (check_kms_utils_drop_until_keyframe_buffer)
 {
   GstElement *identity = gst_element_factory_make ("identity", NULL);
+
   GstHarness *h = gst_harness_new_with_element (identity, "sink", "src");
+  gst_harness_set_src_caps_str (h, "mycaps");
+
   GstBuffer *buf, *out_buf;
   GstPad *srcpad;
 
@@ -257,19 +260,19 @@ GST_START_TEST (check_kms_utils_drop_until_keyframe_buffer)
   kms_utils_drop_until_keyframe (srcpad, TRUE);
   g_object_unref (srcpad);
 
-  buf = gst_buffer_new ();
+  buf = gst_harness_create_buffer (h, 50);
   GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
   gst_harness_push (h, buf);
   out_buf = gst_harness_try_pull (h);
   fail_unless (out_buf == NULL);
 
-  buf = gst_buffer_new ();
+  buf = gst_harness_create_buffer (h, 50);
   gst_harness_push (h, buf);
   out_buf = gst_harness_try_pull (h);
   fail_unless (out_buf == buf);
   gst_buffer_unref (buf);
 
-  buf = gst_buffer_new ();
+  buf = gst_harness_create_buffer (h, 50);
   GST_BUFFER_FLAG_SET (buf, GST_BUFFER_FLAG_DELTA_UNIT);
   gst_harness_push (h, buf);
   out_buf = gst_harness_try_pull (h);
