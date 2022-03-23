@@ -455,12 +455,14 @@ kms_enc_tree_bin_configure (KmsEncTreeBin * self, const GstCaps * caps,
       codec_configs);
 
   if (self->priv->enc == NULL) {
-    GST_WARNING_OBJECT (self, "Invalid encoder for caps: %" GST_PTR_FORMAT,
-        caps);
+    GST_WARNING_OBJECT (self,
+        "No encoder plugin found for caps: %" GST_PTR_FORMAT, caps);
     return FALSE;
   }
 
-  GST_DEBUG_OBJECT (self, "Encoder found: %" GST_PTR_FORMAT, self->priv->enc);
+  GST_DEBUG_OBJECT (self,
+      "Encoder plugin found: '%" GST_PTR_FORMAT "' for caps: %" GST_PTR_FORMAT,
+      self->priv->enc, caps);
 
   enc_src = gst_element_get_static_pad (self->priv->enc, "src");
   self->priv->remb_manager = kms_utils_remb_event_manager_create (enc_src);
