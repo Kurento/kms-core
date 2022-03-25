@@ -240,11 +240,14 @@ set(REQUIRED_LIBS
   "gstreamer-pbutils-1.0 ${GST_REQUIRED}"
 )
 
-configure_file(FindKmsGstCommons.cmake.in ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake @ONLY)
-
-install(FILES
+configure_file(
+  FindKmsGstCommons.cmake.in
   ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
-  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
+  @ONLY
+)
+install(
+  FILES ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/Kurento
 )
 
 add_subdirectory(sdpagent)

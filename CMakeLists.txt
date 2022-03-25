@@ -3,16 +3,22 @@ cmake_minimum_required(VERSION 2.8)
 project("kms-core")
 message(STATUS "CMake project: ${PROJECT_NAME}")
 
+include(GNUInstallDirs) # CMAKE_INSTALL_*
+
 # Test configuration
 set(GENERATE_TESTS FALSE CACHE BOOL "Always build tests: add `make check_build` to normal `make` calls")
 set(DISABLE_TESTS FALSE CACHE BOOL "Enable running `make check` during the building process")
 set(VALGRIND_NUM_CALLERS 20 CACHE STRING "Valgrind option: maximum number of entries shown in stack traces")
 set(ENABLE_EXPERIMENTAL_TESTS OFF CACHE BOOL "Enable tests that are not yet stable")
 
-message("If KurentoHelpers is not found, you need to install 'kms-cmake-utils' from the Kurento repository")
-find_package(KurentoHelpers REQUIRED)
+find_package(KurentoUtils)
+if(NOT KurentoUtils_FOUND)
+  message(FATAL_ERROR "KurentoUtils not found; please install package 'kms-cmake-utils'")
+endif()
 
-list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+# Add CMake modules provided by the project.
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Kurento")
+
 include(CodeGenerator)
 get_values_from_model(PREFIX VALUE MODELS ${CMAKE_CURRENT_SOURCE_DIR}/src/server/interface KEYS version)
 
@@ -81,7 +87,6 @@ set(VERSION ${PROJECT_VERSION})
 set(PACKAGE ${PROJECT_NAME})
 set(GETTEXT_PACKAGE "kms-core")
 set(MANUAL_CHECK OFF CACHE BOOL "Tests will generate files")
-include(GNUInstallDirs)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DHAVE_CONFIG_H")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
@@ -123,17 +128,11 @@ enable_testing()
 add_subdirectory(src)
 add_subdirectory(tests)
 
+# Kurento CMake modules.
 install(
-  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/CodeGenerator.cmake"
-  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
-)
-
-install(
-  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/FindMaven.cmake"
-  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
-)
-
-install(
-  FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMake/FindNpm.cmake"
-  DESTINATION ${CMAKE_MODULES_INSTALL_DIR}
+  FILES
+    cmake/Kurento/CodeGenerator.cmake
+    cmake/Kurento/FindMaven.cmake
+    cmake/Kurento/FindNpm.cmake
+  DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/Kurento
 )
