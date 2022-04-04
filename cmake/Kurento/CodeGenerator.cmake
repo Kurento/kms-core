@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 
 # Call hierarchy.
 # Top level (called from Kurento modules, like kms-core)
