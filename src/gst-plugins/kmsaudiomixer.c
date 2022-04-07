@@ -533,6 +533,8 @@ kms_audio_mixer_have_type (GstElement * typefind, guint arg0, GstCaps * caps,
   }
 
   audiorate = gst_element_factory_make ("audiorate", NULL);
+  g_object_set (audiorate, "skip-to-first", TRUE, NULL);
+
   agnosticbin = gst_element_factory_make ("agnosticbin", NULL);
   g_object_set_qdata_full (G_OBJECT (agnosticbin), key_sink_pad_name_quark (),
       g_strdup (padname), g_free);
