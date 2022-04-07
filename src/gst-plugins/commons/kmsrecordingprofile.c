@@ -100,7 +100,7 @@ kms_recording_profile_create_mp4_profile (gboolean has_audio,
   gst_caps_unref (pc);
 
   if (has_audio) {
-    GstCaps *ac = gst_caps_from_string ("audio/mpeg,mpegversion=1,layer=3");
+    GstCaps *ac = gst_caps_from_string ("audio/mpeg,mpegversion=4");
 
     gst_encoding_container_profile_add_profile (cprof, (GstEncodingProfile *)
         gst_encoding_audio_profile_new (ac, NULL, NULL, 0));
