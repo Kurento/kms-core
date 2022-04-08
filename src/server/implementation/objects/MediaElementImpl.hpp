@@ -117,8 +117,6 @@ public:
   virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>
                                        details) override;
 
-  virtual void setOutputBitrate (int bitrate) override;
-
   bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType) override;
   bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType,
                          const std::string &sinkMediaDescription) override;
@@ -129,14 +127,8 @@ public:
   bool isMediaTranscoding (std::shared_ptr<MediaType> mediaType,
                            const std::string &binName) override;
 
-  virtual int getMinOuputBitrate () override;
-  virtual void setMinOuputBitrate (int minOuputBitrate) override;
-
   virtual int getMinOutputBitrate () override;
   virtual void setMinOutputBitrate (int minOutputBitrate) override;
-
-  virtual int getMaxOuputBitrate () override;
-  virtual void setMaxOuputBitrate (int maxOuputBitrate) override;
 
   virtual int getMaxOutputBitrate () override;
   virtual void setMaxOutputBitrate (int maxOutputBitrate) override;
@@ -168,7 +160,7 @@ protected:
                             &latencyStats, const GstStructure *stats);
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
                                 &report, const GstStructure *stats,
-                                double timestamp, int64_t timestampMillis);
+                                int64_t timestampMillis);
 
   virtual void prepareSinkConnection (std::shared_ptr<MediaElement> src,
                                       std::shared_ptr<MediaType> mediaType,

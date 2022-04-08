@@ -116,13 +116,6 @@ std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChildren ()
   return children;
 }
 
-std::vector<std::shared_ptr<MediaObject>> MediaObjectImpl::getChilds ()
-{
-  GST_ERROR ("Deprecated property. Use getChildren instead of this property");
-
-  return getChildren ();
-}
-
 bool MediaObjectImpl::getSendTagsInEvents ()
 {
   return this->sendTagsInEvents;

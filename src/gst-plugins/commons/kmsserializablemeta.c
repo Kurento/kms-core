@@ -85,13 +85,6 @@ kms_serializable_meta_get_info (void)
   return initialization_value;
 }
 
-KmsSerializableMeta *
-kms_buffer_get_serializable_meta (GstBuffer * b)
-{
-  return ((KmsSerializableMeta *) gst_buffer_get_meta ((b),
-          KMS_SERIALIZABLE_META_API_TYPE));
-}
-
 gboolean
 add_fields_to_structure (GQuark field_id, const GValue * value, gpointer st)
 {

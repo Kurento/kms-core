@@ -1255,25 +1255,6 @@ std::string MediaElementImpl::getGstreamerDot()
       std::make_shared<GstreamerDotDetails>(GstreamerDotDetails::SHOW_VERBOSE));
 }
 
-void MediaElementImpl::setOutputBitrate (int bitrate)
-{
-  GST_WARNING ("setOutputBitrate method is deprecated, use properties "
-               "minOutputBitrate and maxOutputBitrate");
-  g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, bitrate,
-                MAX_OUTPUT_BITRATE, bitrate, NULL);
-}
-
-int MediaElementImpl::getMinOuputBitrate ()
-{
-  gint bitrate;
-
-  GST_WARNING ("minOuputBitrate property is deprecated, use property "
-               "minOutputBitrate");
-  g_object_get (G_OBJECT (element), MIN_OUTPUT_BITRATE, &bitrate, NULL);
-
-  return bitrate;
-}
-
 int MediaElementImpl::getMinOutputBitrate ()
 {
   gint bitrate;
@@ -1283,29 +1264,10 @@ int MediaElementImpl::getMinOutputBitrate ()
   return bitrate;
 }
 
-void MediaElementImpl::setMinOuputBitrate (int minOuputBitrate)
-{
-  GST_WARNING ("minOuputBitrate property is deprecated, use property "
-               "minOutputBitrate");
-  g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, minOuputBitrate,
-                NULL);
-}
-
 void MediaElementImpl::setMinOutputBitrate (int minOutputBitrate)
 {
   g_object_set (G_OBJECT (element), MIN_OUTPUT_BITRATE, minOutputBitrate,
                 NULL);
-}
-
-int MediaElementImpl::getMaxOuputBitrate ()
-{
-  gint bitrate;
-
-  GST_WARNING ("maxOuputBitrate property is deprecated, use property "
-               "maxOutputBitrate");
-  g_object_get (G_OBJECT (element), MAX_OUTPUT_BITRATE, &bitrate, NULL);
-
-  return bitrate;
 }
 
 int MediaElementImpl::getMaxOutputBitrate ()
@@ -1315,14 +1277,6 @@ int MediaElementImpl::getMaxOutputBitrate ()
   g_object_get (G_OBJECT (element), MAX_OUTPUT_BITRATE, &bitrate, NULL);
 
   return bitrate;
-}
-
-void MediaElementImpl::setMaxOuputBitrate (int maxOuputBitrate)
-{
-  GST_WARNING ("maxOuputBitrate property is deprecated, use property "
-               "maxOutputBitrate");
-  g_object_set (G_OBJECT (element), MAX_OUTPUT_BITRATE, maxOuputBitrate,
-                NULL);
 }
 
 void MediaElementImpl::setMaxOutputBitrate (int maxOutputBitrate)
@@ -1344,7 +1298,7 @@ std::map <std::string, std::shared_ptr<Stats>>
   const int64_t timestampMillis =
       std::chrono::duration_cast<std::chrono::milliseconds> (epoch).count ();
 
-  fillStatsReport(statsReport, stats, time(nullptr), timestampMillis);
+  fillStatsReport(statsReport, stats, timestampMillis);
 
   gst_structure_free (stats);
 
@@ -1430,26 +1384,11 @@ MediaElementImpl::collectLatencyStats (
   }
 }
 
-static void
-setDeprecatedProperties (std::shared_ptr<ElementStats> eStats)
-{
-  std::vector<std::shared_ptr<MediaLatencyStat>> inStats =
-        eStats->getInputLatency();
-
-  for (auto &inStat : inStats) {
-    if (inStat->getName() == "sink_audio_default") {
-      eStats->setInputAudioLatency(inStat->getAvg());
-    } else if (inStat->getName() == "sink_video_default") {
-      eStats->setInputVideoLatency(inStat->getAvg());
-    }
-  }
-}
-
 void
-MediaElementImpl::fillStatsReport (std::map
-                                   <std::string, std::shared_ptr<Stats>>
-                                   &report, const GstStructure *stats,
-                                   double timestamp, int64_t timestampMillis)
+MediaElementImpl::fillStatsReport (
+    std::map<std::string, std::shared_ptr<Stats>> &report,
+    const GstStructure *stats,
+    int64_t timestampMillis)
 {
   std::shared_ptr<Stats> elementStats;
   GstStructure *latencies;
@@ -1487,13 +1426,10 @@ MediaElementImpl::fillStatsReport (std::map
     eStats->setInputLatency (inputLatencies);
   } else {
     elementStats = std::make_shared <ElementStats> (getId (),
-                   std::make_shared <StatsType> (StatsType::element), timestamp,
-                   timestampMillis, 0.0, 0.0, inputLatencies);
+                   std::make_shared <StatsType> (StatsType::element),
+                   timestampMillis, inputLatencies);
     report[getId ()] = elementStats;
   }
-
-  setDeprecatedProperties (std::dynamic_pointer_cast <ElementStats>
-                           (report[getId ()]) );
 }
 
 bool MediaElementImpl::isMediaFlowingIn (std::shared_ptr<MediaType> mediaType)

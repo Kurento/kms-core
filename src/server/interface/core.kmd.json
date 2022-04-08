@@ -106,14 +106,6 @@
           "final": true
         },
         {
-          "name": "childs",
-          "doc": "Children of this <code>MediaObject</code>.
-@deprecated Use children instead.
-          ",
-          "type": "MediaObject[]",
-          "readOnly": true
-        },
-        {
           "name": "children",
           "doc": "Children of this <code>MediaObject</code>.",
           "type": "MediaObject[]",
@@ -1219,17 +1211,6 @@ If the negotiation process is not complete, it will return NULL.
           }
         },
         {
-          "name": "setOutputBitrate",
-          "doc": "@deprecated\nAllows change the target bitrate for the media output, if the media is encoded using VP8 or H264. This method only works if it is called before the media starts to flow.",
-          "params": [
-            {
-              "name": "bitrate",
-              "doc": "Configure the enconding media bitrate in bps",
-              "type": "int"
-            }
-          ]
-        },
-        {
           "name": "getStats",
           "doc": "Gets the statistics related to an endpoint. If no media type is specified, it returns statistics for all available types.",
           "params": [
@@ -1315,12 +1296,6 @@ If the negotiation process is not complete, it will return NULL.
       ],
       "properties": [
         {
-          "name": "minOuputBitrate",
-          "doc": "Minimum video bandwidth for transcoding.
-@deprecated Deprecated due to a typo. Use :rom:meth:`minOutputBitrate` instead of this function.",
-          "type": "int"
-        },
-        {
           "name": "minOutputBitrate",
           "doc": "Minimum video bitrate for transcoding.
 <ul>
@@ -1328,12 +1303,6 @@ If the negotiation process is not complete, it will return NULL.
   <li>Default: 0.</li>
 </ul>
           ",
-          "type": "int"
-        },
-        {
-          "name": "maxOuputBitrate",
-          "doc": "Maximum video bandwidth for transcoding.
-@deprecated Deprecated due to a typo. Use :rom:meth:`maxOutputBitrate` instead of this function.",
           "type": "int"
         },
         {
@@ -1676,11 +1645,6 @@ If the negotiation process is not complete, it will return NULL.
           "type": "StatsType"
         },
         {
-          "name": "timestamp",
-          "doc": "[DEPRECATED: Use timestampMillis] The timestamp associated with this object: Seconds elapsed since the UNIX Epoch (Jan 1, 1970, UTC).",
-          "type": "double"
-        },
-        {
           "name": "timestampMillis",
           "doc": "The timestamp associated with this event: Milliseconds elapsed since the UNIX Epoch (Jan 1, 1970, UTC).",
           "type": "int64"
@@ -1694,16 +1658,6 @@ If the negotiation process is not complete, it will return NULL.
       "extends" : "Stats",
       "properties": [
         {
-          "name": "inputAudioLatency",
-          "doc": "@deprecated\nAudio average measured on the sink pad in nano seconds",
-          "type": "double"
-        },
-        {
-          "name": "inputVideoLatency",
-          "doc": "@deprecated\nVideo average measured on the sink pad in nano seconds",
-          "type": "double"
-        },
-        {
           "name": "inputLatency",
           "doc": "The average time that buffers take to get on the input pads of this element in nano seconds",
           "type": "MediaLatencyStat[]"
@@ -1716,16 +1670,6 @@ If the negotiation process is not complete, it will return NULL.
       "typeFormat": "REGISTER",
       "extends" : "ElementStats",
       "properties": [
-        {
-          "name": "audioE2ELatency",
-          "doc": "@deprecated\nEnd-to-end audio latency measured in nano seconds",
-          "type": "double"
-        },
-        {
-          "name": "videoE2ELatency",
-          "doc": "@deprecated\nEnd-to-end video latency measured in nano seconds",
-          "type": "double"
-        },
         {
           "name": "E2ELatency",
           "doc": "The average end to end latency for each media stream measured in nano seconds",
@@ -2409,11 +2353,6 @@ If the negotiation process is not complete, it will return NULL.
           "name": "source",
           "doc": "Object that raised the event",
           "type": "MediaObject"
-        },
-        {
-          "name": "timestamp",
-          "doc": "[DEPRECATED: Use timestampMillis] The timestamp associated with this object: Seconds elapsed since the UNIX Epoch (Jan 1, 1970, UTC).",
-          "type": "String"
         },
         {
           "name": "timestampMillis",

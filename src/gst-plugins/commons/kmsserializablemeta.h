@@ -44,21 +44,6 @@ GType kms_serializable_meta_api_get_type (void);
 #define KMS_SERIALIZABLE_META_API_TYPE \
   (kms_serializable_meta_api_get_type())
 
-/**
- * kms_buffer_get_serializable_meta
- *
- * This function is deprecated. Use this function could cause
- * concurrency problems. Use kms_serializable_meta_get_metadata() instead of
- * this one.
- *
- * This function returns the metadata into a buffer.
- *
- * @param b: the buffer which contains the metadata
- * @return The metadata
- */
-KmsSerializableMeta* kms_buffer_get_serializable_meta (GstBuffer * b) __attribute__ ((deprecated));
-
-/* implementation */
 const GstMetaInfo *kms_serializable_meta_get_info (void);
 #define KMS_SERIALIZABLE_META_INFO (kms_serializable_meta_get_info ())
 
