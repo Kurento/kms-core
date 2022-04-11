@@ -81,7 +81,7 @@ function (execute_code_generator)
   )
 
   if (PROCESSOR_RET)
-    message ("Error calling code generator: " ${PROCESSOR_OUTPUT} )
+    message ("Error calling code generator; command output: " ${PROCESSOR_OUTPUT} )
     message (FATAL_ERROR "Output error: " ${PROCESSOR_ERROR})
   endif ()
 
