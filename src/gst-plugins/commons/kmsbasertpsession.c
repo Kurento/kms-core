@@ -290,19 +290,60 @@ ssrcs_are_mapped (GstElement * ssrcdemux,
   g_signal_emit_by_name (rtcpdemux, "get-local-rr-ssrc-pair", remote_ssrc,
       &local_ssrc_pair);
 
-  return ((local_ssrc != 0) && (local_ssrc_pair == local_ssrc));
+  return ((local_ssrc != SSRC_INVALID) && (local_ssrc_pair == local_ssrc));
 }
 
 static void
-kms_base_rtp_session_link_pads (GstPad * src, GstPad * sink)
+kms_base_rtp_session_link_pads (GstPad *src, GstPad *sink)
 {
-  GstPadLinkReturn ret;
+  // Link without the GstPad hierarchy checks.
+  GstPadLinkReturn ret = gst_pad_link_full (src, sink,
+      GST_PAD_LINK_CHECK_DEFAULT & ~GST_PAD_LINK_CHECK_HIERARCHY);
 
-  ret = gst_pad_link_full (src, sink, GST_PAD_LINK_CHECK_CAPS);
   if (ret != GST_PAD_LINK_OK) {
-    GST_ERROR ("Error linking pads (src: %" GST_PTR_FORMAT ", sink: %"
-        GST_PTR_FORMAT "), ret: '%s'", src, sink, gst_pad_link_get_name (ret));
+    GST_ERROR ("Error linking pads, src: %" GST_PTR_FORMAT
+               ", sink: %" GST_PTR_FORMAT ", reason: '%s'",
+        src, sink, gst_pad_link_get_name (ret));
   }
+}
+
+static void
+on_rtcpdemux_new_ssrc_pad (GstElement *rtcpdemux,
+    guint ssrc,
+    GstPad *pad,
+    KmsBaseRtpSession *self)
+{
+  GST_DEBUG_OBJECT (self, "Local SSRC: %u, pad: %" GST_PTR_FORMAT, ssrc, pad);
+
+  KMS_SDP_SESSION_LOCK (self);
+
+  // Link the new pad with the appropriate sink from GstBin.
+  if (self->local_audio_ssrc == ssrc) {
+    GstPad *sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager,
+        self, self->audio_neg);
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref (sink);
+  } else if (self->local_video_ssrc == ssrc) {
+    GstPad *sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager,
+        self, self->video_neg);
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref (sink);
+  } else {
+    GST_ERROR_OBJECT (self,
+        "Local SSRC %u in RTCP doesn't match any SDP media; DATA WILL BE DROPPED",
+        ssrc);
+
+    // Cannot identify which local media corresponds to the SSRC.
+    // The pad cannot be left without linking, so discard into a fakesink.
+    GstElement *fakesink = gst_element_factory_make ("fakesink", NULL);
+    gst_bin_add (GST_BIN (self), fakesink);
+    gst_element_sync_state_with_parent_target_state (fakesink);
+    GstPad *sink = gst_element_get_static_pad (fakesink, "sink");
+    kms_base_rtp_session_link_pads (pad, sink);
+    gst_object_unref(sink);
+  }
+
+  KMS_SDP_SESSION_UNLOCK (self);
 }
 
 static void
@@ -314,8 +355,7 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
   const GstSDPMedia *media;
   GstPad *src, *sink;
 
-  GST_DEBUG_OBJECT (self, "pad: %" GST_PTR_FORMAT " ssrc: %" G_GUINT32_FORMAT,
-      pad, ssrc);
+  GST_DEBUG_OBJECT (self, "Remote SSRC: %u, pad: %" GST_PTR_FORMAT, ssrc, pad);
 
   KMS_SDP_SESSION_LOCK (self);
 
@@ -330,8 +370,9 @@ rtp_ssrc_demux_new_ssrc_pad (GstElement * ssrcdemux, guint ssrc, GstPad * pad,
             ssrcdemux, ssrc, pad)) {
       goto end;
     } else {
-      GST_WARNING_OBJECT (pad,
-          "Ignoring media from non-matching SSRC: %" G_GUINT32_FORMAT, ssrc);
+      GST_ERROR_OBJECT (self,
+          "Remote SSRC %u doesn't match any SDP media; DATA WILL BE DROPPED",
+          ssrc);
 
       media = NULL;
     }
@@ -360,8 +401,8 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
   gboolean added;
+  GstElement *rtcpdemux;
   GstElement *ssrcdemux;
-  GstElement *rtcpdemux;        /* FIXME: Useful for local and remote ssrcs mapping */
   GstPad *src, *sink;
 
   if (GPOINTER_TO_UINT (g_object_get_qdata (G_OBJECT (conn),
@@ -378,8 +419,12 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
     kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   }
 
-  ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
   rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
+
+  g_signal_connect (rtcpdemux, "new-ssrc-pad",
+      G_CALLBACK (on_rtcpdemux_new_ssrc_pad), self);
+
+  ssrcdemux = gst_element_factory_make ("rtpssrcdemux", NULL);
 
   g_object_set_qdata_full (G_OBJECT (ssrcdemux), rtcp_demux_peer_quark (),
       g_object_ref (rtcpdemux), g_object_unref);
@@ -390,6 +435,7 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
   gst_bin_add_many (GST_BIN (self), ssrcdemux, rtcpdemux, NULL);
 
   /* RTP */
+
   src = kms_i_rtp_connection_request_rtp_src (conn);
   sink = gst_element_get_static_pad (ssrcdemux, "sink");
   kms_base_rtp_session_link_pads (src, sink);
@@ -397,15 +443,17 @@ kms_base_rtp_session_add_gst_bundle_elements (KmsBaseRtpSession * self,
   g_object_unref (sink);
 
   /* RTCP */
+
   src = kms_i_rtp_connection_request_rtcp_src (conn);
   sink = gst_element_get_static_pad (rtcpdemux, "sink");
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
+
   gst_element_link_pads (rtcpdemux, "rtcp_src", ssrcdemux, "rtcp_sink");
 
-  gst_element_sync_state_with_parent_target_state (ssrcdemux);
   gst_element_sync_state_with_parent_target_state (rtcpdemux);
+  gst_element_sync_state_with_parent_target_state (ssrcdemux);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
 }
@@ -456,34 +504,27 @@ static void
 kms_base_rtp_session_add_gst_rtcp_mux_elements (KmsBaseRtpSession * self,
     KmsIRtpConnection * conn, const GstSDPMedia * media, gboolean active)
 {
-  /* FIXME: Useful for local and remote ssrcs mapping */
-  GstElement *rtcpdemux = gst_element_factory_make ("rtcpdemux", NULL);
   GstPad *src, *sink;
 
   kms_i_rtp_connection_add (conn, GST_BIN (self), active);
   kms_i_rtp_connection_sink_sync_state_with_parent (conn);
-  gst_bin_add (GST_BIN (self), rtcpdemux);
 
   /* RTP */
   src = kms_i_rtp_connection_request_rtp_src (conn);
-  sink = kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
+  sink =
+      kms_i_rtp_session_manager_request_rtp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
   /* RTCP */
-  src = gst_element_get_static_pad (rtcpdemux, "rtcp_src");
-  sink = kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
-  g_object_unref (src);
-  g_object_unref (sink);
-
   src = kms_i_rtp_connection_request_rtcp_src (conn);
-  sink = gst_element_get_static_pad (rtcpdemux, "sink");
+  sink =
+      kms_i_rtp_session_manager_request_rtcp_sink (self->manager, self, media);
   kms_base_rtp_session_link_pads (src, sink);
   g_object_unref (src);
   g_object_unref (sink);
 
-  gst_element_sync_state_with_parent_target_state (rtcpdemux);
   kms_base_rtp_session_link_gst_connection_sink (self, conn, media);
 
   kms_i_rtp_connection_src_sync_state_with_parent (conn);
@@ -542,22 +583,35 @@ kms_base_rtp_session_process_remote_ssrc (KmsBaseRtpSession * self,
   guint ssrc;
 
   ssrc = sdp_utils_media_get_fid_ssrc (remote_media, 0);
-  if (ssrc == 0) {
+  if (ssrc == SSRC_INVALID) {
     ssrc = sdp_utils_media_get_ssrc (remote_media);
   }
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
-    self->remote_audio_ssrc = ssrc;
+    if (ssrc != SSRC_INVALID) {
+      GST_DEBUG_OBJECT (self, "Add remote audio ssrc: %u", ssrc);
+      self->remote_audio_ssrc = ssrc;
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Remote SDP doesn't include audio SSRC");
+    }
+
     if (self->audio_neg != NULL) {
       gst_sdp_media_free (self->audio_neg);
     }
     gst_sdp_media_copy (neg_media, &self->audio_neg);
 
     return AUDIO_RTP_SESSION_STR;
-  } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
-    self->remote_video_ssrc = ssrc;
+  }
+  else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+    if (ssrc != SSRC_INVALID) {
+      GST_DEBUG_OBJECT (self, "Add remote video ssrc: %u", ssrc);
+      self->remote_video_ssrc = ssrc;
+    }
+    else {
+      GST_DEBUG_OBJECT (self, "Remote SDP doesn't include video SSRC");
+    }
+
     if (self->video_neg != NULL) {
       gst_sdp_media_free (self->video_neg);
     }
@@ -817,6 +871,12 @@ kms_base_rtp_session_init (KmsBaseRtpSession * self)
 {
   self->conns =
       g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+
+  self->local_audio_ssrc = SSRC_INVALID;
+  self->remote_audio_ssrc = SSRC_INVALID;
+
+  self->local_video_ssrc = SSRC_INVALID;
+  self->remote_video_ssrc = SSRC_INVALID;
 
   self->stats_enabled = FALSE;
 }
