@@ -222,12 +222,14 @@ set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
 set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}/${CUSTOM_PREFIX}")
 set(requires "gstreamer-1.0 gstreamer-base-1.0 gstreamer-sdp-1.0 gstreamer-pbutils-1.0")
 
-configure_file(kmsgstcommons.pc.in ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc @ONLY)
-
-install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/kmsgstcommons.pc
+configure_file(kmsgstcommons.pc.in
+  ${PROJECT_BINARY_DIR}/kmsgstcommons.pc
+  @ONLY
+)
+install(
+  FILES ${PROJECT_BINARY_DIR}/kmsgstcommons.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
-  )
+)
 
 foreach(HEADER ${KMS_COMMONS_HEADERS})
   list(APPEND FIND_HEADERS commons/${HEADER})
@@ -240,13 +242,12 @@ set(REQUIRED_LIBS
   "gstreamer-pbutils-1.0 ${GST_REQUIRED}"
 )
 
-configure_file(
-  FindKmsGstCommons.cmake.in
-  ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
+configure_file(FindKmsGstCommons.cmake.in
+  ${PROJECT_BINARY_DIR}/FindKmsGstCommons.cmake
   @ONLY
 )
 install(
-  FILES ${CMAKE_BINARY_DIR}/FindKmsGstCommons.cmake
+  FILES ${PROJECT_BINARY_DIR}/FindKmsGstCommons.cmake
   DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cmake/Kurento
 )
 

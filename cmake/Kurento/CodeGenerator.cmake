@@ -80,10 +80,14 @@ function (execute_code_generator)
     RESULT_VARIABLE PROCESSOR_RET
   )
 
-  if (PROCESSOR_RET)
-    message ("Error calling code generator; command output: " ${PROCESSOR_OUTPUT} )
-    message (FATAL_ERROR "Output error: " ${PROCESSOR_ERROR})
-  endif ()
+  if(PROCESSOR_RET)
+    message(
+      FATAL_ERROR
+      "Code generator failed!\n"
+      "**Command stdout**: ${PROCESSOR_OUTPUT}\n"
+      "**Command stderr**: ${PROCESSOR_ERROR}"
+    )
+  endif()
 
   if (DEFINED PARAM_OUTPUT_VARIABLE)
     set (${PARAM_OUTPUT_VARIABLE} ${PROCESSOR_OUTPUT} PARENT_SCOPE)
