@@ -728,8 +728,8 @@ If the negotiation process is not complete, it will return NULL.
     <p>
       The <code>ConnectionStateChangedEvent</code> comes in contrast with more
       instantaneous events such as MediaElement's
-      :rom:attr:`MediaFlowInStateChange` and
-      :rom:attr:`MediaFlowOutStateChange`, which are triggered almost
+      :rom:attr:`MediaFlowInStateChanged` and
+      :rom:attr:`MediaFlowOutStateChanged`, which are triggered almost
       immediately after the RTP data packets stop flowing between RTP session
       participants. This makes the <em>MediaFlow</em> events a good way to
       know if participants are suffering from short-term intermittent
@@ -1002,7 +1002,7 @@ If the negotiation process is not complete, it will return NULL.
   MediaElement internals, but such transcoding has a toll in the form of a
   higher CPU load, so connecting MediaElements that need media encoded in
   different formats is something to consider as a high load operation. The event
-  `MediaTranscodingStateChange` allows to inform the client application of
+  `MediaTranscodingStateChanged` allows to inform the client application of
   whether media transcoding is being enabled or not inside any MediaElement
   object.
 </p>
@@ -1301,7 +1301,7 @@ If the negotiation process is not complete, it will return NULL.
             },
             {
               "name": "binName",
-              "doc": "Internal name of the processing bin, as previously given by ``MediaTranscodingStateChange``.",
+              "doc": "Internal name of the processing bin, as previously given by ``MediaTranscodingStateChanged``.",
               "type": "String",
               "optional": true,
               "defaultValue": "default"
@@ -1352,8 +1352,11 @@ If the negotiation process is not complete, it will return NULL.
         "ElementConnected",
         "ElementDisconnected",
         "MediaFlowOutStateChange",
+        "MediaFlowOutStateChanged",
         "MediaFlowInStateChange",
-        "MediaTranscodingStateChange"
+        "MediaFlowInStateChanged",
+        "MediaTranscodingStateChange",
+        "MediaTranscodingStateChanged"
       ]
     }
   ],
@@ -2542,6 +2545,28 @@ If the negotiation process is not complete, it will return NULL.
     {
       "name": "MediaFlowOutStateChange",
       "extends": "Media",
+      "doc": "@deprecated Use <code>MediaFlowOutStateChanged</code> instead.",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current media state",
+          "type": "MediaFlowState"
+        },
+        {
+          "name": "padName",
+          "doc": "Name of the pad which has media",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is flowing",
+          "type": "MediaType"
+        }
+      ]
+    },
+    {
+      "name": "MediaFlowOutStateChanged",
+      "extends": "Media",
       "doc": "Fired when the outgoing media flow begins or ends. The event contains:
       <ul>
         <li>State: whether the endpoint is sending media (FLOWING) or not (NOT_FLOWING).</li>
@@ -2569,6 +2594,28 @@ If the negotiation process is not complete, it will return NULL.
     {
       "name": "MediaFlowInStateChange",
       "extends": "Media",
+      "doc": "@deprecated Use <code>MediaFlowInStateChanged</code> instead.",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current media state",
+          "type": "MediaFlowState"
+        },
+        {
+          "name": "padName",
+          "doc": "Name of the pad which has media",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is flowing",
+          "type": "MediaType"
+        }
+      ]
+    },
+    {
+      "name": "MediaFlowInStateChanged",
+      "extends": "Media",
       "doc": "Fired when the incoming media flow begins or ends. The event contains:
       <ul>
         <li>State: whether the endpoint is receiving media (FLOWING) or not (NOT_FLOWING).</li>
@@ -2595,6 +2642,28 @@ If the negotiation process is not complete, it will return NULL.
     },
     {
       "name": "MediaTranscodingStateChange",
+      "extends": "Media",
+      "doc": "@deprecated Use <code>MediaTranscodingStateChanged</code> instead.",
+      "properties": [
+        {
+          "name": "state",
+          "doc": "Current transcoding state; either enabled or disabled.",
+          "type": "MediaTranscodingState"
+        },
+        {
+          "name": "binName",
+          "doc": "Name of the GStreamer bin which is processing the media.",
+          "type": "String"
+        },
+        {
+          "name": "mediaType",
+          "doc": "Type of media that is being processed; either audio or video.",
+          "type": "MediaType"
+        }
+      ]
+    },
+    {
+      "name": "MediaTranscodingStateChanged",
       "extends": "Media",
       "doc": "Event fired when an incoming media begins and codec transcoding is either required or not.",
       "properties": [
