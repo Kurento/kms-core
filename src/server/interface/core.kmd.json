@@ -12,7 +12,7 @@
       "java": {
         "packageName": "org.kurento.client",
         "mavenGroupId": "org.kurento",
-        "mavenArtifactId": "kms-api-core"
+        "mavenArtifactId": "kurento-client"
       },
       "js": {
         "nodeName": "kurento-client-core",
