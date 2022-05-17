@@ -517,16 +517,16 @@ MediaElementImpl::processBusMessage (GstMessage *msg)
 }
 
 void
-MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
+MediaElementImpl::mediaFlowOutStateChanged (gboolean isFlowing, gchar *padName,
     KmsElementPadType type)
 {
   std::shared_ptr<MediaFlowState> state;
   if (isFlowing) {
-    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChange: FLOWING"
+    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChanged: FLOWING"
         ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
   } else {
-    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChange: NOT FLOWING"
+    GST_DEBUG_OBJECT (element, "MediaFlowOutStateChanged: NOT FLOWING"
         ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
   }
@@ -549,19 +549,30 @@ MediaElementImpl::mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
     GST_ERROR ("BUG creating %s: %s",
         MediaFlowOutStateChange::getName ().c_str (), e.what ());
   }
+
+  try {
+    MediaFlowOutStateChanged event (shared_from_this (),
+        MediaFlowOutStateChanged::getName (), state, padName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaFlowOutStateChanged, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaFlowOutStateChanged::getName ().c_str (), e.what ());
+  }
 }
 
 void
-MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
+MediaElementImpl::mediaFlowInStateChanged (gboolean isFlowing, gchar *padName,
     KmsElementPadType type)
 {
   std::shared_ptr<MediaFlowState> state;
   if (isFlowing) {
-    GST_DEBUG_OBJECT (element, "MediaFlowInStateChange: FLOWING"
+    GST_DEBUG_OBJECT (element, "MediaFlowInStateChanged: FLOWING"
         ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaFlowState> (MediaFlowState::FLOWING);
   } else {
-    GST_DEBUG_OBJECT (element, "MediaFlowInStateChange: NOT FLOWING"
+    GST_DEBUG_OBJECT (element, "MediaFlowInStateChanged: NOT FLOWING"
         ", pad: '%s', type: '%s'", padName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaFlowState> (MediaFlowState::NOT_FLOWING);
   }
@@ -584,20 +595,31 @@ MediaElementImpl::mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
     GST_ERROR ("BUG creating %s: %s",
         MediaFlowInStateChange::getName ().c_str (), e.what ());
   }
+
+  try {
+    MediaFlowInStateChanged event (shared_from_this (),
+        MediaFlowInStateChanged::getName (), state, padName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaFlowInStateChanged, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaFlowInStateChanged::getName ().c_str (), e.what ());
+  }
 }
 
 void
-MediaElementImpl::onMediaTranscodingStateChange (gboolean isTranscoding,
+MediaElementImpl::onMediaTranscodingStateChanged (gboolean isTranscoding,
     gchar *binName, KmsElementPadType type)
 {
   std::shared_ptr<MediaTranscodingState> state;
   if (isTranscoding) {
-    GST_DEBUG_OBJECT (element, "MediaTranscodingStateChange: TRANSCODING"
+    GST_DEBUG_OBJECT (element, "MediaTranscodingStateChanged: TRANSCODING"
         ", bin: '%s', type: '%s'", binName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaTranscodingState> (
         MediaTranscodingState::TRANSCODING);
   } else {
-    GST_DEBUG_OBJECT (element, "MediaTranscodingStateChange: NOT TRANSCODING"
+    GST_DEBUG_OBJECT (element, "MediaTranscodingStateChanged: NOT TRANSCODING"
         ", bin: '%s', type: '%s'", binName, padTypeToString (type).c_str ());
     state = std::make_shared <MediaTranscodingState> (
         MediaTranscodingState::NOT_TRANSCODING);
@@ -612,12 +634,6 @@ MediaElementImpl::onMediaTranscodingStateChange (gboolean isTranscoding,
   mediaTranscodingStates[key] = state;
 
   try {
-
-  } catch (std::bad_weak_ptr &e) {
-    GST_WARNING_OBJECT (element, "Cannot emit event: MediaTranscodingStateChange");
-  }
-
-  try {
     MediaTranscodingStateChange event (shared_from_this (),
         MediaTranscodingStateChange::getName (), state, binName,
         padTypeToMediaType (type));
@@ -626,6 +642,17 @@ MediaElementImpl::onMediaTranscodingStateChange (gboolean isTranscoding,
     // shared_from_this()
     GST_ERROR ("BUG creating %s: %s",
         MediaTranscodingStateChange::getName ().c_str (), e.what ());
+  }
+
+  try {
+    MediaTranscodingStateChanged event (shared_from_this (),
+        MediaTranscodingStateChanged::getName (), state, binName,
+        padTypeToMediaType (type));
+    sigcSignalEmit(signalMediaTranscodingStateChanged, event);
+  } catch (const std::bad_weak_ptr &e) {
+    // shared_from_this()
+    GST_ERROR ("BUG creating %s: %s",
+        MediaTranscodingStateChanged::getName ().c_str (), e.what ());
   }
 }
 
@@ -651,7 +678,7 @@ MediaElementImpl::postConstructor ()
   mediaFlowOutHandler = register_signal_handler (G_OBJECT (element),
                         "flow-out-media",
                         std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
-                        (std::bind (&MediaElementImpl::mediaFlowOutStateChange, this,
+                        (std::bind (&MediaElementImpl::mediaFlowOutStateChanged, this,
                                     std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
                         std::dynamic_pointer_cast<MediaElementImpl>
                         (shared_from_this() ) );
@@ -659,7 +686,7 @@ MediaElementImpl::postConstructor ()
   mediaFlowInHandler = register_signal_handler (G_OBJECT (element),
                        "flow-in-media",
                        std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
-                       (std::bind (&MediaElementImpl::mediaFlowInStateChange, this,
+                       (std::bind (&MediaElementImpl::mediaFlowInStateChanged, this,
                                    std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
                        std::dynamic_pointer_cast<MediaElementImpl>
                        (shared_from_this() ) );
@@ -667,7 +694,7 @@ MediaElementImpl::postConstructor ()
   mediaTranscodingHandler = register_signal_handler (G_OBJECT (element),
                        "media-transcoding",
                        std::function <void (GstElement *, gboolean, gchar *, KmsElementPadType) >
-                       (std::bind (&MediaElementImpl::onMediaTranscodingStateChange, this,
+                       (std::bind (&MediaElementImpl::onMediaTranscodingStateChanged, this,
                                    std::placeholders::_2, std::placeholders::_3, std::placeholders::_4) ),
                        std::dynamic_pointer_cast<MediaElementImpl>
                        (shared_from_this() ) );

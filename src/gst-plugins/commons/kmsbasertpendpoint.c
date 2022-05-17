@@ -905,15 +905,21 @@ kms_base_rtp_endpoint_request_rtp_sink (KmsIRtpSessionManager * manager,
   GstPad *pad;
 
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    pad =
-        gst_element_get_request_pad (self->priv->rtpbin,
+    pad = gst_element_get_static_pad (self->priv->rtpbin,
         AUDIO_RTPBIN_RECV_RTP_SINK);
+    if (pad == NULL) {
+      pad = gst_element_get_request_pad (self->priv->rtpbin,
+          AUDIO_RTPBIN_RECV_RTP_SINK);
+    }
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    pad =
-        gst_element_get_request_pad (self->priv->rtpbin,
+    pad = gst_element_get_static_pad (self->priv->rtpbin,
         VIDEO_RTPBIN_RECV_RTP_SINK);
+    if (pad == NULL) {
+      pad = gst_element_get_request_pad (self->priv->rtpbin,
+          VIDEO_RTPBIN_RECV_RTP_SINK);
+    }
   } else {
-    GST_WARNING_OBJECT (self, "Unknown Media RTP will be discarded: '%s'",
+    GST_WARNING_OBJECT (self, "Discarding all RTP from unknown media: '%s'",
         GST_STR_NULL (media_str));
 
     GstElement *fakesink =
@@ -970,23 +976,20 @@ kms_base_rtp_endpoint_request_rtp_src (KmsIRtpSessionManager * manager,
 }
 
 static GstPad *
-kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
-    KmsBaseRtpSession * sess, const GstSDPMedia * media)
+kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager *manager,
+    KmsBaseRtpSession *sess,
+    const GstSDPMedia *media)
 {
   KmsBaseRtpEndpoint *self = KMS_BASE_RTP_ENDPOINT (manager);
   const gchar *media_str = media ? gst_sdp_media_get_media (media) : NULL;
-  GstPad *pad;
 
+  gchar *pad_name = NULL;
   if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-    pad =
-        gst_element_get_request_pad (self->priv->rtpbin,
-        AUDIO_RTPBIN_RECV_RTCP_SINK);
+    pad_name = g_strdup (AUDIO_RTPBIN_RECV_RTCP_SINK);
   } else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-    pad =
-        gst_element_get_request_pad (self->priv->rtpbin,
-        VIDEO_RTPBIN_RECV_RTCP_SINK);
+    pad_name = g_strdup (VIDEO_RTPBIN_RECV_RTCP_SINK);
   } else {
-    GST_WARNING_OBJECT (self, "Unknown Media RTCP will be discarded: '%s'",
+    GST_WARNING_OBJECT (self, "Discarding all RTCP from unknown media: '%s'",
         GST_STR_NULL (media_str));
 
     GstElement *fakesink =
@@ -994,10 +997,36 @@ kms_base_rtp_endpoint_request_rtcp_sink (KmsIRtpSessionManager * manager,
     g_object_set (fakesink, "async", FALSE, "sync", FALSE, NULL);
     gst_bin_add (GST_BIN (self), fakesink);
     gst_element_sync_state_with_parent (fakesink);
-    pad = gst_element_get_static_pad (fakesink, "sink");
+    return gst_element_get_static_pad (fakesink, "sink");
   }
 
-  return pad;
+  GstPad *rtpbin_sink =
+      gst_element_get_static_pad (self->priv->rtpbin, pad_name);
+  if (rtpbin_sink == NULL) {
+    // Make a new sink pad on the GstBin, and a funnel for it. This allows
+    // multiple upstream elements to push RTCP packets to the same RTCP sink.
+    rtpbin_sink = gst_element_get_request_pad (self->priv->rtpbin, pad_name);
+
+    GstElement *funnel = gst_element_factory_make ("funnel", NULL);
+    gst_bin_add (GST_BIN (manager), funnel);
+    gst_element_sync_state_with_parent_target_state (funnel);
+
+    GstPad *funnel_src = gst_element_get_static_pad (funnel, "src");
+    gst_pad_link (funnel_src, rtpbin_sink);
+
+    g_object_unref (funnel_src);
+  }
+
+  GstPad *funnel_src = gst_pad_get_peer (rtpbin_sink);
+  GstElement *funnel = gst_pad_get_parent_element (funnel_src);
+  GstPad *funnel_sink = gst_element_get_request_pad (funnel, "sink_%u");
+
+  g_object_unref (funnel);
+  g_object_unref (funnel_src);
+  g_object_unref (rtpbin_sink);
+  g_free (pad_name);
+
+  return funnel_sink;
 }
 
 static GstPad *

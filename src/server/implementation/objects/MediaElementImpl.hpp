@@ -25,9 +25,9 @@
 #include <gst/gst.h>
 #include <mutex>
 #include <set>
-#include "MediaFlowOutStateChange.hpp"
-#include "MediaFlowInStateChange.hpp"
-#include "MediaTranscodingStateChange.hpp"
+#include "MediaFlowOutStateChanged.hpp"
+#include "MediaFlowInStateChanged.hpp"
+#include "MediaTranscodingStateChanged.hpp"
 #include "MediaFlowState.hpp"
 #include "MediaTranscodingState.hpp"
 #include "commons/kmselement.h"
@@ -140,8 +140,11 @@ public:
   sigc::signal<void, ElementConnected> signalElementConnected;
   sigc::signal<void, ElementDisconnected> signalElementDisconnected;
   sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
+  sigc::signal<void, MediaFlowOutStateChanged> signalMediaFlowOutStateChanged;
   sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
+  sigc::signal<void, MediaFlowInStateChanged> signalMediaFlowInStateChanged;
   sigc::signal<void, MediaTranscodingStateChange> signalMediaTranscodingStateChange;
+  sigc::signal<void, MediaTranscodingStateChanged> signalMediaTranscodingStateChanged;
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
@@ -187,11 +190,11 @@ private:
   void performConnection (std::shared_ptr <ElementConnectionDataInternal> data);
   std::map <std::string, std::shared_ptr<Stats>> generateStats (
         const gchar *selector);
-  void mediaFlowOutStateChange (gboolean isFlowing, gchar *padName,
-                                KmsElementPadType type);
-  void mediaFlowInStateChange (gboolean isFlowing, gchar *padName,
+  void mediaFlowOutStateChanged (gboolean isFlowing, gchar *padName,
+                                 KmsElementPadType type);
+  void mediaFlowInStateChanged (gboolean isFlowing, gchar *padName,
                                KmsElementPadType type);
-  void onMediaTranscodingStateChange (gboolean isTranscoding, gchar *binName,
+  void onMediaTranscodingStateChanged (gboolean isTranscoding, gchar *binName,
                                       KmsElementPadType type);
   void processBusMessage (GstMessage *msg);
 

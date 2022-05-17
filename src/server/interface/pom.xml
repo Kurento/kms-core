@@ -25,7 +25,7 @@
         <scm>
           <url>https://github.com/Kurento/kms-core</url>
           <connection>scm:git:https://github.com/Kurento/kms-core.git</connection>
-          <developerConnection>scm:git:ssh://git@github.com:Kurento/kms-core.git</developerConnection>
+          <developerConnection>scm:git:ssh://github.com/Kurento/kms-core.git</developerConnection>
         </scm>
 
 </project>

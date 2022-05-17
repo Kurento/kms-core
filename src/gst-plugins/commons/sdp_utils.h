@@ -21,10 +21,14 @@
 #include <gst/sdp/gstsdpmessage.h>
 #include "gstsdpdirection.h"
 
+#include <glib.h> // G_MAXUINT
+
 #define SENDONLY_STR  "sendonly"
 #define RECVONLY_STR  "recvonly"
 #define SENDRECV_STR  "sendrecv"
 #define INACTIVE_STR  "inactive"
+
+#define SSRC_INVALID G_MAXUINT
 
 typedef gboolean (*GstSDPMediaFunc) (const GstSDPMedia *media, gpointer user_data);
 typedef gboolean (*GstSDPIntersectMediaFunc) (const GstSDPAttribute *attr, gpointer user_data);

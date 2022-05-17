@@ -973,12 +973,12 @@ function (generate_kurento_libraries)
 
     if (${Maven_FOUND})
       add_custom_target(java
-        COMMAND ${Maven_EXECUTABLE} package
+        COMMAND ${Maven_EXECUTABLE} clean package
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
       )
 
       add_custom_target(java_install
-        COMMAND ${Maven_EXECUTABLE} install
+        COMMAND ${Maven_EXECUTABLE} clean install
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/java
       )
     else()
