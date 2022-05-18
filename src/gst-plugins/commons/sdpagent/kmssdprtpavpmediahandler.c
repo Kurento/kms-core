@@ -594,6 +594,11 @@ static gboolean
   for (i = 0; i < len; i++) {
     const gchar *fmt, *val;
 
+    if (gst_sdp_media_get_port (answer) == 0) {
+      // No need to include rtpmap attributes for rejected media.
+      continue;
+    }
+
     fmt = gst_sdp_media_get_format (answer, i);
     val = sdp_utils_get_attr_map_value (offer, "rtpmap", fmt);
 
@@ -1081,8 +1086,22 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
   if (gst_sdp_media_formats_len (answer) > 0) {
     port = 1;
   } else {
-    /* Disable media */
+    // Reject media.
+    GST_WARNING_OBJECT (self,
+        "Setting SDP Answer port to 0 (reject media) because SDP Offer didn't contain any supported media formats");
     port = 0;
+
+    // Add the first format from the offer, to conform with the spec:
+    // https://datatracker.ietf.org/doc/html/rfc3264#section-6
+    // > To reject an offered stream, the port number in the corresponding stream in
+    // > the answer MUST be set to zero. At least one MUST be present, as specified
+    // > by SDP.
+    const gchar *fmt = gst_sdp_media_get_format (offer, 0);
+    if (gst_sdp_media_add_format (answer, fmt) != GST_SDP_OK) {
+      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+          "Error adding media format '%s'", fmt);
+      return FALSE;
+    }
   }
 
   if (gst_sdp_media_set_port_info (answer, port, 1) != GST_SDP_OK) {
