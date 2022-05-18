@@ -607,7 +607,7 @@ static gboolean
       if (pt >= 0 && pt <= G_N_ELEMENTS (rtpmaps) && rtpmaps[pt] != NULL) {
         if (kms_sdp_rtp_avp_media_handler_encoding_supported (self, offer,
                 rtpmaps[pt], pt)) {
-          /* Static payload do not nee to be set as rtpmap attribute */
+          /* Static payload do not need to be set as rtpmap attribute */
           continue;
         } else {
           GST_DEBUG ("No static payload '%s' supported", fmt);
@@ -963,6 +963,7 @@ static gboolean
     port = gst_sdp_media_get_port (prev_offer);
     num_ports = gst_sdp_media_get_num_ports (prev_offer);
   } else {
+    GST_WARNING_OBJECT(self, "Rejecting media: %" GST_PTR_FORMAT, offer);
     /* Disable media */
     port = 0;
     num_ports = 1;
@@ -1066,12 +1067,13 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
     fmt = gst_sdp_media_get_format (offer, i);
 
     if (!kms_sdp_rtp_avp_media_handler_format_supported (self, offer, fmt)) {
+      GST_DEBUG_OBJECT (self, "Unsupported media format '%s'", fmt);
       continue;
     }
 
     if (gst_sdp_media_add_format (answer, fmt) != GST_SDP_OK) {
       g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Can add format '%s'", fmt);
+          "Error adding media format '%s'", fmt);
       return FALSE;
     }
   }

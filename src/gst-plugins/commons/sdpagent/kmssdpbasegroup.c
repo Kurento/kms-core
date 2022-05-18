@@ -166,12 +166,13 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
 
   if (mid == NULL) {
     GST_WARNING_OBJECT (val->group,
-        "No mid attribute for media %u. Skipping from group", index);
+        "Skipping from group: No 'mid' attribute for media index %u", index);
     return;
   }
 
   if (gst_sdp_media_get_port (media) == 0) {
-    GST_DEBUG_OBJECT (val->group, "Skpping %s from group", mid);
+    GST_WARNING_OBJECT (val->group,
+        "Skipping from group: Media 'mid:%s' has port 0 (media rejected)", mid);
     return;
   }
 
@@ -187,7 +188,7 @@ append_enabled_medias (KmsSdpHandler * handler, SdpGroupStrVal * val)
   }
 
   if (removed) {
-    GST_WARNING ("Media %s removed from group %s", mid,
+    GST_WARNING ("Media 'mid:%s' removed from group '%s'", mid,
         val->group->priv->semantics);
     return;
   }
