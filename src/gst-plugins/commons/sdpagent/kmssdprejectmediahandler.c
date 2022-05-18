@@ -106,23 +106,25 @@ kms_sdp_reject_media_handler_init_answer (KmsSdpMediaHandler * handler,
 {
   guint i, len;
 
+  GST_WARNING_OBJECT(handler, "Rejecting media: %" GST_PTR_FORMAT, offer);
+
   if (gst_sdp_media_set_media (answer,
           gst_sdp_media_get_media (offer)) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "Can not set '%s' media ttribute", gst_sdp_media_get_media (offer));
+        "Error setting '%s' on rejected media", gst_sdp_media_get_media (offer));
     return FALSE;
   }
 
   if (gst_sdp_media_set_proto (answer,
           gst_sdp_media_get_proto (offer)) != GST_SDP_OK) {
     g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_INVALID_PARAMETER,
-        "Can not set proto '%s' attribute", gst_sdp_media_get_proto (offer));
+        "Error setting proto '%s' on rejected media", gst_sdp_media_get_proto (offer));
     return FALSE;
   }
 
   if (gst_sdp_media_set_port_info (answer, 0, 1) != GST_SDP_OK) {
     g_set_error_literal (error, KMS_SDP_AGENT_ERROR,
-        SDP_AGENT_INVALID_PARAMETER, "Can not set port info attribute");
+        SDP_AGENT_INVALID_PARAMETER, "Error setting port on rejected media");
     return FALSE;
   }
 
