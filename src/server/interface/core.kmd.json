@@ -66,7 +66,7 @@
 <h4>Events</h4>
 <ul>
   <li>
-    <b>ErrorEvent</b>: reports asynchronous error events. It is recommended to
+    <strong>:rom:evt:`Error`<strong>: reports asynchronous error events. It is recommended to
     always subscribe a listener to this event, as regular error from the
     pipeline will be notified through it, instead of through an exception when
     invoking a method.
@@ -373,10 +373,9 @@ It connects several :rom:cls:`endpoints <Endpoint>` together
       "extends": "MediaElement",
       "doc": "Base interface for all end points.
 <p>
-  An Endpoint is a :rom:cls:`MediaElement` that allow :term:`KMS` to interchange
+  An Endpoint is a :rom:cls:`MediaElement` that allows Kurento to exchange
   media contents with external systems, supporting different transport protocols
-  and mechanisms, such as :term:`RTP`, :term:`WebRTC`, :term:`HTTP`, ``file://``
-  URLs, etc.
+  and mechanisms, such as RTP, WebRTC, HTTP(s), ``file://`` URLs, etc.
 </p>
 <p>
   An ``Endpoint`` may contain both sources and sinks for different media types,
@@ -676,27 +675,37 @@ If the negotiation process is not complete, it will return NULL.
 <p>
   All endpoints that rely on the RTP protocol, like the
   <strong>RtpEndpoint</strong> or the <strong>WebRtcEndpoint</strong>, inherit
-  from this class. The endpoint provides information about the connection state
-  and the media state, which can be consulted at any time through the
-  :rom:attr:`mediaState` and the :rom:attr:`connectionState` properties. It is
-  also possible subscribe to events fired when these properties change.
+  from this class. The endpoint provides information about the Connection state
+  and the Media state, which can be consulted at any time through the
+  :rom:attr:`getMediaState` and the :rom:attr:`getConnectionState` methods.
+  It is also possible subscribe to events fired when these properties change:
 </p>
 <ul>
   <li>
-    <strong>ConnectionStateChangedEvent</strong>: This event is raised when the
-    connection between two peers changes. It can have two values:
+    <strong>:rom:evt:`ConnectionStateChanged`</strong>: This event is raised
+    when the connection between two peers changes. It can have two values:
     <ul>
       <li>CONNECTED</li>
       <li>DISCONNECTED</li>
     </ul>
   </li>
   <li>
-    <strong>MediaStateChangedEvent</strong>: This event provides information
-    about the state of the underlying RTP session.
+    <strong>:rom:evt:`MediaStateChanged`</strong>: This event provides
+    information about the state of the underlying RTP session. Possible values
+    are:
+    <ul>
+      <li>CONNECTED: There is an RTCP packet flow between peers.</li>
+      <li>
+        DISCONNECTED: Either no RTCP packets have been received yet, or the
+        remote peer has ended the RTP session with a <code>BYE</code> message,
+        or at least 5 seconds have elapsed since the last RTCP packet was
+        received.
+      </li>
+    </ul>
     <p>
       The standard definition of RTP (<a
-        href='https://tools.ietf.org/html/rfc3550'
-        target='_blank'
+        href=\"https://tools.ietf.org/html/rfc3550\"
+        target=\"_blank\"
         >RFC 3550</a
       >) describes a session as active whenever there is a maintained flow of
       RTCP control packets, regardless of whether there is actual media flowing
@@ -726,10 +735,10 @@ If the negotiation process is not complete, it will return NULL.
       state of RTP media exchange.
     </p>
     <p>
-      The <code>ConnectionStateChangedEvent</code> comes in contrast with more
+      The :rom:evt:`ConnectionStateChanged` comes in contrast with more
       instantaneous events such as MediaElement's
-      :rom:attr:`MediaFlowInStateChanged` and
-      :rom:attr:`MediaFlowOutStateChanged`, which are triggered almost
+      :rom:evt:`MediaFlowInStateChanged` and
+      :rom:evt:`MediaFlowOutStateChanged`, which are triggered almost
       immediately after the RTP data packets stop flowing between RTP session
       participants. This makes the <em>MediaFlow</em> events a good way to
       know if participants are suffering from short-term intermittent
@@ -737,18 +746,6 @@ If the negotiation process is not complete, it will return NULL.
       issues are just spurious network hiccups or are part of a more long-term
       disconnection problem.
     </p>
-    <p>
-      Possible values are:
-    </p>
-    <ul>
-      <li>CONNECTED: There is an RTCP packet flow between peers.</li>
-      <li>
-        DISCONNECTED: Either no RTCP packets have been received yet, or the
-        remote peer has ended the RTP session with a <code>BYE</code> message,
-        or at least 5 seconds have elapsed since the last RTCP packet was
-        received.
-      </li>
-    </ul>
   </li>
 </ul>
 <p>
@@ -930,17 +927,17 @@ If the negotiation process is not complete, it will return NULL.
   The default value is 1200 Bytes. This is the same as in <b>libwebrtc</b> (from
   webrtc.org), as used by
   <a
-    href='https://dxr.mozilla.org/mozilla-central/rev/b5c5ba07d3dbd0d07b66fa42a103f4df2c27d3a2/media/webrtc/trunk/webrtc/media/engine/constants.cc#16'
+    href=\"https://dxr.mozilla.org/mozilla-central/rev/b5c5ba07d3dbd0d07b66fa42a103f4df2c27d3a2/media/webrtc/trunk/webrtc/media/engine/constants.cc#16\"
     >Firefox</a
   >
   or
   <a
-    href='https://codesearch.chromium.org/chromium/src/third_party/webrtc/media/engine/constants.cc?l=15&rcl=6dd488b2e55125644263e4837f1abd950d5e410d'
+    href=\"https://source.chromium.org/chromium/external/webrtc/src/+/6dd488b2e55125644263e4837f1abd950d5e410d:media/engine/constants.cc;l=15\"
     >Chrome</a
   >
   . You can read more about this value in
   <a
-    href='https://groups.google.com/d/topic/discuss-webrtc/gH5ysR3SoZI/discussion'
+    href=\"https://groups.google.com/d/topic/discuss-webrtc/gH5ysR3SoZI/discussion\"
     >Why RTP max packet size is 1200 in WebRTC?</a
   >
   .
