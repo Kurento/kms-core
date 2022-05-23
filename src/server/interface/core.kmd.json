@@ -696,8 +696,8 @@ If the negotiation process is not complete, it will return NULL.
     </ul>
     <p>
       The standard definition of RTP (<a
-        href=\"https://tools.ietf.org/html/rfc3550\"
-        target=\"_blank\"
+        href='https://tools.ietf.org/html/rfc3550'
+        target='_blank'
         >RFC 3550</a
       >) describes a session as active whenever there is a maintained flow of
       RTCP control packets, regardless of whether there is actual media flowing
@@ -919,17 +919,17 @@ If the negotiation process is not complete, it will return NULL.
   The default value is 1200 Bytes. This is the same as in <b>libwebrtc</b> (from
   webrtc.org), as used by
   <a
-    href=\"https://dxr.mozilla.org/mozilla-central/rev/b5c5ba07d3dbd0d07b66fa42a103f4df2c27d3a2/media/webrtc/trunk/webrtc/media/engine/constants.cc#16\"
+    href='https://dxr.mozilla.org/mozilla-central/rev/b5c5ba07d3dbd0d07b66fa42a103f4df2c27d3a2/media/webrtc/trunk/webrtc/media/engine/constants.cc#16'
     >Firefox</a
   >
   or
   <a
-    href=\"https://source.chromium.org/chromium/external/webrtc/src/+/6dd488b2e55125644263e4837f1abd950d5e410d:media/engine/constants.cc;l=15\"
+    href='https://source.chromium.org/chromium/external/webrtc/src/+/6dd488b2e55125644263e4837f1abd950d5e410d:media/engine/constants.cc;l=15'
     >Chrome</a
   >
   . You can read more about this value in
   <a
-    href=\"https://groups.google.com/d/topic/discuss-webrtc/gH5ysR3SoZI/discussion\"
+    href='https://groups.google.com/d/topic/discuss-webrtc/gH5ysR3SoZI/discussion'
     >Why RTP max packet size is 1200 in WebRTC?</a
   >
   .
