@@ -968,7 +968,8 @@ static gboolean
     port = gst_sdp_media_get_port (prev_offer);
     num_ports = gst_sdp_media_get_num_ports (prev_offer);
   } else {
-    GST_WARNING_OBJECT(self, "Rejecting media: %" GST_PTR_FORMAT, offer);
+    GST_WARNING_OBJECT (self, "Rejecting media: '%s'",
+        gst_sdp_media_get_media (offer));
     /* Disable media */
     port = 0;
     num_ports = 1;
@@ -1097,10 +1098,13 @@ kms_sdp_rtp_avp_media_handler_add_answer_attributes_impl (KmsSdpMediaHandler *
     // > the answer MUST be set to zero. At least one MUST be present, as specified
     // > by SDP.
     const gchar *fmt = gst_sdp_media_get_format (offer, 0);
-    if (gst_sdp_media_add_format (answer, fmt) != GST_SDP_OK) {
-      g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
-          "Error adding media format '%s'", fmt);
-      return FALSE;
+    if (fmt != NULL) {
+      // Add the first format, if the SDP Offer had one to start with.
+      if (gst_sdp_media_add_format (answer, fmt) != GST_SDP_OK) {
+        g_set_error (error, KMS_SDP_AGENT_ERROR, SDP_AGENT_UNEXPECTED_ERROR,
+            "Error adding media format '%s'", fmt);
+        return FALSE;
+      }
     }
   }
 
