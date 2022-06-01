@@ -84,20 +84,20 @@ kms_enc_tree_bin_get_name_from_type (EncoderType enc_type)
 }
 
 static void
-set_encoder_configuration (GstElement * encoder, GstStructure * codec_config,
+set_encoder_configuration (GstElement * encoder, GstStructure * codec_configs,
     const gchar * config_name)
 {
-  if (!codec_config || !config_name || !encoder) {
+  if (!codec_configs || !config_name || !encoder) {
     return;
   }
 
-  if (gst_structure_has_field_typed (codec_config, config_name,
+  if (gst_structure_has_field_typed (codec_configs, config_name,
           GST_TYPE_STRUCTURE)) {
     GstStructure *config;
     guint n_props = 0, i;
     GParamSpec **props;
 
-    gst_structure_get (codec_config, config_name, GST_TYPE_STRUCTURE, &config,
+    gst_structure_get (codec_configs, config_name, GST_TYPE_STRUCTURE, &config,
         NULL);
 
     props =
