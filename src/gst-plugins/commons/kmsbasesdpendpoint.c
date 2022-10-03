@@ -1027,15 +1027,15 @@ kms_base_sdp_endpoint_class_init (KmsBaseSdpEndpointClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_MAX_VIDEO_RECV_BW,
       g_param_spec_uint ("max-video-recv-bandwidth",
-          "Maximum video bandwidth for receiving",
-          "Maximum video bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
+          "Maximum inbound bitrate requested by this endpoint.",
+          "Maximum inbound bitrate requested by this endpoint. Unit: kbps (kilobits per second). Default: 0 (unlimited).",
           0, G_MAXUINT32, MAX_VIDEO_RECV_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_MAX_AUDIO_RECV_BW,
       g_param_spec_uint ("max-audio-recv-bandwidth",
-          "Maximum audio bandwidth for receiving",
-          "Maximum audio bandwidth for receiving. Unit: kbps(kilobits per second). 0: unlimited",
+          "Maximum inbound bitrate requested by this endpoint.",
+          "Maximum inbound bitrate requested by this endpoint. Unit: kbps (kilobits per second). Default: 0 (unlimited).",
           0, G_MAXUINT32, MAX_AUDIO_RECV_BW_DEFAULT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
