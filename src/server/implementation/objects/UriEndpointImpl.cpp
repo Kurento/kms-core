@@ -46,12 +46,15 @@ namespace kurento
 
 /*
 Example URI:
-rtsp://us:er:p@ssword@example.com/test.mp4?user=token/s3/request&uri=umsp://example.com:1234/
 
-this should probably be provided by the user like this, with URL-encoding:
-rtsp://us%3Aer:p%40ssword@example.com/test.mp4?user=token%2Fs3%2Frequest&uri=umsp%3A%2F%2Fexample.com%3A1234%2F
+    rtsp://us:er:p@ssword@example.com/test.mp4?user=token/s3/request&uri=umsp://example.com:1234/
 
-TODO: Test with GStreamer >= 1.14 to see how it handles URL-encoded fields.
+Both username and password fields should be provided in URL-encoded form:
+
+    rtsp://us%3Aer:p%40ssword@example.com/test.mp4?user=token/s3/request&uri=umsp://example.com:1234/
+
+GStreamer will use `:` and `@` to break the string, and perform URL-decoding on
+the resulting fields.
 */
 
 void UriEndpointImpl::checkUri ()
