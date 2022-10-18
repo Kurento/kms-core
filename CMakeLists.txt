@@ -57,6 +57,11 @@ endif()
 #       should use gst_element_request_pad_simple() instead.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=deprecated-declarations")
 
+# FIXME GLib < 2.67.1 (Ubuntu 20.04) used `volatile` as if it provided atomic
+#       guarantees, which it doesn't. GCC-11 started warning about this.
+#       Remove this when upgrading to newer systems.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=incompatible-pointer-types")
+
 # Decide between std::regex or boost::regex
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS}")
