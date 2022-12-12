@@ -33,4 +33,4 @@ GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     vp8parse,
     "Vp8parser plugin",
     vp8parser_init, VERSION, GST_LICENSE_UNKNOWN, "Kurento",
-    "http://kurento.com/")
+    "https://kurento.openvidu.io/")

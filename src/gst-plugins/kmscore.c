@@ -89,4 +89,4 @@ GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     kmscore,
     "Kurento core",
     kurento_init, VERSION, GST_LICENSE_UNKNOWN, "Kurento",
-    "http://kurento.com/")
+    "https://kurento.openvidu.io/")
