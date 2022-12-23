@@ -575,7 +575,8 @@ control_duplicates (GstPad * pad, GstPadProbeInfo * info, gpointer data)
       GST_TRACE_OBJECT (pad, "Sending keyframe request");
       return GST_PAD_PROBE_OK;
     } else {
-      GST_TRACE_OBJECT (pad, "Dropping keyframe request");
+      GST_DEBUG_OBJECT (pad,
+          "Dropping keyframe request: Max allowed is 1 per second");
       return GST_PAD_PROBE_DROP;
     }
   }
