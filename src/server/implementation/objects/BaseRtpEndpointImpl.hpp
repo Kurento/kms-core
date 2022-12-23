@@ -49,6 +49,8 @@ public:
 
   virtual ~BaseRtpEndpointImpl ();
 
+  virtual void requestKeyframe () override;
+
   virtual int getMinVideoRecvBandwidth ();
   virtual void setMinVideoRecvBandwidth (int minVideoRecvBandwidth);
 

@@ -1005,6 +1005,14 @@ internal configurations.
         }
       ],
       "methods": [
+        {
+          "name": "requestKeyframe",
+          "doc": "
+Force sending a new keyframe request to the upstream elements in the Kurento
+Pipeline, towards the associated producer. Only valid for video consumers.
+          ",
+          "params": []
+        }
       ],
       "events": [
         "MediaStateChanged",

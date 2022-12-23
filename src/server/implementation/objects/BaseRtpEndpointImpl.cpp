@@ -127,6 +127,19 @@ BaseRtpEndpointImpl::~BaseRtpEndpointImpl ()
 }
 
 void
+BaseRtpEndpointImpl::requestKeyframe ()
+{
+  gboolean ret;
+
+  g_signal_emit_by_name (element, "request-local-key-frame", &ret);
+
+  if (!ret) {
+    throw KurentoException (MEDIA_OBJECT_OPERATION_NOT_SUPPORTED,
+        "Keyframe request failed (must be requested from a subscriber element)");
+  }
+}
+
+void
 BaseRtpEndpointImpl::updateMediaState (guint new_state)
 {
   std::unique_lock<std::recursive_mutex> lock (mutex);
