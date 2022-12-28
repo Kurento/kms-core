@@ -272,8 +272,8 @@ GST_START_TEST (check_bitrate)
   g_object_set (capsfilter, "caps", caps, NULL);
   gst_caps_unref (caps);
 
-  g_object_set (passthrough, "min-output-bitrate", BITRATE,
-      "max-output-bitrate", BITRATE, NULL);
+  g_object_set (passthrough, "target-encoder-bitrate", BITRATE,
+      "min-encoder-bitrate", BITRATE, "max-encoder-bitrate", BITRATE, NULL);
 
   g_object_set_qdata (G_OBJECT (passthrough), video_sink_quark (), capsfilter);
   g_signal_connect (passthrough, "pad-added",
