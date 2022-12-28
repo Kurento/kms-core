@@ -221,7 +221,6 @@ struct _KmsBaseRtpEndpointPrivate
   RtpMediaConfig *audio_config;
   RtpMediaConfig *video_config;
 
-  gint32 target_bitrate;
   guint min_video_recv_bw;
   guint min_video_send_bw;
   guint max_video_send_bw;
@@ -272,7 +271,6 @@ static guint obj_signals[LAST_SIGNAL] = { 0 };
 #define DEFAULT_RTCP_MUX    FALSE
 #define DEFAULT_RTCP_NACK    FALSE
 #define DEFAULT_RTCP_REMB    FALSE
-#define DEFAULT_TARGET_BITRATE    0
 #define MIN_VIDEO_RECV_BW_DEFAULT 0
 #define MIN_VIDEO_SEND_BW_DEFAULT 100  // kbps
 #define MAX_VIDEO_SEND_BW_DEFAULT 500  // kbps
@@ -284,7 +282,6 @@ enum
   PROP_RTCP_MUX,
   PROP_RTCP_NACK,
   PROP_RTCP_REMB,
-  PROP_TARGET_BITRATE,
   PROP_MIN_VIDEO_RECV_BW,
   PROP_MIN_VIDEO_SEND_BW,
   PROP_MAX_VIDEO_SEND_BW,
@@ -2429,9 +2426,6 @@ kms_base_rtp_endpoint_set_property (GObject * object, guint property_id,
     case PROP_RTCP_REMB:
       self->priv->rtcp_remb = g_value_get_boolean (value);
       break;
-    case PROP_TARGET_BITRATE:
-      self->priv->target_bitrate = g_value_get_int (value);
-      break;
     case PROP_MIN_VIDEO_RECV_BW:{
       guint v = g_value_get_uint (value);
 
@@ -2554,9 +2548,6 @@ kms_base_rtp_endpoint_get_property (GObject * object, guint property_id,
       break;
     case PROP_RTCP_REMB:
       g_value_set_boolean (value, self->priv->rtcp_remb);
-      break;
-    case PROP_TARGET_BITRATE:
-      g_value_set_int (value, self->priv->target_bitrate);
       break;
     case PROP_MIN_VIDEO_RECV_BW:
       g_value_set_uint (value, self->priv->min_video_recv_bw);
@@ -3002,11 +2993,6 @@ kms_base_rtp_endpoint_class_init (KmsBaseRtpEndpointClass * klass)
       g_param_spec_boolean ("rtcp-remb", "RTCP REMB",
           "RTCP REMB", DEFAULT_RTCP_REMB,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_TARGET_BITRATE,
-      g_param_spec_int ("target-bitrate", "Target bitrate",
-          "Target bitrate (bps)", 0, G_MAXINT,
-          DEFAULT_TARGET_BITRATE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_MIN_VIDEO_RECV_BW,
       g_param_spec_uint ("min-video-recv-bandwidth",

@@ -65,9 +65,10 @@ G_DEFINE_TYPE (KmsAgnosticBin2, kms_agnostic_bin2, GST_TYPE_BIN);
 
 #define CONFIGURED_KEY "kms-configured-key"
 
-#define TARGET_BITRATE_DEFAULT 300000
-#define MIN_BITRATE_DEFAULT 0
-#define MAX_BITRATE_DEFAULT G_MAXINT
+#define DEFAULT_TARGET_ENCODER_BITRATE 300000
+#define DEFAULT_MIN_ENCODER_BITRATE 0
+#define DEFAULT_MAX_ENCODER_BITRATE G_MAXINT
+
 #define LEAKY_TIME 600000000    /*600 ms */
 
 enum
@@ -96,8 +97,9 @@ struct _KmsAgnosticBin2Private
 
   GThreadPool *remove_pool;
 
-  gint max_bitrate;
-  gint min_bitrate;
+  gint target_encoder_bitrate;
+  gint min_encoder_bitrate;
+  gint max_encoder_bitrate;
 
   GstStructure *codec_config;
   gboolean bitrate_unlimited;
@@ -108,8 +110,9 @@ struct _KmsAgnosticBin2Private
 enum
 {
   PROP_0,
-  PROP_MIN_BITRATE,
-  PROP_MAX_BITRATE,
+  PROP_TARGET_ENCODER_BITRATE,
+  PROP_MIN_ENCODER_BITRATE,
+  PROP_MAX_ENCODER_BITRATE,
   PROP_CODEC_CONFIG,
   N_PROPERTIES
 };
@@ -672,10 +675,10 @@ kms_agnostic_bin2_create_bin_for_caps (KmsAgnosticBin2 * self, GstCaps * caps)
     return dec_bin;
   }
 
-  enc_bin =
-      kms_enc_tree_bin_new (caps, TARGET_BITRATE_DEFAULT,
-      self->priv->min_bitrate, self->priv->max_bitrate,
+  enc_bin = kms_enc_tree_bin_new (caps, self->priv->target_encoder_bitrate,
+      self->priv->min_encoder_bitrate, self->priv->max_encoder_bitrate,
       self->priv->codec_config);
+
   if (enc_bin == NULL) {
     return NULL;
   }
@@ -1160,7 +1163,7 @@ kms_agnostic_bin_set_encoders_bitrate (KmsAgnosticBin2 * self)
   for (l = bins; l != NULL; l = l->next) {
     if (KMS_IS_ENC_TREE_BIN (l->data)) {
       kms_enc_tree_bin_set_bitrate_limits (KMS_ENC_TREE_BIN (l->data),
-          self->priv->min_bitrate, self->priv->max_bitrate);
+          self->priv->min_encoder_bitrate, self->priv->max_encoder_bitrate);
     }
   }
 }
@@ -1172,42 +1175,53 @@ kms_agnostic_bin2_set_property (GObject * object, guint property_id,
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   switch (property_id) {
-    case PROP_MIN_BITRATE:{
-      gint v;
-
-      v = g_value_get_int (value);
+    case PROP_TARGET_ENCODER_BITRATE: {
+      gint v = g_value_get_int (value);
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      if (v > self->priv->max_bitrate) {
-        v = self->priv->max_bitrate;
-
+      if (v < self->priv->min_encoder_bitrate
+          || v > self->priv->max_encoder_bitrate) {
+        v = DEFAULT_TARGET_ENCODER_BITRATE;
         GST_WARNING_OBJECT (self,
-            "Setting min-bitrate bigger than max-bitrate");
+            "Ignoring out of bounds requested target bitrate; setting default: %d",
+            v);
       }
-
-      self->priv->min_bitrate = v;
-      GST_LOG_OBJECT (self, "min_bitrate configured %d",
-          self->priv->min_bitrate);
+      self->priv->target_encoder_bitrate = v;
+      GST_DEBUG_OBJECT (self, "target-encoder-bitrate set: %d",
+          self->priv->target_encoder_bitrate);
       kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
     }
-    case PROP_MAX_BITRATE:{
-      gint v;
-
+    case PROP_MIN_ENCODER_BITRATE: {
+      gint v = g_value_get_int (value);
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      if (v > self->priv->max_encoder_bitrate) {
+        v = self->priv->max_encoder_bitrate;
+        GST_WARNING_OBJECT (self,
+            "Ignoring requested bitrate min > max; setting max: %d", v);
+      }
+      self->priv->min_encoder_bitrate = v;
+      GST_DEBUG_OBJECT (self, "min-encoder-bitrate set: %d",
+          self->priv->min_encoder_bitrate);
+      kms_agnostic_bin_set_encoders_bitrate (self);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    }
+    case PROP_MAX_ENCODER_BITRATE: {
+      gint v = g_value_get_int (value);
       self->priv->bitrate_unlimited = FALSE;
-      v = g_value_get_int (value);
       KMS_AGNOSTIC_BIN2_LOCK (self);
       if (v == 0) {
         self->priv->bitrate_unlimited = TRUE;
-        v = MAX_BITRATE_DEFAULT;
+        v = DEFAULT_MAX_ENCODER_BITRATE;
+      } else if (v < self->priv->min_encoder_bitrate) {
+        v = self->priv->min_encoder_bitrate;
+        GST_WARNING_OBJECT (self,
+            "Ignoring requested bitrate max < min; setting min: %d", v);
       }
-      if (v < self->priv->min_bitrate) {
-        v = self->priv->min_bitrate;
-
-        GST_WARNING_OBJECT (self, "Setting max-bitrate less than min-bitrate");
-      }
-      self->priv->max_bitrate = v;
-      GST_LOG_OBJECT (self, "max_bitrate configured %d", self->priv->max_bitrate);
+      self->priv->max_encoder_bitrate = v;
+      GST_DEBUG_OBJECT (self, "max-encoder-bitrate set: %d",
+          self->priv->max_encoder_bitrate);
       kms_agnostic_bin_set_encoders_bitrate (self);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
@@ -1234,17 +1248,22 @@ kms_agnostic_bin2_get_property (GObject * object, guint property_id,
   KmsAgnosticBin2 *self = KMS_AGNOSTIC_BIN2 (object);
 
   switch (property_id) {
-    case PROP_MIN_BITRATE:
+    case PROP_TARGET_ENCODER_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
-      g_value_set_int (value, self->priv->min_bitrate);
+      g_value_set_int (value, self->priv->target_encoder_bitrate);
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
-    case PROP_MAX_BITRATE:
+    case PROP_MIN_ENCODER_BITRATE:
+      KMS_AGNOSTIC_BIN2_LOCK (self);
+      g_value_set_int (value, self->priv->min_encoder_bitrate);
+      KMS_AGNOSTIC_BIN2_UNLOCK (self);
+      break;
+    case PROP_MAX_ENCODER_BITRATE:
       KMS_AGNOSTIC_BIN2_LOCK (self);
       if (self->priv->bitrate_unlimited) {
         g_value_set_int (value, 0);
       } else {
-        g_value_set_int (value, self->priv->max_bitrate);
+        g_value_set_int (value, self->priv->max_encoder_bitrate);
       }
       KMS_AGNOSTIC_BIN2_UNLOCK (self);
       break;
@@ -1291,15 +1310,20 @@ kms_agnostic_bin2_class_init (KmsAgnosticBin2Class * klass)
   gstelement_class->release_pad =
       GST_DEBUG_FUNCPTR (kms_agnostic_bin2_release_pad);
 
-  g_object_class_install_property (gobject_class, PROP_MIN_BITRATE,
-      g_param_spec_int ("min-bitrate", "min bitrate",
-          "Configure the min bitrate to media encoding",
-          0, G_MAXINT, MIN_BITRATE_DEFAULT, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_TARGET_ENCODER_BITRATE,
+      g_param_spec_int ("target-encoder-bitrate", "target encoder bitrate",
+          "Target video bitrate for media transcoding (in bps)",
+          0, G_MAXINT, DEFAULT_TARGET_ENCODER_BITRATE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_MAX_BITRATE,
-      g_param_spec_int ("max-bitrate", "max bitrate",
-          "Configure the max bitrate to media encoding",
-          0, G_MAXINT, MAX_BITRATE_DEFAULT, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_MIN_ENCODER_BITRATE,
+      g_param_spec_int ("min-encoder-bitrate", "min encoder bitrate",
+          "Minimum video bitrate for media transcoding (in bps)",
+          0, G_MAXINT, DEFAULT_MIN_ENCODER_BITRATE, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_MAX_ENCODER_BITRATE,
+      g_param_spec_int ("max-encoder-bitrate", "max encoder bitrate",
+          "Maximum video bitrate for media transcoding (in bps)",
+          0, G_MAXINT, DEFAULT_MAX_ENCODER_BITRATE, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_CODEC_CONFIG,
       g_param_spec_boxed ("codec-config", "codec config",
@@ -1473,9 +1497,10 @@ kms_agnostic_bin2_init (KmsAgnosticBin2 * self)
   self->priv->bins =
       g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
   g_rec_mutex_init (&self->priv->thread_mutex);
-  self->priv->min_bitrate = MIN_BITRATE_DEFAULT;
-  self->priv->max_bitrate = MAX_BITRATE_DEFAULT;
-  self->priv->bitrate_unlimited = FALSE;
+  self->priv->target_encoder_bitrate = DEFAULT_TARGET_ENCODER_BITRATE;
+  self->priv->min_encoder_bitrate = DEFAULT_MIN_ENCODER_BITRATE;
+  self->priv->max_encoder_bitrate = DEFAULT_MAX_ENCODER_BITRATE;
+  self->priv->bitrate_unlimited = TRUE;
   self->priv->transcoding_emitted = FALSE;
 }
 
