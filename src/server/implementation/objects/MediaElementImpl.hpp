@@ -127,11 +127,14 @@ public:
   bool isMediaTranscoding (std::shared_ptr<MediaType> mediaType,
                            const std::string &binName) override;
 
-  virtual int getMinOutputBitrate () override;
-  virtual void setMinOutputBitrate (int minOutputBitrate) override;
+  virtual int getEncoderBitrate () override;
+  virtual void setEncoderBitrate (int encoderBitrate) override;
 
-  virtual int getMaxOutputBitrate () override;
-  virtual void setMaxOutputBitrate (int maxOutputBitrate) override;
+  virtual int getMinEncoderBitrate () override;
+  virtual void setMinEncoderBitrate (int minEncoderBitrate) override;
+
+  virtual int getMaxEncoderBitrate () override;
+  virtual void setMaxEncoderBitrate (int maxEncoderBitrate) override;
 
   /* Next methods are automatically implemented by code generator */
   virtual bool connect (const std::string &eventType,
