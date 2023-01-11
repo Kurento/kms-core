@@ -106,7 +106,7 @@ public:
     }
 
     std::stringstream ss;
-    boost::property_tree::write_json (ss, array);
+    boost::property_tree::write_json (ss, array, false);
     GST_DEBUG ("Key '%s' found in config, value: '%s'", key.c_str (),
         ss.str ().c_str ());
 

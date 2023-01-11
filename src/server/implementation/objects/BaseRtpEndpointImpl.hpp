@@ -51,23 +51,23 @@ public:
 
   virtual void requestKeyframe () override;
 
-  virtual int getMinVideoRecvBandwidth ();
-  virtual void setMinVideoRecvBandwidth (int minVideoRecvBandwidth);
+  virtual int getMinVideoRecvBandwidth () override;
+  virtual void setMinVideoRecvBandwidth (int minVideoRecvBandwidth) override;
 
-  virtual int getMinVideoSendBandwidth ();
-  virtual void setMinVideoSendBandwidth (int minVideoSendBandwidth);
+  virtual int getMinVideoSendBandwidth () override;
+  virtual void setMinVideoSendBandwidth (int minVideoSendBandwidth) override;
 
-  virtual int getMaxVideoSendBandwidth ();
-  virtual void setMaxVideoSendBandwidth (int maxVideoSendBandwidth);
+  virtual int getMaxVideoSendBandwidth () override;
+  virtual void setMaxVideoSendBandwidth (int maxVideoSendBandwidth) override;
 
-  virtual std::shared_ptr<MediaState> getMediaState ();
-  virtual std::shared_ptr<ConnectionState> getConnectionState ();
+  virtual std::shared_ptr<MediaState> getMediaState () override;
+  virtual std::shared_ptr<ConnectionState> getConnectionState () override;
 
-  virtual std::shared_ptr<RembParams> getRembParams ();
-  virtual void setRembParams (std::shared_ptr<RembParams> rembParams);
+  virtual std::shared_ptr<RembParams> getRembParams () override;
+  virtual void setRembParams (std::shared_ptr<RembParams> rembParams) override;
 
-  virtual int getMtu ();
-  virtual void setMtu (int mtu);
+  virtual int getMtu () override;
+  virtual void setMtu (int mtu) override;
 
   sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
   sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
@@ -75,15 +75,15 @@ public:
   /* Next methods are automatically implemented by code generator */
   using SdpEndpointImpl::connect;
   virtual bool connect (const std::string &eventType,
-                        std::shared_ptr<EventHandler> handler);
+                        std::shared_ptr<EventHandler> handler) override;
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
-                       Json::Value &response);
+                       Json::Value &response) override;
 
-  virtual void Serialize (JsonSerializer &serializer);
+  virtual void Serialize (JsonSerializer &serializer) override;
 
 protected:
-  virtual void postConstructor ();
+  virtual void postConstructor () override;
   virtual void fillStatsReport (std::map <std::string, std::shared_ptr<Stats>>
                                 &report, const GstStructure *stats,
                                 int64_t timestampMillis);

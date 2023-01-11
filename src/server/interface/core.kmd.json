@@ -17,7 +17,7 @@
       "js": {
         "nodeName": "kurento-client-core",
         "npmDescription": "JavaScript Client API for Kurento Media Server",
-        "npmGit": "Kurento/kurento-client-core-js"
+        "npmGit": "https://github.com/Kurento/kurento-client-core-js.git"
       }
     },
     "implementation": {
@@ -1413,6 +1413,13 @@ Pipeline, towards the associated producer. Only valid for video consumers.
   normally takes place within elements that are able to dynamically change the
   encoding bitrate according to the conditions of the streaming, such as
   :rom:cls:`WebRtcEndpoint`.
+</p>
+<p>
+  This should be left as default in most cases, given that remote WebRTC
+  receivers already send feedback to inform the media server about what is the
+  optimal bitrate to send. Otherwise, this parameter could be used for example
+  to limit the total bitrate that is handled by the server, by setting a low
+  maximum output for all endpoints.
 </p>
 <p>
   This should be left as default in most cases, given that remote WebRTC
